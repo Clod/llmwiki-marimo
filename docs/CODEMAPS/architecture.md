@@ -2,7 +2,7 @@
 
 # Architecture
 
-**llmwiki** — an LLM-powered knowledge base. Raw sources (PDF/DOCX) are ingested
+**llmwiki-marimo** — an LLM-powered knowledge base. Raw sources (PDF/DOCX) are ingested
 into a curated wiki (summaries + concept pages) backed by SQLite. A chat agent
 answers questions wiki-first, falling back to raw source chunks. A lint→repair
 cycle keeps the wiki internally consistent. See `docs/programmer_manual.md` for

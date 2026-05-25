@@ -1,4 +1,4 @@
-# llmwiki — Project Instructions
+# llmwiki-marimo — Project Instructions
 
 ## Skills
 
