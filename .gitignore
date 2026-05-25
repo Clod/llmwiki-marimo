@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+
+# MCP config (contains user IDs)
+.mcp.json
+
+# Build
+.next/
+dist/
+*.egg-info/
+
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LLM Wiki local workspace artifacts
+.llmwiki/
+/wiki/
+/mcp/wiki/
+/emails/
+
+# Deploy
+deploy.sh
+
+# Local Netlify folder
+.netlify
+nvidia-10k-first20.md
+
+.claude
+!.claude/commands/
+.playwright-mcp
+.pytest_cache
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+tests/fixtures/workspace/
+
+# Generated reports (codemap scans, etc.)
+.reports/

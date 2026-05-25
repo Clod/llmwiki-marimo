@@ -1,0 +1,26 @@
+# Wiki Assistant Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Copy this file to your WIKI_PATH directory and rename it to wiki_config.toml.
+# If wiki_config.toml is not present, generic defaults are used.
+
+[assistant]
+
+# System prompt sent to the LLM at the start of every conversation.
+# Describe the assistant's role and knowledge domain for your specific wiki.
+system_prompt = """
+You are a helpful wiki assistant.
+Search the knowledge base to find relevant information and answer questions factually.
+ALWAYS use search_source_chunks before responding — try multiple queries if the first
+returns no results.
+Cite the document name and page number for specific facts.
+If you cannot find relevant information after several searches, say so clearly.
+"""
+
+# Suggested prompts shown as clickable buttons in the chat UI.
+# Tailor these to the topics covered in your wiki.
+suggested_prompts = [
+    "What topics are covered in my wiki?",
+    "Summarize the main documents",
+    "Which documents mention [term]?",
+    "What are the key facts about [topic]?",
+]

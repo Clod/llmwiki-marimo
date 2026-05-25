@@ -1,0 +1,15 @@
+# Test wiki configuration — used by E2E tests pointing at tests/fixtures/workspace/
+
+[assistant]
+system_prompt = """
+You are a helpful wiki assistant for testing purposes.
+ALWAYS use search_source_chunks to find relevant information before answering.
+Cite document name and page for specific facts.
+If you cannot find relevant information after several searches, say so clearly.
+"""
+
+suggested_prompts = [
+    "What documents are in my wiki?",
+    "Summarize the main content",
+    "What topics are covered?",
+]

@@ -1,0 +1,78 @@
+{
+  "type": "grid",
+  "data": {
+    "columns": 24,
+    "rowHeight": 20,
+    "maxWidth": 1900,
+    "bordered": true,
+    "cells": [
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": [
+          0,
+          0,
+          6,
+          32
+        ]
+      },
+      {
+        "position": [
+          0,
+          33,
+          6,
+          9
+        ]
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": [
+          6,
+          0,
+          12,
+          46
+        ]
+      },
+      {
+        "position": [
+          18,
+          0,
+          6,
+          34
+        ]
+      },
+      {
+        "position": [
+          18,
+          34,
+          6,
+          11
+        ]
+      },
+      {
+        "position": null
+      }
+    ]
+  }
+}
