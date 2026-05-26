@@ -228,9 +228,9 @@ def action_buttons(mo, upload, set_ingest_trigger, set_scan_trigger, set_regen_t
 
 
 @app.cell
-def top_section(mo, upload, saved, ingest_btn, log_lines, clear_btn):
-    """Upload + Activity Log side by side."""
-    _upload_col = mo.vstack([
+def upload_section(mo, upload, saved, ingest_btn):
+    """Upload column."""
+    mo.vstack([
         mo.md("### 📂 Upload Documents"),
         mo.md("Supports `.pdf` and `.docx`. Files are saved to `sources/`."),
         upload,
@@ -238,13 +238,15 @@ def top_section(mo, upload, saved, ingest_btn, log_lines, clear_btn):
         ingest_btn,
     ], gap=2)
 
+
+@app.cell(column=1)
+def activity_log(mo, log_lines, clear_btn):
+    """Activity Log — own cell so it re-renders independently during long operations."""
     _lines = log_lines()
-    _log_col = mo.vstack([
+    mo.vstack([
         mo.hstack([mo.md("### 📋 Activity Log"), clear_btn], justify="space-between", align="center"),
         mo.md("\n".join(f"- {line}" for line in _lines)) if _lines else mo.md("_No activity yet._"),
     ], gap=1)
-
-    mo.hstack([_upload_col, _log_col], widths=[1, 1], gap=4)
 
 
 # ── Runner cells sit here so spinners appear directly below the top section ──
