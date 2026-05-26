@@ -111,28 +111,43 @@ def setup():
 
 
 @app.cell
-def libreoffice_check(mo, logger, llm_model, wiki_base_url):
-    """Config summary + LibreOffice status at startup."""
+def libreoffice_check(mo, logger, set_lo_visible):
+    """Check LibreOffice availability and start a 10-second hide timer."""
+    import time as _t
     from domain.ingestion import check_libreoffice
 
     lo = check_libreoffice()
     logger.info("LibreOffice: %s", lo or "NOT FOUND")
 
-    lo_callout = mo.callout(
-        mo.md(f"✅ **LibreOffice found:** `{lo}`"), kind="success",
-    ) if lo else mo.callout(
-        mo.md(
-            "⚠️ **LibreOffice not found** — DOCX files will fail.\n\n"
-            "- **macOS:** `brew install --cask libreoffice`\n"
-            "- **Linux:** `sudo apt-get install libreoffice`\n"
-            "- **Windows:** `winget install TheDocumentFoundation.LibreOffice`"
-        ),
-        kind="warn",
-    )
+    def _hide():
+        _t.sleep(10)
+        set_lo_visible(False)
+
+    mo.Thread(target=_hide).start()
+    return (lo,)
+
+
+@app.cell
+def libreoffice_display(mo, lo, lo_visible, llm_model, wiki_base_url):
+    """Config summary + LibreOffice callout (auto-hides after 10 s)."""
+    if lo_visible():
+        _lo_callout = mo.callout(
+            mo.md(f"✅ **LibreOffice found:** `{lo}`"), kind="success",
+        ) if lo else mo.callout(
+            mo.md(
+                "⚠️ **LibreOffice not found** — DOCX files will fail.\n\n"
+                "- **macOS:** `brew install --cask libreoffice`\n"
+                "- **Linux:** `sudo apt-get install libreoffice`\n"
+                "- **Windows:** `winget install TheDocumentFoundation.LibreOffice`"
+            ),
+            kind="warn",
+        )
+    else:
+        _lo_callout = mo.Html("")
 
     mo.vstack([
         mo.md(f"**LLM:** `{llm_model}` via `{wiki_base_url}`"),
-        lo_callout,
+        _lo_callout,
     ], gap=1)
 
 
@@ -149,12 +164,14 @@ def op_state(mo):
     scan_trigger,   set_scan_trigger   = mo.state(None)
     regen_trigger,  set_regen_trigger  = mo.state(None)
     delete_trigger, set_delete_trigger = mo.state(None)
+    lo_visible, set_lo_visible = mo.state(True)
     return (
         log_lines, set_log_lines,
         ingest_trigger, set_ingest_trigger,
         scan_trigger,   set_scan_trigger,
         regen_trigger,  set_regen_trigger,
         delete_trigger, set_delete_trigger,
+        lo_visible, set_lo_visible,
     )
 
 
