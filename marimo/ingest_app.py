@@ -167,6 +167,7 @@ def op_state(mo):
     regen_trigger,  set_regen_trigger  = mo.state(None)
     lo_visible, set_lo_visible = mo.state(True)
     get_last_handled_event, set_last_handled_event = mo.state(0)
+    running_op, set_running_op = mo.state(None)
     return (
         log_lines, set_log_lines,
         ingest_trigger, set_ingest_trigger,
@@ -174,6 +175,7 @@ def op_state(mo):
         regen_trigger,  set_regen_trigger,
         lo_visible, set_lo_visible,
         get_last_handled_event, set_last_handled_event,
+        running_op, set_running_op,
     )
 
 
@@ -255,7 +257,7 @@ def activity_log(mo, log_lines, clear_btn):
 def ingest_runner(
     mo, ingest_trigger,
     WORKSPACE, DB_PATH, llm_client, llm_model,
-    set_log_lines, logger,
+    set_log_lines, set_running_op, logger,
 ):
     """Runs ingestion when ingest_trigger changes."""
     mo.stop(ingest_trigger() is None)
@@ -281,12 +283,16 @@ def ingest_runner(
         logger.info("[ingest] %s", msg)
 
     def _run():
-        for _f in _files:
-            _fp = WORKSPACE / "sources" / _f.name
-            if not _fp.exists():
-                _fp.write_bytes(_f.contents)
-            _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
-            logger.info("Result: %s — %s", _result.status, _result.message)
+        set_running_op("ingest")
+        try:
+            for _f in _files:
+                _fp = WORKSPACE / "sources" / _f.name
+                if not _fp.exists():
+                    _fp.write_bytes(_f.contents)
+                _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
+                logger.info("Result: %s — %s", _result.status, _result.message)
+        finally:
+            set_running_op(None)
 
     mo.Thread(target=_run).start()
 
@@ -295,7 +301,7 @@ def ingest_runner(
 def scan_runner(
     mo, scan_trigger,
     WORKSPACE, DB_PATH, llm_client, llm_model,
-    set_log_lines, logger,
+    set_log_lines, set_running_op, logger,
 ):
     """Runs scan when scan_trigger changes."""
     mo.stop(scan_trigger() is None)
@@ -314,14 +320,21 @@ def scan_runner(
         set_log_lines(list(_msgs))
         logger.info("[scan] %s", msg)
 
-    mo.Thread(target=lambda: _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)).start()
+    def _run():
+        set_running_op("scan")
+        try:
+            _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
+        finally:
+            set_running_op(None)
+
+    mo.Thread(target=_run).start()
 
 
 @app.cell
 def regen_runner(
     mo, regen_trigger,
     WORKSPACE, DB_PATH, llm_client, llm_model,
-    set_log_lines, logger,
+    set_log_lines, set_running_op, logger,
 ):
     """Runs wiki regeneration when regen_trigger changes."""
     mo.stop(regen_trigger() is None)
@@ -340,7 +353,30 @@ def regen_runner(
         set_log_lines(list(_msgs))
         logger.info("[regen] %s", msg)
 
-    mo.Thread(target=lambda: _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)).start()
+    def _run():
+        set_running_op("regen")
+        try:
+            _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
+        finally:
+            set_running_op(None)
+
+    mo.Thread(target=_run).start()
+
+
+@app.cell
+def op_spinner(mo, running_op):
+    """Shows a spinner while any background operation is running."""
+    import time as _t
+    _labels = {
+        "ingest": "Ingesting documents…",
+        "scan":   "Scanning sources/…",
+        "regen":  "Regenerating wiki pages…",
+    }
+    _op = running_op()
+    if _op:
+        with mo.status.spinner(title=_labels.get(_op, "Running…")):
+            while running_op() is not None:
+                _t.sleep(0.1)
 
 
 @app.cell
