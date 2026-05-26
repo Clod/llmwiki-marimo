@@ -137,7 +137,7 @@ sources: [{filename}]
 (how this concept relates to the broader domain)
 
 ## Sources
-- [^1]: {filename}
+- {filename}
 
 Output only the markdown."""
 
@@ -151,7 +151,7 @@ Existing page:
 {existing}
 ---
 
-Integrate the new insight. Add the source to the Sources section as [^N]: {filename}.
+Integrate the new insight. Add the source to the Sources section as a new list item: - {filename}.
 Keep all existing content. Output only the updated markdown page."""
 
 _CHAT_CONCEPT_NEW_TEMPLATE = """\
@@ -182,7 +182,7 @@ sources: [chat]
 (how this concept relates to the broader domain)
 
 ## Sources
-- [^1]: Chat synthesis
+- Chat synthesis
 
 Output only the markdown."""
 
@@ -200,7 +200,7 @@ Existing page:
 ---
 
 Merge the new content into the existing page. Add insights, avoid duplication, \
-and add a [^N]: Chat synthesis source entry in the Sources section if not already present.
+and add a `- Chat synthesis` list item in the Sources section if not already present.
 Keep all existing content intact. Output only the updated markdown page."""
 
 _OVERVIEW_SYSTEM = """\

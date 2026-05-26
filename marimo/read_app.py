@@ -267,7 +267,7 @@ def middle_panel(current_content, nav_widget, selected_stem):
     _header = mo.md(f"## {_title}")
 
     _text = (
-        re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', current_content)
+        re.sub(r'- \[\^[^\]]+\]:\s*', '- ', re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', current_content))
         if current_content
         else "*Select a page from the left panel.*"
     )
