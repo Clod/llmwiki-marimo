@@ -61,7 +61,7 @@ marimo/                           # Marimo applications
 │   └── delete_confirm.py             # DeleteConfirmWidget — delete button + inline confirm panel
 └── prototypes/                       # Exploratory notebooks (not imported by apps)
 
-shared/
+database/
 └── sqlite_schema.sql                 # Canonical SQLite schema (CREATE IF NOT EXISTS)
 
 tests/

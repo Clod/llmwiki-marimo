@@ -64,7 +64,7 @@ marimo/                # Marimo notebook apps
 ├── read_app.py            # Read-only viewer + chat (3-column grid)
 └── chat_app.py            # Standalone chat testbed
 
-shared/
+database/
 └── sqlite_schema.sql      # Canonical DB schema
 
 docs/

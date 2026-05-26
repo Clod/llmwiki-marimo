@@ -156,7 +156,7 @@ llmwiki/
 │   │   ├── __init__.py
 │   │   └── delete_confirm.py           # DeleteConfirmWidget (anywidget) — reusable
 │   └── prototypes/                     # Experimental patterns (not imported by apps)
-├── shared/
+├── database/
 │   └── sqlite_schema.sql               # Canonical schema (applied by open_db)
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
@@ -197,7 +197,7 @@ snapshot. `.gitignore` excludes `.llmwiki/` and the raw `sources/`.
 ## 4. Database Schema
 
 **Location:** `workspace/.llmwiki/index.db`. Opened by `domain/tools/db.py:open_db()`,  
-schema applied from `shared/sqlite_schema.sql` on first run. Uses  
+schema applied from `database/sqlite_schema.sql` on first run. Uses  
 `PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON`.
 
 ### Tables

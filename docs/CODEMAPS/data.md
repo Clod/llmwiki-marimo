@@ -2,7 +2,7 @@
 
 # Data Model
 
-Single source of truth: `shared/sqlite_schema.sql`. SQLite, WAL mode,
+Single source of truth: `database/sqlite_schema.sql`. SQLite, WAL mode,
 `PRAGMA foreign_keys=ON`. Applied by `tools/db.py:open_db`. One DB per workspace
 at `workspace/.llmwiki/index.db`.
 
@@ -51,4 +51,4 @@ chunks; `source`/`target` on references.
 ## Migrations
 
 No migration framework — `db.py:_ensure_migration` applies idempotent additions
-on open; `shared/sqlite_schema.sql` is the canonical schema.
+on open; `database/sqlite_schema.sql` is the canonical schema.

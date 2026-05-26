@@ -45,10 +45,10 @@ Do not leave connections open across cell boundaries in marimo notebooks.
 
 ## Schema Management
 
-The canonical schema lives in `shared/sqlite_schema.sql`.
+The canonical schema lives in `database/sqlite_schema.sql`.
 It uses `CREATE TABLE IF NOT EXISTS` throughout — safe to apply on every open.
 
-**Do not modify `shared/sqlite_schema.sql` directly.**
+**Do not modify `database/sqlite_schema.sql` directly.**
 Add structural changes via migration functions (see below).
 
 ### Migrations

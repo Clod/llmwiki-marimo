@@ -20,7 +20,7 @@ base/domain/    Pure domain logic (no UI, no network except LLM)
    ├── chat/       PydanticAI agent + RAG tools
    └── tools/      DB, references graph, FTS search, fs, deletion, git
    │
-shared/            sqlite_schema.sql (single source of DB truth)
+database/            sqlite_schema.sql (single source of DB truth)
 workspace/         per-user data: sources/, wiki/, .llmwiki/index.db
 ```
 

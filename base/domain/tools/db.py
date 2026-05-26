@@ -12,7 +12,7 @@ from typing import Iterator
 
 logger = logging.getLogger(__name__)
 
-_SCHEMA_PATH = Path(__file__).parent.parent.parent.parent / "shared" / "sqlite_schema.sql"
+_SCHEMA_PATH = Path(__file__).parent.parent.parent.parent / "database" / "sqlite_schema.sql"
 
 
 def open_db(db_path: str) -> sqlite3.Connection:
