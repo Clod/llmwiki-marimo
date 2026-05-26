@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 22
+- **Total Sessions**: 23
 - **Last Active**: 2026-05-25
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1247 | Active |
+| `journal-1.md` | ~1295 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 23 | 2026-05-25 | Migrate to pristine standalone repo (llmwiki-marimo) | `f896a9e`, `7e8a7fc`, `81675ee`, `4d250b3` |
 | 22 | 2026-05-25 | Complete §6.8 & §6.7 in programmer manual — chat→wiki cross-linking + RAG scope | `afb0886`, `6552258` |
 | 21 | 2026-05-25 | Implement finish-repair-actions: missing_xref, contradiction, data_gap, gap_filled | `9435a7f`, `180384d`, `8203442`, `aaa282e` |
 | 20 | 2026-05-24 | DeleteConfirmWidget + ruff linter | `4811371`, `5f6b2bb`, `8202224`, `d2ed972`, `972109a`, `a75447c` |
