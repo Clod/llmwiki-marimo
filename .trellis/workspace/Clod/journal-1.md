@@ -1391,3 +1391,49 @@ Pure rename refactor — no logic changed. Each rename updated the directory via
 ### Next Steps
 
 - None - task complete
+
+
+## Session 26: Add wiki-wide lint & repair UI
+
+**Date**: 2026-05-26
+**Task**: Add wiki-wide lint & repair UI
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+Added a wiki-wide lint & repair trigger to the ingest UI.
+
+**New cells in marimo/ingest_app.py**:
+- `lint_repair_widget_cell` — reuses `DeleteConfirmWidget` with lint-specific labels; always enabled (no row-selection prerequisite); placed after Bulk Actions section
+- `lint_repair_runner` — guards on `event_id`, runs `lint_wiki()` then `repair_wiki()` in a `mo.Thread`, streams progress live to the activity log
+
+**Supporting changes**:
+- Added `get_last_lint_event` / `set_last_lint_event` state pair to `op_state` (separate from delete widget's counter)
+- Added `"lint_repair"` label to `op_spinner`
+- Used `import DeleteConfirmWidget as _DeleteConfirmWidget` to avoid marimo's multiple-definitions error
+
+**Lessons learned**:
+- Marimo treats all non-`_` import names as cell-level globals — importing the same name in two cells is a conflict; use underscore alias
+- Cell placement matters for visibility; runner cells can live anywhere but widget cells must be in the main flow
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3cd93a4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
