@@ -1293,3 +1293,46 @@ The project began as a fork of `lucasastorian/llmwiki` (ported from "Supasearch"
 ### Next Steps
 
 - None - task complete
+
+
+## Session 24: Rename project directories to clean names
+
+**Date**: 2026-05-25
+**Task**: Rename project directories to clean names
+
+### Summary
+
+Renamed marimo_new→marimo, api_new→base, shared→database. Updated all active references; 179 unit tests pass.
+
+### Main Changes
+
+Pure rename refactor — no logic changed. Each rename updated the directory via `git mv` and patched all active references (code, tests, docs, codemaps, spec). Archive/journal historical entries left untouched.
+
+| Rename | Commits | Notes |
+|--------|---------|-------|
+| `marimo_new/` → `marimo/` | `c4b044b` | 15 renames + 11 files updated; sys.path var `_marimo_new` → `_marimo` |
+| `api_new/` → `base/` | `2cf873f` | 33 renames + 21 files updated; sys.path var `_api_new` → `_base`; `base/domain/tools/db.py` path literal fixed |
+| `shared/` → `database/` | `ebf3721` | 1 rename (`sqlite_schema.sql`); surgical replacement of `shared/` path form only — general-English uses of "shared" left intact |
+
+**Verification:** `uv run pytest tests/unit/ -x -q` → 179/179 passed.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c4b044b` | (see git log) |
+| `2cf873f` | (see git log) |
+| `ebf3721` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
