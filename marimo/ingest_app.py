@@ -272,7 +272,9 @@ def ingest_runner(
         set_log_lines([f"❌ Import error: {_e}"])
         mo.stop(True)
 
-    _msgs = []
+    _msgs = ["⏳ Ingestion started…"]
+    set_log_lines(list(_msgs))
+
     def _cb(msg):
         _msgs.append(msg)
         set_log_lines(list(_msgs))
@@ -286,10 +288,7 @@ def ingest_runner(
             _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
             logger.info("Result: %s — %s", _result.status, _result.message)
 
-    with mo.status.spinner(title="Ingesting documents…"):
-        _t = mo.Thread(target=_run)
-        _t.start()
-        _t.join()
+    mo.Thread(target=_run).start()
 
 
 @app.cell
@@ -307,16 +306,15 @@ def scan_runner(
         set_log_lines([f"❌ Import error: {_e}"])
         mo.stop(True)
 
-    _msgs = []
+    _msgs = ["⏳ Scan started…"]
+    set_log_lines(list(_msgs))
+
     def _cb(msg):
         _msgs.append(msg)
         set_log_lines(list(_msgs))
         logger.info("[scan] %s", msg)
 
-    with mo.status.spinner(title="Scanning sources/…"):
-        _t = mo.Thread(target=lambda: _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb))
-        _t.start()
-        _t.join()
+    mo.Thread(target=lambda: _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)).start()
 
 
 @app.cell
@@ -334,16 +332,15 @@ def regen_runner(
         set_log_lines([f"❌ Import error: {_e}"])
         mo.stop(True)
 
-    _msgs = []
+    _msgs = ["⏳ Regeneration started…"]
+    set_log_lines(list(_msgs))
+
     def _cb(msg):
         _msgs.append(msg)
         set_log_lines(list(_msgs))
         logger.info("[regen] %s", msg)
 
-    with mo.status.spinner(title="Regenerating wiki pages…"):
-        _t = mo.Thread(target=lambda: _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb))
-        _t.start()
-        _t.join()
+    mo.Thread(target=lambda: _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)).start()
 
 
 @app.cell
