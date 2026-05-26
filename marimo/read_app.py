@@ -43,9 +43,9 @@ with app.setup:
     WIKI_PATH = Path(os.environ["WIKI_PATH"])
 
     _project_root = Path(__file__).parent.parent
-    _api_new = str(_project_root / "api_new")
-    if _api_new not in sys.path:
-        sys.path.insert(0, _api_new)
+    _base = str(_project_root / "base")
+    if _base not in sys.path:
+        sys.path.insert(0, _base)
     _marimo = str(_project_root / "marimo")
     if _marimo not in sys.path:
         sys.path.insert(0, _marimo)

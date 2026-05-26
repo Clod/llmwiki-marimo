@@ -49,7 +49,7 @@ The project maps onto Karpathy's three-layer model as follows:
 | ------------------------ | -------------------------------------------------------------------------------------------------- |
 | Raw sources (immutable)  | `WIKI_PATH/sources/*.pdf` / `*.docx`                                                               |
 | Wiki (LLM-generated)     | `WIKI_PATH/wiki/{summaries,concepts}/*.md` + `index.md`, `overview.md`, `log.md`                   |
-| Schema (LLM conventions) | `api_new/domain/chat/config.py:_DEFAULT_SYSTEM_PROMPT` + optional per-workspace `wiki_config.toml` |
+| Schema (LLM conventions) | `base/domain/chat/config.py:_DEFAULT_SYSTEM_PROMPT` + optional per-workspace `wiki_config.toml` |
 
 And onto the "Two Layers of Knowledge" framing:
 
@@ -74,7 +74,7 @@ Two operating principles flow from this:
                             │
                             ▼
               ┌───────────────────────────────┐
-              │   Ingestion Pipeline          │ api_new/domain/ingestion/
+              │   Ingestion Pipeline          │ base/domain/ingestion/
               │   extract → chunk → LLM       │
               │   → summary + concept pages   │
               │   → overview rewrite          │
@@ -89,7 +89,7 @@ Two operating principles flow from this:
               └─────────────┬─────────────────┘
                             ▼
               ┌───────────────────────────────┐
-              │   Chat Agent (multi-phase     │ api_new/domain/chat/
+              │   Chat Agent (multi-phase     │ base/domain/chat/
               │   RAG: wiki → sources → web*) │  (*web pending)
               └─────────────┬─────────────────┘
                             ▼
@@ -99,7 +99,7 @@ Two operating principles flow from this:
               └───────────────────────────────┘
 
               ┌───────────────────────────────┐
-              │   Lint + Repair (orthogonal)  │ api_new/domain/{lint,repair}/
+              │   Lint + Repair (orthogonal)  │ base/domain/{lint,repair}/
               │   Runs on demand or after     │
               │   ingest; auto-fixes safe     │
               │   issues, flags the rest.     │
@@ -115,7 +115,7 @@ are the fallback. Lint and repair keep the wiki internally consistent over time.
 
 ```
 llmwiki/
-├── api_new/
+├── base/
 │   ├── config.py                       # pydantic-settings (.env)
 │   └── domain/
 │       ├── chat/
@@ -302,7 +302,7 @@ running Scan sources (§6.5).
 
 ### 6.1 Lint ✅
 
-**Entry:** `lint_wiki()` — `api_new/domain/lint/runner.py:17`
+**Entry:** `lint_wiki()` — `base/domain/lint/runner.py:17`
 
 Lint is the **verification gate** of the reconciliation cycle: it inspects the
 wiki for internal-consistency defects and reports them, but changes nothing. In
@@ -321,7 +321,7 @@ print(report.summary())             # "3 issue(s): 1 error, 2 warning"
 for issue in report.issues: ...
 ```
 
-**Six checks (`api_new/domain/lint/checks.py`):**
+**Six checks (`base/domain/lint/checks.py`):**
 
 | Check             | Function (line)                | Type                            | Severity       | What it finds                                                                                  |
 | ----------------- | ------------------------------ | ------------------------------- | -------------- | ---------------------------------------------------------------------------------------------- |
@@ -374,7 +374,7 @@ beyond titles (§11.7). Tracked in §11.11.
 
 ### 6.2 Repair ✅
 
-**Entry:** `repair_wiki()` — `api_new/domain/repair/runner.py:30`
+**Entry:** `repair_wiki()` — `base/domain/repair/runner.py:30`
 
 Repair is the **safety net** of the cycle: it consumes a `LintReport` and applies
 automatic fixes where it is safe to do so, skipping anything that needs human
@@ -435,7 +435,7 @@ scan, and regenerate, with an explicit "Run Repair" button. Tracked in §11.11.
 
 ### 6.3 Single-document ingestion ✅
 
-**Entry:** `ingest_file()` — `api_new/domain/ingestion/pipeline.py:88`
+**Entry:** `ingest_file()` — `base/domain/ingestion/pipeline.py:88`
 
 ```python
 result = ingest_file(
@@ -469,7 +469,7 @@ result = ingest_file(
 | 12    | `auto_commit("ingest: ...")`                                                                              | `git_ops.auto_commit`                               |
 | 13    | Optional deterministic lint pass (if `lint_after_ingest=True`)                                            | `lint/runner.lint_wiki`                             |
 
-**LLM prompts used (all in `api_new/domain/ingestion/wiki_generator.py`):**
+**LLM prompts used (all in `base/domain/ingestion/wiki_generator.py`):**
 
 | Prompt               | Template constants                                                                             | Inputs                                                             | Output                                                               | Temperature |
 | -------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- | ----------- |
@@ -512,7 +512,7 @@ uv run pytest tests/unit/test_pipeline_phase2.py -v
 
 ### 6.4 Batch / multi-document ingestion ✅
 
-**Entry:** `batch_ingest()` — `api_new/domain/ingestion/batch.py:20`
+**Entry:** `batch_ingest()` — `base/domain/ingestion/batch.py:20`
 
 ```python
 results = batch_ingest(
@@ -564,7 +564,7 @@ overview×1) which proves the overview is *not* called per file.
 
 ### 6.5 Scan sources folder ✅
 
-**Entry:** `scan_and_ingest()` — `api_new/domain/ingestion/pipeline.py:340`
+**Entry:** `scan_and_ingest()` — `base/domain/ingestion/pipeline.py:340`
 
 Walks `workspace/sources/` recursively, collects `.pdf` / `.docx` files  
 (case-insensitive, skipping hidden entries), and calls `ingest_file()` for each.  
@@ -609,7 +609,7 @@ lint+repair to bring the wiki back into a consistent state.**
 
 ### 6.6 Regenerate wiki pages ✅
 
-**Entry:** `regenerate_wiki_pages()` — `api_new/domain/ingestion/pipeline.py:379`
+**Entry:** `regenerate_wiki_pages()` — `base/domain/ingestion/pipeline.py:379`
 
 Iterates over every `documents` row with `source_kind='source'` and  
 `status='ready'`, reloads the cached page text from `document_pages` (no PDF  
@@ -641,8 +641,8 @@ re-extraction), and re-runs:
 
 ### 6.7 Query / Chat (multi-phase RAG) ✅
 
-**Entry:** `create_agent()` — `api_new/domain/chat/agent.py:12`, paired with  
-the system prompt in `api_new/domain/chat/config.py:7` (`_DEFAULT_SYSTEM_PROMPT`).
+**Entry:** `create_agent()` — `base/domain/chat/agent.py:12`, paired with  
+the system prompt in `base/domain/chat/config.py:7` (`_DEFAULT_SYSTEM_PROMPT`).
 
 This is the most important section for understanding *how answers are*  
 *generated*. The routing is **prompt-driven, not code-driven** — there is no  
@@ -730,8 +730,8 @@ guarantee the LLM does it. Track regressions via the E2E suite.
 
 **Entry:**
 
-- Agent tool: `file_to_wiki()` — `api_new/domain/chat/wiki_tools.py:87`
-- UI-direct (no `RunContext`): `save_to_wiki()` — `api_new/domain/chat/wiki_tools.py:168`
+- Agent tool: `file_to_wiki()` — `base/domain/chat/wiki_tools.py:87`
+- UI-direct (no `RunContext`): `save_to_wiki()` — `base/domain/chat/wiki_tools.py:168`
 
 ```python
 # Agent tool — called by PydanticAI via RunContext
@@ -812,7 +812,7 @@ saves a chat reply, the LLM structures it into a proper page (step 4),
 
 ### 6.9 Source deletion ✅
 
-**Entry:** `delete_source()` — `api_new/domain/tools/deletion.py:11`
+**Entry:** `delete_source()` — `base/domain/tools/deletion.py:11`
 
 ```python
 delete_source(db_path, workspace, doc_id, *, also_delete_file=False)
@@ -835,7 +835,7 @@ dropdown of indexed sources, a confirmation checkbox, and an optional
 
 ### 6.10 Wiki page deletion ✅
 
-**Entry:** `delete_page()` — `api_new/domain/tools/wiki_fs.py:173`
+**Entry:** `delete_page()` — `base/domain/tools/wiki_fs.py:173`
 
 ```python
 delete_page(db_path, workspace, dir_path="/wiki/concepts/", slug="snow-white")
@@ -953,7 +953,7 @@ WIKI_PATH=/path/to/workspace uv run marimo run marimo/read_app.py --port 2720
 
 ## 8. Configuration
 
-### `.env` (loaded by `api_new/config.py` via `pydantic-settings`)
+### `.env` (loaded by `base/config.py` via `pydantic-settings`)
 
 ```ini
 WIKI_PATH=/path/to/workspace

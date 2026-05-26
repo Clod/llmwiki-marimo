@@ -58,14 +58,14 @@ def setup():
     logger.info("Logging ready — debug_mode=%s", debug_mode)
 
     # ── sys.path ──────────────────────────────────────────────────────────────
-    # api_new/ must be inserted AFTER api/ so it takes precedence (last insert
+    # base/ must be inserted AFTER api/ so it takes precedence (last insert
     # at position 0 wins).
     _project_root = Path(__file__).parent.parent
-    _api_new = str(_project_root / "api_new")
-    if _api_new not in sys.path:
-        sys.path.insert(0, _api_new)
+    _base = str(_project_root / "base")
+    if _base not in sys.path:
+        sys.path.insert(0, _base)
 
-    # Force fresh import so api_new/config.py wins over api/config.py
+    # Force fresh import so base/config.py wins over api/config.py
     sys.modules.pop("config", None)
     from config import settings
 

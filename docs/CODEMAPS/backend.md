@@ -1,6 +1,6 @@
 <!-- Generated: 2026-05-25 | Files scanned: 25 | Token estimate: ~950 -->
 
-# Backend (api_new/domain)
+# Backend (base/domain)
 
 Pure domain layer. No web framework — entry points are called directly by the
 marimo apps. Tools derive `workspace = Path(db_path).parent.parent`.

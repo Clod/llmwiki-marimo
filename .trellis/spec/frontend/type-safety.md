@@ -6,19 +6,19 @@
 
 ## Overview
 
-This project uses Python type hints throughout domain code (`api_new/`).
+This project uses Python type hints throughout domain code (`base/`).
 Marimo notebook cells are more loosely typed by necessity — annotations are added
 where they add clarity but are not enforced by a type checker at CI time.
 
 ---
 
-## Domain Code (api_new/)
+## Domain Code (base/)
 
-All public functions in `api_new/` must have full type annotations on parameters
+All public functions in `base/` must have full type annotations on parameters
 and return types.
 
 ```python
-# api_new/domain/ingestion/pipeline.py
+# base/domain/ingestion/pipeline.py
 def ingest_file(
     file_path: Path,
     db_path: str,

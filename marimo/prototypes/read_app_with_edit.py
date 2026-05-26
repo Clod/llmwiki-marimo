@@ -64,9 +64,9 @@ with app.setup:
 
     WIKI_PATH = Path(os.environ["WIKI_PATH"])
 
-    # Make api_new/ importable (api_new wins over api/ for config)
+    # Make base/ importable (base wins over api/ for config)
     _project_root = Path(__file__).parent.parent
-    for _p in [str(_project_root / "api"), str(_project_root / "api_new")]:
+    for _p in [str(_project_root / "api"), str(_project_root / "base")]:
         if _p not in sys.path:
             sys.path.insert(0, _p)
     sys.modules.pop("config", None)

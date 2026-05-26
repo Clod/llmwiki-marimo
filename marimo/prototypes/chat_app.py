@@ -2,7 +2,7 @@
 #
 # Standalone chat testbed for the PydanticAI FTS5 agent.
 # Superseded by the chat panel embedded in marimo/read_app.py, which uses
-# the same agent (api_new/domain/chat/) but integrated into the 3-column layout.
+# the same agent (base/domain/chat/) but integrated into the 3-column layout.
 #
 # Useful to run in isolation when debugging the agent or the FTS5 search tool
 # without starting the full read app.
@@ -36,9 +36,9 @@ with app.setup:
     load_dotenv()
 
     _project_root = Path(__file__).parent.parent
-    _api_new = str(_project_root / "api_new")
-    if _api_new not in sys.path:
-        sys.path.insert(0, _api_new)
+    _base = str(_project_root / "base")
+    if _base not in sys.path:
+        sys.path.insert(0, _base)
     sys.modules.pop("config", None)
 
     from config import settings

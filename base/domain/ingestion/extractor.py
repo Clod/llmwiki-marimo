@@ -1,6 +1,6 @@
 """Text extraction from PDF and DOCX files.
 
-PDF:  opendataloader-pdf (via api_new/domain/ingestion/pdf_extract.py)
+PDF:  opendataloader-pdf (via base/domain/ingestion/pdf_extract.py)
 DOCX: LibreOffice headless → PDF → opendataloader-pdf
 
 Returns list[tuple[int, str]] — (page_number, markdown_content).

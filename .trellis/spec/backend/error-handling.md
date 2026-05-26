@@ -8,7 +8,7 @@
 
 The project distinguishes between two contexts:
 
-1. **Domain functions** (`api_new/`) — return typed result objects; raise only for
+1. **Domain functions** (`base/`) — return typed result objects; raise only for
    truly unrecoverable situations
 2. **Marimo cells** — catch domain exceptions, surface them as UI messages and log entries
 

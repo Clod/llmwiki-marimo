@@ -38,7 +38,7 @@ Apps are self-contained: imports, config, UI, and business logic all live in the
 - `read_app.py` — read-only viewer + FTS5 chat (pages are read-only; content comes from ingest)
 - `chat_app.py` — standalone agent testbed (same PydanticAI agent as read_app, no viewer)
 
-**Shared domain logic** lives in `api_new/domain/` and is imported by the notebooks
+**Shared domain logic** lives in `base/domain/` and is imported by the notebooks
 via `sys.path` manipulation in the `setup` cell.
 
 ---

@@ -6,16 +6,16 @@
 
 ## Overview
 
-The backend is a single self-contained Python package: `api_new/`.
+The backend is a single self-contained Python package: `base/`.
 There is no web server, no HTTP routes, no Postgres, no Supabase.
-Everything runs locally via marimo notebooks that import from `api_new/` directly.
+Everything runs locally via marimo notebooks that import from `base/` directly.
 
 ---
 
 ## Directory Layout
 
 ```
-api_new/                              # Ingestion pipeline + chat agent (self-contained)
+base/                              # Ingestion pipeline + chat agent (self-contained)
 ├── __init__.py
 ├── config.py                         # pydantic-settings — resolves .env from project root
 └── domain/
@@ -65,7 +65,7 @@ shared/
 └── sqlite_schema.sql                 # Canonical SQLite schema (CREATE IF NOT EXISTS)
 
 tests/
-├── conftest.py                       # sys.path for api_new/, pytest_plugins registration
+├── conftest.py                       # sys.path for base/, pytest_plugins registration
 ├── helpers/
 │   ├── fake_llm.py                   # FakeLLMClient — deterministic LLM stub for tests
 │   └── workspace.py                  # tmp_workspace fixture — isolated DB + dir per test
@@ -93,7 +93,7 @@ tests/
 
 ## Module Organization
 
-### api_new/domain/tools/ — the CRUD layer
+### base/domain/tools/ — the CRUD layer
 
 Shared by the ingestion pipeline, the lint system, and the chat agent. Import directly
 from the module (no `__init__.py` re-export needed):
@@ -122,7 +122,7 @@ def _insert_chunks(conn, doc_id, content):
 
 Never use a module-level import of `domain.ingestion.*` inside `domain/tools/`.
 
-### api_new/domain/ingestion/
+### base/domain/ingestion/
 
 Each file has a single responsibility. The public API is assembled in `__init__.py`:
 
@@ -137,7 +137,7 @@ Callers import from the package, not from individual modules:
 from domain.ingestion import ingest_file, check_libreoffice
 ```
 
-### api_new/domain/chat/
+### base/domain/chat/
 
 ```python
 from domain.chat.agent import create_agent
@@ -146,14 +146,14 @@ from domain.chat.config import load_config
 
 ### sys.path convention in marimo notebooks
 
-`api_new/` is the only directory added to `sys.path`. The setup block pattern:
+`base/` is the only directory added to `sys.path`. The setup block pattern:
 
 ```python
 _project_root = Path(__file__).parent.parent
-_api_new = str(_project_root / "api_new")
-if _api_new not in sys.path:
-    sys.path.insert(0, _api_new)
-sys.modules.pop("config", None)   # force fresh import of api_new/config.py
+_base = str(_project_root / "base")
+if _base not in sys.path:
+    sys.path.insert(0, _base)
+sys.modules.pop("config", None)   # force fresh import of base/config.py
 from config import settings
 ```
 

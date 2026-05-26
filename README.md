@@ -50,7 +50,7 @@ The `wiki/` directory is its own git repo, so every ingest is a trackable snapsh
 ## Project structure
 
 ```
-api_new/                   # Ingestion pipeline + chat agent (self-contained Python)
+base/                   # Ingestion pipeline + chat agent (self-contained Python)
 ├── config.py              # pydantic-settings — reads .env
 └── domain/
     ├── ingestion/         # PDF/DOCX → text → chunks → summary + concept pages

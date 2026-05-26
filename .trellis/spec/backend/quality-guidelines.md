@@ -6,7 +6,7 @@
 
 ## Overview
 
-These standards apply to `api_new/` and `mcp/`.
+These standards apply to `base/` and `mcp/`.
 
 ---
 
@@ -65,7 +65,7 @@ def ingest_file(..., errors: list | None = None):
 
 ### Single-responsibility modules
 
-Each file in `api_new/domain/ingestion/` has one job:
+Each file in `base/domain/ingestion/` has one job:
 - `pipeline.py` — orchestration + DB helpers
 - `extractor.py` — text extraction only
 - `chunker.py` — chunking only

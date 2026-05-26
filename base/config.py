@@ -1,6 +1,6 @@
 """Standalone config for the ingestion pipeline.
 
-Does not import from api/config.py — self-contained so api_new/ can run
+Does not import from api/config.py — self-contained so base/ can run
 without the full api/ dependency tree.
 
 env_file is resolved to an absolute path so the app works regardless of
@@ -10,7 +10,7 @@ the working directory from which marimo is launched.
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Project root = parent of api_new/
+# Project root = parent of base/
 _ENV_FILE = str(Path(__file__).parent.parent / ".env")
 
 

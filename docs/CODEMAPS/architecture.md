@@ -13,7 +13,7 @@ the authoritative §-by-§ spec.
 ```
 marimo/        UI layer (marimo notebooks) — ingest_app, read_app
    │
-api_new/domain/    Pure domain logic (no UI, no network except LLM)
+base/domain/    Pure domain logic (no UI, no network except LLM)
    ├── ingestion/  sources → wiki pages + DB
    ├── lint/       detect wiki inconsistencies → LintReport
    ├── repair/     fix lint issues → RepairReport

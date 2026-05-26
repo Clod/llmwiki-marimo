@@ -7,7 +7,7 @@
 ## Overview
 
 The project uses Python's stdlib `logging` module. There is no third-party logging library.
-Two distinct configurations exist — one for `api_new/` domain code and one for marimo apps.
+Two distinct configurations exist — one for `base/` domain code and one for marimo apps.
 
 ---
 

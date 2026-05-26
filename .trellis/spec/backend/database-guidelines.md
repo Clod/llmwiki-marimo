@@ -7,7 +7,7 @@
 ## Overview
 
 The project uses SQLite for local, single-user deployments.
-The ingestion pipeline (`api_new/`) uses `sqlite3` directly (synchronous).
+The ingestion pipeline (`base/`) uses `sqlite3` directly (synchronous).
 The MCP server (`mcp/`) uses `aiosqlite` (async).
 
 **Never use an ORM.** All queries are raw SQL. This is intentional — the schema is
@@ -17,7 +17,7 @@ simple and ORM abstractions would add complexity without benefit.
 
 ## Opening a Connection
 
-Always use `open_db()` from `api_new/domain/tools/db.py`. It is the single source of
+Always use `open_db()` from `base/domain/tools/db.py`. It is the single source of
 truth for connection setup. Never open a raw `sqlite3.connect()` without setting
 `row_factory` and PRAGMAs.
 
