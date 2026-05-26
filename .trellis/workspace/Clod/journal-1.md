@@ -1245,3 +1245,51 @@ Planned and closed out the last two partial workflows in the programmer manual, 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 23: Migrate to pristine standalone repo (llmwiki-marimo)
+
+**Date**: 2026-05-25
+**Task**: Sever ties from the forked original, establish a clean git history and repo, settle licensing/attribution
+
+### Summary
+
+The project began as a fork of `lucasastorian/llmwiki` (itself ported from "Supasearch") but has diverged so far it's now conceptually a different app. Cut all ties: pristine git history, new repo, old history preserved as an archive, copyright asserted.
+
+### Main Changes
+
+| Area | What |
+|------|------|
+| Pristine history | Created an orphan branch from the current working tree → single `Initial commit: llmwiki-marimo`, discarding the inherited 253-commit history. A safety tag (`archive-full-history`) and the intact old remote guarded the operation; tag deleted at the end. |
+| New repo | Created `Clod/llmwiki-marimo` on GitHub (manual, empty), pushed pristine `master`. Now `origin`. |
+| Archive | Renamed old `Clod/llmwiki` → `Clod/llmwiki-archive` on GitHub; kept as the `archive` remote. Force-completed it by pushing the full history (master at `0354f57`, three commits the old origin had never received). Removed the `upstream` remote (original author). |
+| Rename | Project renamed to **llmwiki-marimo** in `CLAUDE.md` and `docs/CODEMAPS/architecture.md`. The `.llmwiki/` on-disk data dir is unrelated to the repo name and was left untouched. |
+| Licensing | Audited attribution obligations across the full lineage: stock **Apache-2.0**, copyright field never filled in (blank template), **no NOTICE file**, **no source headers** anywhere — so no contractual attribution is triggered; only obligation is to keep the LICENSE file for residual borrowed routines. Filled the copyright line: `Copyright 2026 Claudio Grasso`. |
+
+**Decisions captured:**
+- Pristine slate over preserved history: for a heavily-diverged solo project, history has low practical value (blame/bisect rarely reach into the original's code). Old repo kept as an archive so nothing is truly lost.
+- No credit to the original: app is conceptually different, only a few base routines share similarities, and the Apache license imposed no concrete attribution (no notices to retain, no NOTICE to reproduce).
+
+**Files**: `CLAUDE.md`, `docs/CODEMAPS/architecture.md`, `LICENSE` (plus the orphan `Initial commit` capturing the whole tree).
+
+**Result**: `origin` (llmwiki-marimo) and local `master` in sync at `81675ee`; `archive` (llmwiki-archive) holds the complete original history at `0354f57`.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f896a9e` | Initial commit: llmwiki-marimo |
+| `7e8a7fc` | docs: rename project to llmwiki-marimo in CLAUDE.md and codemap |
+| `81675ee` | docs: assert copyright in LICENSE |
+
+### Testing
+
+- [OK] N/A — repo/licensing migration, no code behavior changed
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
