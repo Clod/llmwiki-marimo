@@ -11,7 +11,7 @@ the authoritative §-by-§ spec.
 ## Layers
 
 ```
-marimo_new/        UI layer (marimo notebooks) — ingest_app, read_app
+marimo/        UI layer (marimo notebooks) — ingest_app, read_app
    │
 api_new/domain/    Pure domain logic (no UI, no network except LLM)
    ├── ingestion/  sources → wiki pages + DB

@@ -169,10 +169,10 @@ that clearly belongs in the DAG.
 
 ```bash
 # Interactive (editable) mode — notebook can be modified
-uv run marimo edit marimo_new/read_app.py --no-sandbox
+uv run marimo edit marimo/read_app.py --no-sandbox
 
 # Run mode — UI is live, notebook source is read-only
-uv run marimo run marimo_new/read_app.py --no-sandbox
+uv run marimo run marimo/read_app.py --no-sandbox
 ```
 
 Use `--no-sandbox` to skip marimo's isolated uv environment for inline

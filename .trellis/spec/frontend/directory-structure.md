@@ -9,14 +9,14 @@
 The frontend is built entirely with [marimo](https://marimo.io) reactive notebooks.
 There is no React, Vue, or traditional web framework — all UI is Python cells rendered by marimo.
 
-All active notebooks live in `marimo_new/`.
+All active notebooks live in `marimo/`.
 
 ---
 
 ## Directory Layout
 
 ```
-marimo_new/
+marimo/
 ├── ingest_app.py          # PDF/DOCX upload → ingestion → wiki generation
 ├── read_app.py            # Read-only wiki viewer + FTS5 chat (3-column grid)
 ├── chat_app.py            # Standalone chat testbed (same agent as read_app)
@@ -59,7 +59,7 @@ via `sys.path` manipulation in the `setup` cell.
 Multi-column layouts are managed through `marimo edit` drag-and-drop, not by code alone:
 
 1. Add `@app.cell(column=N)` to suggest placement
-2. Run `uv run marimo edit marimo_new/<app>.py --no-sandbox`
+2. Run `uv run marimo edit marimo/<app>.py --no-sandbox`
 3. Drag cells to desired columns
 4. Marimo writes `layouts/<app>.grid.json` and sets `layout_file=` in `App()`
 5. Commit both the `.py` and the `.grid.json`
@@ -71,5 +71,5 @@ The `layout_file=` parameter in `App()` is what actually enables multi-column di
 
 ## Examples
 
-- `marimo_new/read_app.py` — 3-column grid: navigation | content | chat
-- `marimo_new/ingest_app.py` — single-column with trigger-capture pattern
+- `marimo/read_app.py` — 3-column grid: navigation | content | chat
+- `marimo/ingest_app.py` — single-column with trigger-capture pattern

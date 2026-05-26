@@ -1,5 +1,5 @@
 """
-E2E test for marimo_new/read_app.py (read-only viewer + FTS5 chat).
+E2E test for marimo/read_app.py (read-only viewer + FTS5 chat).
 
 Prerequisites:
     1. Run test_ingest_app.py first to populate tests/fixtures/workspace/
@@ -71,7 +71,7 @@ def read_app_server() -> str:
     proc = subprocess.Popen(
         [
             str(marimo_bin), "run",
-            "marimo_new/read_app.py",
+            "marimo/read_app.py",
             "--port", str(TEST_PORT),
             "--headless",
             "--no-token",

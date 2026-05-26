@@ -94,7 +94,7 @@ Two operating principles flow from this:
               └─────────────┬─────────────────┘
                             ▼
               ┌───────────────────────────────┐
-              │   Marimo UIs                  │ marimo_new/
+              │   Marimo UIs                  │ marimo/
               │   ingest_app + read_app       │
               └───────────────────────────────┘
 
@@ -148,7 +148,7 @@ llmwiki/
 │           ├── references.py           # citation graph CRUD + queries
 │           ├── search.py               # search_chunks() scoped FTS5
 │           └── wiki_fs.py              # create/read/append/delete_page
-├── marimo_new/
+├── marimo/
 │   ├── ingest_app.py                   # Upload + ingest + scan + regenerate UI
 │   ├── read_app.py                     # 3-pane reader + chat + save_to_wiki
 │   ├── chat_app.py                     # Standalone chat tester
@@ -710,7 +710,7 @@ suggested_prompts = [
 Loaded by `chat/config.py:load_config()` at agent creation time; falls back to  
 the defaults if absent.
 
-**Triggers:** the right panel chat in `marimo_new/read_app.py` (`chat_panel`  
+**Triggers:** the right panel chat in `marimo/read_app.py` (`chat_panel`  
 cell at L174). The agent streams responses via `Agent.iter_stream(...)`.
 
 **Gaps:**
@@ -826,7 +826,7 @@ marked `stale_since = now()` so the lint+repair cycle can prompt regeneration.
 File removal is opt-in (`also_delete_file=True`). Calls  
 `auto_commit(workspace, "delete source: {filename}")` on success.
 
-UI: "🗑 Delete Source" section at the bottom of `marimo_new/ingest_app.py` —  
+UI: "🗑 Delete Source" section at the bottom of `marimo/ingest_app.py` —  
 dropdown of indexed sources, a confirmation checkbox, and an optional  
 "also remove file from sources/" checkbox. The `delete_runner` cell mirrors the  
 `ingest_runner` / `scan_runner` trigger pattern.
@@ -864,7 +864,7 @@ What `delete_page` cleans up atomically:
 
 ## 7. Marimo Apps
 
-Both apps live in `marimo_new/` and are self-contained `uv` scripts — the  
+Both apps live in `marimo/` and are self-contained `uv` scripts — the  
 script header declares their dependencies inline. They share no global state.
 
 ### `ingest_app.py`
@@ -897,7 +897,7 @@ Three-column grid:
 | Right                 | `chat_panel`               | PydanticAI agent stream + suggested prompts                                                            |
 | Right (below chat)    | `save_form`, `save_action` | Saves the last assistant reply to the wiki via `save_to_wiki` with LLM structuring pass                |
 
-#### `DeleteConfirmWidget` (`marimo_new/widgets/delete_confirm.py`)
+#### `DeleteConfirmWidget` (`marimo/widgets/delete_confirm.py`)
 
 An `anywidget.AnyWidget` subclass — the delete button and its confirmation  
 panel are a single self-contained JS/CSS widget. Show/hide is handled entirely  
@@ -926,7 +926,7 @@ if widget.event_id > last_event() and item_name:
     do_deletion(item_name)
 ```
 
-`marimo_new` is added to `sys.path` in `read_app.py`'s setup block so  
+`marimo` is added to `sys.path` in `read_app.py`'s setup block so  
 `from widgets.delete_confirm import DeleteConfirmWidget` resolves correctly.
 
 `scan_pages()` uses `wiki_dir.rglob("*.md")` and returns paths relative to  
@@ -942,11 +942,11 @@ across messages.
 
 ```bash
 # Against $WIKI_PATH from .env
-uv run marimo run marimo_new/ingest_app.py --port 2718
-uv run marimo run marimo_new/read_app.py --port 2720
+uv run marimo run marimo/ingest_app.py --port 2718
+uv run marimo run marimo/read_app.py --port 2720
 
 # Against a specific workspace
-WIKI_PATH=/path/to/workspace uv run marimo run marimo_new/read_app.py --port 2720
+WIKI_PATH=/path/to/workspace uv run marimo run marimo/read_app.py --port 2720
 ```
 
 ---
@@ -1105,9 +1105,9 @@ in §12.
 3. ✅ **Source deletion** (§6.9). `delete_source(db_path, workspace, doc_id, ...)` in
   `tools/deletion.py`. FK cascade cleans up chunks, references, and FTS; dependent  
    wiki pages marked `stale_since`. UI: dropdown + confirm checkbox + `delete_runner`  
-   cell in `marimo_new/ingest_app.py`.
+   cell in `marimo/ingest_app.py`.
 4. ✅ **Wiki page deletion UI button** (§6.10). `DeleteConfirmWidget`
-  (`marimo_new/widgets/delete_confirm.py`) — anywidget-based delete button  
+  (`marimo/widgets/delete_confirm.py`) — anywidget-based delete button  
    with inline JS confirmation panel. Wired into `read_app.py` via  
    `delete_widget_cell` + `delete_event_cell`. Dead-link cleanup and full DB  
    teardown happen inside `wiki_fs.delete_page` automatically.

@@ -91,7 +91,7 @@ def marimo_server() -> str:
     proc = subprocess.Popen(
         [
             str(marimo_bin), "run",
-            "marimo_new/ingest_app.py",
+            "marimo/ingest_app.py",
             "--port", str(TEST_PORT),
             "--headless",
             "--no-token",

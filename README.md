@@ -59,7 +59,7 @@ api_new/                   # Ingestion pipeline + chat agent (self-contained Pyt
     ├── repair/            # Auto-fixes for safe lint issues
     └── tools/             # Native CRUD: wiki_fs, search, references, git_ops, db
 
-marimo_new/                # Marimo notebook apps
+marimo/                # Marimo notebook apps
 ├── ingest_app.py          # Upload → ingest → wiki generation UI
 ├── read_app.py            # Read-only viewer + chat (3-column grid)
 └── chat_app.py            # Standalone chat testbed
@@ -113,7 +113,7 @@ See [LLM providers](#llm-providers) for Ollama and LM Studio config.
 ### 3. Ingest documents
 
 ```bash
-uv run marimo run marimo_new/ingest_app.py --no-sandbox
+uv run marimo run marimo/ingest_app.py --no-sandbox
 ```
 
 Open http://localhost:2718, drop in your PDFs or DOCXs, click **Ingest**.
@@ -121,7 +121,7 @@ Open http://localhost:2718, drop in your PDFs or DOCXs, click **Ingest**.
 ### 4. Read and chat
 
 ```bash
-uv run marimo run marimo_new/read_app.py --no-sandbox
+uv run marimo run marimo/read_app.py --no-sandbox
 ```
 
 Open http://localhost:2718. Select a page on the left, read it in the middle, chat on the right.

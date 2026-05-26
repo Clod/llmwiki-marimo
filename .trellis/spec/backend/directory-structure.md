@@ -51,7 +51,7 @@ api_new/                              # Ingestion pipeline + chat agent (self-co
         ├── tools.py                  # search_source_chunks (raw PDF fallback)
         └── config.py                 # load_config() — reads WIKI_PATH/wiki_config.toml
 
-marimo_new/                           # Marimo applications
+marimo/                           # Marimo applications
 ├── ingest_app.py                     # Upload → ingest → wiki generation
 ├── read_app.py                       # Read-only wiki viewer + FTS5 chat (3-column grid)
 ├── layouts/

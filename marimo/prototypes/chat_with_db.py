@@ -4,7 +4,7 @@
 # into api_new/domain/chat/ and integrated into read_app.py.
 # Uses pydantic-ai[google] + OpenRouter; hardcodes Gemini model names.
 #
-# Superseded by api_new/domain/chat/agent.py + marimo_new/read_app.py.
+# Superseded by api_new/domain/chat/agent.py + marimo/read_app.py.
 # Keep for reference: shows the original search_chunks tool SQL query and
 # how PydanticAI message history was converted from marimo chat messages.
 #

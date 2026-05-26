@@ -6,7 +6,7 @@
 
 ## Overview
 
-These standards apply to all marimo notebooks in `marimo_new/`. They exist to keep
+These standards apply to all marimo notebooks in `marimo/`. They exist to keep
 notebooks readable and to prevent common reactive DAG bugs.
 
 ---

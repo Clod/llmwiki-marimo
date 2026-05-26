@@ -46,9 +46,9 @@ with app.setup:
     _api_new = str(_project_root / "api_new")
     if _api_new not in sys.path:
         sys.path.insert(0, _api_new)
-    _marimo_new = str(_project_root / "marimo_new")
-    if _marimo_new not in sys.path:
-        sys.path.insert(0, _marimo_new)
+    _marimo = str(_project_root / "marimo")
+    if _marimo not in sys.path:
+        sys.path.insert(0, _marimo)
     sys.modules.pop("config", None)
 
     from config import settings

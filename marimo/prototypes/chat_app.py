@@ -1,7 +1,7 @@
 # PROTOTYPE — NOT ACTIVE
 #
 # Standalone chat testbed for the PydanticAI FTS5 agent.
-# Superseded by the chat panel embedded in marimo_new/read_app.py, which uses
+# Superseded by the chat panel embedded in marimo/read_app.py, which uses
 # the same agent (api_new/domain/chat/) but integrated into the 3-column layout.
 #
 # Useful to run in isolation when debugging the agent or the FTS5 search tool

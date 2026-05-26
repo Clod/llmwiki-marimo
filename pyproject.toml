@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [tool.ruff]
-exclude = [".trellis", ".venv", ".claude", ".agent", "marimo_new/prototypes", "rechunk_all.py"]
+exclude = [".trellis", ".venv", ".claude", ".agent", "marimo/prototypes", "rechunk_all.py"]
 line-length = 120
 
 [tool.ruff.lint]

@@ -8,7 +8,7 @@
 #     timing (Playwright tests could not reliably trigger the reactive updates).
 #
 # All wiki content now flows exclusively through the ingest pipeline
-# (marimo_new/ingest_app.py), which keeps disk and DB in sync.
+# (marimo/ingest_app.py), which keeps disk and DB in sync.
 #
 # Keep for reference: it shows the create-page validation pattern, the
 # trigger-capture button pattern, and the hint-cell self-loop workaround.
