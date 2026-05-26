@@ -276,13 +276,18 @@ def ingest_runner(
         set_log_lines(list(_msgs))
         logger.info("[ingest] %s", msg)
 
-    with mo.status.spinner(title="Ingesting documents…"):
+    def _run():
         for _f in _files:
             _fp = WORKSPACE / "sources" / _f.name
             if not _fp.exists():
                 _fp.write_bytes(_f.contents)
             _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
             logger.info("Result: %s — %s", _result.status, _result.message)
+
+    with mo.status.spinner(title="Ingesting documents…"):
+        _t = mo.Thread(target=_run)
+        _t.start()
+        _t.join()
 
 
 @app.cell
@@ -307,7 +312,9 @@ def scan_runner(
         logger.info("[scan] %s", msg)
 
     with mo.status.spinner(title="Scanning sources/…"):
-        _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
+        _t = mo.Thread(target=lambda: _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb))
+        _t.start()
+        _t.join()
 
 
 @app.cell
@@ -332,7 +339,9 @@ def regen_runner(
         logger.info("[regen] %s", msg)
 
     with mo.status.spinner(title="Regenerating wiki pages…"):
-        _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
+        _t = mo.Thread(target=lambda: _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb))
+        _t.start()
+        _t.join()
 
 
 @app.cell
