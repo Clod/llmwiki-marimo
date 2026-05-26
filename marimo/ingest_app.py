@@ -434,8 +434,12 @@ def sources_table_cell(mo, DB_PATH, log_lines):
 
 
 @app.cell
-def also_file_check_cell(mo):
-    """Secondary option — separate cell so it doesn't reset the table selection."""
+def also_file_check_cell(mo, log_lines):
+    """Secondary option — separate cell so it doesn't reset the table selection.
+
+    Depends on log_lines so it resets to unchecked after each operation.
+    """
+    log_lines()
     also_file_check = mo.ui.checkbox(label="Also remove file from sources/")
     also_file_check
     return (also_file_check,)
