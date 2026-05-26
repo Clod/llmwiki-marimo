@@ -7,6 +7,8 @@
 #     "pydantic-settings",
 #     "aiosqlite",
 #     "opendataloader-pdf",
+#     "anywidget",
+#     "traitlets",
 # ]
 # ///
 """
@@ -163,15 +165,15 @@ def op_state(mo):
     ingest_trigger, set_ingest_trigger = mo.state(None)
     scan_trigger,   set_scan_trigger   = mo.state(None)
     regen_trigger,  set_regen_trigger  = mo.state(None)
-    delete_trigger, set_delete_trigger = mo.state(None)
     lo_visible, set_lo_visible = mo.state(True)
+    get_last_handled_event, set_last_handled_event = mo.state(0)
     return (
         log_lines, set_log_lines,
         ingest_trigger, set_ingest_trigger,
         scan_trigger,   set_scan_trigger,
         regen_trigger,  set_regen_trigger,
-        delete_trigger, set_delete_trigger,
         lo_visible, set_lo_visible,
+        get_last_handled_event, set_last_handled_event,
     )
 
 
@@ -387,118 +389,172 @@ def debug_panel(mo, ingest_btn, scan_btn, upload, DB_PATH, debug_mode, logger):
 
 
 @app.cell
-def sources_list(mo, SOURCES_DIR, DB_PATH, log_lines):
-    """Show all files in sources/ with their DB status.
+def delete_form_cell(mo, DB_PATH, log_lines):
+    """Sources table + options wrapped in a form.
 
-    Depends on log_lines so it refreshes after any operation completes.
+    mo.ui.form batches all widget values and only propagates on submit,
+    so the table selection and checkbox coexist in one cell without
+    resetting each other on interaction.
     """
-    log_lines()  # reactive dependency — re-query DB after each operation
     import sqlite3 as _sqlite3
     from domain.ingestion.pipeline import open_db as _open_db
 
-    _conn_src = _open_db(DB_PATH)
+    log_lines()  # reactive refresh after any operation
+
+    _conn = _open_db(DB_PATH)
     try:
-        rows = _conn_src.execute(
-            "SELECT filename, status, page_count, parser, error_message, updated_at "
+        _src_rows = _conn.execute(
+            "SELECT id, filename, status, page_count, parser, error_message, updated_at "
             "FROM documents WHERE source_kind='source' ORDER BY filename"
         ).fetchall()
     except _sqlite3.OperationalError:
-        rows = []
-    _conn_src.close()
+        _src_rows = []
+    _conn.close()
 
-    db_status = {r["filename"]: r for r in rows}
-    files = sorted(SOURCES_DIR.glob("*")) if SOURCES_DIR.exists() else []
+    _icon_map = {"ready": "✅", "processing": "⏳", "failed": "❌", "pending": "🕐"}
+    _table_data = [
+        {
+            "id": r["id"],
+            "file": r["filename"],
+            "status": f"{_icon_map.get(r['status'], '?')} {r['status']}",
+            "pages": r["page_count"] or "-",
+            "parser": r["parser"] or "-",
+            "error": (r["error_message"] or "")[:40] or "-",
+            "updated": (r["updated_at"] or "")[:16],
+        }
+        for r in _src_rows
+    ]
 
-    if not files:
-        sources_view = mo.md("_No files in `sources/` yet._")
+    if _table_data:
+        delete_form = mo.ui.dictionary({
+            "source": mo.ui.table(_table_data, selection="single", label=""),
+            "also_file": mo.ui.checkbox(label="Also remove file from sources/"),
+        }).form(submit_button_label="Select for deletion")
+
+        _body = mo.vstack([
+            mo.callout(
+                mo.md("**Warning:** Deleting a source **permanently deletes** "
+                      "any wiki pages derived from it."),
+                kind="warn",
+            ),
+            delete_form,
+        ], gap=2)
     else:
-        header = "| File | Status | Pages | Parser | Error | Updated |\n|---|---|---|---|---|---|"
-        table_rows = []
-        for src_file in files:
-            rec = db_status.get(src_file.name)
-            if rec:
-                icon = {"ready": "✅", "processing": "⏳", "failed": "❌", "pending": "🕐"}.get(rec["status"], "?")
-                err = (rec["error_message"] or "")[:40] if rec["error_message"] else "-"
-                table_rows.append(
-                    f"| `{src_file.name}` | {icon} {rec['status']} | "
-                    f"{rec['page_count'] or '-'} | {rec['parser'] or '-'} | "
-                    f"{err} | {(rec['updated_at'] or '')[:16]} |"
-                )
-            else:
-                table_rows.append(
-                    f"| `{src_file.name}` | ⬜ not indexed | - | - | - | - |"
-                )
-        sources_view = mo.md(header + "\n" + "\n".join(table_rows))
+        delete_form = None
+        _body = mo.md("_No indexed sources available._")
 
-    mo.vstack([mo.md("### 📁 Sources Directory"), sources_view], gap=1)
+    mo.vstack([mo.md("### 📁 Sources / Delete"), _body], gap=1)
+    return (delete_form,)
 
 
 @app.cell
-def delete_section(mo, DB_PATH, WORKSPACE, set_delete_trigger, set_log_lines, log_lines):
-    """Delete a source document from the DB (and optionally from disk)."""
-    import sqlite3 as _sqlite3
-    from domain.ingestion.pipeline import open_db as _open_db
+def delete_widget_cell(mo, delete_form):
+    """Delete confirmation widget — only shown after a source is selected in the form."""
+    import anywidget
+    import traitlets
 
-    # Reactive dependency — rebuild dropdown after any operation
-    log_lines()
+    class _DeleteConfirmWidget(anywidget.AnyWidget):
+        _esm = r"""
+        function render({ model, el }) {
+          el.innerHTML = "";
+          const root = document.createElement("div");
+          root.className = "dc-root";
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "dc-delete";
+          deleteBtn.type = "button";
+          const panel = document.createElement("div");
+          panel.className = "dc-panel";
+          panel.style.display = "none";
+          const message = document.createElement("div");
+          message.className = "dc-message";
+          const actions = document.createElement("div");
+          actions.className = "dc-actions";
+          const confirmBtn = document.createElement("button");
+          confirmBtn.className = "dc-confirm";
+          confirmBtn.type = "button";
+          confirmBtn.textContent = "Confirm";
+          const cancelBtn = document.createElement("button");
+          cancelBtn.className = "dc-cancel";
+          cancelBtn.type = "button";
+          cancelBtn.textContent = "Cancel";
+          actions.appendChild(confirmBtn);
+          actions.appendChild(cancelBtn);
+          panel.appendChild(message);
+          panel.appendChild(actions);
+          root.appendChild(deleteBtn);
+          root.appendChild(panel);
+          el.appendChild(root);
 
-    _conn_del = _open_db(DB_PATH)
-    try:
-        _src_rows = _conn_del.execute(
-            "SELECT id, filename FROM documents WHERE source_kind='source' ORDER BY filename"
-        ).fetchall()
-    except _sqlite3.OperationalError:
-        _src_rows = []
-    _conn_del.close()
+          function syncView() {
+            const label = model.get("label");
+            const isOpen = model.get("is_open");
+            deleteBtn.textContent = `🗑 Delete "${label}"`;
+            message.textContent = `Delete "${label}"? This cannot be undone.`;
+            panel.style.display = isOpen ? "block" : "none";
+          }
 
-    _options = {r["filename"]: r["id"] for r in _src_rows}
+          deleteBtn.addEventListener("click", () => {
+            model.set("is_open", true); model.save_changes();
+          });
+          cancelBtn.addEventListener("click", () => {
+            model.set("is_open", false); model.save_changes();
+          });
+          confirmBtn.addEventListener("click", () => {
+            model.set("is_open", false);
+            model.set("event_id", model.get("event_id") + 1);
+            model.save_changes();
+          });
 
-    _dropdown = mo.ui.dropdown(
-        options=_options,
-        label="Source to delete",
-        value=None,
-    )
-    _confirm = mo.ui.checkbox(label="I confirm deletion of the selected source")
-    _also_file = mo.ui.checkbox(label="Also remove file from sources/")
+          model.on("change:label", syncView);
+          model.on("change:is_open", syncView);
+          syncView();
+        }
+        export default { render };
+        """
+        _css = r"""
+        .dc-root { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 8px; font-family: ui-sans-serif, system-ui, sans-serif; }
+        .dc-root button { border: 1px solid #d0d7de; border-radius: 8px; padding: 6px 12px; cursor: pointer; background: white; font-size: 14px; }
+        .dc-root .dc-delete, .dc-root .dc-confirm { background: #b42318; color: white; border-color: #b42318; }
+        .dc-root .dc-cancel { background: #eef2f7; border-color: #d0d7de; color: #24292f; }
+        .dc-panel { border: 1px solid #d0d7de; border-radius: 10px; padding: 10px; background: #fafafa; min-width: 280px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        .dc-message { margin-bottom: 8px; font-size: 14px; }
+        .dc-actions { display: flex; gap: 8px; }
+        """
+        label    = traitlets.Unicode("").tag(sync=True)
+        is_open  = traitlets.Bool(False).tag(sync=True)
+        event_id = traitlets.Int(0).tag(sync=True)
 
-    import time as _t
+    _selected = (delete_form.value or {}).get("source") if delete_form else None
+    _label = _selected[0]["file"] if _selected else ""
 
-    def _on_delete(_):
-        if not _dropdown.value or not _confirm.value:
-            return
-        set_delete_trigger((_dropdown.value, _also_file.value, _t.time()))
+    delete_widget = mo.ui.anywidget(_DeleteConfirmWidget(label=_label))
 
-    _delete_btn = mo.ui.button(
-        label="🗑 Delete source",
-        kind="danger",
-        on_click=_on_delete,
-    )
-
-    _warning = mo.callout(
-        mo.md("**Warning:** Deleting a source removes it from the index and **permanently deletes** "
-              "any wiki pages derived from it."),
-        kind="warn",
-    ) if _options else mo.md("_No indexed sources available._")
-
-    mo.vstack([
-        mo.md("### 🗑 Delete Source"),
-        _warning,
-        _dropdown,
-        _confirm,
-        _also_file,
-        _delete_btn,
-    ], gap=2)
+    delete_widget if _label else mo.Html("")
+    return (delete_widget,)
 
 
 @app.cell
 def delete_runner(
-    mo, delete_trigger,
+    mo, delete_widget, delete_form,
+    get_last_handled_event, set_last_handled_event,
     WORKSPACE, DB_PATH, set_log_lines, logger,
 ):
-    """Runs source deletion when delete_trigger changes."""
-    mo.stop(delete_trigger() is None)
+    """Fires when the anywidget's event_id increments (user confirmed deletion)."""
+    _event_id = delete_widget.event_id
+    _last = get_last_handled_event()
 
-    doc_id, also_file, _ = delete_trigger()
+    mo.stop(_event_id <= _last)
+    set_last_handled_event(_event_id)
+
+    _form_val = (delete_form.value or {}) if delete_form else {}
+    _selected = _form_val.get("source") or []
+    _also_file = _form_val.get("also_file", False)
+
+    if not _selected:
+        set_log_lines(["⚠️ No source selected — submit the form first."])
+        mo.stop(True)
+
+    _doc_id = _selected[0]["id"]
 
     try:
         from domain.tools.deletion import delete_source as _ds
@@ -507,7 +563,7 @@ def delete_runner(
         mo.stop(True)
 
     with mo.status.spinner(title="Deleting source…"):
-        _result = _ds(DB_PATH, WORKSPACE, doc_id, also_delete_file=also_file)
+        _result = _ds(DB_PATH, WORKSPACE, _doc_id, also_delete_file=_also_file)
         logger.info("delete_source result: %s — %s", _result.action, _result.message)
 
     _icon = "✅" if _result.success else "❌"
