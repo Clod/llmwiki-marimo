@@ -121,12 +121,25 @@ def left_panel(page_list, scan_pages, set_page_list, set_selected_page):
     """Navigation sidebar — column 0."""
     pages = page_list()
 
+    from domain.tools.db import get_connection as _get_conn
+    _kw_map = {}
+    try:
+        with _get_conn(wiki_db_path) as _c:
+            for _r in _c.execute(
+                "SELECT relative_path, content FROM documents "
+                "WHERE source_kind='wiki' AND status='ready'"
+            ).fetchall():
+                _stem = _r["relative_path"].removeprefix("wiki/").removesuffix(".md")
+                _kw_map[_stem] = (_r["content"] or "")[:800]
+    except Exception:
+        pass
+
     def _page_row(p):
         parts = p.rsplit("/", 1)
         directory = parts[0] if len(parts) > 1 else ""
         slug = parts[-1]
         title = slug.replace("-", " ").replace("_", " ").title()
-        return {"Title": title, "Directory": directory, "Slug": slug}
+        return {"Title": title, "Directory": directory, "Slug": slug, "Excerpt": _kw_map.get(p, "")}
 
     _table_data = [_page_row(p) for p in pages] if pages else [{"Title": "(no pages)", "Directory": "", "Slug": ""}]
 
@@ -141,6 +154,8 @@ def left_panel(page_list, scan_pages, set_page_list, set_selected_page):
         _table_data,
         selection="single",
         on_change=_on_select,
+        show_column_summaries=False,
+        format_mapping={"Excerpt": lambda v: (v[:80] + "…") if len(v) > 80 else v},
     )
     refresh_btn = mo.ui.button(
         label="⟳ Refresh",

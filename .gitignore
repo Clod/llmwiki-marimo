@@ -32,6 +32,7 @@ Thumbs.db
 
 # LLM Wiki local workspace artifacts
 .llmwiki/
+workspace/
 /wiki/
 /mcp/wiki/
 /emails/
