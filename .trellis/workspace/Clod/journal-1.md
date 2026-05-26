@@ -1336,3 +1336,58 @@ Pure rename refactor — no logic changed. Each rename updated the directory via
 ### Next Steps
 
 - None - task complete
+
+
+## Session 25: Ingest App UX Improvements
+
+**Date**: 2026-05-26
+**Task**: Ingest App UX Improvements
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Change |
+|------|--------|
+| Delete warning | Fixed stale warning text — deletion permanently deletes wiki pages, not marks stale |
+| LibreOffice callout | Auto-hides after 10s using mo.Thread timer pattern |
+| Delete section | Replaced dropdown+checkboxes with searchable mo.ui.table + anywidget confirmation button |
+| DeleteConfirmWidget | Extracted to marimo/widgets/delete_confirm.py and imported |
+| also_file checkbox | Resets after deletion by depending on log_lines |
+| Activity log | Split into own cell (column=1) for independent reactive updates |
+| Live log streaming | Runners use fire-and-forget mo.Thread; set_log_lines called per message for live updates |
+| Spinner | Dedicated op_spinner cell polls running_op state; shows during background operations |
+
+**Updated Files**:
+- `marimo/ingest_app.py`
+- `marimo/widgets/delete_confirm.py` (new)
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a97e708` | (see git log) |
+| `24ca5df` | (see git log) |
+| `5cce269` | (see git log) |
+| `897541c` | (see git log) |
+| `3a04720` | (see git log) |
+| `1c4b0d5` | (see git log) |
+| `e1bbad3` | (see git log) |
+| `b239ac7` | (see git log) |
+| `8879f0c` | (see git log) |
+| `633b8ef` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
