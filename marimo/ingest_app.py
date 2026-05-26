@@ -167,6 +167,7 @@ def op_state(mo):
     regen_trigger,  set_regen_trigger  = mo.state(None)
     lo_visible, set_lo_visible = mo.state(True)
     get_last_handled_event, set_last_handled_event = mo.state(0)
+    get_last_lint_event, set_last_lint_event = mo.state(0)
     running_op, set_running_op = mo.state(None)
     return (
         log_lines, set_log_lines,
@@ -175,6 +176,7 @@ def op_state(mo):
         regen_trigger,  set_regen_trigger,
         lo_visible, set_lo_visible,
         get_last_handled_event, set_last_handled_event,
+        get_last_lint_event, set_last_lint_event,
         running_op, set_running_op,
     )
 
@@ -368,9 +370,10 @@ def op_spinner(mo, running_op):
     """Shows a spinner while any background operation is running."""
     import time as _t
     _labels = {
-        "ingest": "Ingesting documents…",
-        "scan":   "Scanning sources/…",
-        "regen":  "Regenerating wiki pages…",
+        "ingest":       "Ingesting documents…",
+        "scan":         "Scanning sources/…",
+        "regen":        "Regenerating wiki pages…",
+        "lint_repair":  "Running wiki lint & repair…",
     }
     _op = running_op()
     if _op:
@@ -387,6 +390,25 @@ def bulk_actions(mo, scan_btn, regen_btn):
         scan_btn,
         regen_btn,
     ], gap=2)
+
+
+@app.cell
+def lint_repair_widget_cell(mo):
+    """Wiki-wide lint & repair confirmation widget."""
+    import sys as _sys
+    from pathlib import Path as _Path
+    _widgets_dir = str(_Path(__file__).parent / "widgets")
+    if _widgets_dir not in _sys.path:
+        _sys.path.insert(0, _widgets_dir)
+    from delete_confirm import DeleteConfirmWidget as _DeleteConfirmWidget
+
+    lint_repair_widget = mo.ui.anywidget(_DeleteConfirmWidget(
+        button_label="Run Wiki Lint & Repair",
+        message="This will scan all wiki pages for issues and automatically repair them. Continue?",
+        disabled=False,
+    ))
+    lint_repair_widget
+    return (lint_repair_widget,)
 
 
 @app.cell
@@ -538,6 +560,55 @@ def delete_runner(
 
     _icon = "✅" if _result.success else "❌"
     set_log_lines([f"{_icon} {_result.message}"])
+
+
+@app.cell
+def lint_repair_runner(
+    mo, lint_repair_widget,
+    get_last_lint_event, set_last_lint_event,
+    WORKSPACE, DB_PATH, llm_client, llm_model,
+    set_log_lines, set_running_op, logger,
+):
+    """Fires when the lint & repair widget is confirmed."""
+    _event_id = lint_repair_widget.event_id
+    _last = get_last_lint_event()
+
+    mo.stop(_event_id <= _last)
+    set_last_lint_event(_event_id)
+
+    try:
+        from domain.lint.runner import lint_wiki as _lw
+        from domain.repair.runner import repair_wiki as _rw
+    except Exception as _e:
+        set_log_lines([f"❌ Import error: {_e}"])
+        mo.stop(True)
+
+    _msgs = ["⏳ Wiki lint & repair started…"]
+    set_log_lines(list(_msgs))
+
+    def _cb(msg: str) -> None:
+        _msgs.append(msg)
+        set_log_lines(list(_msgs))
+        logger.info("[lint-repair] %s", msg)
+
+    def _run():
+        set_running_op("lint_repair")
+        try:
+            _lint_report = _lw(DB_PATH, WORKSPACE, client=llm_client, model=llm_model)
+            _issue_count = len(_lint_report.issues)
+            if _issue_count == 0:
+                _cb("✅ No issues found.")
+                return
+            _cb(f"🔧 Found {_issue_count} issue(s) — running repairs…")
+            _rw(
+                _lint_report, DB_PATH, WORKSPACE,
+                llm_client=llm_client, model=llm_model,
+                progress_cb=_cb,
+            )
+        finally:
+            set_running_op(None)
+
+    mo.Thread(target=_run).start()
 
 
 if __name__ == "__main__":
