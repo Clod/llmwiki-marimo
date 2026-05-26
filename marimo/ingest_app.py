@@ -389,13 +389,8 @@ def debug_panel(mo, ingest_btn, scan_btn, upload, DB_PATH, debug_mode, logger):
 
 
 @app.cell
-def delete_form_cell(mo, DB_PATH, log_lines):
-    """Sources table + options wrapped in a form.
-
-    mo.ui.form batches all widget values and only propagates on submit,
-    so the table selection and checkbox coexist in one cell without
-    resetting each other on interaction.
-    """
+def sources_table_cell(mo, DB_PATH, log_lines):
+    """Searchable table of indexed sources. Selection arms the delete widget."""
     import sqlite3 as _sqlite3
     from domain.ingestion.pipeline import open_db as _open_db
 
@@ -425,117 +420,48 @@ def delete_form_cell(mo, DB_PATH, log_lines):
         for r in _src_rows
     ]
 
-    if _table_data:
-        delete_form = mo.ui.dictionary({
-            "source": mo.ui.table(_table_data, selection="single", label=""),
-            "also_file": mo.ui.checkbox(label="Also remove file from sources/"),
-        }).form(submit_button_label="Select for deletion")
+    sources_table = mo.ui.table(_table_data, selection="single", label="")
 
-        _body = mo.vstack([
-            mo.callout(
-                mo.md("**Warning:** Deleting a source **permanently deletes** "
-                      "any wiki pages derived from it."),
-                kind="warn",
-            ),
-            delete_form,
-        ], gap=2)
-    else:
-        delete_form = None
-        _body = mo.md("_No indexed sources available._")
-
-    mo.vstack([mo.md("### 📁 Sources / Delete"), _body], gap=1)
-    return (delete_form,)
+    mo.vstack([
+        mo.md("### 📁 Sources / Delete"),
+        mo.callout(
+            mo.md("**Warning:** Deleting a source **permanently deletes** any wiki pages derived from it."),
+            kind="warn",
+        ) if _table_data else mo.Html(""),
+        sources_table if _table_data else mo.md("_No indexed sources available._"),
+    ], gap=2)
+    return (sources_table,)
 
 
 @app.cell
-def delete_widget_cell(mo, delete_form):
-    """Delete confirmation widget — only shown after a source is selected in the form."""
-    import anywidget
-    import traitlets
+def also_file_check_cell(mo):
+    """Secondary option — separate cell so it doesn't reset the table selection."""
+    also_file_check = mo.ui.checkbox(label="Also remove file from sources/")
+    also_file_check
+    return (also_file_check,)
 
-    class _DeleteConfirmWidget(anywidget.AnyWidget):
-        _esm = r"""
-        function render({ model, el }) {
-          el.innerHTML = "";
-          const root = document.createElement("div");
-          root.className = "dc-root";
-          const deleteBtn = document.createElement("button");
-          deleteBtn.className = "dc-delete";
-          deleteBtn.type = "button";
-          const panel = document.createElement("div");
-          panel.className = "dc-panel";
-          panel.style.display = "none";
-          const message = document.createElement("div");
-          message.className = "dc-message";
-          const actions = document.createElement("div");
-          actions.className = "dc-actions";
-          const confirmBtn = document.createElement("button");
-          confirmBtn.className = "dc-confirm";
-          confirmBtn.type = "button";
-          confirmBtn.textContent = "Confirm";
-          const cancelBtn = document.createElement("button");
-          cancelBtn.className = "dc-cancel";
-          cancelBtn.type = "button";
-          cancelBtn.textContent = "Cancel";
-          actions.appendChild(confirmBtn);
-          actions.appendChild(cancelBtn);
-          panel.appendChild(message);
-          panel.appendChild(actions);
-          root.appendChild(deleteBtn);
-          root.appendChild(panel);
-          el.appendChild(root);
 
-          function syncView() {
-            const label = model.get("label");
-            const isOpen = model.get("is_open");
-            deleteBtn.textContent = `🗑 Delete "${label}"`;
-            message.textContent = `Delete "${label}"? This cannot be undone.`;
-            panel.style.display = isOpen ? "block" : "none";
-          }
+@app.cell
+def delete_widget_cell(mo, sources_table):
+    """Delete confirmation widget — shown only when a row is selected in the table."""
+    import sys as _sys
+    from pathlib import Path as _Path
+    _widgets_dir = str(_Path(__file__).parent / "widgets")
+    if _widgets_dir not in _sys.path:
+        _sys.path.insert(0, _widgets_dir)
+    from delete_confirm import DeleteConfirmWidget
 
-          deleteBtn.addEventListener("click", () => {
-            model.set("is_open", true); model.save_changes();
-          });
-          cancelBtn.addEventListener("click", () => {
-            model.set("is_open", false); model.save_changes();
-          });
-          confirmBtn.addEventListener("click", () => {
-            model.set("is_open", false);
-            model.set("event_id", model.get("event_id") + 1);
-            model.save_changes();
-          });
-
-          model.on("change:label", syncView);
-          model.on("change:is_open", syncView);
-          syncView();
-        }
-        export default { render };
-        """
-        _css = r"""
-        .dc-root { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 8px; font-family: ui-sans-serif, system-ui, sans-serif; }
-        .dc-root button { border: 1px solid #d0d7de; border-radius: 8px; padding: 6px 12px; cursor: pointer; background: white; font-size: 14px; }
-        .dc-root .dc-delete, .dc-root .dc-confirm { background: #b42318; color: white; border-color: #b42318; }
-        .dc-root .dc-cancel { background: #eef2f7; border-color: #d0d7de; color: #24292f; }
-        .dc-panel { border: 1px solid #d0d7de; border-radius: 10px; padding: 10px; background: #fafafa; min-width: 280px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-        .dc-message { margin-bottom: 8px; font-size: 14px; }
-        .dc-actions { display: flex; gap: 8px; }
-        """
-        label    = traitlets.Unicode("").tag(sync=True)
-        is_open  = traitlets.Bool(False).tag(sync=True)
-        event_id = traitlets.Int(0).tag(sync=True)
-
-    _selected = (delete_form.value or {}).get("source") if delete_form else None
+    _selected = sources_table.value
     _label = _selected[0]["file"] if _selected else ""
 
-    delete_widget = mo.ui.anywidget(_DeleteConfirmWidget(label=_label))
-
+    delete_widget = mo.ui.anywidget(DeleteConfirmWidget(label=_label, disabled=not _label))
     delete_widget if _label else mo.Html("")
     return (delete_widget,)
 
 
 @app.cell
 def delete_runner(
-    mo, delete_widget, delete_form,
+    mo, delete_widget, sources_table, also_file_check,
     get_last_handled_event, set_last_handled_event,
     WORKSPACE, DB_PATH, set_log_lines, logger,
 ):
@@ -546,12 +472,11 @@ def delete_runner(
     mo.stop(_event_id <= _last)
     set_last_handled_event(_event_id)
 
-    _form_val = (delete_form.value or {}) if delete_form else {}
-    _selected = _form_val.get("source") or []
-    _also_file = _form_val.get("also_file", False)
+    _selected = sources_table.value or []
+    _also_file = also_file_check.value
 
     if not _selected:
-        set_log_lines(["⚠️ No source selected — submit the form first."])
+        set_log_lines(["⚠️ No source selected."])
         mo.stop(True)
 
     _doc_id = _selected[0]["id"]
