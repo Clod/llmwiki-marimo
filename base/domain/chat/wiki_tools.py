@@ -119,6 +119,36 @@ def search_wiki_fts(ctx: RunContext[str], query: str, limit: int = 10) -> str:
     return "\n".join(lines)
 
 
+# ── Related-page context helper ───────────────────────────────────────────────
+
+def _related_pages_for(workspace: Path, exclude_slug: str, current_dir: str) -> list[dict]:
+    """Scan wiki/concepts and wiki/summaries and return link context for the LLM.
+
+    Each entry has 'title' and 'rel_path' (relative from current_dir).
+    The page being created/updated (exclude_slug) is omitted.
+    """
+    pages = []
+    in_concepts = "concepts" in current_dir
+    for dir_name in ("concepts", "summaries"):
+        dir_full = workspace / "wiki" / dir_name
+        if not dir_full.exists():
+            continue
+        for p in sorted(dir_full.glob("*.md")):
+            if p.stem == exclude_slug:
+                continue
+            title = p.stem.replace("-", " ").title()
+            if in_concepts and dir_name == "concepts":
+                rel = f"{p.stem}.md"
+            elif in_concepts and dir_name == "summaries":
+                rel = f"../summaries/{p.stem}.md"
+            elif not in_concepts and dir_name == "concepts":
+                rel = f"../concepts/{p.stem}.md"
+            else:
+                rel = f"{p.stem}.md"
+            pages.append({"title": title, "rel_path": rel})
+    return pages
+
+
 # ── 4.3: file_to_wiki ────────────────────────────────────────────────────────
 
 def file_to_wiki(
@@ -172,7 +202,8 @@ def file_to_wiki(
         existing = read_page(db_path, workspace, dir_path, slug)
 
         # 6. Ask the LLM to structure the new content nicely, merging it gracefully if an existing page is found
-        structured = structure_chat_content(title, category, content, existing, client, model)
+        related = _related_pages_for(workspace, slug, dir_path)
+        structured = structure_chat_content(title, category, content, existing, client, model, related_pages=related)
 
         # 7. Create or update the markdown file on disk
         if existing:
@@ -335,7 +366,8 @@ def save_to_wiki(
     existing = read_page(db_path, workspace, dir_path, slug)
 
     # 4. Use LLM to structure/merge the content beautifully
-    structured = structure_chat_content(title, category, content, existing, client, model)
+    related = _related_pages_for(workspace, slug, dir_path)
+    structured = structure_chat_content(title, category, content, existing, client, model, related_pages=related)
 
     # 5. Write the file to disk, determining whether this is an Update or a fresh Creation
     if existing:

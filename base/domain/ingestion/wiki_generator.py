@@ -163,6 +163,8 @@ Content synthesised from a chat conversation:
 {content}
 ---
 
+{related_pages_hint}
+
 Produce a markdown page with this structure:
 
 ---
@@ -199,8 +201,12 @@ Existing page:
 {existing}
 ---
 
+{related_pages_hint}
+
 Merge the new content into the existing page. Add insights, avoid duplication, \
 and add a `- Chat synthesis` list item in the Sources section if not already present.
+If any of the known wiki pages listed above are relevant and not already linked, \
+add or update a ## See also section with links to them.
 Keep all existing content intact. Output only the updated markdown page."""
 
 _OVERVIEW_SYSTEM = """\
@@ -358,23 +364,40 @@ def structure_chat_content(
     existing_content: str | None,
     client,
     model: str,
+    related_pages: list[dict] | None = None,
 ) -> str:
     """Apply an LLM structuring pass to chat-sourced content before saving to the wiki.
 
     Returns structured markdown with YAML frontmatter and standard sections.
     Raises on LLM failure — callers should catch and surface the error.
+
+    related_pages: list of {"title": str, "rel_path": str} for existing wiki pages
+    the LLM may link to in a ## See also section.
     """
+    if related_pages:
+        lines = [
+            "Existing wiki pages you may link to in a ## See also section"
+            " (use the exact relative path shown, only link pages that are genuinely relevant):"
+        ]
+        for p in related_pages:
+            lines.append(f"- {p['title']} → {p['rel_path']}")
+        related_pages_hint = "\n".join(lines)
+    else:
+        related_pages_hint = ""
+
     if existing_content:
         user_msg = _CHAT_CONCEPT_UPDATE_TEMPLATE.format(
             name=title,
             content=raw_content,
             existing=existing_content,
+            related_pages_hint=related_pages_hint,
         )
     else:
         user_msg = _CHAT_CONCEPT_NEW_TEMPLATE.format(
             name=title,
             category=category,
             content=raw_content,
+            related_pages_hint=related_pages_hint,
         )
 
     response = client.chat.completions.create(
