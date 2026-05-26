@@ -458,8 +458,8 @@ def delete_section(mo, DB_PATH, WORKSPACE, set_delete_trigger, set_log_lines, lo
     )
 
     _warning = mo.callout(
-        mo.md("**Warning:** Deleting a source removes it from the index. "
-              "Wiki pages that cited it will be marked stale for regeneration."),
+        mo.md("**Warning:** Deleting a source removes it from the index and **permanently deletes** "
+              "any wiki pages derived from it."),
         kind="warn",
     ) if _options else mo.md("_No indexed sources available._")
 
