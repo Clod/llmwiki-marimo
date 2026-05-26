@@ -273,6 +273,7 @@ def ingest_runner(
     _msgs = []
     def _cb(msg):
         _msgs.append(msg)
+        set_log_lines(list(_msgs))
         logger.info("[ingest] %s", msg)
 
     with mo.status.spinner(title="Ingesting documents…"):
@@ -282,8 +283,6 @@ def ingest_runner(
                 _fp.write_bytes(_f.contents)
             _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
             logger.info("Result: %s — %s", _result.status, _result.message)
-
-    set_log_lines(_msgs)
 
 
 @app.cell
@@ -304,12 +303,11 @@ def scan_runner(
     _msgs = []
     def _cb(msg):
         _msgs.append(msg)
+        set_log_lines(list(_msgs))
         logger.info("[scan] %s", msg)
 
     with mo.status.spinner(title="Scanning sources/…"):
         _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
-
-    set_log_lines(_msgs)
 
 
 @app.cell
@@ -330,12 +328,11 @@ def regen_runner(
     _msgs = []
     def _cb(msg):
         _msgs.append(msg)
+        set_log_lines(list(_msgs))
         logger.info("[regen] %s", msg)
 
     with mo.status.spinner(title="Regenerating wiki pages…"):
         _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
-
-    set_log_lines(_msgs)
 
 
 @app.cell
