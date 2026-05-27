@@ -256,9 +256,10 @@ And it is what the reconciliation checks reason over:
 
 If the `cites` edges are missing, the graph still has all its **nodes** (the documents
 exist) but is missing the **arrows** between them — so every check above silently
-produces wrong answers. (This is exactly the failure mode of finding **H1** in §14:
-the `## Sources` parser stopped matching the page format, so concept pages generate
-zero `cites` edges.)
+produces wrong answers. (This was exactly the failure mode of finding **H1** in §14:
+the `## Sources` parser stopped matching the page format, so concept pages generated
+zero `cites` edges. Now fixed — the parser accepts both footnote and plain-bullet
+Sources.)
 
 #### Edges are rebuilt, never patched
 
@@ -334,7 +335,7 @@ These functions are the CRUD primitives every other layer depends on. They know
 | `tools/db.py`         | `open_db(path)`, `get_connection(path)`                                                                                   | Opens (and migrates) the SQLite DB; provides a context-manager connection                   |
 | `tools/wiki_fs.py`    | `create_page`, `read_page`, `append_to_page`, `delete_page`                                                               | Disk + DB simultaneously (single source of truth — never bypass)                            |
 | `tools/search.py`     | `search_chunks(db, query, limit, scope)`                                                                                  | FTS5 search; `scope ∈ {"all", "wiki", "sources"}`                                           |
-| `tools/references.py` | `update_references`, `get_backlinks`, `get_forward_refs`, `find_orphan_pages`, `find_uncited_sources`, `find_stale_pages` | Parses `[[wikilinks]]` and `[^N]: file.pdf, p.3` citations; maintains `document_references` |
+| `tools/references.py` | `update_references`, `get_backlinks`, `get_forward_refs`, `find_orphan_pages`, `find_uncited_sources`, `find_stale_pages` | Parses `[[wikilinks]]` plus citations in both `[^N]: file.pdf, p.3` footnote and `- file.pdf` Sources-bullet form; maintains `document_references` |
 | `tools/git_ops.py`    | `init_wiki_repo`, `auto_commit`                                                                                           | Idempotent git init + silent commits                                                        |
 
 Two structural notes:
@@ -1304,7 +1305,16 @@ explicitly, and mock the network in tests.
 > in §3/§9 is stale — see D7). Findings are listed with concrete fixes; none have
 > been applied yet. Severity: 🔴 high · 🟠 medium · 🟡 low · 📘 doc.
 
-### 🔴 H1 — Citation graph broken for concept pages (regression)
+### 🔴 H1 — Citation graph broken for concept pages (regression) — ✅ FIXED
+
+> **Resolved.** `update_references` now parses plain `- file.pdf` bullets under a
+> `## Sources` heading in addition to `[^n]: file` footnotes (it also strips a leading
+> `[^n]:` to tolerate legacy/placeholder bullets). Concept and chat pages rebuild their
+> `cites` edges again. Regression coverage added in `tests/unit/test_references.py`
+> (`test_update_references_creates_cites_edge_from_plain_bullet`,
+> `..._parses_plain_bullet_with_page`, `..._ignores_bullets_outside_sources`).
+> No data migration needed — reprocessing/regenerating each concept page rebuilds the
+> missing edges (see §4 "Edges are rebuilt, never patched"). Original analysis follows.
 
 **Where:** `base/domain/ingestion/wiki_generator.py` (`_CONCEPT_NEW_TEMPLATE` L139-140,
 `_CONCEPT_UPDATE_TEMPLATE` L154, `_CHAT_CONCEPT_*` L184-185, L203) ×
