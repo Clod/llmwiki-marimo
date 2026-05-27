@@ -1447,25 +1447,27 @@ created page paths during steps 8-9 and delete them in the `except` handler.
 
 ### 🟡 Low-severity
 
-- **L1** `chat/config.py:118` — `load_config` returns the shared module-level
-  `_DEFAULT_PROMPTS` list when the TOML key is absent (the dataclass uses
-  `default_factory` to copy, but this path bypasses it). Wrap: `list(assistant.get(...))`.
-- **L2** `wiki_generator.py:inject_see_also` — substring match
-  (`slug_text in content_lower`) has no word boundaries; short slugs could
-  over-match (e.g. a 3-letter slug inside a larger word). Consider `\b` boundaries.
-- **L3** `read_app.py:page_links_nav` — link regex matches image links
-  `![alt](src)` (no `(?<!!)` lookbehind; `references.py:_WIKI_LINK_RE` has one).
-  Harmless today (wiki pages rarely embed images).
+- **L1** ✅ FIXED — `chat/config.py` `load_config` returned the shared module-level
+  `_DEFAULT_PROMPTS` list when the TOML key was absent. Now wrapped in
+  `list(...)` so a caller's mutation can't corrupt the default. Tests in
+  `tests/unit/test_chat_config.py`.
+- **L2** ✅ FIXED — `wiki_generator.py:inject_see_also` used a boundary-less substring
+  match; now uses `re.search(rf"\b{re.escape(slug)}\b", ...)` so short slugs don't
+  over-match inside larger words. Tests `test_inject_see_also_respects_word_boundaries`,
+  `..._matches_whole_word`.
+- **L3** ✅ FIXED — `read_app.py:page_links_nav` link regex now has the `(?<!!)`
+  lookbehind so `![alt](src)` image embeds are excluded (matches `_WIKI_LINK_RE`).
 - **L4** `repair/actions.py:_relative_link` uses `os.path.relpath`, which yields
   backslashes on Windows and would break markdown hrefs. Force `/` (project is macOS).
 - **L5** `ingestion/index_manager.py:_upsert_entry` — after inserting an entry the
   blank-line guard checks the wrong index, so entries can butt directly against the
   next `## ` heading. Cosmetic.
-- **L6** `tools/wiki_fs.py:delete_page` deletes the file before DB cleanup; an
-  exception in `_strip_dead_links` (before the `with conn:` block) leaves an
-  orphaned DB row pointing at a now-missing file.
-- **L7** `chat/tools.py:44` sets `PRAGMA journal_mode=WAL` on every (read-only)
-  search call — unnecessary; `open_db` already sets it.
+- **L6** ✅ FIXED — `tools/wiki_fs.py:delete_page` now cleans the DB first and unlinks
+  the file last, so an exception during DB cleanup no longer leaves an orphan DB row
+  pointing at a deleted file.
+- **L7** ✅ FIXED — `chat/tools.py` no longer re-runs `PRAGMA journal_mode=WAL` on every
+  read-only search call (`journal_mode` is a persistent DB-level setting applied by
+  `open_db`).
 - **L8** `ingestion/chunker.py` chunks at paragraph granularity; a single paragraph
   with no blank lines larger than `CHUNK_SIZE` becomes one oversized chunk.
 
