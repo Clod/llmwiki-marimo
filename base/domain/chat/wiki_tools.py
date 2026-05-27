@@ -174,7 +174,7 @@ def file_to_wiki(
     # Perform clean on-demand imports of required helper modules to avoid circular dependencies
     from openai import OpenAI
     from config import settings
-    from domain.ingestion.wiki_generator import make_wiki_slug, structure_chat_content
+    from domain.ingestion.wiki_generator import make_wiki_slug, structure_chat_content, inject_see_also
     from domain.tools.wiki_fs import create_page, read_page
     from domain.tools.references import update_references
     from domain.ingestion.index_manager import update_index
@@ -202,8 +202,9 @@ def file_to_wiki(
         existing = read_page(db_path, workspace, dir_path, slug)
 
         # 6. Ask the LLM to structure the new content nicely, merging it gracefully if an existing page is found
+        structured = structure_chat_content(title, category, content, existing, client, model)
         related = _related_pages_for(workspace, slug, dir_path)
-        structured = structure_chat_content(title, category, content, existing, client, model, related_pages=related)
+        structured = inject_see_also(structured, related)
 
         # 7. Create or update the markdown file on disk
         if existing:
@@ -344,7 +345,7 @@ def save_to_wiki(
     Returns a confirmation string e.g. "Created wiki/concepts/my-concept.md".
     """
     # Dynamic imports to keep loading lightweight
-    from domain.ingestion.wiki_generator import make_wiki_slug, structure_chat_content
+    from domain.ingestion.wiki_generator import make_wiki_slug, structure_chat_content, inject_see_also
     from domain.tools.wiki_fs import create_page, read_page
     from domain.tools.references import update_references
     from domain.ingestion.index_manager import update_index
@@ -366,8 +367,9 @@ def save_to_wiki(
     existing = read_page(db_path, workspace, dir_path, slug)
 
     # 4. Use LLM to structure/merge the content beautifully
+    structured = structure_chat_content(title, category, content, existing, client, model)
     related = _related_pages_for(workspace, slug, dir_path)
-    structured = structure_chat_content(title, category, content, existing, client, model, related_pages=related)
+    structured = inject_see_also(structured, related)
 
     # 5. Write the file to disk, determining whether this is an Update or a fresh Creation
     if existing:

@@ -163,8 +163,6 @@ Content synthesised from a chat conversation:
 {content}
 ---
 
-{related_pages_hint}
-
 Produce a markdown page with this structure:
 
 ---
@@ -201,12 +199,8 @@ Existing page:
 {existing}
 ---
 
-{related_pages_hint}
-
 Merge the new content into the existing page. Add insights, avoid duplication, \
 and add a `- Chat synthesis` list item in the Sources section if not already present.
-If any of the known wiki pages listed above are relevant and not already linked, \
-add or update a ## See also section with links to them.
 Keep all existing content intact. Output only the updated markdown page."""
 
 _OVERVIEW_SYSTEM = """\
@@ -364,40 +358,23 @@ def structure_chat_content(
     existing_content: str | None,
     client,
     model: str,
-    related_pages: list[dict] | None = None,
 ) -> str:
     """Apply an LLM structuring pass to chat-sourced content before saving to the wiki.
 
     Returns structured markdown with YAML frontmatter and standard sections.
     Raises on LLM failure — callers should catch and surface the error.
-
-    related_pages: list of {"title": str, "rel_path": str} for existing wiki pages
-    the LLM may link to in a ## See also section.
     """
-    if related_pages:
-        lines = [
-            "Existing wiki pages you may link to in a ## See also section"
-            " (use the exact relative path shown, only link pages that are genuinely relevant):"
-        ]
-        for p in related_pages:
-            lines.append(f"- {p['title']} → {p['rel_path']}")
-        related_pages_hint = "\n".join(lines)
-    else:
-        related_pages_hint = ""
-
     if existing_content:
         user_msg = _CHAT_CONCEPT_UPDATE_TEMPLATE.format(
             name=title,
             content=raw_content,
             existing=existing_content,
-            related_pages_hint=related_pages_hint,
         )
     else:
         user_msg = _CHAT_CONCEPT_NEW_TEMPLATE.format(
             name=title,
             category=category,
             content=raw_content,
-            related_pages_hint=related_pages_hint,
         )
 
     response = client.chat.completions.create(
@@ -509,3 +486,31 @@ def _prepare_content(page_contents: list[tuple[int, str]]) -> str:
 def _title_from_filename(filename: str) -> str:
     stem = Path(filename).stem
     return stem.replace("-", " ").replace("_", " ").strip().title()
+
+
+def inject_see_also(content: str, related_pages: list[dict]) -> str:
+    """Scan generated markdown for mentions of known wiki pages and inject a ## See also section.
+
+    related_pages: list of {"title": str, "rel_path": str}
+
+    Matching is case-insensitive: if the slug (hyphens→spaces) appears anywhere in the
+    content body, the page is included. Already-linked pages are skipped.
+    """
+    content_lower = content.lower()
+    matches = []
+    for page in related_pages:
+        slug_text = page["rel_path"].replace(".md", "").replace("../concepts/", "").replace("../summaries/", "").replace("-", " ")
+        if slug_text in content_lower and page["rel_path"] not in content:
+            matches.append(page)
+
+    if not matches:
+        return content
+
+    see_also_block = "\n## See also\n\n" + "\n".join(
+        f"- [{p['title']}]({p['rel_path']})" for p in matches
+    ) + "\n"
+
+    # Insert before ## Sources if present, otherwise append
+    if "\n## Sources" in content:
+        return content.replace("\n## Sources", see_also_block + "\n## Sources", 1)
+    return content.rstrip() + "\n" + see_also_block

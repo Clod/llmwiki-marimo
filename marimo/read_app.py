@@ -234,18 +234,28 @@ def current_page(read_page, selected_page):
 
 
 @app.cell
-def page_links_nav(current_content, page_list, set_selected_page):
-    """Navigation buttons for internal wiki links found on the current page."""
+def page_links_nav(current_content, page_list, selected_stem, set_selected_page):
+    """Navigation buttons for internal wiki links found on the current page.
+
+    Links are relative to the current page's directory (e.g. a concept page
+    links to a sibling as `cinderella.md` or to a summary as `../summaries/x.md`),
+    so resolve them against that directory before matching the scanned page list,
+    which stores directory-prefixed stems like `concepts/cinderella`.
+    """
+    import posixpath
+
     raw_links = re.findall(r'\[([^\]]+)\]\(([^)]+)\)', current_content or "")
+    current_dir = posixpath.dirname(selected_stem or "")
+    all_pages = page_list()
     seen = set()
     valid = {}
-    for _label, stem in raw_links:
-        page = stem.removesuffix(".md")
-        if page.startswith("http") or page.startswith("mailto"):
+    for _label, _target in raw_links:
+        if _target.startswith("http") or _target.startswith("mailto"):
             continue
-        if page in page_list() and page not in seen:
-            seen.add(page)
-            valid[page.replace("-", " ").title()] = page
+        resolved = posixpath.normpath(posixpath.join(current_dir, _target.removesuffix(".md")))
+        if resolved in all_pages and resolved not in seen:
+            seen.add(resolved)
+            valid[_label] = resolved
 
     def _make_handler(page):
         def _go(_v):
@@ -253,8 +263,8 @@ def page_links_nav(current_content, page_list, set_selected_page):
         return _go
 
     buttons = [
-        mo.ui.button(label=title, on_click=_make_handler(page), kind="neutral")
-        for title, page in valid.items()
+        mo.ui.button(label=label, on_click=_make_handler(page), kind="neutral")
+        for label, page in valid.items()
     ]
     nav_widget = mo.hstack(buttons, wrap=True, gap=1) if buttons else mo.Html("")
     return (nav_widget,)
