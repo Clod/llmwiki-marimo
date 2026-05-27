@@ -137,3 +137,60 @@ def test_make_wiki_slug_diacritics() -> None:
     assert make_wiki_slug("Tasa de Interés") == "tasa-de-interes"
     assert make_wiki_slug("Año Fiscal") == "ano-fiscal"
     assert make_wiki_slug("Überblick") == "uberblick"
+
+
+# ── inject_see_also ───────────────────────────────────────────────────────────
+
+_RELATED_PAGES = [
+    {"title": "Cinderella", "rel_path": "cinderella.md"},
+    {"title": "Caperucita Roja", "rel_path": "caperucita-roja.md"},
+    {"title": "El Patito Feo", "rel_path": "el-patito-feo.md"},
+    {"title": "Cenicienta", "rel_path": "../summaries/cenicienta.md"},
+]
+
+
+def test_inject_see_also_adds_mentioned_pages() -> None:
+    from domain.ingestion.wiki_generator import inject_see_also
+    content = (
+        "# Comparison\n\n## Definition\n"
+        "Cinderella and Caperucita Roja are classic tales.\n\n"
+        "## Sources\n- Chat synthesis\n"
+    )
+    result = inject_see_also(content, _RELATED_PAGES)
+    assert "## See also" in result
+    assert "- [Cinderella](cinderella.md)" in result
+    assert "- [Caperucita Roja](caperucita-roja.md)" in result
+    # Not mentioned in body → not linked
+    assert "el-patito-feo.md" not in result
+
+
+def test_inject_see_also_placed_before_sources() -> None:
+    from domain.ingestion.wiki_generator import inject_see_also
+    content = "# X\n\nAbout Cinderella.\n\n## Sources\n- Chat synthesis\n"
+    result = inject_see_also(content, _RELATED_PAGES)
+    assert result.index("## See also") < result.index("## Sources")
+
+
+def test_inject_see_also_skips_already_linked() -> None:
+    from domain.ingestion.wiki_generator import inject_see_also
+    content = (
+        "# X\n\nAbout Cinderella, see [Cinderella](cinderella.md).\n\n"
+        "## Sources\n- Chat synthesis\n"
+    )
+    result = inject_see_also(content, _RELATED_PAGES)
+    # The page is already linked inline, so no See also entry is added for it
+    assert "## See also" not in result
+
+
+def test_inject_see_also_no_matches_returns_unchanged() -> None:
+    from domain.ingestion.wiki_generator import inject_see_also
+    content = "# X\n\nA page about something unrelated.\n\n## Sources\n- Chat synthesis\n"
+    result = inject_see_also(content, _RELATED_PAGES)
+    assert result == content
+
+
+def test_inject_see_also_resolves_cross_dir_mention() -> None:
+    from domain.ingestion.wiki_generator import inject_see_also
+    content = "# X\n\nCenicienta is the Spanish Cinderella.\n\n## Sources\n- Chat synthesis\n"
+    result = inject_see_also(content, _RELATED_PAGES)
+    assert "- [Cenicienta](../summaries/cenicienta.md)" in result
