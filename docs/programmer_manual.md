@@ -1352,7 +1352,14 @@ artifact at display time, so the empty-bullet bug stays fixed.
 and assert a `cites` edge exists (and/or assert the template constant yields a
 citation parseable by `_CITATION_RE`).
 
-### 🟠 M1 — Path traversal in `read_wiki_page`
+### 🟠 M1 — Path traversal in `read_wiki_page` — ✅ FIXED
+
+> **Resolved.** `read_wiki_page` now resolves the requested path and confines it to the
+> `wiki/` tree (`wiki_root = (_workspace(db_path) / "wiki").resolve()`, reject unless
+> `file.resolve().is_relative_to(wiki_root)`), returning `"Invalid path: …"` for escapes.
+> `.resolve()` normalises `..` segments and symlinks before the check. Regression tests
+> added in `tests/unit/test_wiki_tools.py` (`..._rejects_parent_traversal`,
+> `..._rejects_deep_traversal`). Original analysis follows.
 
 **Where:** `base/domain/chat/wiki_tools.py:49` — `file = _workspace(db_path) / path.lstrip("/")`.
 
