@@ -62,6 +62,22 @@ def test_read_wiki_page_with_leading_slash(tmp_workspace: WorkspaceFixture) -> N
     assert "Wiki Index" in result
 
 
+def test_read_wiki_page_rejects_parent_traversal(tmp_workspace: WorkspaceFixture) -> None:
+    """M1: a crafted '../' path must not read files outside the wiki tree."""
+    secret = tmp_workspace.workspace / "secret.txt"
+    secret.write_text("TOP SECRET", encoding="utf-8")
+
+    result = read_wiki_page(_Ctx(tmp_workspace.db_path), "wiki/../secret.txt")
+    assert "Invalid path" in result
+    assert "TOP SECRET" not in result
+
+
+def test_read_wiki_page_rejects_deep_traversal(tmp_workspace: WorkspaceFixture) -> None:
+    """Even multi-level traversal escaping the workspace is rejected."""
+    result = read_wiki_page(_Ctx(tmp_workspace.db_path), "wiki/../../../../etc/hosts")
+    assert "Invalid path" in result
+
+
 # ── 4.1: search_wiki_fts ─────────────────────────────────────────────────────
 
 def test_search_wiki_fts_finds_content(tmp_workspace: WorkspaceFixture) -> None:

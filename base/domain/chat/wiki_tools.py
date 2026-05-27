@@ -44,9 +44,16 @@ def read_wiki_page(ctx: RunContext[str], path: str) -> str:
     # 1. Retrieve the SQLite database path from the agent's context dependencies
     db_path = ctx.deps
 
-    # 2. Compute the full path to the requested file by joining the workspace root and the relative path
-    #    (lstrip("/") ensures we don't accidentally treat the path as absolute from the root of the OS)
-    file = _workspace(db_path) / path.lstrip("/")
+    # 2. Resolve the requested path and confine it to the wiki/ directory.
+    #    read_wiki_page is LLM-callable and ingested content can carry prompt
+    #    injection, so a crafted path like "wiki/../../.env" must not escape the
+    #    wiki tree. lstrip("/") keeps the join relative; resolve() normalises any
+    #    ".." segments (and symlinks) so is_relative_to can reject escapes.
+    wiki_root = (_workspace(db_path) / "wiki").resolve()
+    file = (_workspace(db_path) / path.lstrip("/")).resolve()
+    if not file.is_relative_to(wiki_root):
+        logger.warning("read_wiki_page rejected out-of-bounds path: %s", path)
+        return f"Invalid path: {path}"
 
     # 3. If the file does not exist, return a friendly user-facing error message
     if not file.exists():
