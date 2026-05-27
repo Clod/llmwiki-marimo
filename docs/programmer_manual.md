@@ -916,8 +916,17 @@ delete_source(db_path, workspace, doc_id, *, also_delete_file=False)
 
 Removes the source `documents` row; FK `ON DELETE CASCADE` automatically cleans  
 up `document_pages`, `document_chunks`, `chunks_fts` (via triggers), and  
-`document_references`. Before the cascade, wiki pages that cited the source are  
-marked `stale_since = now()` so the lint+repair cycle can prompt regeneration.  
+`document_references`. Dependent wiki pages are handled by relationship:  
+
+- **1-to-1 summary pages** (`source_document_id == doc_id`) are **deleted** — there  
+  is no source left to regenerate them from.  
+- Pages that merely **cite** the source (e.g. multi-source **concept** pages) are  
+  **kept and marked `stale_since = datetime('now')`**, since they may still draw on  
+  other surviving sources; deleting them would destroy that synthesis. They are  
+  surfaced by `find_stale_pages` for review/regeneration. *(Note: the lint runner's  
+  `staleness_check` is timestamp-based and does not yet consume `stale_since`; wiring  
+  `find_stale_pages` into the runner is follow-up work.)*  
+
 File removal is opt-in (`also_delete_file=True`). Calls  
 `auto_commit(workspace, "delete source: {filename}")` on success.
 
@@ -1377,7 +1386,16 @@ if not target.is_relative_to(base):
 ```
 Use `Path.resolve()` + `is_relative_to(base)` (3.9+) before reading.
 
-### 🟠 M2 — `delete_source`: doc/code mismatch + latent over-deletion
+### 🟠 M2 — `delete_source`: doc/code mismatch + latent over-deletion — ✅ FIXED
+
+> **Resolved.** `delete_source` now classifies dependent pages by relationship:
+> 1-to-1 summary pages (`source_document_id == doc_id`) are deleted; pages that merely
+> *cite* the source (`reference_type='cites'`, e.g. multi-source concept pages) are kept
+> and marked `stale_since=datetime('now')` instead of deleted. The `by_ref` deletion set
+> is gone, so deleting one source no longer destroys a multi-source concept. §6.9 updated
+> to match (and to note `stale_since` is surfaced by `find_stale_pages`, not yet consumed
+> by the timestamp-based `staleness_check`). Regression test
+> `test_delete_source_marks_multi_source_concept_stale` added. Original analysis follows.
 
 **Where:** `base/domain/tools/deletion.py:59-98`; manual §6.9.
 
