@@ -38,6 +38,41 @@ def update_index(
     index_file.write_text(text, encoding="utf-8")
 
 
+def remove_index_entry(workspace: Path, page_path: str, category: str) -> None:
+    """Remove the entry for page_path from wiki/index.md, if present.
+
+    Inverse of update_index — used to roll back index changes when an ingest
+    fails partway through. No-op if the file or entry is absent.
+    """
+    index_file = workspace / "wiki" / "index.md"
+    if not index_file.exists():
+        return
+    section = "## Summaries" if category == "summaries" else "## Concepts"
+    filename = Path(page_path).name
+
+    lines = index_file.read_text(encoding="utf-8").splitlines(keepends=True)
+    out: list[str] = []
+    in_section = False
+    removed = False
+    for line in lines:
+        if line.strip() == section:
+            in_section = True
+            out.append(line)
+            continue
+        if in_section:
+            if line.startswith("## "):
+                in_section = False
+            else:
+                m = _ENTRY_RE.match(line)
+                if m and Path(m.group(2)).name == filename:
+                    removed = True
+                    continue  # drop this entry
+        out.append(line)
+
+    if removed:
+        index_file.write_text("".join(out), encoding="utf-8")
+
+
 def _upsert_entry(text: str, section: str, filename: str, new_entry: str) -> str:
     """Insert or replace a link entry within the given section."""
     lines = text.splitlines(keepends=True)

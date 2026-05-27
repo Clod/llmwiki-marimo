@@ -20,13 +20,13 @@ from typing import Callable, Literal
 from .chunker import chunk_pages
 from .detector import needs_ingestion
 from .extractor import extract, LibreOfficeNotInstalledError, check_libreoffice
-from .index_manager import update_index
+from .index_manager import update_index, remove_index_entry
 from .wiki_generator import (
     build_wiki_page, make_wiki_slug,
     extract_structured, build_summary_page, build_concept_page, update_overview,
 )
 from domain.tools.db import open_db
-from domain.tools.wiki_fs import create_page, read_page, append_to_page
+from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
 from domain.tools.references import update_references
 from domain.tools.git_ops import init_wiki_repo, auto_commit
 
@@ -169,6 +169,8 @@ def ingest_file(
 
         _cb(f"⚙️ Extracting text from {file_path.name}")
 
+        # Wiki pages created/overwritten in steps 8-9, for rollback on failure.
+        wiki_compensations: list[dict] = []
         try:
             # ── Step 4: Extract text ──────────────────────────────────────────
             cache_dir = workspace / ".llmwiki" / "cache" / "local" / doc_id
@@ -231,10 +233,15 @@ def ingest_file(
                 concept_md = build_concept_page(
                     concept, file_path.name, existing_content, llm_client, model
                 )
+                prior = _snapshot_wiki_page(db_path, f"wiki/concepts/{slug}.md")
                 concept_result = create_page(
                     db_path, workspace, "/wiki/concepts/", slug,
                     concept.name, concept_md, [concept.category], overwrite=True,
                 )
+                wiki_compensations.append({
+                    "dir_path": "/wiki/concepts/", "slug": slug,
+                    "category": "concepts", "prior": prior,
+                })
                 update_references(
                     db_path, concept_result["id"], concept_md, "/wiki/concepts/",
                 )
@@ -245,11 +252,16 @@ def ingest_file(
             _cb("📄 Writing summary page...")
             summary_md = build_summary_page(doc_meta, extraction)
             wiki_slug = make_wiki_slug(file_path.name)
+            prior_summary = _snapshot_wiki_page(db_path, f"wiki/summaries/{wiki_slug}.md")
             summary_result = create_page(
                 db_path, workspace, "/wiki/summaries/", wiki_slug,
                 _title_from_filename(file_path.name), summary_md, [],
                 overwrite=True, source_document_id=doc_id,
             )
+            wiki_compensations.append({
+                "dir_path": "/wiki/summaries/", "slug": wiki_slug,
+                "category": "summaries", "prior": prior_summary,
+            })
             update_references(
                 db_path, summary_result["id"], summary_md, "/wiki/summaries/",
             )
@@ -305,6 +317,11 @@ def ingest_file(
 
         except Exception as exc:
             logger.exception("Ingestion failed for %s", file_path.name)
+            # Roll back wiki pages this run created/overwrote so a failed ingest
+            # leaves no orphaned or half-merged derived pages behind.
+            rolled_back = _rollback_wiki_pages(db_path, workspace, wiki_compensations)
+            if rolled_back:
+                _cb(f"↩️ Rolled back {rolled_back} partial wiki page(s)")
             if conn is None:
                 conn = open_db(db_path)
             conn.execute(
@@ -324,6 +341,62 @@ def ingest_file(
 def _title_from_filename(filename: str) -> str:
     stem = Path(filename).stem
     return stem.replace("-", " ").replace("_", " ").strip().title()
+
+
+def _snapshot_wiki_page(db_path: str, relative_path: str) -> dict | None:
+    """Capture a wiki page's restorable state, or None if it doesn't exist yet.
+
+    Used before steps 8-9 overwrite a page so a failed ingest can restore the
+    prior version instead of leaving merged-but-orphaned content behind.
+    """
+    import json
+    from domain.tools.db import get_connection
+    with get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT id, title, content, tags, source_document_id FROM documents"
+            " WHERE relative_path=? AND source_kind='wiki'",
+            (relative_path,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "content": row["content"] or "",
+        "tags": json.loads(row["tags"]) if row["tags"] else [],
+        "source_document_id": row["source_document_id"],
+    }
+
+
+def _rollback_wiki_pages(db_path: str, workspace: Path, compensations: list[dict]) -> int:
+    """Undo wiki pages created/overwritten during a failed ingest.
+
+    Pages this run newly created are deleted (and their index entry removed);
+    pages it overwrote are restored to their prior content. Returns the number
+    of pages acted on. Best-effort: a rollback error is logged, never raised, so
+    it cannot mask the original ingestion failure.
+    """
+    acted = 0
+    for comp in reversed(compensations):
+        dir_path, slug, category, prior = (
+            comp["dir_path"], comp["slug"], comp["category"], comp["prior"],
+        )
+        try:
+            if prior is None:
+                if delete_page(db_path, workspace, dir_path, slug):
+                    remove_index_entry(workspace, f"{category}/{slug}.md", category)
+                    acted += 1
+            else:
+                create_page(
+                    db_path, workspace, dir_path, slug,
+                    prior["title"], prior["content"], prior["tags"],
+                    overwrite=True, source_document_id=prior["source_document_id"],
+                )
+                update_references(db_path, prior["id"], prior["content"], dir_path)
+                acted += 1
+        except Exception:
+            logger.exception("Rollback failed for %s%s.md", dir_path, slug)
+    return acted
 
 
 def _all_concept_names(db_path: str) -> list[str]:

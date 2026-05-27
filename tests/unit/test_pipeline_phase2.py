@@ -9,8 +9,10 @@ from pathlib import Path
 
 
 from domain.ingestion.pipeline import ingest_file
+from domain.ingestion.wiki_generator import make_wiki_slug
 from domain.tools.db import get_connection
 from domain.tools.search import search_chunks
+from domain.tools.wiki_fs import create_page
 from tests.helpers.fake_llm import FakeLLMClient
 from tests.helpers.workspace import WorkspaceFixture
 
@@ -205,3 +207,75 @@ def test_ingest_skips_unchanged_file(tmp_workspace: WorkspaceFixture) -> None:
     result = ingest_file(pdf, tmp_workspace.db_path, tmp_workspace.workspace,
                          tmp_workspace.llm, "fake")
     assert result.status == "skipped"
+
+
+# ── M3: partial-failure rollback ──────────────────────────────────────────────
+
+class _FailingLLM(FakeLLMClient):
+    """FakeLLMClient that raises on the Nth call (1-based) to simulate a
+    mid-ingest LLM failure (e.g. a timeout while building the 2nd concept)."""
+
+    def __init__(self, responses: list[str], fail_on_call: int) -> None:
+        super().__init__(responses=responses)
+        self._fail_on_call = fail_on_call
+
+    def next_response(self) -> str:
+        if self._call_index + 1 == self._fail_on_call:
+            raise RuntimeError("simulated LLM failure")
+        return super().next_response()
+
+
+def test_ingest_rolls_back_created_pages_on_failure(tmp_workspace: WorkspaceFixture) -> None:
+    """A failure partway through concept generation must delete the concept
+    pages already created in this run (and their index entries)."""
+    pdf = _copy_pdf(tmp_workspace)
+    # call 1 = extract, call 2 = concept "Snow White", call 3 = concept "Evil Queen".
+    # Fail on call 3 so Snow White is created, then the run fails.
+    llm = _FailingLLM(
+        responses=[_EXTRACTION_JSON, _CONCEPT_PAGE_1, _CONCEPT_PAGE_2, _OVERVIEW],
+        fail_on_call=3,
+    )
+    result = ingest_file(pdf, tmp_workspace.db_path, tmp_workspace.workspace, llm, "fake")
+
+    assert result.status == "failed"
+    slug = make_wiki_slug("Snow White")
+    page = tmp_workspace.workspace / "wiki" / "concepts" / f"{slug}.md"
+    assert not page.exists()  # created-then-rolled-back
+    with get_connection(tmp_workspace.db_path) as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM documents"
+            " WHERE source_kind='wiki' AND path='/wiki/concepts/'"
+        ).fetchone()[0]
+    assert count == 0
+    index_text = (tmp_workspace.workspace / "wiki" / "index.md").read_text(encoding="utf-8")
+    assert f"{slug}.md" not in index_text  # dangling index entry removed
+
+
+def test_ingest_restores_overwritten_page_on_failure(tmp_workspace: WorkspaceFixture) -> None:
+    """A failure after overwriting a pre-existing concept must restore the prior
+    content, not leave the half-merged version behind."""
+    pdf = _copy_pdf(tmp_workspace)
+    slug = make_wiki_slug("Snow White")
+    original = "# Snow White\n\nORIGINAL CONTENT FROM A PRIOR SOURCE.\n"
+    create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", slug, "Snow White", original, ["entity"],
+    )
+
+    # Snow White (call 2) overwrites the existing page, then Evil Queen (call 3) fails.
+    llm = _FailingLLM(
+        responses=[_EXTRACTION_JSON, _CONCEPT_PAGE_1, _CONCEPT_PAGE_2, _OVERVIEW],
+        fail_on_call=3,
+    )
+    result = ingest_file(pdf, tmp_workspace.db_path, tmp_workspace.workspace, llm, "fake")
+
+    assert result.status == "failed"
+    page = tmp_workspace.workspace / "wiki" / "concepts" / f"{slug}.md"
+    assert page.exists()  # pre-existing page survives
+    assert page.read_text(encoding="utf-8") == original  # restored to prior content
+    with get_connection(tmp_workspace.db_path) as conn:
+        row = conn.execute(
+            "SELECT content FROM documents WHERE relative_path=?",
+            (f"wiki/concepts/{slug}.md",),
+        ).fetchone()
+    assert row["content"] == original  # DB row restored too
