@@ -12,6 +12,12 @@ logger = logging.getLogger(__name__)
 
 _CITATION_RE = re.compile(r"\[\^\d+\]:\s*(.+)$", re.MULTILINE)
 _WIKI_LINK_RE = re.compile(r"(?<!!)\[(?:[^\]]*)\]\(([^)]+)\)")
+# Concept/chat pages list sources as plain "- file.pdf" bullets under a
+# "## Sources" heading (summary pages use the "[^N]: file" footnote form above).
+# Capture the body of the Sources section, then each bullet within it.
+_SOURCES_SECTION_RE = re.compile(r"^##\s+Sources\s*$(.*?)(?=^##\s|\Z)", re.MULTILINE | re.DOTALL)
+_SOURCE_BULLET_RE = re.compile(r"^\s*[-*]\s+(.+?)\s*$", re.MULTILINE)
+_FOOTNOTE_PREFIX_RE = re.compile(r"^\[\^\w+\]:\s*")
 
 
 def _parse_citation_filename(raw: str) -> tuple[str, int | None]:
@@ -91,8 +97,17 @@ def update_references(
 
         edges: list[tuple[str, str, int | None]] = []
 
-        for match in _CITATION_RE.finditer(content):
-            filename, page = _parse_citation_filename(match.group(1))
+        # Citation candidates come from two on-page formats:
+        #  1. "[^N]: file.pdf, p.3" footnote markers anywhere (summary pages)
+        #  2. plain "- file.pdf" bullets under a "## Sources" heading (concept/chat pages)
+        citation_raws: list[str] = [m.group(1) for m in _CITATION_RE.finditer(content)]
+        for section in _SOURCES_SECTION_RE.finditer(content):
+            for bullet in _SOURCE_BULLET_RE.finditer(section.group(1)):
+                # Tolerate legacy "- [^1]: file.pdf" bullets by stripping the marker.
+                citation_raws.append(_FOOTNOTE_PREFIX_RE.sub("", bullet.group(1)))
+
+        for raw in citation_raws:
+            filename, page = _parse_citation_filename(raw)
             fn_lower = filename.lower()
             target = filename_to_doc.get(fn_lower)
             if not target:
