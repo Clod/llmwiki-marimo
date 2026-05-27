@@ -320,12 +320,12 @@ def delete_page(
     relative_path = dir_path.lstrip("/") + f"{slug}.md"
     file_path = workspace / relative_path
 
-    # 2. Delete the physical file from the disk
+    # 2. Note whether the page exists (file or DB row decide the return value).
     existed = file_path.exists()
-    if existed:
-        file_path.unlink()
 
-    # 3. Remove all references, search chunks, and records from the database
+    # 3. Clean up the database FIRST. If a DB step raises (e.g. inside
+    #    _strip_dead_links), the file is still on disk, so the page stays
+    #    consistent rather than leaving an orphan DB row pointing at a deleted file.
     conn = open_db(db_path)
     try:
         # Retrieve the document ID to find its related child rows
@@ -356,5 +356,9 @@ def delete_page(
                 existed = True
     finally:
         conn.close()
+
+    # 4. Remove the physical file LAST, once the DB is consistent.
+    if file_path.exists():
+        file_path.unlink()
 
     return existed

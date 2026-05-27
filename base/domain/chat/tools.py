@@ -37,12 +37,10 @@ async def search_source_chunks(ctx: RunContext[str], query: str, limit: int = 10
     db_path = ctx.deps
 
     try:
-        # 2. Open an asynchronous connection to the database
+        # 2. Open an asynchronous connection to the database.
+        #    journal_mode=WAL is a persistent database-level setting already applied
+        #    by open_db at creation, so this read path does not need to re-set it.
         async with aiosqlite.connect(db_path) as db:
-            # Enable WAL mode (Write-Ahead Logging) to ensure high concurrency
-            # and performance during searches
-            await db.execute("PRAGMA journal_mode=WAL")
-
             # 3. Perform a fast Full-Text Search (FTS5) join query:
             #    - We match the virtual FTS table (chunks_fts) on the unique 'rowid'.
             #    - We join with 'documents' to fetch the actual human-readable filename.

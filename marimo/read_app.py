@@ -244,7 +244,8 @@ def page_links_nav(current_content, page_list, selected_stem, set_selected_page)
     """
     import posixpath
 
-    raw_links = re.findall(r'\[([^\]]+)\]\(([^)]+)\)', current_content or "")
+    # (?<!!) excludes image embeds ![alt](src) — matches references.py:_WIKI_LINK_RE.
+    raw_links = re.findall(r'(?<!!)\[([^\]]+)\]\(([^)]+)\)', current_content or "")
     current_dir = posixpath.dirname(selected_stem or "")
     all_pages = page_list()
     seen = set()

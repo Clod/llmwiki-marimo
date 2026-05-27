@@ -499,8 +499,14 @@ def inject_see_also(content: str, related_pages: list[dict]) -> str:
     content_lower = content.lower()
     matches = []
     for page in related_pages:
-        slug_text = page["rel_path"].replace(".md", "").replace("../concepts/", "").replace("../summaries/", "").replace("-", " ")
-        if slug_text in content_lower and page["rel_path"] not in content:
+        slug_text = page["rel_path"].replace(".md", "").replace("../concepts/", "").replace("../summaries/", "").replace("-", " ").lower()
+        # Word-boundary match so a short slug doesn't match inside a larger word
+        # (e.g. "art" inside "started"); skip pages already linked in the content.
+        if (
+            slug_text
+            and re.search(rf"\b{re.escape(slug_text)}\b", content_lower)
+            and page["rel_path"] not in content
+        ):
             matches.append(page)
 
     if not matches:

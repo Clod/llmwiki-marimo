@@ -194,3 +194,23 @@ def test_inject_see_also_resolves_cross_dir_mention() -> None:
     content = "# X\n\nCenicienta is the Spanish Cinderella.\n\n## Sources\n- Chat synthesis\n"
     result = inject_see_also(content, _RELATED_PAGES)
     assert "- [Cenicienta](../summaries/cenicienta.md)" in result
+
+
+def test_inject_see_also_respects_word_boundaries() -> None:
+    """L2: a short slug must not match inside a larger word."""
+    from domain.ingestion.wiki_generator import inject_see_also
+    related = [{"title": "Art", "rel_path": "art.md"}]
+    # "art" only appears inside "started"/"partly" — never as a whole word.
+    content = "# X\n\nThe project started and partly finished.\n\n## Sources\n- Chat synthesis\n"
+    result = inject_see_also(content, related)
+    assert "## See also" not in result
+    assert "art.md" not in result
+
+
+def test_inject_see_also_matches_whole_word() -> None:
+    """L2: a whole-word mention is still matched."""
+    from domain.ingestion.wiki_generator import inject_see_also
+    related = [{"title": "Art", "rel_path": "art.md"}]
+    content = "# X\n\nThis page is about art history.\n\n## Sources\n- Chat synthesis\n"
+    result = inject_see_also(content, related)
+    assert "- [Art](art.md)" in result

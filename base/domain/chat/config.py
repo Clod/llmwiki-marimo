@@ -115,5 +115,6 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
     #    if specific parameters are missing from the configuration file.
     return WikiAssistantConfig(
         system_prompt=assistant.get("system_prompt", _DEFAULT_SYSTEM_PROMPT).strip(),
-        suggested_prompts=assistant.get("suggested_prompts", _DEFAULT_PROMPTS),
+        # Copy so a caller mutating the result never corrupts the shared module default.
+        suggested_prompts=list(assistant.get("suggested_prompts", _DEFAULT_PROMPTS)),
     )
