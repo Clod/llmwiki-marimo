@@ -211,6 +211,60 @@ schema applied from `database/sqlite_schema.sql` on first run. Uses
 | `chunks_fts`          | Virtual FTS5 table mirroring `document_chunks` via triggers                    |
 | `document_references` | Citation graph edges (`reference_type` ∈ {`cites`, `links_to`})                |
 
+### The citation graph (nodes & edges)
+
+The wiki is not just a folder of markdown files — it is a **directed graph**, stored
+in the `document_references` table. Understanding this graph is essential to
+understanding how lint, repair, stale-detection, and backlinks all work.
+
+- **Nodes** = documents. *Every* row in the `documents` table is a node — this
+  includes both raw sources (`source_kind='source'`, e.g. `Cenicienta.pdf`) and
+  generated wiki pages (`source_kind='wiki'`, e.g. `concepts/cinderella.md`).
+- **Edges** = rows in `document_references`. Each row is a *directed* link from one
+  document to another:
+
+  ```
+  source_document_id  →  target_document_id   (reference_type)
+  ```
+
+The `reference_type` column says **what kind** of link the edge is. There are exactly
+two kinds:
+
+| `reference_type` | Meaning | Parsed from | Example |
+| ---------------- | ------- | ----------- | ------- |
+| **`cites`**      | "this page was built from / draws on that source" | the `## Sources` section of a page | `cinderella.md` **cites** `Cenicienta.pdf` |
+| **`links_to`**   | "this page hyperlinks to that page" | inline `[text](path)` wiki links (e.g. *See also* links) | `cinderella.md` **links_to** `little-red-riding-hood.md` |
+
+So a **"cites edge"** is one row in `document_references` with `reference_type='cites'`.
+It records the single fact *"document A cites document B."* When you ingest
+`Cenicienta.pdf` and it produces `cinderella.md`, the intended edge is:
+
+```
+source = cinderella.md   target = Cenicienta.pdf   reference_type = 'cites'
+```
+
+That one row is what powers the two traversal helpers in `references.py`:
+
+- **`get_forward_refs(node)`** — follows edges *out of* a node → "what does this page cite / link to?"
+- **`get_backlinks(node)`** — follows edges *into* a node → "what cites / links to this document?"
+
+And it is what the reconciliation checks reason over:
+
+- **`find_uncited_sources`** — a source with **no incoming `cites` edge** is an orphan.
+- **`missing_xref`** — relies on `cites` edges to know which page came from which source.
+- **stale detection** — follows `cites` edges to mark a page stale when its source changes.
+
+If the `cites` edges are missing, the graph still has all its **nodes** (the documents
+exist) but is missing the **arrows** between them — so every check above silently
+produces wrong answers. (This is exactly the failure mode of finding **H1** in §14:
+the `## Sources` parser stopped matching the page format, so concept pages generate
+zero `cites` edges.)
+
+`edges` are rebuilt — never incrementally patched — by `update_references(db, doc_id,
+content, path)`: it deletes all edges where `source_document_id = doc_id`, then re-parses
+the page content and re-inserts them. So a page's outgoing edges always reflect its
+*current* content.
+
 ### Notable `documents` columns
 
 | Column                     | Values                                  | Meaning                                    |
@@ -1200,3 +1254,160 @@ explicitly, and mock the network in tests.
 | **Filing Cabinet**          | The SQLite + FTS5 layer (`workspace/.llmwiki/index.db`).                                                                                                                                                                            |
 | **Encyclopedia**            | The human-readable markdown layer (`workspace/wiki/`).                                                                                                                                                                              |
 | **Phase 1 / 2 / 3 / 4 RAG** | The agent's routing cascade: index → wiki search → raw chunks → web search (Phase 4 pending §11.5).                                                                                                                                 |
+
+---
+
+## 14. MVP Review Findings (2026-05-26)
+
+> Full doc-sync + code review of `base/domain/`, `marimo/`, and this manual at the
+> "MVP complete" milestone. Smoke test: **184 unit tests pass** (the manual's "125"
+> in §3/§9 is stale — see D7). Findings are listed with concrete fixes; none have
+> been applied yet. Severity: 🔴 high · 🟠 medium · 🟡 low · 📘 doc.
+
+### 🔴 H1 — Citation graph broken for concept pages (regression)
+
+**Where:** `base/domain/ingestion/wiki_generator.py` (`_CONCEPT_NEW_TEMPLATE` L139-140,
+`_CONCEPT_UPDATE_TEMPLATE` L154, `_CHAT_CONCEPT_*` L184-185, L203) ×
+`base/domain/tools/references.py` (`_CITATION_RE`, L13).
+
+**What:** `update_references` builds `cites` edges by matching footnote markers
+`[^n]: filename` via `_CITATION_RE = r"\[\^\d+\]:\s*(.+)$"`. A recent fix
+(commit `860a8a5`, "remove footnote syntax from Sources") changed the concept
+templates' Sources section from `- [^1]: {filename}` to plain `- {filename}`.
+Result: **concept pages no longer emit any parseable citation**, so
+`update_references` creates **zero `cites` edges** for them. Verified:
+`_CITATION_RE.findall("## Sources\n- Cenicienta.pdf")` → `[]`.
+
+`build_summary_page` is deterministic and still emits `[^1]: {filename}` (L316), so
+**summary** pages are unaffected — only concept/chat pages regressed.
+
+**Downstream impact** (every check below JOINs `reference_type='cites'`):
+- `missing_xref_check` / `repair_missing_xref` — concept cross-linking silently stops.
+- `find_uncited_sources` — false positives (sources cited only by concepts look uncited).
+- `staleness_check` / `repair_stale` — concept pages never flagged stale on source change.
+
+**Why tests didn't catch it:** all citation/lint tests hand-write `[^1]: x.pdf`
+content (e.g. `test_references.py:46`, `test_lint_full.py:69`). No test asserts the
+*template output* is parseable, so the integration seam is uncovered.
+
+**Recommended fix (robust, format-agnostic — preferred):** broaden
+`update_references` to also parse plain bullet filenames under a `## Sources`
+heading (strip any leading `[^n]:`), so it accepts both `- [^1]: x.pdf` and
+`- x.pdf`. This also fixes a *pre-existing* bug: when the LLM copied the literal
+`[^N]` placeholder (seen in `charles-perrault.md`), `\d+` never matched it either.
+**Alternative (minimal):** restore `- [^1]: {filename}` in the concept templates;
+the read-app render strip (`read_app.py` `middle_panel`) already hides the footnote
+artifact at display time, so the empty-bullet bug stays fixed.
+**Regression test:** feed a plain-list `## Sources` page through `update_references`
+and assert a `cites` edge exists (and/or assert the template constant yields a
+citation parseable by `_CITATION_RE`).
+
+### 🟠 M1 — Path traversal in `read_wiki_page`
+
+**Where:** `base/domain/chat/wiki_tools.py:49` — `file = _workspace(db_path) / path.lstrip("/")`.
+
+**What:** `lstrip("/")` removes leading slashes but does **not** neutralise `../`.
+`read_wiki_page` is an **LLM-callable tool**; ingested document content can carry
+prompt-injection. A crafted `path` like `wiki/../../../.env` resolves outside the
+workspace, enabling arbitrary file reads echoed back in chat.
+
+**Fix:** resolve and confine to the workspace (ideally to `wiki/`):
+```python
+base = (_workspace(db_path) / "wiki").resolve()
+target = (base / Path(path).name if ... ).resolve()   # or resolve full path
+if not target.is_relative_to(base):
+    return f"Invalid path: {path}"
+```
+Use `Path.resolve()` + `is_relative_to(base)` (3.9+) before reading.
+
+### 🟠 M2 — `delete_source`: doc/code mismatch + latent over-deletion
+
+**Where:** `base/domain/tools/deletion.py:59-98`; manual §6.9.
+
+**What:** (a) §6.9 states dependent wiki pages are *marked `stale_since = now()`*.
+The code does **not** set `stale_since` anywhere — it **deletes** derived pages
+outright (`delete_page`). The doc is wrong. (b) `by_ref` collects *every* wiki page
+that cites the source (`SELECT source_document_id ... WHERE target_document_id=?`).
+Today this only catches summary pages (because of H1), but **once H1 is fixed**,
+deleting one source would also delete multi-source **concept** pages that merely
+cite it — a concept derived from several sources should not vanish.
+
+**Fix:** restrict deletion to the 1-to-1 summary pages (via `source_document_id`
+column only), and mark citing concept pages `stale_since` instead of deleting them
+— then update §6.9 to match the real behavior.
+
+### 🟠 M3 — Partial-failure leaves orphaned concept pages
+
+**Where:** `base/domain/ingestion/pipeline.py:224-317` (steps 7-9 + except handler).
+
+**What:** Steps 8-9 create concept/summary pages after the source row is committed
+(step 6) and the connection closed. If an exception occurs partway through step 8
+(e.g. an LLM error on the 3rd of 5 concepts), the already-created concept pages
+persist on disk + DB while the source is marked `status='failed'`. No rollback of
+partial wiki state. Some are caught later by the `orphan` check, but not all.
+
+**Fix (PoC-acceptable):** document as a known limitation in §6.3, or track
+created page paths during steps 8-9 and delete them in the `except` handler.
+
+### 🟡 Low-severity
+
+- **L1** `chat/config.py:118` — `load_config` returns the shared module-level
+  `_DEFAULT_PROMPTS` list when the TOML key is absent (the dataclass uses
+  `default_factory` to copy, but this path bypasses it). Wrap: `list(assistant.get(...))`.
+- **L2** `wiki_generator.py:inject_see_also` — substring match
+  (`slug_text in content_lower`) has no word boundaries; short slugs could
+  over-match (e.g. a 3-letter slug inside a larger word). Consider `\b` boundaries.
+- **L3** `read_app.py:page_links_nav` — link regex matches image links
+  `![alt](src)` (no `(?<!!)` lookbehind; `references.py:_WIKI_LINK_RE` has one).
+  Harmless today (wiki pages rarely embed images).
+- **L4** `repair/actions.py:_relative_link` uses `os.path.relpath`, which yields
+  backslashes on Windows and would break markdown hrefs. Force `/` (project is macOS).
+- **L5** `ingestion/index_manager.py:_upsert_entry` — after inserting an entry the
+  blank-line guard checks the wrong index, so entries can butt directly against the
+  next `## ` heading. Cosmetic.
+- **L6** `tools/wiki_fs.py:delete_page` deletes the file before DB cleanup; an
+  exception in `_strip_dead_links` (before the `with conn:` block) leaves an
+  orphaned DB row pointing at a now-missing file.
+- **L7** `chat/tools.py:44` sets `PRAGMA journal_mode=WAL` on every (read-only)
+  search call — unnecessary; `open_db` already sets it.
+- **L8** `ingestion/chunker.py` chunks at paragraph granularity; a single paragraph
+  with no blank lines larger than `CHUNK_SIZE` becomes one oversized chunk.
+
+### 📘 Doc-sync (manual accuracy)
+
+- **D1 Line-number drift.** Many cited entry points are stale: `batch_ingest`
+  (§6.4 `:20`→`:43`), `create_agent` (§6.7 `:12`→`:29`), `_DEFAULT_SYSTEM_PROMPT`
+  (§1 `:7`→`:25`), `delete_page` (§6.10 `:173`→`:311`), `read_wiki_page`
+  (§6.7 `:24`→`:33`), `search_wiki_fts` (`:47`→`:66`), `file_to_wiki` (§6.8
+  `:87`→`:154`), `save_to_wiki` (§6.8 `:168`→`:321`), `search_source_chunks`
+  (§6.7 `:10`→`:24`), `extract_structured` (§6.3 `:189`→`:239`), `build_summary_page`
+  (`:238`→`:288`), `build_concept_page` (`:270`→`:320`), `update_overview`
+  (`:304`→`:391`). (`pipeline.py` and `deletion.py` citations are still accurate.)
+  **Fix:** stop citing exact line numbers (prefer `module.py:function_name`) or add a
+  "line numbers approximate" caveat and re-sweep. *(DB schema §4 and tool layer §5
+  were re-verified and are fully accurate.)*
+- **D2 `inject_see_also` undocumented.** §6.8 step list should add: after
+  `structure_chat_content`, a deterministic `inject_see_also` (wiki_generator.py)
+  scans the generated markdown for mentions of existing page slugs and injects a
+  `## See also` section before `## Sources` (runs in both `file_to_wiki` and
+  `save_to_wiki`). Also note the read-app changes: `middle_panel` strips `[^n]:`
+  footnote prefixes at render time, and `page_links_nav` resolves relative links
+  against the current page's directory before matching the page list.
+- **D3 §6.9** claims `stale_since` marking that the code doesn't do (see M2).
+- **D4 §6.1 `LintIssue` dataclass** is missing the `related_page` and `topic`
+  fields that exist in `lint/report.py` and are used by xref/contradiction/data_gap.
+- **D5 §6.1 `summary()` format** — actual output is
+  `"N issue(s): E error(s), W warning(s), X info"` (doc shows `"1 error, 2 warning"`).
+- **D6 §11.9 (grid column for page title)** is **done** — `read_app.py:left_panel`
+  shows Title + Directory + Slug + Excerpt. §11.11 (Run Lint/Repair UI) is **partially
+  done** — a "Run Wiki Lint & Repair" button with LLM-enabled lint exists in
+  `ingest_app.py`; only the always-on auto-trigger after every ingest/scan/regen remains.
+- **D7 Test count** — §3 and §9 say "125 unit tests"; actual is **184**.
+
+### Suggested priority
+
+1. **H1** (functional regression in a core subsystem) — fix + regression test.
+2. **M1** (security) — confine `read_wiki_page` to the workspace.
+3. **M2/M3** — align deletion behavior/doc; handle partial-ingest cleanup.
+4. **D1-D7** — doc-sync sweep (cheap, high clarity payoff).
+5. **L1-L8** — opportunistic.
