@@ -260,10 +260,50 @@ produces wrong answers. (This is exactly the failure mode of finding **H1** in �
 the `## Sources` parser stopped matching the page format, so concept pages generate
 zero `cites` edges.)
 
-`edges` are rebuilt — never incrementally patched — by `update_references(db, doc_id,
-content, path)`: it deletes all edges where `source_document_id = doc_id`, then re-parses
-the page content and re-inserts them. So a page's outgoing edges always reflect its
-*current* content.
+#### Edges are rebuilt, never patched
+
+`update_references(db, doc_id, content, path)` does **not** diff against existing rows.
+Inside one transaction it deletes the page's current outgoing edges and re-inserts the
+full freshly-parsed set:
+
+```python
+with conn:
+    conn.execute(
+        "DELETE FROM document_references WHERE source_document_id=?",
+        (document_id,),
+    )
+    conn.executemany(
+        "INSERT INTO document_references "
+        "(source_document_id, target_document_id, reference_type, page) "
+        "VALUES (?,?,?,?)",
+        [(document_id, t, r, p) for t, r, p in unique_edges],
+    )
+```
+
+Three properties follow:
+
+- **Scope is one node's *outgoing* edges.** The `DELETE` is keyed on
+  `source_document_id = doc_id`, so it clears every edge *leaving* this page (both
+  `cites` and `links_to`) and nothing else. Edges *into* the page (other pages citing
+  it) belong to other source nodes and are rebuilt when *those* pages are reprocessed.
+- **Page content is the single source of truth.** After the call, the page's outgoing
+  edges are exactly what the current markdown says — no more, no less. The operation is
+  idempotent: running it twice on the same content yields the same rows, with no
+  accumulation or stale leftovers.
+- **Why rebuild instead of patch:** a diff-and-patch approach is more code and every
+  diff path is a chance to leave the graph inconsistent (e.g. a removed `## Sources`
+  entry whose `cites` edge lingers forever). Wiki pages are small and fully available at
+  write time, so "delete-all-then-insert-all" is both cheap and trivially correct — the
+  DB can never drift from the markdown.
+
+The practical consequence cuts both ways. **Regenerating or editing a page automatically
+heals its edges** — which is why the fix for a parser bug like **H1** needs no migration:
+correct the parser, reprocess each affected page (or run a regen pass), and every missing
+`cites` edge is rebuilt. But the same property makes a parser bug *total*: since edges are
+never patched incrementally, there is no historical residue to fall back on. The moment
+the parser stops matching the page format, the very next `update_references` call deletes
+the old (correct) edges and inserts nothing — one run is enough to zero out a page's
+citations.
 
 ### Notable `documents` columns
 
