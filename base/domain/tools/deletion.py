@@ -19,8 +19,13 @@ def delete_source(
 
     FK ON DELETE CASCADE handles document_pages, document_chunks, chunks_fts
     (via triggers), and document_references automatically.
-    Derived wiki pages (summaries generated from this source) are deleted
-    outright — there is no source left to regenerate them from.
+
+    Dependent wiki pages are handled by relationship:
+      - 1-to-1 summary pages (source_document_id == doc_id) are deleted outright —
+        there is no source left to regenerate them from.
+      - Pages that merely cite the source (e.g. multi-source concept pages) are kept
+        and marked stale (stale_since), since they may draw on other surviving
+        sources; deleting them would destroy that synthesis.
 
     Returns a RepairResult describing the outcome.
     """
@@ -56,46 +61,67 @@ def delete_source(
         filename = row["filename"]
         relative_path = row["relative_path"]
 
-        # Collect derived wiki pages BEFORE the cascade removes document_references.
-        # Use both the direct source_document_id link (set during ingestion) and the
-        # references graph so nothing is missed.
+        # Classify dependent wiki pages BEFORE the cascade removes document_references:
+        #  - 1-to-1 summary pages (source_document_id == this source) are *deleted* —
+        #    there is no source left to regenerate them from.
+        #  - Pages that merely *cite* the source (e.g. multi-source concept pages) are
+        #    *kept* and marked stale: they may still draw on other surviving sources,
+        #    so deleting them would destroy that synthesis. They are surfaced by
+        #    find_stale_pages for review/regeneration.
         with get_connection(db_path) as conn:
-            by_ref = [
-                r["source_document_id"]
-                for r in conn.execute(
-                    "SELECT DISTINCT source_document_id FROM document_references"
-                    " WHERE target_document_id=?",
-                    (doc_id,),
-                ).fetchall()
-            ]
-            by_col = [
+            delete_ids = {
                 r["id"]
                 for r in conn.execute(
                     "SELECT id FROM documents"
                     " WHERE source_document_id=? AND source_kind='wiki'",
                     (doc_id,),
                 ).fetchall()
-            ]
-            wiki_ids = list({*by_ref, *by_col})
+            }
+            citing_ids = {
+                r["source_document_id"]
+                for r in conn.execute(
+                    "SELECT DISTINCT source_document_id FROM document_references"
+                    " WHERE target_document_id=? AND reference_type='cites'",
+                    (doc_id,),
+                ).fetchall()
+            }
+            # Cited pages that are not 1-to-1 derivatives get marked stale, not deleted.
+            stale_ids = citing_ids - delete_ids
 
-            wiki_paths: list[tuple[str, str]] = []  # (dir_path, slug) pairs
-            if wiki_ids:
-                placeholders = ",".join("?" * len(wiki_ids))
-                wiki_paths = [
+            delete_paths: list[tuple[str, str]] = []  # (dir_path, slug) pairs
+            if delete_ids:
+                placeholders = ",".join("?" * len(delete_ids))
+                delete_paths = [
                     (r["path"], r["filename"].removesuffix(".md"))
                     for r in conn.execute(
                         f"SELECT path, filename FROM documents"
                         f" WHERE id IN ({placeholders}) AND source_kind='wiki'",
-                        wiki_ids,
+                        list(delete_ids),
                     ).fetchall()
                 ]
 
-        # Delete derived wiki pages from disk and DB before the source cascade
+        # Delete the 1-to-1 derived pages from disk and DB before the source cascade.
         deleted_wiki: list[str] = []
-        for dir_path, slug in wiki_paths:
+        for dir_path, slug in delete_paths:
             if delete_page(db_path, workspace, dir_path, slug):
                 deleted_wiki.append(f"{dir_path}{slug}.md")
                 logger.info("Deleted derived wiki page: %s%s.md", dir_path, slug)
+
+        # Mark citing (multi-source) pages stale instead of deleting them.
+        marked_stale = 0
+        if stale_ids:
+            placeholders = ",".join("?" * len(stale_ids))
+            with get_connection(db_path) as conn:
+                with conn:
+                    cur = conn.execute(
+                        f"UPDATE documents SET stale_since=datetime('now')"
+                        f" WHERE id IN ({placeholders}) AND source_kind='wiki'"
+                        f" AND stale_since IS NULL",
+                        list(stale_ids),
+                    )
+                    marked_stale = cur.rowcount
+            if marked_stale:
+                logger.info("Marked %d citing wiki page(s) stale", marked_stale)
 
         with get_connection(db_path) as conn:
             with conn:
@@ -107,7 +133,12 @@ def delete_source(
                 physical.unlink()
                 logger.info("Deleted physical file: %s", physical)
 
-        wiki_note = f"; deleted {len(deleted_wiki)} derived wiki page(s)" if deleted_wiki else ""
+        notes: list[str] = []
+        if deleted_wiki:
+            notes.append(f"deleted {len(deleted_wiki)} derived wiki page(s)")
+        if marked_stale:
+            notes.append(f"marked {marked_stale} citing page(s) stale")
+        wiki_note = f"; {'; '.join(notes)}" if notes else ""
         auto_commit(workspace, f"delete source: {filename}")
 
         return RepairResult(
