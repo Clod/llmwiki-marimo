@@ -33,6 +33,10 @@
 
 Status legend used throughout: ✅ implemented · 🟡 partial · ❌ missing.
 
+> **On line numbers.** Code is cited as `module.py:symbol` (function/constant name),
+> which stays valid as the code moves. Any bare `:NN` or `(L NN)` you still see is an
+> approximate snapshot — grep for the named symbol rather than jumping to the line.
+
 ---
 
 ## 1. Philosophy & Karpathy Alignment
@@ -161,7 +165,7 @@ llmwiki/
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py}
-│   ├── unit/                           # 125 unit tests (no LLM, no network)
+│   ├── unit/                           # 197 unit tests (no LLM, no network)
 │   └── e2e/                            # Playwright tests (live marimo + LLM)
 ├── docs/
 │   ├── programmer_manual.md            # THIS FILE
@@ -360,13 +364,13 @@ Each workflow below follows the same template:
 | 6.1  | Lint               | ✅      | `lint/runner.py:17`                                                  | `data_gap` shallow; `gap_filled_check` runs always; not auto-triggered yet (§11.11) |
 | 6.2  | Repair             | ✅      | `repair/runner.py:30`                                                | All five deterministic repairs implemented             |
 | 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:88`                                           | Lint+repair tail opt-in today (§11.11)                 |
-| 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:20`                                              | Lint+repair tail opt-in today (§11.11)                 |
+| 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:batch_ingest`                                   | Lint+repair tail opt-in today (§11.11)                 |
 | 6.5  | Scan sources       | ✅      | `ingestion/pipeline.py:340`                                          | Should chain into lint+repair (§11.11)                 |
 | 6.6  | Regenerate         | ✅      | `ingestion/pipeline.py:379`                                          | Should chain into lint+repair (§11.8)                  |
-| 6.7  | Chat / RAG         | ✅      | `chat/agent.py:12` + `chat/config.py:7`                              | Phases 1–3 (wiki + sources) complete; web search (Phase 4) is a future enhancement (§12) |
-| 6.8  | Chat → Wiki        | ✅      | `chat/wiki_tools.py:87` (`file_to_wiki`) and `:168` (`save_to_wiki`) | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred (§12) |
+| 6.7  | Chat / RAG         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Phases 1–3 (wiki + sources) complete; web search (Phase 4) is a future enhancement (§12) |
+| 6.8  | Chat → Wiki        | ✅      | `chat/wiki_tools.py:file_to_wiki` and `:save_to_wiki`               | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred (§12) |
 | 6.9  | Source deletion    | ✅      | `tools/deletion.py:11`                                               | —                                                      |
-| 6.10 | Wiki page deletion | ✅      | `tools/wiki_fs.py:173` (`delete_page`)                               | —                                                     |
+| 6.10 | Wiki page deletion | ✅      | `tools/wiki_fs.py:delete_page`                               | —                                                     |
 
 Every ingestion and save workflow shares one goal: **leave the wiki in an
 internally consistent state.** The mechanism is the **lint → repair reconciliation
@@ -412,7 +416,7 @@ report = lint_wiki(
     client=None,    # pass an LLM client to enable the LLM checks
     model="",
 )
-print(report.summary())             # "3 issue(s): 1 error, 2 warning"
+print(report.summary())             # "3 issue(s): 1 error(s), 2 warning(s), 0 info"
 for issue in report.issues: ...
 ```
 
@@ -444,12 +448,15 @@ class LintIssue:
     page: str                 # e.g. "/wiki/concepts/federal-reserve.md"
     description: str
     suggestion: str
+    related_page: str = ""    # the "other" page (path_b) for xref/contradiction
+    topic: str = ""           # gap topic slug for data_gap / gap_filled
 
 @dataclass
 class LintReport:
-    issues: list[LintIssue]
-    checked_at: str           # ISO timestamp
-    # Properties: .errors, .warnings, .summary()
+    issues: list[LintIssue] = field(default_factory=list)
+    checked_at: str = ""      # ISO timestamp
+    # Properties: .errors, .warnings; method .summary()
+    #   summary() → "N issue(s): E error(s), W warning(s), X info"
 ```
 
 **Today:**
@@ -618,7 +625,7 @@ uv run pytest tests/unit/test_pipeline_phase2.py -v
 
 ### 6.4 Batch / multi-document ingestion ✅
 
-**Entry:** `batch_ingest()` — `base/domain/ingestion/batch.py:20`
+**Entry:** `batch_ingest()` — `base/domain/ingestion/batch.py`
 
 ```python
 results = batch_ingest(
@@ -747,8 +754,8 @@ re-extraction), and re-runs:
 
 ### 6.7 Query / Chat (multi-phase RAG) ✅
 
-**Entry:** `create_agent()` — `base/domain/chat/agent.py:12`, paired with  
-the system prompt in `base/domain/chat/config.py:7` (`_DEFAULT_SYSTEM_PROMPT`).
+**Entry:** `create_agent()` — `base/domain/chat/agent.py`, paired with  
+the system prompt in `base/domain/chat/config.py` (`_DEFAULT_SYSTEM_PROMPT`).
 
 This is the most important section for understanding *how answers are*  
 *generated*. The routing is **prompt-driven, not code-driven** — there is no  
@@ -766,10 +773,10 @@ and higher-signal than re-deriving knowledge from raw chunks on every query.
 
 | Tool                                     | Module:fn                  | Scope                  | When the agent calls it                   |
 | ---------------------------------------- | -------------------------- | ---------------------- | ----------------------------------------- |
-| `read_wiki_page(path)`                   | `chat/wiki_tools.py:24`    | single file            | Direct page lookup by known path          |
-| `search_wiki_fts(query, limit=10)`       | `chat/wiki_tools.py:47`    | `source_kind='wiki'`   | Topic discovery across all wiki pages     |
-| `file_to_wiki(title, content, category)` | `chat/wiki_tools.py:87`    | write                  | Persist a synthesis (see §6.8)            |
-| `search_source_chunks(query, limit=10)`  | `chat/tools.py:10` (async) | `source_kind='source'` | Last-resort lookup into raw PDFs/DOCXs    |
+| `read_wiki_page(path)`                   | `chat/wiki_tools.py:read_wiki_page`       | single file            | Direct page lookup by known path          |
+| `search_wiki_fts(query, limit=10)`       | `chat/wiki_tools.py:search_wiki_fts`      | `source_kind='wiki'`   | Topic discovery across all wiki pages     |
+| `file_to_wiki(title, content, category)` | `chat/wiki_tools.py:file_to_wiki`         | write                  | Persist a synthesis (see §6.8)            |
+| `search_source_chunks(query, limit=10)`  | `chat/tools.py:search_source_chunks` (async) | `source_kind='source'` | Last-resort lookup into raw PDFs/DOCXs    |
 | Web search                               | —                          | —                      | ❌ **NOT YET IMPLEMENTED** (Pending §11.5) |
 
 The agent receives `db_path` as `deps_type=str`. Every tool derives the  
@@ -836,8 +843,8 @@ guarantee the LLM does it. Track regressions via the E2E suite.
 
 **Entry:**
 
-- Agent tool: `file_to_wiki()` — `base/domain/chat/wiki_tools.py:87`
-- UI-direct (no `RunContext`): `save_to_wiki()` — `base/domain/chat/wiki_tools.py:168`
+- Agent tool: `file_to_wiki()` — `base/domain/chat/wiki_tools.py:file_to_wiki`
+- UI-direct (no `RunContext`): `save_to_wiki()` — `base/domain/chat/wiki_tools.py:save_to_wiki`
 
 ```python
 # Agent tool — called by PydanticAI via RunContext
@@ -857,10 +864,11 @@ Both share identical logic:
 2. Pick directory by category: `concept` → `/wiki/concepts/`, `summary` → `/wiki/summaries/`.
 3. Read existing page content (if any) via `wiki_fs.read_page`.
 4. **LLM structuring pass** — call `wiki_generator.structure_chat_content(title, category, raw_content, existing, client, model)`. Returns properly structured markdown (YAML frontmatter + Definition / Key Characteristics / Context / Sources).
-5. Write with `create_page(overwrite=True)` if the page existed (LLM merge); `create_page(overwrite=False)` if new.
-6. Look up the doc id and call `references.update_references` to keep the citation graph in sync.
-7. Derive a one-line summary from the first heading and call `index_manager.update_index`.
-8. Return `"Updated wiki page: wiki/concepts/foo.md"` or `"Created wiki page: ..."`.
+5. **Deterministic See-also injection** — gather the existing wiki pages via `_related_pages_for(workspace, exclude_slug, current_dir)` and call `wiki_generator.inject_see_also(structured, related)`. It scans the structured markdown for **whole-word** mentions (`\b…\b`) of known page slugs and inserts a `## See also` section (before `## Sources`) linking each mentioned page that isn't already linked. Runs in both `file_to_wiki` and `save_to_wiki`. This is why chat-sourced pages get cross-links even though the LLM is told never to invent links.
+6. Write with `create_page(overwrite=True)` if the page existed (LLM merge); `create_page(overwrite=False)` if new.
+7. Look up the doc id and call `references.update_references` to keep the citation graph in sync.
+8. Derive a one-line summary from the first heading and call `index_manager.update_index`.
+9. Return `"Updated wiki page: wiki/concepts/foo.md"` or `"Created wiki page: ..."`.
 
 **LLM prompts used (all in `wiki_generator.py`):**
 
@@ -950,7 +958,7 @@ dropdown of indexed sources, a confirmation checkbox, and an optional
 
 ### 6.10 Wiki page deletion ✅
 
-**Entry:** `delete_page()` — `base/domain/tools/wiki_fs.py:173`
+**Entry:** `delete_page()` — `base/domain/tools/wiki_fs.py:delete_page`
 
 ```python
 delete_page(db_path, workspace, dir_path="/wiki/concepts/", slug="snow-white")
@@ -1020,6 +1028,19 @@ Three-column grid:
 | Middle                | `middle_panel`             | Renders the selected page as markdown + nav links                                                      |
 | Right                 | `chat_panel`               | PydanticAI agent stream + suggested prompts                                                            |
 | Right (below chat)    | `save_form`, `save_action` | Saves the last assistant reply to the wiki via `save_to_wiki` with LLM structuring pass                |
+
+Two rendering details in this app:
+
+- **`middle_panel` strips citation footnotes at render time.** `## Sources` bullets and
+  inline citations carry `[^n]:` markers that marimo's markdown renderer would otherwise
+  show as empty bullets; `middle_panel` removes the `- [^n]:` prefix (and inlines link
+  text) before display, so the rendered page is clean while the underlying markers stay
+  intact for `references.update_references`.
+- **`page_links_nav` resolves relative links before matching.** A concept page links to a
+  sibling as `cinderella.md` or to a summary as `../summaries/x.md`; the nav resolves each
+  against the current page's directory (`posixpath.normpath`) before matching the scanned
+  page list (which stores directory-prefixed stems like `concepts/cinderella`), and skips
+  `![alt](src)` image embeds. Without this, chat-generated pages showed no nav links.
 
 #### `DeleteConfirmWidget` (`marimo/widgets/delete_confirm.py`)
 
@@ -1114,7 +1135,7 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 ### Run
 
 ```bash
-uv run pytest tests/unit/ -v               # 125 unit tests — fast, no LLM
+uv run pytest tests/unit/ -v               # 197 unit tests — fast, no LLM
 uv run pytest tests/e2e/ -v -s             # 9 E2E tests — live marimo + LLM
 ```
 
@@ -1227,9 +1248,10 @@ in §12.
    calls `repair_wiki`. Both `save_to_wiki` and `file_to_wiki` append a  
    `🔧 Post-save repair: …` line to their return message when repairs occur.
 3. ✅ **Source deletion** (§6.9). `delete_source(db_path, workspace, doc_id, ...)` in
-  `tools/deletion.py`. FK cascade cleans up chunks, references, and FTS; dependent  
-   wiki pages marked `stale_since`. UI: dropdown + confirm checkbox + `delete_runner`  
-   cell in `marimo/ingest_app.py`.
+  `tools/deletion.py`. FK cascade cleans up chunks, references, and FTS; 1-to-1  
+   summary pages are deleted while citing concept pages are marked `stale_since`  
+   (see §6.9, M2). UI: dropdown + confirm checkbox + `delete_runner` cell in  
+   `marimo/ingest_app.py`.
 4. ✅ **Wiki page deletion UI button** (§6.10). `DeleteConfirmWidget`
   (`marimo/widgets/delete_confirm.py`) — anywidget-based delete button  
    with inline JS confirmation panel. Wired into `read_app.py` via  
@@ -1248,16 +1270,17 @@ in §12.
 8. `**regenerate_wiki_pages` should auto-run lint+repair** afterwards
   (§6.6) so a regenerate doesn't leave stale concept/overview pages. Subsumed by
    §11.11.
-9. **Grid column for wiki page title** in `read_app.py:left_panel` — show
-  slug *and* extracted title.
+9. ✅ **Grid column for wiki page title** in `read_app.py:left_panel` — the
+  sources table shows Title + Directory + Slug + Excerpt.
 10. **Document `scan_and_ingest` precisely** for end users (§6.5 — what it
   touches, when to prefer `batch_ingest` instead).
-11. **Lint+repair always close every ingest, scan, and regenerate** (§6.1–§6.6).
-  Today lint is opt-in (`lint_after_ingest` / `run_lint`, both default `False`)  
-   and repair has no automatic trigger outside chat→wiki save (§6.8). Make every  
-   ingest/scan/regenerate end with a lint **and** repair pass so the wiki is left  
-   consistent and a follow-up lint reports "no actions needed", and add explicit  
-   "Run Lint" / "Run Repair" buttons to `ingest_app.py`.
+11. 🟡 **Lint+repair always close every ingest, scan, and regenerate** (§6.1–§6.6).
+  **Partially done:** a manual "Run Wiki Lint & Repair" button (LLM-enabled) exists in  
+   `ingest_app.py` (`lint_repair_widget` + `lint_repair_runner`). **Remaining:** lint is  
+   still opt-in on ingest/scan (`lint_after_ingest` / `run_lint`, both default `False`)  
+   and has no automatic trigger outside chat→wiki save (§6.8); make every  
+   ingest/scan/regenerate end automatically with a lint **and** repair pass so a  
+   follow-up lint reports "no actions needed".
 12. ✅ **Finish the skipped repairs** (§6.2). Implemented `repair_missing_xref`
   (appends `## See also` + records `links_to` edge), `repair_contradiction`  
    (idempotent `⚠️` callout), and `repair_data_gap` (inserts `<!-- DATA_GAP -->`  
@@ -1330,9 +1353,9 @@ explicitly, and mock the network in tests.
 ## 14. MVP Review Findings (2026-05-26)
 
 > Full doc-sync + code review of `base/domain/`, `marimo/`, and this manual at the
-> "MVP complete" milestone. Smoke test: **184 unit tests pass** (the manual's "125"
-> in §3/§9 is stale — see D7). Findings are listed with concrete fixes; none have
-> been applied yet. Severity: 🔴 high · 🟠 medium · 🟡 low · 📘 doc.
+> "MVP complete" milestone. Severity: 🔴 high · 🟠 medium · 🟡 low · 📘 doc.
+> **Status:** H1, M1, M2, M3 and lows L1–L3/L6–L7 are fixed; L4, L5, L8 remain open by
+> choice; the D1–D7 doc-sync items are swept. Smoke test now **197 unit tests pass**.
 
 ### 🔴 H1 — Citation graph broken for concept pages (regression) — ✅ FIXED
 
@@ -1480,36 +1503,29 @@ created page paths during steps 8-9 and delete them in the `except` handler.
 - **L8** `ingestion/chunker.py` chunks at paragraph granularity; a single paragraph
   with no blank lines larger than `CHUNK_SIZE` becomes one oversized chunk.
 
-### 📘 Doc-sync (manual accuracy)
+### 📘 Doc-sync (manual accuracy) — ✅ SWEPT
 
-- **D1 Line-number drift.** Many cited entry points are stale: `batch_ingest`
-  (§6.4 `:20`→`:43`), `create_agent` (§6.7 `:12`→`:29`), `_DEFAULT_SYSTEM_PROMPT`
-  (§1 `:7`→`:25`), `delete_page` (§6.10 `:173`→`:311`), `read_wiki_page`
-  (§6.7 `:24`→`:33`), `search_wiki_fts` (`:47`→`:66`), `file_to_wiki` (§6.8
-  `:87`→`:154`), `save_to_wiki` (§6.8 `:168`→`:321`), `search_source_chunks`
-  (§6.7 `:10`→`:24`), `extract_structured` (§6.3 `:189`→`:239`), `build_summary_page`
-  (`:238`→`:288`), `build_concept_page` (`:270`→`:320`), `update_overview`
-  (`:304`→`:391`). (`pipeline.py` and `deletion.py` citations are still accurate.)
-  **Fix:** stop citing exact line numbers (prefer `module.py:function_name`) or add a
-  "line numbers approximate" caveat and re-sweep. *(DB schema §4 and tool layer §5
-  were re-verified and are fully accurate.)*
-- **D2 `inject_see_also` undocumented.** §6.8 step list should add: after
-  `structure_chat_content`, a deterministic `inject_see_also` (wiki_generator.py)
-  scans the generated markdown for mentions of existing page slugs and injects a
-  `## See also` section before `## Sources` (runs in both `file_to_wiki` and
-  `save_to_wiki`). Also note the read-app changes: `middle_panel` strips `[^n]:`
-  footnote prefixes at render time, and `page_links_nav` resolves relative links
-  against the current page's directory before matching the page list.
-- **D3 §6.9** claims `stale_since` marking that the code doesn't do (see M2).
-- **D4 §6.1 `LintIssue` dataclass** is missing the `related_page` and `topic`
-  fields that exist in `lint/report.py` and are used by xref/contradiction/data_gap.
-- **D5 §6.1 `summary()` format** — actual output is
-  `"N issue(s): E error(s), W warning(s), X info"` (doc shows `"1 error, 2 warning"`).
-- **D6 §11.9 (grid column for page title)** is **done** — `read_app.py:left_panel`
-  shows Title + Directory + Slug + Excerpt. §11.11 (Run Lint/Repair UI) is **partially
-  done** — a "Run Wiki Lint & Repair" button with LLM-enabled lint exists in
-  `ingest_app.py`; only the always-on auto-trigger after every ingest/scan/regen remains.
-- **D7 Test count** — §3 and §9 say "125 unit tests"; actual is **184**.
+> All D-items below resolved in the doc-sync sweep. Original notes retained for trace.
+
+- **D1 Line-number drift** ✅ — the enumerated entry-point citations (`batch_ingest`,
+  `create_agent`, `_DEFAULT_SYSTEM_PROMPT`, `delete_page`, `read_wiki_page`,
+  `search_wiki_fts`, `file_to_wiki`, `save_to_wiki`, `search_source_chunks`) were
+  converted to drift-proof `module.py:symbol` form, and a caveat was added near the TOC
+  noting any remaining bare `:NN`/`(L NN)` are approximate snapshots. *(DB schema §4 and
+  tool layer §5 were re-verified and remain accurate.)*
+- **D2 `inject_see_also` undocumented** ✅ — §6.8 now has it as step 5 (deterministic
+  See-also injection via `_related_pages_for` + `inject_see_also`), and §7 `read_app.py`
+  documents the `middle_panel` footnote-stripping and `page_links_nav` relative-link
+  resolution.
+- **D3 §6.9 `stale_since`** ✅ — corrected as part of M2 (1-to-1 summaries deleted,
+  citing concepts marked `stale_since`).
+- **D4 §6.1 `LintIssue` dataclass** ✅ — `related_page` and `topic` fields added to the
+  documented dataclass.
+- **D5 §6.1 `summary()` format** ✅ — example corrected to
+  `"N issue(s): E error(s), W warning(s), X info"`.
+- **D6 §11.9 / §11.11** ✅ — §11.9 marked done; §11.11 marked partially done (manual
+  "Run Wiki Lint & Repair" button exists; always-on auto-trigger still pending).
+- **D7 Test count** ✅ — §3 and §9 updated from "125" to the current **197** unit tests.
 
 ### Suggested priority
 
