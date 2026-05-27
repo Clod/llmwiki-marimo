@@ -1437,3 +1437,52 @@ Added a wiki-wide lint & repair trigger to the ingest UI.
 ### Next Steps
 
 - None - task complete
+
+
+## Session 27: Fix wiki Sources rendering & See also links on chat-generated pages
+
+**Date**: 2026-05-26
+**Task**: Fix wiki Sources rendering & See also links on chat-generated pages
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Change |
+|------|--------|
+| Bug fix | Empty bullets under "Sources": footnote syntax `- [^N]: file.pdf` was parsed as footnote definitions by marimo's renderer and stripped. Fixed via render-time regex in read_app.py + corrected all four LLM prompt templates in wiki_generator.py |
+| Feature | Chat-generated wiki pages now link to related existing pages. Deterministic `inject_see_also()` scans generated markdown for mentions of known page slugs and injects a `## See also` section before Sources (replaced unreliable LLM-prompted approach) |
+| Bug fix | `page_links_nav` never rendered nav buttons for relative See also links — it compared bare targets (`cinderella`) against the directory-prefixed page list (`concepts/cinderella`). Now resolves each link against the current page's directory with `posixpath.normpath` (handles sibling and `../summaries/` links). Pre-existing bug affecting all pages |
+| Tests | 5 regression tests for `inject_see_also` (mention matching, placement before Sources, skip already-linked, no-match passthrough, cross-dir resolution). Full unit suite: 184 passed |
+
+**Updated Files**:
+- `marimo/read_app.py`
+- `base/domain/ingestion/wiki_generator.py`
+- `base/domain/chat/wiki_tools.py`
+- `tests/unit/test_structured_extraction.py`
+
+**Notes**: All commits pushed to origin/master. inject_see_also is deterministic (no LLM dependency for linking). The relative-link/page-list mismatch is documented in the page_links_nav docstring.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `860a8a5` | (see git log) |
+| `454e747` | (see git log) |
+| `ff01fa7` | (see git log) |
+| `c5d1c79` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

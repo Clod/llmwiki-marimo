@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 26
+- **Total Sessions**: 27
 - **Last Active**: 2026-05-26
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1439 | Active |
+| `journal-1.md` | ~1488 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 27 | 2026-05-26 | Fix wiki Sources rendering & See also links on chat-generated pages | `860a8a5`, `454e747`, `ff01fa7`, `c5d1c79` |
 | 26 | 2026-05-26 | Add wiki-wide lint & repair UI | `3cd93a4` |
 | 25 | 2026-05-26 | Ingest App UX Improvements | `a97e708`, `24ca5df`, `5cce269`, `897541c`, `3a04720`, `1c4b0d5`, `e1bbad3`, `b239ac7`, `8879f0c`, `633b8ef` |
 | 24 | 2026-05-25 | Rename project directories to clean names | `c4b044b`, `2cf873f`, `ebf3721` |
