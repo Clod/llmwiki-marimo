@@ -596,6 +596,17 @@ result = ingest_file(
 
 `status='ready'` is set at step 6 (before the LLM work in steps 7–9), see §10.
 
+**Partial-failure rollback.** Steps 8–9 are not transactional (the source connection
+is closed at step 6 so the wiki tools open their own). To keep a failed ingest from
+leaving orphaned/half-merged derived pages, the pipeline records a *compensation* for
+every page it creates or overwrites in steps 8–9 (`wiki_compensations`): pages this run
+**newly created** are deleted (and their `index.md` entry removed via
+`index_manager.remove_index_entry`); pages it **overwrote** are restored to their prior
+content (snapshotted by `_snapshot_wiki_page` before the overwrite). On any exception the
+`except` handler runs `_rollback_wiki_pages` before marking the source `status='failed'`.
+Rollback is best-effort — a rollback error is logged, never raised, so it cannot mask the
+original failure.
+
 **Verification:**
 
 ```bash
@@ -1411,7 +1422,17 @@ cite it — a concept derived from several sources should not vanish.
 column only), and mark citing concept pages `stale_since` instead of deleting them
 — then update §6.9 to match the real behavior.
 
-### 🟠 M3 — Partial-failure leaves orphaned concept pages
+### 🟠 M3 — Partial-failure leaves orphaned concept pages — ✅ FIXED
+
+> **Resolved (scoped rollback).** `ingest_file` records a compensation for every page
+> created/overwritten in steps 8-9 (`wiki_compensations`). On failure, `_rollback_wiki_pages`
+> deletes pages this run newly created (removing their `index.md` entry via
+> `remove_index_entry`) and restores overwritten pages to their pre-run content
+> (`_snapshot_wiki_page`), before the source is marked `status='failed'`. Rollback is
+> best-effort and never masks the original error. Regression tests added in
+> `tests/unit/test_pipeline_phase2.py` (`test_ingest_rolls_back_created_pages_on_failure`,
+> `test_ingest_restores_overwritten_page_on_failure`). See §6.3 "Partial-failure rollback".
+> Original analysis follows.
 
 **Where:** `base/domain/ingestion/pipeline.py:224-317` (steps 7-9 + except handler).
 
