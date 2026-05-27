@@ -996,7 +996,16 @@ Cells (selected — see source for the full list):
 | `regen_btn` (L198)   | "🤖 Regenerate wiki" → `regenerate_wiki_pages`                                  |
 | `clear_btn` (L202)   | Resets the live progress log                                                    |
 | `progress_display`   | Accumulates `progress_cb(message)` lines                                        |
+| `timing_helper`      | Returns `make_timed_logger(set_log_lines, logger, tag)` shared by all runners   |
 | `debug_panel` (L330) | Visible when `WIKI_DEBUG=1`                                                     |
+
+**Timed Activity Log.** Each runner (`ingest`, `scan`, `regen`, `lint_repair`) wraps
+its `progress_cb` with `make_timed_logger` (the `timing_helper` cell). Every log line
+is prefixed with the elapsed time since the previous message (`` `+  8.1s` 🤖 … ``) and
+a bold `total: Ns` is appended when the run finishes. Because messages mark the *start*
+of each step, the delta on a line is the duration of the step named on the line above —
+which makes the slow steps (the LLM calls) jump out for optimization. Timing lives
+entirely in the app layer; `pipeline.py` and the domain are untouched.
 
 ### `read_app.py`
 

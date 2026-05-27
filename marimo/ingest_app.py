@@ -182,6 +182,41 @@ def op_state(mo):
 
 
 @app.cell
+def timing_helper():
+    """Factory for the timed Activity Log callback (per-line elapsed + total).
+
+    cb(msg) prefixes each line with the time elapsed since the previous message,
+    so the largest numbers in the log point straight at the slow steps (the LLM
+    calls). finish() appends a bold total. Defined once here and returned so every
+    runner shares one implementation.
+    """
+    import time as _time
+
+    def make_timed_logger(set_log_lines, logger, tag):
+        msgs: list[str] = []
+        start = _time.monotonic()
+        prev = [start]
+
+        def cb(msg: str) -> None:
+            now = _time.monotonic()
+            dt = now - prev[0]
+            prev[0] = now
+            msgs.append(f"`+{dt:5.1f}s` {msg}")
+            set_log_lines(list(msgs))
+            logger.info("[%s] %s", tag, msg)
+
+        def finish() -> None:
+            total = _time.monotonic() - start
+            msgs.append(f"**total: {total:.1f}s**")
+            set_log_lines(list(msgs))
+            logger.info("[%s] total: %.1fs", tag, total)
+
+        return cb, finish
+
+    return (make_timed_logger,)
+
+
+@app.cell
 def upload_widget(mo):
     """Upload widget — created alone so other cells can read its .value."""
     upload = mo.ui.file(
@@ -259,7 +294,7 @@ def activity_log(mo, log_lines, clear_btn):
 def ingest_runner(
     mo, ingest_trigger,
     WORKSPACE, DB_PATH, llm_client, llm_model,
-    set_log_lines, set_running_op, logger,
+    set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Runs ingestion when ingest_trigger changes."""
     mo.stop(ingest_trigger() is None)
@@ -276,13 +311,8 @@ def ingest_runner(
         set_log_lines([f"❌ Import error: {_e}"])
         mo.stop(True)
 
-    _msgs = ["⏳ Ingestion started…"]
-    set_log_lines(list(_msgs))
-
-    def _cb(msg):
-        _msgs.append(msg)
-        set_log_lines(list(_msgs))
-        logger.info("[ingest] %s", msg)
+    _cb, _finish = make_timed_logger(set_log_lines, logger, "ingest")
+    _cb("⏳ Ingestion started…")
 
     def _run():
         set_running_op("ingest")
@@ -293,6 +323,7 @@ def ingest_runner(
                     _fp.write_bytes(_f.contents)
                 _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
                 logger.info("Result: %s — %s", _result.status, _result.message)
+            _finish()
         finally:
             set_running_op(None)
 
@@ -303,7 +334,7 @@ def ingest_runner(
 def scan_runner(
     mo, scan_trigger,
     WORKSPACE, DB_PATH, llm_client, llm_model,
-    set_log_lines, set_running_op, logger,
+    set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Runs scan when scan_trigger changes."""
     mo.stop(scan_trigger() is None)
@@ -314,18 +345,14 @@ def scan_runner(
         set_log_lines([f"❌ Import error: {_e}"])
         mo.stop(True)
 
-    _msgs = ["⏳ Scan started…"]
-    set_log_lines(list(_msgs))
-
-    def _cb(msg):
-        _msgs.append(msg)
-        set_log_lines(list(_msgs))
-        logger.info("[scan] %s", msg)
+    _cb, _finish = make_timed_logger(set_log_lines, logger, "scan")
+    _cb("⏳ Scan started…")
 
     def _run():
         set_running_op("scan")
         try:
             _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
+            _finish()
         finally:
             set_running_op(None)
 
@@ -336,7 +363,7 @@ def scan_runner(
 def regen_runner(
     mo, regen_trigger,
     WORKSPACE, DB_PATH, llm_client, llm_model,
-    set_log_lines, set_running_op, logger,
+    set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Runs wiki regeneration when regen_trigger changes."""
     mo.stop(regen_trigger() is None)
@@ -347,18 +374,14 @@ def regen_runner(
         set_log_lines([f"❌ Import error: {_e}"])
         mo.stop(True)
 
-    _msgs = ["⏳ Regeneration started…"]
-    set_log_lines(list(_msgs))
-
-    def _cb(msg):
-        _msgs.append(msg)
-        set_log_lines(list(_msgs))
-        logger.info("[regen] %s", msg)
+    _cb, _finish = make_timed_logger(set_log_lines, logger, "regen")
+    _cb("⏳ Regeneration started…")
 
     def _run():
         set_running_op("regen")
         try:
             _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
+            _finish()
         finally:
             set_running_op(None)
 
@@ -567,7 +590,7 @@ def lint_repair_runner(
     mo, lint_repair_widget,
     get_last_lint_event, set_last_lint_event,
     WORKSPACE, DB_PATH, llm_client, llm_model,
-    set_log_lines, set_running_op, logger,
+    set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Fires when the lint & repair widget is confirmed."""
     _event_id = lint_repair_widget.event_id
@@ -583,13 +606,8 @@ def lint_repair_runner(
         set_log_lines([f"❌ Import error: {_e}"])
         mo.stop(True)
 
-    _msgs = ["⏳ Wiki lint & repair started…"]
-    set_log_lines(list(_msgs))
-
-    def _cb(msg: str) -> None:
-        _msgs.append(msg)
-        set_log_lines(list(_msgs))
-        logger.info("[lint-repair] %s", msg)
+    _cb, _finish = make_timed_logger(set_log_lines, logger, "lint-repair")
+    _cb("⏳ Wiki lint & repair started…")
 
     def _run():
         set_running_op("lint_repair")
@@ -598,13 +616,14 @@ def lint_repair_runner(
             _issue_count = len(_lint_report.issues)
             if _issue_count == 0:
                 _cb("✅ No issues found.")
-                return
-            _cb(f"🔧 Found {_issue_count} issue(s) — running repairs…")
-            _rw(
-                _lint_report, DB_PATH, WORKSPACE,
-                llm_client=llm_client, model=llm_model,
-                progress_cb=_cb,
-            )
+            else:
+                _cb(f"🔧 Found {_issue_count} issue(s) — running repairs…")
+                _rw(
+                    _lint_report, DB_PATH, WORKSPACE,
+                    llm_client=llm_client, model=llm_model,
+                    progress_cb=_cb,
+                )
+            _finish()
         finally:
             set_running_op(None)
 
