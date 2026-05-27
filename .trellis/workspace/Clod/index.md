@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 27
-- **Last Active**: 2026-05-26
+- **Total Sessions**: 28
+- **Last Active**: 2026-05-27
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1488 | Active |
+| `journal-1.md` | ~1557 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 28 | 2026-05-27 | MVP review remediation: H1/M1/M2/M3 + lows + doc-sync | `fc72624`, `b154036`, `ee13285`, `2cadcfa`, `8381fd8`, `625d45b`, `e60d888`, `65710d4`, `4cdceae`, `1b3ab73`, `401e9f4`, `e558d76`, `13dbd16`, `ac2e221`, `6f22f4c` |
 | 27 | 2026-05-26 | Fix wiki Sources rendering & See also links on chat-generated pages | `860a8a5`, `454e747`, `ff01fa7`, `c5d1c79` |
 | 26 | 2026-05-26 | Add wiki-wide lint & repair UI | `3cd93a4` |
 | 25 | 2026-05-26 | Ingest App UX Improvements | `a97e708`, `24ca5df`, `5cce269`, `897541c`, `3a04720`, `1c4b0d5`, `e1bbad3`, `b239ac7`, `8879f0c`, `633b8ef` |

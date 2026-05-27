@@ -1486,3 +1486,72 @@ Added a wiki-wide lint & repair trigger to the ingest UI.
 ### Next Steps
 
 - None - task complete
+
+
+## Session 28: MVP review remediation: H1/M1/M2/M3 + lows + doc-sync
+
+**Date**: 2026-05-27
+**Task**: MVP review remediation: H1/M1/M2/M3 + lows + doc-sync
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+Worked through the §14 MVP Review Findings in `docs/programmer_manual.md`, each as a fix+docs pair, then a final doc-sync sweep. Unit suite 125→197, ruff clean.
+
+| Finding | Severity | Fix |
+|---------|----------|-----|
+| H1 | 🔴 regression | `update_references` now parses plain `- file.pdf` bullets under `## Sources` (not just `[^n]:` footnotes), so concept pages rebuild `cites` edges again. Was a side effect of commit 860a8a5. |
+| M1 | 🟠 security | `read_wiki_page` confines resolved paths to `wiki/` (`resolve()` + `is_relative_to`), blocking `../` prompt-injection traversal. |
+| M2 | 🟠 data-loss | `delete_source` deletes only 1-to-1 summary pages; multi-source concept pages that merely cite the source are marked `stale_since` instead of deleted. (Latent until H1 fixed.) |
+| M3 | 🟠 robustness | Partial-ingest rollback: `wiki_compensations` records pages created/overwritten in steps 8-9; `_rollback_wiki_pages` deletes new / restores overwritten on failure. Added `index_manager.remove_index_entry`. |
+| L1 | 🟡 | `load_config` copies `_DEFAULT_PROMPTS` so a returned config can't mutate the shared default. |
+| L2 | 🟡 | `inject_see_also` matches slugs on word boundaries (`\b…\b`). |
+| L3 | 🟡 | `page_links_nav` regex adds `(?<!!)` to skip image embeds. |
+| L6 | 🟡 | `delete_page` cleans DB first, unlinks file last (no orphan row on error). |
+| L7 | 🟡 | Dropped redundant per-search `PRAGMA journal_mode=WAL`. |
+
+**Feature:** Variant-2 timed Activity Log in `ingest_app.py` — shared `make_timed_logger` (new `timing_helper` cell) prefixes each log line with elapsed-since-previous and appends a total; wired into all four runners.
+
+**Doc-sync sweep (D1-D7):** converted drifted entry-point citations to `module.py:symbol` form + added a line-number caveat; documented `inject_see_also` (§6.8) and the read_app render details (§7); added `related_page`/`topic` to the LintIssue dataclass; fixed the `summary()` example; updated §11.9/§11.11 status; test count 125→197.
+
+**Spec:** added a "Lessons From This Codebase" section to `cross-layer-thinking-guide.md` (H1 dual-purpose-syntax trap, rebuild-not-patch, commit-then-generate rollback, LLM-callable path confinement).
+
+**Deferred by choice:** L4 (Windows backslash), L5 (index blank-line cosmetic), L8 (oversized-paragraph chunking), and wiring `stale_since`/`find_stale_pages` into the lint runner.
+
+**Key files:** `base/domain/tools/references.py`, `base/domain/tools/deletion.py`, `base/domain/tools/wiki_fs.py`, `base/domain/chat/wiki_tools.py`, `base/domain/chat/config.py`, `base/domain/chat/tools.py`, `base/domain/ingestion/pipeline.py`, `base/domain/ingestion/index_manager.py`, `base/domain/ingestion/wiki_generator.py`, `marimo/ingest_app.py`, `marimo/read_app.py`, `docs/programmer_manual.md`, `.trellis/spec/guides/cross-layer-thinking-guide.md`, plus regression tests across `tests/unit/`.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fc72624` | (see git log) |
+| `b154036` | (see git log) |
+| `ee13285` | (see git log) |
+| `2cadcfa` | (see git log) |
+| `8381fd8` | (see git log) |
+| `625d45b` | (see git log) |
+| `e60d888` | (see git log) |
+| `65710d4` | (see git log) |
+| `4cdceae` | (see git log) |
+| `1b3ab73` | (see git log) |
+| `401e9f4` | (see git log) |
+| `e558d76` | (see git log) |
+| `13dbd16` | (see git log) |
+| `ac2e221` | (see git log) |
+| `6f22f4c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
