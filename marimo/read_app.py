@@ -102,12 +102,20 @@ def page_state(scan_pages):
     selected_page, set_selected_page = mo.state(
         initial_pages[0] if initial_pages else None
     )
+    prev_page, set_prev_page = mo.state(None)
     delete_trigger, set_delete_trigger = mo.state(None)
     last_delete_event, set_last_delete_event = mo.state(0)
+
+    def navigate_to(page):
+        set_prev_page(selected_page())
+        set_selected_page(page)
+
     return (
         delete_trigger,
         last_delete_event,
+        navigate_to,
         page_list,
+        prev_page,
         selected_page,
         set_delete_trigger,
         set_last_delete_event,
@@ -117,9 +125,10 @@ def page_state(scan_pages):
 
 
 @app.cell
-def left_panel(page_list, scan_pages, set_page_list, set_selected_page):
+def left_panel(navigate_to, page_list, scan_pages, selected_page, set_page_list):
     """Navigation sidebar — column 0."""
     pages = page_list()
+    _current = selected_page()
 
     from domain.tools.db import get_connection as _get_conn
     _kw_map = {}
@@ -143,12 +152,20 @@ def left_panel(page_list, scan_pages, set_page_list, set_selected_page):
 
     _table_data = [_page_row(p) for p in pages] if pages else [{"Title": "(no pages)", "Directory": "", "Slug": ""}]
 
+    def _stem_from_row(r):
+        return f"{r['Directory']}/{r['Slug']}" if r.get("Directory") else r["Slug"]
+
+    _current_idx = next(
+        (i for i, r in enumerate(_table_data) if _stem_from_row(r) == _current),
+        None,
+    )
+
     def _on_select(rows):
         if not rows:
             return
         r = rows[0]
         path = f"{r['Directory']}/{r['Slug']}" if r["Directory"] else r["Slug"]
-        set_selected_page(path)
+        navigate_to(path)
 
     page_selector = mo.ui.table(
         _table_data,
@@ -156,6 +173,7 @@ def left_panel(page_list, scan_pages, set_page_list, set_selected_page):
         on_change=_on_select,
         show_column_summaries=False,
         format_mapping={"Excerpt": lambda v: (v[:80] + "…") if len(v) > 80 else v},
+        initial_selection=[_current_idx] if _current_idx is not None else None,
     )
     refresh_btn = mo.ui.button(
         label="⟳ Refresh",
@@ -234,7 +252,7 @@ def current_page(read_page, selected_page):
 
 
 @app.cell
-def page_links_nav(current_content, page_list, selected_stem, set_selected_page):
+def page_links_nav(current_content, navigate_to, page_list, prev_page, selected_stem):
     """Navigation buttons for internal wiki links found on the current page.
 
     Links are relative to the current page's directory (e.g. a concept page
@@ -260,14 +278,21 @@ def page_links_nav(current_content, page_list, selected_stem, set_selected_page)
 
     def _make_handler(page):
         def _go(_v):
-            set_selected_page(page)
+            navigate_to(page)
         return _go
 
-    buttons = [
+    _back_target = prev_page() if prev_page() is not None else selected_stem
+    _back_label = _back_target.rsplit("/", 1)[-1].replace("-", " ").title() if _back_target else ""
+    back_btn = mo.ui.button(
+        label=f"← {_back_label}" if _back_label else "←",
+        on_click=lambda _: navigate_to(_back_target),
+        kind="neutral",
+    )
+    link_buttons = [
         mo.ui.button(label=label, on_click=_make_handler(page), kind="neutral")
         for label, page in valid.items()
     ]
-    nav_widget = mo.hstack(buttons, wrap=True, gap=1) if buttons else mo.Html("")
+    nav_widget = mo.hstack([back_btn] + link_buttons, wrap=True, gap=1)
     return (nav_widget,)
 
 
