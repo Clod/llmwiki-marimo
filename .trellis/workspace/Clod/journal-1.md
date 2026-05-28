@@ -1605,3 +1605,60 @@ Built a deterministic regression-test foundation. Ingestion is non-deterministic
 ### Next Steps
 
 - None - task complete
+
+
+## Session 30: Opt-in ingestion trace (LLM exchanges + data-flow) & data-dictionary fix
+
+**Date**: 2026-05-28
+**Task**: Opt-in ingestion trace (LLM exchanges + data-flow) & data-dictionary fix
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## Summary
+
+Considered a deterministic LLM record/replay ("cassette") regression, then **rejected** it — a prompt change would invalidate frozen responses. Instead built a write-only **observability trace** for ingestion, and fixed a gap in the SQLite data dictionary.
+
+| Area | Description |
+|------|-------------|
+| Ingestion trace | `WIKI_TRACE=1` opt-in JSONL trace of every LLM exchange + the data-flow path (extract→chunk→structured_extraction→concepts→summary→overview), correlated to DB rows via a `db_join_map` meta header |
+| Mechanism | Transparent `tracer.wrap(client)` proxy (zero call-site changes, real response returned untouched) + contextvar-tagged document/stage scopes; `NullTracer` no-op when disabled |
+| Unpluggable payloads | `WIKI_TRACE_CAPTURE=all\|none\|<csv>`; channel off still records sha256+size, no sidecar. Heavy payloads = content-addressed sidecars under `<ws>/.llmwiki/traces/<run_id>/` |
+| Render | `scripts/render_trace.py` → per-document timeline, `--show prompts,responses` inlines sidecars, `--doc` filters |
+| Verified | 210 unit tests + 13 new trace tests pass, ruff clean; real ingest of 4 English fairy-tale PDFs (gpt-4o-mini), trace↔DB cross-check exact (chunk counts, document_ids, status) |
+| Data dictionary | Added missing `documents.source_document_id` (migration 001) + index + ER self-ref edge; noted base-DDL-plus-migrations; fixed ISO-8601 wording |
+
+**Updated/added files**:
+- `base/domain/ingestion/trace.py` (new)
+- `base/domain/ingestion/pipeline.py`, `base/domain/ingestion/batch.py`
+- `scripts/render_trace.py` (new)
+- `tests/unit/test_trace.py` (new)
+- `docs/sqlite_data_dictionary.md`
+
+**Notes**:
+- Persistent real-run output: `/Users/claudiograsso/Documents/finanzas/pdfs_dev_test/trace_runs/english/` (isolated; existing dev workspace untouched).
+- Chat-agent (PydanticAI) and lint/repair tracing are out of scope (v1 = ingestion only).
+- AI commit attribution disabled per user setting.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0200130` | (see git log) |
+| `3aa0dee` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 29
-- **Last Active**: 2026-05-27
+- **Total Sessions**: 30
+- **Last Active**: 2026-05-28
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1607 | Active |
+| `journal-1.md` | ~1664 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 30 | 2026-05-28 | Opt-in ingestion trace (LLM exchanges + data-flow) & data-dictionary fix | `0200130`, `3aa0dee` |
 | 29 | 2026-05-27 | Golden-corpus regression harness | `b83ce59`, `6b9ad3a` |
 | 28 | 2026-05-27 | MVP review remediation: H1/M1/M2/M3 + lows + doc-sync | `fc72624`, `b154036`, `ee13285`, `2cadcfa`, `8381fd8`, `625d45b`, `e60d888`, `65710d4`, `4cdceae`, `1b3ab73`, `401e9f4`, `e558d76`, `13dbd16`, `ac2e221`, `6f22f4c` |
 | 27 | 2026-05-26 | Fix wiki Sources rendering & See also links on chat-generated pages | `860a8a5`, `454e747`, `ff01fa7`, `c5d1c79` |
