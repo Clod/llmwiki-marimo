@@ -30,6 +30,7 @@
 11. [Pending Work / Roadmap](#11-pending-work--roadmap)
 12. [Future Enhancements](#12-future-enhancements)
 13. [Glossary](#13-glossary)
+14. [Tracing & Observability](#14-tracing--observability)
 
 Status legend used throughout: ✅ implemented · 🟡 partial · ❌ missing.
 
@@ -137,6 +138,7 @@ llmwiki/
 │       │   ├── extractor.py            # PDF/DOCX → list[(page, markdown)]
 │       │   ├── index_manager.py        # wiki/index.md upsert (deterministic)
 │       │   ├── pdf_extract.py          # opendataloader / mistral backends
+│       │   ├── trace.py                # opt-in ingestion trace (see §14)
 │       │   └── wiki_generator.py       # all LLM prompt builders (see §6)
 │       ├── lint/
 │       │   ├── checks.py               # 6 check functions
@@ -260,7 +262,7 @@ And it is what the reconciliation checks reason over:
 
 If the `cites` edges are missing, the graph still has all its **nodes** (the documents
 exist) but is missing the **arrows** between them — so every check above silently
-produces wrong answers. (This was exactly the failure mode of finding **H1** in §14:
+produces wrong answers. (This was exactly the failure mode of finding **H1** in §15:
 the `## Sources` parser stopped matching the page format, so concept pages generated
 zero `cites` edges. Now fixed — the parser accepts both footnote and plain-bullet
 Sources.)
@@ -1123,10 +1125,12 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 
 ### Environment flags
 
-| Flag           | Effect                                                         |
-| -------------- | -------------------------------------------------------------- |
-| `WIKI_DEBUG=1` | Shows debug panel in `ingest_app.py`                           |
-| `HEADLESS=1`   | Used by the E2E test suite for non-interactive Playwright runs |
+| Flag                       | Effect                                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `WIKI_DEBUG=1`             | Shows debug panel in `ingest_app.py`                                                         |
+| `HEADLESS=1`               | Used by the E2E test suite for non-interactive Playwright runs                               |
+| `WIKI_TRACE=1`             | Turns on the opt-in ingestion trace (LLM exchanges + data-flow). See §14.                    |
+| `WIKI_TRACE_CAPTURE=…`     | Selects trace payload channels: `all` (default) · `none` · CSV of `extracted_text,chunks,prompts,responses,markdown`. See §14. |
 
 ---
 
@@ -1374,10 +1378,183 @@ explicitly, and mock the network in tests.
 | **Filing Cabinet**          | The SQLite + FTS5 layer (`workspace/.llmwiki/index.db`).                                                                                                                                                                            |
 | **Encyclopedia**            | The human-readable markdown layer (`workspace/wiki/`).                                                                                                                                                                              |
 | **Phase 1 / 2 / 3 / 4 RAG** | The agent's routing cascade: index → wiki search → raw chunks → web search (Phase 4 pending §11.5).                                                                                                                                 |
+| **Trace (ingestion)**       | Opt-in (`WIKI_TRACE=1`) write-only JSONL record of every LLM exchange + the data-flow path of an ingestion run, correlated to DB rows via a `db_join_map` header. For debugging, not replay. See §14.                                |
+| **Sidecar**                 | A content-addressed file under a trace's `payloads/<sha256>.<ext>` holding one heavy payload (prompt, response, extracted text, chunks, or a generated page), referenced from the event by `ref` + `sha256` + `bytes`. See §14.4.     |
 
 ---
 
-## 14. MVP Review Findings (2026-05-26)
+## 14. Tracing & Observability
+
+**Entry point:** `base/domain/ingestion/trace.py`. **Activation:** `WIKI_TRACE=1`.
+**Status:** ✅ ingestion only (chat agent, lint, and repair are out of scope for v1).
+
+The trace is a **write-only observability layer** for the ingestion pipeline. With
+`WIKI_TRACE=1` set, a run records (a) **every LLM exchange** and (b) **the path each
+piece of information takes** through the pipeline — extract → chunk →
+structured_extraction → concepts → summary → overview — so a single PDF can be
+followed end to end and the result cross-checked against the database.
+
+### 14.1 What it is — and what it is *not*
+
+| | |
+| --- | --- |
+| ✅ **Is** | A debugging/observability artifact you read after a run (or feed to an LLM to audit). One JSONL event stream per run + content-addressed sidecars for heavy payloads. |
+| ❌ **Is not** | A record/replay or regression mechanism. There is **no replay and no assertion** anywhere. |
+
+> **Why not record/replay?** A "cassette" approach (freeze the LLM responses, replay
+> them to make ingestion deterministic, strict-diff the output) was considered and
+> **deliberately rejected**: the first prompt improvement would invalidate every frozen
+> response, turning the suite into a re-freezing chore instead of a bug detector.
+> Deterministic regression stays *structural-invariant* via the golden corpus (§9);
+> this trace is purely for human/LLM inspection.
+
+### 14.2 Activation & output layout
+
+| Variable | Values | Effect |
+| -------- | ------ | ------ |
+| `WIKI_TRACE` | `1` to enable (anything but unset/`0`/`false`) | Master switch. Unset → a `NullTracer` no-op; ingestion behaviour and output are byte-identical to an untraced run. |
+| `WIKI_TRACE_CAPTURE` | `all` (default when unset) · `none` · CSV of channels | Which payload channels write sidecars (see §14.4). Unknown channel names are ignored with a warning. |
+
+Output goes under the workspace (which is gitignored via `.llmwiki/`):
+
+```
+<workspace>/.llmwiki/traces/<run_id>/
+├── trace.jsonl              # the event stream; line 1 is the meta header
+└── payloads/
+    └── <sha256>.<ext>       # one content-addressed sidecar per captured payload
+```
+
+`run_id` = `YYYYMMDDTHHMMSSZ-<6hex>` (UTC timestamp + short uuid), e.g.
+`20260528T203202Z-bea166`.
+
+### 14.3 The trace file (`trace.jsonl`)
+
+One self-describing JSON object per line. Every event carries `seq` (monotonic),
+`ts` (UTC ISO-8601 ms), `event`, and `run_id`; events inside a document/stage scope
+also carry `document_id`, `relative_path`, and `stage` so each line stands alone.
+
+| `event` | Emitted when | Key fields (beyond the common ones) |
+| ------- | ------------ | ----------------------------------- |
+| `meta` | first line | `schema_version`, `workspace`, `db_path`, `capture`, `channels_available`, **`db_join_map`** |
+| `run_start` / `run_end` | run open / close | `workspace`, `db_path` |
+| `document_start` / `document_end` | per source file | `document_id`, `filename`, `relative_path`; `status` (`ok`/`error`) on end |
+| `stage_start` / `stage_end` | per pipeline stage | `stage`; on end: `status`, `elapsed_ms` |
+| `llm_call` | every `client.chat.completions.create` | `model`, `params` (kwargs minus `model`/`messages`), `latency_ms`, `usage` (prompt/completion/total tokens), `prompt_sha256`/`prompt_bytes`/`prompt_ref`, `response_sha256`/`response_bytes`/`response_ref` |
+| `artifact` | intermediate data produced | `channel`, `name`, `sha256`, `bytes`, `ref`, plus structural meta (`relative_path`, `page_count`, `parser`, `count`, `concept_name`, `category`, `source_document_id`) |
+
+**The `db_join_map` header is the point.** It maps trace fields to the columns they
+correspond to, so an LLM (or a script) can join `trace.jsonl` against `index.db`
+without guessing:
+
+| Trace field | DB column |
+| ----------- | --------- |
+| `document_id` | `documents.id` |
+| `relative_path` | `documents.relative_path` |
+| `filename` | `documents.filename` |
+| `status` | `documents.status` |
+| `page` | `document_pages.page` |
+| `chunk_index` | `document_chunks.chunk_index` |
+| `reference.{source,target}_document_id`, `reference.reference_type` | `document_references.*` |
+
+### 14.4 Sidecars & unpluggable channels
+
+Heavy payloads never bloat the event stream — they are written to
+`payloads/<sha256>.<ext>` and referenced from the event by `ref` + `sha256` + `bytes`.
+Sidecars are **content-addressed**, so identical payloads are stored once (and a
+generated concept page's `artifact.sha256` equals the `response_sha256` of the
+`llm_call` that produced it — the page *is* the model output).
+
+The five channels are independently **unpluggable** via `WIKI_TRACE_CAPTURE`:
+
+| Channel | Captures |
+| ------- | -------- |
+| `extracted_text` | the joined per-page source text |
+| `chunks` | the FTS5 chunk list (JSON: index, page, token_count, start_char, content) |
+| `prompts` | the full request `messages` for each LLM call |
+| `responses` | the raw model response text for each LLM call |
+| `markdown` | each generated concept / summary / overview page |
+
+**Key invariant:** turning a channel *off* does **not** blind the trace structurally —
+the `artifact`/`llm_call` event still records `sha256` + `bytes`; only the sidecar
+file is skipped (`ref` is `null`). So `WIKI_TRACE_CAPTURE=none` still lets you verify
+*that* content existed and *whether it changed*, just not read it.
+
+### 14.5 How it's wired
+
+- **Transparent client proxy.** `tracer.wrap(client)` returns a `TracingClient` that
+  delegates everything to the real client and returns the real response object
+  untouched — it only *observes* `chat.completions.create`. This is why none of the
+  ~6 call sites in `wiki_generator.py` changed. `wrap()` is idempotent (a client
+  already wrapped for this run is returned as-is), which matters on the batch path.
+- **Correlation via contextvars.** `tracer.document(...)`/`tracer.stage(...)` set
+  `_current_doc`/`_current_stage`, so the proxy can tag each `llm_call` with the
+  document and stage that triggered it without threading the tracer through every
+  signature.
+- **Run ownership.** `trace.run_scope(workspace, db_path)` (used by `batch_ingest`
+  and `scan_and_ingest`) opens one run for the whole operation; `ingest_file` calls
+  `trace.active_or_start(...)` and **joins** that run if one is active, else creates
+  and finalises its own. Net effect: a batch or a scan is **one** `trace.jsonl`; a
+  lone `ingest_file` is its own.
+- **Disabled = free.** When `WIKI_TRACE` is unset, `active_or_start` returns the
+  shared `NULL` tracer: `wrap()` returns the client unchanged, every method is a
+  no-op, and no directory is created. Tracing failures are swallowed (logged at
+  debug) and can never break an ingest.
+
+### 14.6 What each stage emits
+
+| Stage | `llm_call` | `artifact` |
+| ----- | ---------- | ---------- |
+| `extract` | — | `extracted_text` (`page_count`, `parser`) |
+| `chunk` | — | `chunks` (`count`) |
+| `structured_extraction` | 1 (the extraction JSON lands in the `responses` channel) | — |
+| `concepts` | 1 per concept | `markdown` `concept:<slug>` per concept (`relative_path`, `concept_name`, `category`) |
+| `summary` | — (`build_summary_page` is deterministic) | `markdown` `summary:<slug>` (`relative_path`, `source_document_id`) |
+| `overview` | 1 (single-file path, and once per batch at batch level) | `markdown` `overview` (`relative_path`) |
+
+### 14.7 Rendering — `scripts/render_trace.py`
+
+`trace.jsonl` is machine-first; the render script turns a run into a readable
+per-document timeline.
+
+```bash
+# Timeline (events only)
+python scripts/render_trace.py <run_dir-or-trace.jsonl>
+
+# Inline the actual prompts + responses (resolves the sidecars)
+python scripts/render_trace.py <run_dir> --show prompts,responses
+
+# One document only
+python scripts/render_trace.py <run_dir> --doc <document_id> --show markdown
+```
+
+### 14.8 Cross-checking a trace against the DB
+
+The intended audit: every `document_start` should have a matching `documents` row,
+and the `chunks` artifact `count` should equal the rows in `document_chunks`. The
+`db_join_map` makes this a straightforward join — e.g. for a real 4-PDF run the
+trace's `document_id`/`relative_path`/chunk counts matched the DB exactly (10, 2, 13,
+5 chunks; all `status='ready'`). Hand the `trace.jsonl` (its header included) to an
+LLM and ask it to reconcile against `index.db`, or script it in a few lines of SQL +
+`json`.
+
+### 14.9 Guarantees & references
+
+- **No credentials.** Only `messages`, non-secret `params` (the proxy drops `model`
+  and `messages` from `params`), and response text are recorded — never the API key
+  (it lives on the client, which is never serialised).
+- **Crash-safe.** Each line is flushed on write, so a trace is useful even if a long
+  run is interrupted.
+- **Code:** `base/domain/ingestion/trace.py` — `IngestionTracer`, `NullTracer`/`NULL`,
+  `TracingClient`, `active_or_start`, `run_scope`, `CHANNELS`, `DB_JOIN_MAP`,
+  `SCHEMA_VERSION`. Instrumentation lives in `pipeline.py` (`ingest_file`,
+  `scan_and_ingest`) and `batch.py` (`batch_ingest`).
+- **Tests:** `tests/unit/test_trace.py` — channel resolution, disabled no-op, proxy
+  transparency, sha/size-always-present, meta header shape, contextvar tagging, and an
+  end-to-end ingest whose trace joins against the DB.
+
+---
+
+## 15. MVP Review Findings (2026-05-26)
 
 > Full doc-sync + code review of `base/domain/`, `marimo/`, and this manual at the
 > "MVP complete" milestone. Severity: 🔴 high · 🟠 medium · 🟡 low · 📘 doc.
