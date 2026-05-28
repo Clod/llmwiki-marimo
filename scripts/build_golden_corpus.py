@@ -171,7 +171,8 @@ def _report(db_path: str, workspace: Path) -> bool:
 
 
 def build() -> None:
-    from domain.ingestion import batch_ingest, ingest_file
+    from domain.ingestion import ingest_file
+    from domain.ingestion.batch import batch_ingest
 
     if _STAGING.exists():
         shutil.rmtree(_STAGING)
