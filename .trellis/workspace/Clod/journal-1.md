@@ -1662,3 +1662,63 @@ Considered a deterministic LLM record/replay ("cassette") regression, then **rej
 ### Next Steps
 
 - None - task complete
+
+
+## Session 31: Manual-test prep: tracing docs, English-only fixtures, golden corpus freeze
+
+**Date**: 2026-05-28
+**Task**: Manual-test prep: tracing docs, English-only fixtures, golden corpus freeze
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## Summary
+
+Prepared the project for manual ingestion testing of the English PDFs: documented the new tracing facility, made the test fixtures English-only (migrating every dependent test), fixed a latent bug in the corpus builder, and froze the golden corpus.
+
+| Area | Description |
+|------|-------------|
+| Docs | New programmer-manual §14 "Tracing & Observability" (activation, JSONL event catalogue + db_join_map, sidecars/channels, wiring, per-stage emissions, render_trace.py, DB cross-check). §3/§8/§13 touch-ups; renumbered MVP-findings appendix to §15 |
+| Fixtures | Removed the 3 Spanish PDFs (Blancanieves, Cenicienta, El patito feo); kept only the 4 English fairy tales. Trace output dir (`.llmwiki/`) is gitignored |
+| Test migration | Repointed fixture-reading tests (test_pipeline_phase2, test_batch_ingest, test_lint_full, test_trace, e2e test_ingest_app) to English PDFs, story-matched so FakeLLM concepts still align; scrubbed incidental Spanish string-literals in test_references + test_structured_extraction. 210 unit tests green, ruff clean |
+| Bugfix | `build_golden_corpus.py` imported `batch_ingest` from the package (only re-exported by the `batch` submodule) → ImportError on `build`. Import from `domain.ingestion.batch` |
+| Golden corpus | Ran `build` (4 English PDFs: 1 individual + 3 batch) — 4 sources ready, every concept page has a cites edge (H1 guard), 23 cites/19 links_to edges, 0 lint errors. `freeze`d into tracked `tests/fixtures/golden_corpus/`; the 6 regression tests now run (were skipped) and pass |
+
+**Also this session (not in these commits):** ran real WIKI_TRACE=1 ingests (gpt-4o-mini) of the 4 English PDFs into `/tmp` then into a persistent isolated folder `pdfs_dev_test/trace_runs/english/`; trace↔DB cross-check exact. Patched `docs/sqlite_data_dictionary.md` (added the migration-001 `documents.source_document_id` column/index/ER edge) — committed earlier in commit 3aa0dee.
+
+**Updated/added files**:
+- `docs/programmer_manual.md`
+- `tests/fixtures/pdfs/` (removed 3 Spanish PDFs)
+- `tests/fixtures/golden_corpus/` (frozen: index.db + index.db.sql + sources/ + wiki/)
+- `tests/unit/test_pipeline_phase2.py`, `test_batch_ingest.py`, `test_lint_full.py`, `test_trace.py`, `test_references.py`, `test_structured_extraction.py`
+- `tests/e2e/test_ingest_app.py`
+- `scripts/build_golden_corpus.py`
+
+**Notes**:
+- Cassette/record-replay regression remains rejected; deterministic tier stays structural-invariant via the golden corpus.
+- AI commit attribution disabled per user setting.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cabfa00` | (see git log) |
+| `c1f5c41` | (see git log) |
+| `5170c11` | (see git log) |
+| `f70aee4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

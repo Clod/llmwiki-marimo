@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 30
+- **Total Sessions**: 31
 - **Last Active**: 2026-05-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1664 | Active |
+| `journal-1.md` | ~1724 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 31 | 2026-05-28 | Manual-test prep: tracing docs, English-only fixtures, golden corpus freeze | `cabfa00`, `c1f5c41`, `5170c11`, `f70aee4` |
 | 30 | 2026-05-28 | Opt-in ingestion trace (LLM exchanges + data-flow) & data-dictionary fix | `0200130`, `3aa0dee` |
 | 29 | 2026-05-27 | Golden-corpus regression harness | `b83ce59`, `6b9ad3a` |
 | 28 | 2026-05-27 | MVP review remediation: H1/M1/M2/M3 + lows + doc-sync | `fc72624`, `b154036`, `ee13285`, `2cadcfa`, `8381fd8`, `625d45b`, `e60d888`, `65710d4`, `4cdceae`, `1b3ab73`, `401e9f4`, `e558d76`, `13dbd16`, `ac2e221`, `6f22f4c` |
