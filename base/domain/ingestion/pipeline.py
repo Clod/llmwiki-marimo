@@ -9,6 +9,7 @@ All functions are synchronous — safe to call directly from Marimo cells.
 The migration (source_document_id column) is applied automatically on open_db().
 """
 
+import json
 import logging
 import sqlite3
 import uuid
@@ -17,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Literal
 
+from . import trace
 from .chunker import chunk_pages
 from .detector import needs_ingestion
 from .extractor import extract, LibreOfficeNotInstalledError, check_libreoffice
@@ -108,6 +110,12 @@ def ingest_file(
         if progress_cb:
             progress_cb(msg)
 
+    # Tracing is opt-in (WIKI_TRACE=1); these no-op defaults make the early-return
+    # and skip paths safe before a real tracer is started (after step 3).
+    tracer: object = trace.NULL
+    _created = False
+    ok = False
+
     _cb(f"🔍 Validating {file_path.name}")
 
     # ── Step 1: Validate ──────────────────────────────────────────────────────
@@ -167,6 +175,11 @@ def ingest_file(
             )
         conn.commit()
 
+        # ── Trace: join or start a run, wrap the client, open the document ─────
+        tracer, _created = trace.active_or_start(workspace, db_path)
+        llm_client = tracer.wrap(llm_client)
+        tracer.document_start(doc_id, file_path.name, relative)
+
         _cb(f"⚙️ Extracting text from {file_path.name}")
 
         # Wiki pages created/overwritten in steps 8-9, for rollback on failure.
@@ -174,14 +187,30 @@ def ingest_file(
         try:
             # ── Step 4: Extract text ──────────────────────────────────────────
             cache_dir = workspace / ".llmwiki" / "cache" / "local" / doc_id
-            page_contents, parser = extract(file_path, cache_dir)
+            with tracer.stage("extract"):
+                page_contents, parser = extract(file_path, cache_dir)
+                full_content = "\n\n---\n\n".join(md for _, md in page_contents)
+                # Trace intermediate data so the path can be followed end to end.
+                tracer.artifact(
+                    "extracted_text", "extracted_text", full_content,
+                    page_count=len(page_contents), parser=parser,
+                )
             _cb(f"✅ Extracted {len(page_contents)} pages")
 
             # ── Step 5: Chunk source document ─────────────────────────────────
-            chunks = chunk_pages(page_contents)
+            with tracer.stage("chunk"):
+                chunks = chunk_pages(page_contents)
+                tracer.artifact(
+                    "chunks", "chunks",
+                    json.dumps(
+                        [{"chunk_index": c.index, "page": c.page,
+                          "token_count": c.token_count, "start_char": c.start_char,
+                          "content": c.content} for c in chunks],
+                        ensure_ascii=False, indent=2,
+                    ),
+                    ext="json", count=len(chunks),
+                )
             _cb(f"✂️ Chunked into {len(chunks)} chunks")
-
-            full_content = "\n\n---\n\n".join(md for _, md in page_contents)
 
             # ── Step 6: Atomic source document DB write ────────────────────────
             with conn:
@@ -220,68 +249,86 @@ def ingest_file(
 
             # ── Step 7: Structured extraction ─────────────────────────────────
             _cb("🤖 Extracting knowledge structure...")
-            extraction = extract_structured(doc_meta, page_contents, llm_client, model)
+            with tracer.stage("structured_extraction"):
+                extraction = extract_structured(doc_meta, page_contents, llm_client, model)
             _cb(f"📋 Found {len(extraction.concepts)} concept(s)")
 
             # ── Step 8: Create/update concept pages ───────────────────────────
             concept_slugs: list[str] = []
-            for concept in extraction.concepts:
-                slug = make_wiki_slug(concept.name)
-                concept_slugs.append(slug)
-                existing_content = read_page(db_path, workspace, "/wiki/concepts/", slug)
-                _cb(f"💡 {'Updating' if existing_content else 'Creating'} concept: {concept.name}")
-                concept_md = build_concept_page(
-                    concept, file_path.name, existing_content, llm_client, model
-                )
-                prior = _snapshot_wiki_page(db_path, f"wiki/concepts/{slug}.md")
-                concept_result = create_page(
-                    db_path, workspace, "/wiki/concepts/", slug,
-                    concept.name, concept_md, [concept.category], overwrite=True,
-                )
-                wiki_compensations.append({
-                    "dir_path": "/wiki/concepts/", "slug": slug,
-                    "category": "concepts", "prior": prior,
-                })
-                update_references(
-                    db_path, concept_result["id"], concept_md, "/wiki/concepts/",
-                )
-                one_liner = concept.insight[:80] if concept.insight else concept.name
-                update_index(workspace, f"concepts/{slug}.md", one_liner, "concepts")
+            with tracer.stage("concepts", concept_count=len(extraction.concepts)):
+                for concept in extraction.concepts:
+                    slug = make_wiki_slug(concept.name)
+                    concept_slugs.append(slug)
+                    existing_content = read_page(db_path, workspace, "/wiki/concepts/", slug)
+                    _cb(f"💡 {'Updating' if existing_content else 'Creating'} concept: {concept.name}")
+                    concept_md = build_concept_page(
+                        concept, file_path.name, existing_content, llm_client, model
+                    )
+                    prior = _snapshot_wiki_page(db_path, f"wiki/concepts/{slug}.md")
+                    concept_result = create_page(
+                        db_path, workspace, "/wiki/concepts/", slug,
+                        concept.name, concept_md, [concept.category], overwrite=True,
+                    )
+                    wiki_compensations.append({
+                        "dir_path": "/wiki/concepts/", "slug": slug,
+                        "category": "concepts", "prior": prior,
+                    })
+                    update_references(
+                        db_path, concept_result["id"], concept_md, "/wiki/concepts/",
+                    )
+                    tracer.artifact(
+                        "markdown", f"concept:{slug}", concept_md, ext="md",
+                        relative_path=f"wiki/concepts/{slug}.md",
+                        concept_name=concept.name, category=concept.category,
+                    )
+                    one_liner = concept.insight[:80] if concept.insight else concept.name
+                    update_index(workspace, f"concepts/{slug}.md", one_liner, "concepts")
 
             # ── Step 9: Create summary page ───────────────────────────────────
             _cb("📄 Writing summary page...")
-            summary_md = build_summary_page(doc_meta, extraction)
-            wiki_slug = make_wiki_slug(file_path.name)
-            prior_summary = _snapshot_wiki_page(db_path, f"wiki/summaries/{wiki_slug}.md")
-            summary_result = create_page(
-                db_path, workspace, "/wiki/summaries/", wiki_slug,
-                _title_from_filename(file_path.name), summary_md, [],
-                overwrite=True, source_document_id=doc_id,
-            )
-            wiki_compensations.append({
-                "dir_path": "/wiki/summaries/", "slug": wiki_slug,
-                "category": "summaries", "prior": prior_summary,
-            })
-            update_references(
-                db_path, summary_result["id"], summary_md, "/wiki/summaries/",
-            )
-            update_index(
-                workspace,
-                f"summaries/{wiki_slug}.md",
-                extraction.document_summary[:80] if extraction.document_summary else file_path.name,
-                "summaries",
-            )
+            with tracer.stage("summary"):
+                summary_md = build_summary_page(doc_meta, extraction)
+                wiki_slug = make_wiki_slug(file_path.name)
+                prior_summary = _snapshot_wiki_page(db_path, f"wiki/summaries/{wiki_slug}.md")
+                summary_result = create_page(
+                    db_path, workspace, "/wiki/summaries/", wiki_slug,
+                    _title_from_filename(file_path.name), summary_md, [],
+                    overwrite=True, source_document_id=doc_id,
+                )
+                wiki_compensations.append({
+                    "dir_path": "/wiki/summaries/", "slug": wiki_slug,
+                    "category": "summaries", "prior": prior_summary,
+                })
+                update_references(
+                    db_path, summary_result["id"], summary_md, "/wiki/summaries/",
+                )
+                tracer.artifact(
+                    "markdown", f"summary:{wiki_slug}", summary_md, ext="md",
+                    relative_path=f"wiki/summaries/{wiki_slug}.md",
+                    source_document_id=doc_id,
+                )
+                update_index(
+                    workspace,
+                    f"summaries/{wiki_slug}.md",
+                    extraction.document_summary[:80] if extraction.document_summary else file_path.name,
+                    "summaries",
+                )
 
             if not _batch_mode:
                 # ── Step 10: Rewrite overview ─────────────────────────────────
                 _cb("🌐 Updating overview...")
-                current_overview = (workspace / "wiki" / "overview.md").read_text(encoding="utf-8")
-                all_concept_names = _all_concept_names(db_path)
-                new_overview = update_overview(
-                    current_overview, extraction.document_summary,
-                    all_concept_names, llm_client, model,
-                )
-                (workspace / "wiki" / "overview.md").write_text(new_overview, encoding="utf-8")
+                with tracer.stage("overview"):
+                    current_overview = (workspace / "wiki" / "overview.md").read_text(encoding="utf-8")
+                    all_concept_names = _all_concept_names(db_path)
+                    new_overview = update_overview(
+                        current_overview, extraction.document_summary,
+                        all_concept_names, llm_client, model,
+                    )
+                    (workspace / "wiki" / "overview.md").write_text(new_overview, encoding="utf-8")
+                    tracer.artifact(
+                        "markdown", "overview", new_overview, ext="md",
+                        relative_path="wiki/overview.md",
+                    )
 
                 # ── Step 11: Append to log ────────────────────────────────────
                 timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
@@ -312,6 +359,7 @@ def ingest_file(
                     )
                 _cb(f"🩺 Lint: {lint_report.summary()}")
 
+            ok = True
             _cb(f"✅ Done: {file_path.name} ({len(page_contents)} pages, {len(chunks)} chunks)")
             return IngestResult(file_path, "ingested", f"{len(page_contents)} pages", doc_id)
 
@@ -334,6 +382,9 @@ def ingest_file(
             return IngestResult(file_path, "failed", str(exc), doc_id)
 
     finally:
+        tracer.document_end(status="ok" if ok else "error")
+        if _created:
+            tracer.finish()
         if conn is not None:
             conn.close()
 
@@ -438,9 +489,12 @@ def scan_and_ingest(
     if not candidates:
         return []
 
-    results: list[IngestResult] = []
-    for fp in candidates:
-        results.append(ingest_file(fp, db_path, workspace, llm_client, model, progress_cb))
+    # One trace run for the whole scan (no-op when WIKI_TRACE is unset).
+    with trace.run_scope(workspace, db_path) as tracer:
+        llm_client = tracer.wrap(llm_client)
+        results: list[IngestResult] = []
+        for fp in candidates:
+            results.append(ingest_file(fp, db_path, workspace, llm_client, model, progress_cb))
 
     ingested = sum(1 for r in results if r.status == "ingested")
     skipped  = sum(1 for r in results if r.status == "skipped")
