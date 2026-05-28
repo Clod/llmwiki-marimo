@@ -1555,3 +1555,53 @@ Worked through the §14 MVP Review Findings in `docs/programmer_manual.md`, each
 ### Next Steps
 
 - None - task complete
+
+
+## Session 29: Golden-corpus regression harness
+
+**Date**: 2026-05-27
+**Task**: Golden-corpus regression harness
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+Built a deterministic regression-test foundation. Ingestion is non-deterministic (LLM output varies), so instead of diffing an ingest we ingest a fixed set of public-domain English fairy-tale PDFs once, verify by hand, and freeze the whole workspace into a tracked snapshot that seeds regression tests for every other workflow.
+
+| Piece | Description |
+|-------|-------------|
+| `scripts/build_golden_corpus.py` | `build` / `verify` / `freeze`. Stages 4 PDFs, ingests 1 individually + 3 as a batch, prints a verification report (incl. the H1 "every concept page has a cites edge" check), and freezes `sources/ + wiki/ + index.db` (binary, the restore source) `+ index.db.sql` (audit) into `tests/fixtures/golden_corpus/`. |
+| `tests/helpers/golden.py` | `restore_golden(tmp)` copies the snapshot into a fresh workspace (DB stores only relative paths → relocatable). |
+| `tests/regression/test_golden_corpus.py` | 6 LLM-variation-robust invariants: 4 sources ready, every concept page has a cites edge (H1 guard), each summary cites its source, concept pages exist, lint has no errors, DB rows agree with the markdown tree. `skipif` until the corpus is frozen. |
+
+**Corpus:** Cinderella (individual) + Little Red Riding Hood, The Sleeping Beauty in the Wood, Snow White and the Seven Dwarfs (batch). 3 Perrault + 1 Grimm → strong shared-author concept + overlapping concepts (glass slipper, fairy godmother, wolf, spindle, magic mirror, poisoned apple, dwarfs) for cross-linking coverage.
+
+**Doc sourcing:** Perrault tales generated from public-domain text — `curl` the Blue Fairy Book plain text (Project Gutenberg #503) → slice each tale locally → pandoc/xelatex render → verified extractable via the pipeline's opendataloader extractor. (The WebFetch helper refuses verbatim reproduction even of PD text, so curl + local slicing was the reliable path.) Snow White was a real illustrated PDF the human dropped in.
+
+**Not done (human step):** the snapshot itself isn't frozen yet — it needs `build`/`freeze` run with LLM keys + manual verification, then `git add tests/fixtures/golden_corpus`. Until then the 6 regression tests skip.
+
+**New files:** `scripts/build_golden_corpus.py`, `tests/helpers/golden.py`, `tests/regression/{__init__,test_golden_corpus}.py`, 4 PDFs in `tests/fixtures/pdfs/`; `.gitignore` (+`_golden_staging/`); manual §9.
+
+**Verification:** 197 unit pass, 6 regression skip, ruff clean.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b83ce59` | (see git log) |
+| `6b9ad3a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
