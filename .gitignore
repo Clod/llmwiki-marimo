@@ -59,3 +59,6 @@ tests/fixtures/workspace/
 
 # Generated reports (codemap scans, etc.)
 .reports/
+
+# Golden-corpus staging workspace (scratch; the frozen copy lives in golden_corpus/)
+tests/fixtures/_golden_staging/
