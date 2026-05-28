@@ -127,7 +127,7 @@ def test_lint_after_ingest_appends_to_log(tmp_workspace: WorkspaceFixture) -> No
     """pipeline.ingest_file with lint_after_ingest=True appends lint summary to log.md."""
     from domain.ingestion.pipeline import ingest_file
 
-    pdf = _FIXTURES / "pdfs" / "Blancanieves.pdf"
+    pdf = _FIXTURES / "pdfs" / "Snow White and the Seven Dwarfs.pdf"
     dest = tmp_workspace.workspace / "sources" / pdf.name
     shutil.copy(pdf, dest)
 

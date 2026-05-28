@@ -10,8 +10,8 @@ from tests.helpers.fake_llm import FakeLLMClient
 from tests.helpers.workspace import WorkspaceFixture
 
 _FIXTURES = Path(__file__).parent.parent / "fixtures"
-_PDF_1 = _FIXTURES / "pdfs" / "Blancanieves.pdf"
-_PDF_2 = _FIXTURES / "pdfs" / "Cenicienta.pdf"
+_PDF_1 = _FIXTURES / "pdfs" / "Snow White and the Seven Dwarfs.pdf"
+_PDF_2 = _FIXTURES / "pdfs" / "Cinderella.pdf"
 
 _BASE = (
     "This concept covers important narrative themes related to fairness, "
@@ -62,8 +62,8 @@ def test_batch_ingest_creates_both_summaries(tmp_workspace: WorkspaceFixture) ->
                            tmp_workspace.workspace, tmp_workspace.llm, "fake")
     assert len(results) == 2
     assert all(r.status == "ingested" for r in results)
-    assert (tmp_workspace.workspace / "wiki" / "summaries" / "blancanieves.md").exists()
-    assert (tmp_workspace.workspace / "wiki" / "summaries" / "cenicienta.md").exists()
+    assert (tmp_workspace.workspace / "wiki" / "summaries" / "snow-white-and-the-seven-dwarfs.md").exists()
+    assert (tmp_workspace.workspace / "wiki" / "summaries" / "cinderella.md").exists()
 
 
 def test_batch_ingest_creates_concept_pages(tmp_workspace: WorkspaceFixture) -> None:
@@ -94,8 +94,8 @@ def test_batch_ingest_single_log_entry(tmp_workspace: WorkspaceFixture) -> None:
     log = (tmp_workspace.workspace / "wiki" / "log.md").read_text()
     # Exactly ONE batch entry, not two per-file entries
     assert log.count("Batch ingested") == 1
-    assert "Blancanieves" in log
-    assert "Cenicienta" in log
+    assert "Snow White and the Seven Dwarfs" in log
+    assert "Cinderella" in log
 
 
 def test_batch_ingest_overview_not_called_per_file(tmp_workspace: WorkspaceFixture) -> None:
@@ -129,7 +129,7 @@ def test_batch_ingest_failed_file_continues(tmp_workspace: WorkspaceFixture) -> 
     results = batch_ingest([p1, ghost], tmp_workspace.db_path,
                            tmp_workspace.workspace, tmp_workspace.llm, "fake")
     statuses = {r.file_path.name: r.status for r in results}
-    assert statuses["Blancanieves.pdf"] == "ingested"
+    assert statuses["Snow White and the Seven Dwarfs.pdf"] == "ingested"
     assert statuses["ghost.pdf"] == "failed"
 
 

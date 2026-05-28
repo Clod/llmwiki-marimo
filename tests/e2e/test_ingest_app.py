@@ -35,7 +35,7 @@ WORKSPACE        = FIXTURES_DIR / "workspace"
 PDFS_SRC         = FIXTURES_DIR / "pdfs"
 DB_PATH          = WORKSPACE / ".llmwiki" / "index.db"
 TEST_PORT        = 2719
-PDFS             = ["Blancanieves.pdf", "Cenicienta.pdf", "El patito feo.pdf"]
+PDFS             = ["Cinderella.pdf", "Little Red Riding Hood.pdf", "Snow White and the Seven Dwarfs.pdf"]
 INGEST_TIMEOUT_S = 300           # 5 min per file (includes LLM wiki-page generation)
 
 

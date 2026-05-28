@@ -143,9 +143,9 @@ def test_make_wiki_slug_diacritics() -> None:
 
 _RELATED_PAGES = [
     {"title": "Cinderella", "rel_path": "cinderella.md"},
-    {"title": "Caperucita Roja", "rel_path": "caperucita-roja.md"},
-    {"title": "El Patito Feo", "rel_path": "el-patito-feo.md"},
-    {"title": "Cenicienta", "rel_path": "../summaries/cenicienta.md"},
+    {"title": "Little Red Riding Hood", "rel_path": "little-red-riding-hood.md"},
+    {"title": "Snow White", "rel_path": "snow-white.md"},
+    {"title": "Sleeping Beauty", "rel_path": "../summaries/sleeping-beauty.md"},
 ]
 
 
@@ -153,15 +153,15 @@ def test_inject_see_also_adds_mentioned_pages() -> None:
     from domain.ingestion.wiki_generator import inject_see_also
     content = (
         "# Comparison\n\n## Definition\n"
-        "Cinderella and Caperucita Roja are classic tales.\n\n"
+        "Cinderella and Little Red Riding Hood are classic tales.\n\n"
         "## Sources\n- Chat synthesis\n"
     )
     result = inject_see_also(content, _RELATED_PAGES)
     assert "## See also" in result
     assert "- [Cinderella](cinderella.md)" in result
-    assert "- [Caperucita Roja](caperucita-roja.md)" in result
+    assert "- [Little Red Riding Hood](little-red-riding-hood.md)" in result
     # Not mentioned in body → not linked
-    assert "el-patito-feo.md" not in result
+    assert "snow-white.md" not in result
 
 
 def test_inject_see_also_placed_before_sources() -> None:
@@ -191,9 +191,9 @@ def test_inject_see_also_no_matches_returns_unchanged() -> None:
 
 def test_inject_see_also_resolves_cross_dir_mention() -> None:
     from domain.ingestion.wiki_generator import inject_see_also
-    content = "# X\n\nCenicienta is the Spanish Cinderella.\n\n## Sources\n- Chat synthesis\n"
+    content = "# X\n\nSleeping Beauty is a classic fairy tale.\n\n## Sources\n- Chat synthesis\n"
     result = inject_see_also(content, _RELATED_PAGES)
-    assert "- [Cenicienta](../summaries/cenicienta.md)" in result
+    assert "- [Sleeping Beauty](../summaries/sleeping-beauty.md)" in result
 
 
 def test_inject_see_also_respects_word_boundaries() -> None:

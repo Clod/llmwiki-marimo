@@ -65,11 +65,11 @@ def test_update_references_creates_cites_edge_from_plain_bullet(
 ) -> None:
     """Regression (H1): concept pages list sources as plain '- file.pdf' bullets,
     not '[^1]: file.pdf' footnotes. The parser must build cites edges from these."""
-    source_id = _insert_source(tmp_workspace.db_path, "Cenicienta.pdf", "Cenicienta")
+    source_id = _insert_source(tmp_workspace.db_path, "Cinderella.pdf", "Cinderella")
     content = (
         "# Cinderella\n\n"
         "## Definition\nA folk tale about a mistreated young woman.\n\n"
-        "## Sources\n- Cenicienta.pdf\n"
+        "## Sources\n- Cinderella.pdf\n"
     )
     result = create_page(
         tmp_workspace.db_path, tmp_workspace.workspace,
@@ -91,8 +91,8 @@ def test_update_references_parses_plain_bullet_with_page(
     tmp_workspace: WorkspaceFixture,
 ) -> None:
     """A plain Sources bullet may carry a page suffix: '- file.pdf, p.3'."""
-    source_id = _insert_source(tmp_workspace.db_path, "Cenicienta.pdf", "Cenicienta")
-    content = "# Cinderella\n\n## Sources\n- Cenicienta.pdf, p.3\n"
+    source_id = _insert_source(tmp_workspace.db_path, "Cinderella.pdf", "Cinderella")
+    content = "# Cinderella\n\n## Sources\n- Cinderella.pdf, p.3\n"
     page = create_page(
         tmp_workspace.db_path, tmp_workspace.workspace,
         "/wiki/concepts/", "cinderella", "Cinderella", content, [],
@@ -114,10 +114,10 @@ def test_update_references_ignores_bullets_outside_sources(
     tmp_workspace: WorkspaceFixture,
 ) -> None:
     """Plain bullets only count as citations under the '## Sources' heading."""
-    source_id = _insert_source(tmp_workspace.db_path, "Cenicienta.pdf", "Cenicienta")
+    source_id = _insert_source(tmp_workspace.db_path, "Cinderella.pdf", "Cinderella")
     content = (
         "# Cinderella\n\n"
-        "## Key Characteristics\n- Cenicienta.pdf\n\n"  # bullet NOT under Sources
+        "## Key Characteristics\n- Cinderella.pdf\n\n"  # bullet NOT under Sources
         "## Sources\n- other-file.pdf\n"
     )
     page = create_page(
@@ -132,7 +132,7 @@ def test_update_references_ignores_bullets_outside_sources(
             "WHERE source_document_id=? AND target_document_id=?",
             (page["id"], source_id),
         ).fetchone()
-    assert edge is None  # Cenicienta.pdf appeared only outside Sources → no cites edge
+    assert edge is None  # Cinderella.pdf appeared only outside Sources → no cites edge
 
 
 def test_update_references_creates_links_to_edge(tmp_workspace: WorkspaceFixture) -> None:

@@ -214,7 +214,7 @@ def test_end_to_end_ingest_trace_matches_db(monkeypatch, tmp_workspace):
     from domain.tools.db import get_connection
     from tests.helpers.fake_llm import FakeLLMClient
 
-    pdf = Path(__file__).parent.parent / "fixtures" / "pdfs" / "Blancanieves.pdf"
+    pdf = Path(__file__).parent.parent / "fixtures" / "pdfs" / "Snow White and the Seven Dwarfs.pdf"
     # call 1 = structured extraction (JSON); later calls = concept/overview markdown.
     fake = FakeLLMClient(responses=[_EXTRACTION_JSON, "# Concept\n", "# Overview\n"])
 
@@ -259,7 +259,7 @@ def test_end_to_end_ingest_trace_matches_db(monkeypatch, tmp_workspace):
             (result.doc_id,),
         ).fetchone()
     assert row is not None
-    assert row["relative_path"] == "sources/Blancanieves.pdf"
+    assert row["relative_path"] == "sources/Snow White and the Seven Dwarfs.pdf"
 
     # No credential leaked into the trace text.
     raw = (runs[0] / "trace.jsonl").read_text(encoding="utf-8")
