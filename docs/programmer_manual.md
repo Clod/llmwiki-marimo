@@ -1176,6 +1176,33 @@ ctx = _Ctx(tmp_workspace.db_path)
 result = read_wiki_page(ctx, "wiki/index.md")
 ```
 
+### Golden-corpus regression
+
+Ingestion is non-deterministic (LLM output varies), so it can't be strict-diffed.
+Instead a fixed set of **4 public-domain English fairy-tale PDFs** (Cinderella, Little
+Red Riding Hood, The Sleeping Beauty in the Wood — from *The Blue Fairy Book*, Project
+Gutenberg #503 — plus Snow White and the Seven Dwarfs, all in `tests/fixtures/pdfs/`) is
+ingested **once** (1 individual + 3 batch), human-verified, and frozen into a tracked
+snapshot. That "golden corpus" turns every *other* workflow into a deterministic
+regression test.
+
+```bash
+python scripts/build_golden_corpus.py build    # ingest into _golden_staging/ (needs LLM keys)
+# inspect tests/fixtures/_golden_staging/wiki/ — the report flags the H1 signature
+python scripts/build_golden_corpus.py freeze    # snapshot -> tests/fixtures/golden_corpus/
+git add tests/fixtures/golden_corpus            # sources/ + wiki/ + index.db + index.db.sql
+```
+
+- `tests/helpers/golden.py:restore_golden(tmp)` copies the snapshot into a fresh
+  workspace and returns `(db_path, workspace)` (the DB stores only relative paths, so
+  it is relocatable).
+- `tests/regression/test_golden_corpus.py` asserts LLM-variation-robust invariants:
+  4 sources `ready`, **every concept page has a `cites` edge** (the H1 guard), each
+  summary cites its source, lint reports no errors, and the DB rows agree with the
+  markdown tree on disk. The whole module **skips** until the corpus is frozen.
+- The snapshot ships both `index.db` (binary — the restore source; FTS5 doesn't
+  round-trip through a `.dump`) and `index.db.sql` (the human-auditable companion).
+
 ### E2E infrastructure
 
 Uses `async_playwright` (the test runner lives inside an asyncio loop — anyio  
