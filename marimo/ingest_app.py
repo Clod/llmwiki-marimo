@@ -306,6 +306,7 @@ def ingest_runner(
 
     try:
         from domain.ingestion import ingest_file as _if
+        from domain.ingestion.trace import run_scope as _run_scope
     except Exception as _e:
         logger.error("Import error: %s", _e, exc_info=True)
         set_log_lines([f"❌ Import error: {_e}"])
@@ -317,12 +318,13 @@ def ingest_runner(
     def _run():
         set_running_op("ingest")
         try:
-            for _f in _files:
-                _fp = WORKSPACE / "sources" / _f.name
-                if not _fp.exists():
-                    _fp.write_bytes(_f.contents)
-                _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
-                logger.info("Result: %s — %s", _result.status, _result.message)
+            with _run_scope(WORKSPACE, DB_PATH):
+                for _f in _files:
+                    _fp = WORKSPACE / "sources" / _f.name
+                    if not _fp.exists():
+                        _fp.write_bytes(_f.contents)
+                    _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
+                    logger.info("Result: %s — %s", _result.status, _result.message)
             _finish()
         finally:
             set_running_op(None)

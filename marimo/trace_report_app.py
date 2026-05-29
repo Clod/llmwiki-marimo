@@ -22,7 +22,7 @@ ingestion run is executed with ``WIKI_TRACE=1``. A run directory contains
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.23.8"
 app = marimo.App(width="full")
 
 
@@ -42,10 +42,10 @@ def intro(mo):
     mo.md("""
     # 🔎 Ingestion Trace Report
 
-    "
-        "Choose a directory below. It can be a single run directory (one that "
-        "contains a `trace.jsonl`) **or** any parent folder — every "
-        "`trace.jsonl` underneath it is discovered automatically.
+    Upload a `trace.jsonl` file below. Optionally set a **base directory** to
+    inline payload sidecars (prompts, responses, extracted text, chunks, markdown).
+
+    Trace files are produced by running the ingestion pipeline with `WIKI_TRACE=1`.
     """)
     return
 
@@ -174,63 +174,37 @@ def helpers(Path, html, json):
         )
 
     return (
-        discover_traces,
         group_by_document,
-        load_events,
         render_report,
         to_html_pre,
     )
 
 
 @app.cell
-def directory_picker(Path, mo):
-    """Pick the directory to scan. Its own cell so re-picking nothing else."""
-    start_dir = Path("/Users/claudiograsso/Documents/finanzas/pdfs_dev_test/trace_runs")
-    dir_selector = mo.ui.file_browser(
-        initial_path=start_dir if start_dir.exists() else Path.cwd(),
-        selection_mode="directory",
+def file_selector(mo):
+    """Upload the trace.jsonl file directly."""
+    json_selector = mo.ui.file(
+        filetypes=[".jsonl"],
         multiple=False,
-        label="Select a folder",
+        label="Upload trace.jsonl",
     )
-    dir_selector
-    return (dir_selector,)
+    json_selector
+    return (json_selector,)
 
 
 @app.cell
-def resolve_base(Path, dir_selector):
-    """Resolve the picked directory; default to the english folder when none picked."""
-    default_dir = Path(
-        "/Users/claudiograsso/Documents/finanzas/pdfs_dev_test/trace_runs/english"
+def run_dir_input(mo):
+    """Base directory for sidecar lookup — optional, read from WIKI_TRACE_DIR env or typed in."""
+    import os
+    _default = os.environ.get("WIKI_TRACE_DIR", "")
+    base_dir_input = mo.ui.text(
+        value=_default,
+        label="Trace runs base directory (for sidecar lookup)",
+        placeholder="/path/to/trace_runs",
+        full_width=True,
     )
-    fallback = default_dir if default_dir.exists() else Path.cwd()
-    picked = dir_selector.value
-    base_dir = Path(picked[0].path) if picked else fallback
-    return (base_dir,)
-
-
-@app.cell
-def discovery(base_dir, discover_traces, mo):
-    traces = discover_traces(base_dir)
-    mo.md(
-        f"**Scanning:** `{base_dir}`  \n"
-        f"Found **{len(traces)}** trace run(s)."
-        if traces
-        else f"**Scanning:** `{base_dir}`  \n_No `trace.jsonl` found here._"
-    )
-    return (traces,)
-
-
-@app.cell
-def run_selector(mo, traces):
-    """Choose which run to view. Own cell — selecting a run resets nothing else."""
-    run_options = {f"{p.parent.name}  —  {p}": str(p) for p in traces}
-    run_dropdown = mo.ui.dropdown(
-        options=run_options,
-        value=next(iter(run_options), None),
-        label="Trace run",
-    )
-    run_dropdown
-    return (run_dropdown,)
+    base_dir_input
+    return (base_dir_input,)
 
 
 @app.cell
@@ -246,11 +220,22 @@ def payload_selector(mo):
 
 
 @app.cell
-def load_selected(Path, load_events, run_dropdown):
-    selected = run_dropdown.value
-    trace_path = Path(selected) if selected else None
-    events = load_events(trace_path) if trace_path else []
-    run_dir = trace_path.parent if trace_path else None
+def load_selected(Path, base_dir_input, json, json_selector):
+    events = []
+    run_dir = None
+    contents = json_selector.contents(0)
+    if contents:
+        text = contents.decode("utf-8")
+        for line in text.splitlines():
+            line = line.strip()
+            if line:
+                events.append(json.loads(line))
+
+        if events and base_dir_input.value.strip():
+            meta = events[0]
+            base_dir = Path(base_dir_input.value.strip())
+            if "run_id" in meta and base_dir.exists():
+                run_dir = base_dir / meta["run_id"]
     return events, run_dir
 
 
@@ -263,12 +248,22 @@ def report_view(
     show_channels,
     to_html_pre,
 ):
-    report_text = (
-        render_report(events, run_dir, set(show_channels.value))
-        if events
-        else "Pick a directory with a trace.jsonl to see the report."
+    _channels = set(show_channels.value)
+    _sidecar_channels = _channels & {"prompts", "responses", "extracted_text", "chunks", "markdown"}
+    _warning = (
+        mo.callout(
+            mo.md("Set the **Trace runs base directory** above to inline payload channels."),
+            kind="warn",
+        )
+        if _sidecar_channels and run_dir is None
+        else mo.Html("")
     )
-    mo.vstack([mo.md("## 📜 Timeline report"), mo.Html(to_html_pre(report_text))])
+    report_text = (
+        render_report(events, run_dir, _channels)
+        if events
+        else "Upload a trace.jsonl to see the report."
+    )
+    mo.vstack([_warning, mo.md("## 📜 Timeline report"), mo.Html(to_html_pre(report_text))])
     return
 
 
