@@ -19,6 +19,7 @@ base/                              # Ingestion pipeline + chat agent (self-conta
 ├── __init__.py
 ├── config.py                         # pydantic-settings — resolves .env from project root
 └── domain/
+    ├── wiki_registry.py              # wiki discovery + recent list + path hygiene (the runtime picker; pure, no marimo)
     ├── tools/                        # CRUD layer — shared by pipeline, lint, and agent
     │   ├── db.py                     # open_db(), get_connection() — single entry point for SQLite
     │   ├── wiki_fs.py                # create_page, read_page, append_to_page, delete_page

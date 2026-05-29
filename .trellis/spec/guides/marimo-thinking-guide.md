@@ -160,6 +160,52 @@ _scroll = mo.Html(
 )
 ```
 
+## Before Letting the User Switch Workspace/Wiki at Runtime
+
+To let the user point an app at a different workspace without restarting, the path
+must be **reactive state**, not a constant computed once in `setup`.
+
+- [ ] Is the workspace path a module-level constant (e.g. `WIKI_PATH =
+      Path(os.environ["WIKI_PATH"])` in `setup`)?
+      → Then nothing can switch it at runtime. Make it derive from an
+        `active_wiki` `mo.state` instead.
+- [ ] Did you reach for `mo.ui.file_browser(selection_mode="directory")` to pick a
+      folder? → **It does not emit a value in marimo 0.23.x** (GH #1478): navigation
+        works but `.value` stays empty and `.path(0)` returns `None`. (The old
+        `filetypes=["directory"]` is also wrong — `filetypes` is for extensions.)
+- [ ] Are you pasting paths from the OS? → "Copy as Pathname" yields `'/a/b c'`
+        (with quotes); a leading quote makes the path *relative* and corrupts
+        resolution. Sanitise with `clean_path_input` (strip surrounding quotes).
+
+**Pattern — state → context cell → consumers retarget by name.** A single
+`wiki_context` cell derives every path-bound object from `active_wiki()`; because
+marimo wires cells by variable name, the rest of the graph retargets the new wiki
+**without any consumer-cell changes** (this is how `ingest_app` moved `WORKSPACE`/
+`DB_PATH`/`SOURCES_DIR` out of `setup` with zero edits to its runner cells):
+
+```python
+@app.cell                         # roots
+def wiki_state(mo, ENV_DEFAULT):
+    from domain.wiki_registry import load_recent
+    active_wiki, set_active_wiki = mo.state(ENV_DEFAULT or None)
+    recent_list, set_recent_list = mo.state(load_recent())
+    return active_wiki, recent_list, set_active_wiki, set_recent_list
+
+@app.cell                         # re-runs on switch → everything downstream re-runs
+def wiki_context(active_wiki):
+    WORKSPACE = Path(active_wiki()).resolve()
+    DB_PATH = str(WORKSPACE / ".llmwiki" / "index.db")
+    ...                           # build agent/db/config here, not in setup
+    return WORKSPACE, DB_PATH, ...
+```
+
+- The **picker** is one `mo.ui.dropdown` over `merge_options(WIKI_HOME, recent, active)`
+  (discovered wikis + recent list) plus an accordion text box for any other path.
+- Pure logic (discovery, recent-list persistence to `~/.llmwiki/recent_wikis.json`,
+  path hygiene) lives in `base/domain/wiki_registry.py` — unit-tested, no marimo import.
+- Keep the picker, the "add path" box, and its result in **separate cells** (the
+  one-concern-per-cell rule) so picking doesn't reset the text box.
+
 - The list stays in normal (chronological) order; `column-reverse` only moves the
   scroll anchor to the bottom, so the newest line is always visible.
 - Use `max-height` (not fixed `height`) so a short log doesn't leave a big empty box;
