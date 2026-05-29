@@ -167,11 +167,13 @@ async def test_refresh_reloads_page_list(page: Page) -> None:
 
 
 async def test_no_edit_controls_present(page: Page) -> None:
-    """App is read-only — no Edit, Save, Cancel, or Create buttons."""
-    for label in ["Edit", "Save", "Cancel", "Create"]:
+    """No inline page-editing controls — the read app never edits existing wiki
+    pages in place. The '💾 Save to wiki' button is intentional (the save-to-wiki
+    feature, §6.8) and is not an edit control, so it is not forbidden here."""
+    for label in ["Edit", "Cancel", "Create"]:
         btn = page.get_by_role("button", name=label, exact=False)
         assert not await btn.is_visible(), \
-            f"'{label}' button should not be present in read-only app"
+            f"'{label}' edit control should not be present in the read app"
 
 
 async def test_chat_panel_renders(page: Page) -> None:

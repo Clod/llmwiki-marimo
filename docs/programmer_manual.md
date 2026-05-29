@@ -1469,6 +1469,13 @@ git add tests/fixtures/golden_corpus            # sources/ + wiki/ + index.db + 
 
 ### E2E infrastructure
 
+> **Run with the test ports free.** The fixtures start their own marimo servers
+> on **2719** (ingest) and **2720** (read). They do *not* fail if the port is
+> already taken — Playwright will silently connect to whatever is listening, so a
+> dev app left running on those ports makes the suite connect to the wrong
+> instance (different workspace/state) and produce spurious failures. Stop any
+> marimo app on 2719/2720 before running the E2E suite.
+
 Uses `async_playwright` (the test runner lives inside an asyncio loop — anyio  
 4.x). Configured in `pytest.ini`:
 
@@ -1588,9 +1595,14 @@ in §12.
 
 ### Open bugs
 
-| ID  | Severity | Where | Problem | Fix |
-| --- | -------- | ----- | ------- | --- |
-| E1  | 🟠 medium (test) | `marimo/read_app.py:chat_panel` × `tests/e2e/test_read_app.py` | 4 of the 5 read-app E2E tests time out waiting for the static `### Chat with your Wiki` heading (5s) — the `chat_panel` cell errors at runtime, so the heading never renders, while the left/middle panes load fine. Pre-existing (reproduces at commit `e252b2d`, before the 2026-05-28 audit work); unrelated to the chunker/index/link fixes. `pydantic_ai.messages` imports resolve (pydantic_ai 1.97.0), so the break is most likely in the `mo.ui.chat` + `run_stream` wiring against the current marimo/pydantic_ai versions. | Reproduce locally (`HEADLESS=1 uv run pytest tests/e2e/test_read_app.py`), read the marimo server stderr for the `chat_panel` traceback, and align the `mo.ui.chat`/`run_stream` usage with the installed versions. |
+None currently tracked.
+
+> Earlier the read-app E2E tests appeared to fail (the chat panel "never
+> rendered"). On a clean run — with **nothing else listening on the E2E ports**
+> (2719/2720) — the full suite is green. The failures were port contention: the
+> test connected to a *separate* marimo instance already on the port (e.g. a dev
+> app) whose workspace/state differed, not a `read_app` bug. See §9's note on
+> running E2E with the ports free.
 
 ---
 
