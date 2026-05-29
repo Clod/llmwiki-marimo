@@ -426,9 +426,11 @@ What each workflow does to the four DB tables and the wiki filesystem.
 | 6.9 Source delete | U/D | D | D | D | D |
 | 6.10 Page delete | D | – | D | D | U/D |
 
-6.4/6.5 reuse 6.3 per file (6.4 defers overview/log/commit to once per batch). 6.6
-touches **summary pages only** — no `document_references`, `index.md`, `overview.md`,
-or lint. 6.7 is read-only unless the agent calls `file_to_wiki` (→ 6.8). 6.9/6.10
+6.3 (via the `ingest_app` runner) closes with a 6.1/6.2 reconciliation pass —
+deterministic by default, full LLM if the form checkbox is ticked — so the 6.2-row
+writes can also fire as the tail of an ingest. 6.4/6.5 reuse 6.3 per file (6.4 defers
+overview/log/commit to once per batch). 6.6 touches **summary pages only** — no
+`document_references`, `index.md`, `overview.md`, or lint. 6.7 is read-only unless the agent calls `file_to_wiki` (→ 6.8). 6.9/6.10
 deletions cascade via `ON DELETE CASCADE` + the `chunks_fts` triggers; 6.10 also
 **U**pdates *other* pages when stripping dead links to the deleted page.
 
@@ -616,7 +618,7 @@ scan, and regenerate, with an explicit "Run Repair" button. Tracked in §11.11.
 ```mermaid
 sequenceDiagram
     autonumber
-    participant UI as ingest_app (ingest_btn)
+    participant UI as ingest_app (ingest form)
     participant P as ingest_file
     participant EX as extractor · chunker
     participant GEN as wiki_generator 🧠
@@ -640,6 +642,8 @@ sequenceDiagram
     P->>GEN: update_overview
     P->>FS: write overview.md · append log.md
     P->>GIT: auto_commit
+    P-->>UI: IngestResult
+    UI->>UI: lint+repair tail (§6.1–6.2) · orphan excluded<br/>deterministic by default · full LLM if checkbox ticked
     Note over P,FS: on error → _rollback_wiki_pages (compensations)
 ```
 
@@ -690,19 +694,25 @@ result = ingest_file(
 
 **Triggers:**
 
-- Marimo button "⚙️ Ingest uploaded file" in `ingest_app.py:190` (`ingest_btn`).
-- Directly callable as a Python function.
+- Marimo **ingest form** in `ingest_app.py` (`ingest_form_cell`): the "⚙️ Ingest
+  uploaded file(s)" submit button bundled with an "also run full LLM lint & repair"
+  checkbox. `mo.ui.form` emits its value only on submit, so the checkbox is read
+  atomically (no reset race); `on_change` snapshots the files + flag into the trigger.
+- Directly callable as a Python function (`ingest_file`).
 
 **Today vs Target:**
 
 - **Coverage.** A single ingest already creates *both* concept pages (step 8) and
   the 1-to-1 summary page (step 9) — not just the summary.
-- **Reconciliation tail (steps 10–13).** Today the only wiki-wide reconciliation
-  after a single ingest is the `overview.md` rewrite (step 10); a lint pass runs
-  only if `lint_after_ingest=True` (default `False`), and repair never runs.
-  **Target:** steps 10–13 always close with lint **and** repair, so the new
-  concept/summary pages get cross-linked into existing pages and lint comes back
-  clean (§11.11).
+- **Reconciliation tail.** The `ingest_file` library function itself only rewrites
+  `overview.md` (step 10) and, when `lint_after_ingest=True` (default `False`), runs a
+  deterministic lint it appends to the log — it never repairs. The **`ingest_app`
+  runner** closes that gap: after every ingest it runs a lint **and** repair pass
+  (`ingest_runner`), **deterministic by default** (no LLM) or **full LLM** when the
+  form checkbox is ticked, so new concept/summary pages get cross-linked and lint
+  comes back clean. The `orphan` check is excluded so pages created by *this* run
+  aren't deleted for lacking inbound links yet. Remaining: extend the same auto-close
+  to scan and regenerate (§11.11).
 - **Duplicate handling.** Today an unchanged file returns `status="skipped"`
   silently (`detector.needs_ingestion`). **Target:** the GUI warns "already
   ingested" rather than skipping quietly (§11.13).
@@ -1215,10 +1225,10 @@ Cells (selected — see source for the full list):
 | `setup`              | `.env` + paths + open SQLite                                                    |
 | `llm_setup`          | Build `openai.OpenAI` from `settings.wiki_*`                                    |
 | `source_uploader`    | `mo.ui.file(filetypes=[".pdf",".docx"])` → saves to `sources/`                  |
-| `ingest_btn` (L190)  | "⚙️ Ingest uploaded file(s)" → `ingest_file` (or `batch_ingest` for multi-file) |
-| `scan_btn` (L194)    | "🔄 Scan sources" → `scan_and_ingest`                                           |
-| `regen_btn` (L198)   | "🤖 Regenerate wiki" → `regenerate_wiki_pages`                                  |
-| `clear_btn` (L202)   | Resets the live progress log                                                    |
+| `ingest_form_cell`   | Form: "⚙️ Ingest uploaded file(s)" submit + "full LLM lint & repair" checkbox → `ingest_file` (or `batch_ingest` for multi-file), then a lint+repair tail |
+| `scan_btn`           | "🔄 Scan sources" → `scan_and_ingest`                                           |
+| `regen_btn`          | "🤖 Regenerate wiki" → `regenerate_wiki_pages`                                  |
+| `clear_btn`          | Resets the live progress log                                                    |
 | `progress_display`   | Accumulates `progress_cb(message)` lines                                        |
 | `timing_helper`      | Returns `make_timed_logger(set_log_lines, logger, tag)` shared by all runners   |
 | `debug_panel` (L330) | Visible when `WIKI_DEBUG=1`                                                     |
@@ -1530,12 +1540,14 @@ in §12.
 10. **Document `scan_and_ingest` precisely** for end users (§6.5 — what it
   touches, when to prefer `batch_ingest` instead).
 11. 🟡 **Lint+repair always close every ingest, scan, and regenerate** (§6.1–§6.6).
-  **Partially done:** a manual "Run Wiki Lint & Repair" button (LLM-enabled) exists in  
-   `ingest_app.py` (`lint_repair_widget` + `lint_repair_runner`). **Remaining:** lint is  
-   still opt-in on ingest/scan (`lint_after_ingest` / `run_lint`, both default `False`)  
-   and has no automatic trigger outside chat→wiki save (§6.8); make every  
-   ingest/scan/regenerate end automatically with a lint **and** repair pass so a  
-   follow-up lint reports "no actions needed".
+  **Done for ingest:** the `ingest_app` ingest form (`ingest_form_cell` +  
+   `ingest_runner`) now auto-runs a lint **and** repair pass after every ingest —  
+   **deterministic by default**, or **full LLM** when the form checkbox is ticked —  
+   with the `orphan` check excluded so just-created pages survive. The manual "Run  
+   Wiki Lint & Repair" button (`lint_repair_widget` + `lint_repair_runner`) remains  
+   for an on-demand full sweep. **Remaining:** give **scan** (§6.5) and **regenerate**  
+   (§6.6) the same automatic tail (today they still don't reconcile afterwards), and  
+   optionally surface the same checkbox on those actions.
 12. ✅ **Finish the skipped repairs** (§6.2). Implemented `repair_missing_xref`
   (appends `## See also` + records `links_to` edge), `repair_contradiction`  
    (idempotent `⚠️` callout), and `repair_data_gap` (inserts `<!-- DATA_GAP -->`  

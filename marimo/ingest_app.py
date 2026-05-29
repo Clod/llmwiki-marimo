@@ -242,14 +242,14 @@ def handle_upload(upload, SOURCES_DIR, logger):
 
 
 @app.cell
-def action_buttons(mo, upload, set_ingest_trigger, set_scan_trigger, set_regen_trigger, set_log_lines):
-    """Buttons that fire triggers — they do no work themselves."""
+def action_buttons(mo, set_scan_trigger, set_regen_trigger, set_log_lines):
+    """Buttons that fire triggers — they do no work themselves.
+
+    Ingestion is triggered by `ingest_form` (a form bundling the ingest button
+    with the full-lint+repair checkbox) — see ingest_form_cell.
+    """
     import time as _t
 
-    ingest_btn = mo.ui.button(
-        label="⚙️ Ingest uploaded file(s)", kind="success",
-        on_click=lambda _: set_ingest_trigger((_t.time(), list(upload.value))),
-    )
     scan_btn = mo.ui.button(
         label="🔄 Scan sources/ for changes", kind="neutral",
         on_click=lambda _: set_scan_trigger(_t.time()),
@@ -262,19 +262,48 @@ def action_buttons(mo, upload, set_ingest_trigger, set_scan_trigger, set_regen_t
         label="🗑 Clear log", kind="neutral",
         on_click=lambda _: set_log_lines([]),
     )
-    return ingest_btn, scan_btn, regen_btn, clear_btn
+    return scan_btn, regen_btn, clear_btn
+
+
+@app.cell
+def ingest_form_cell(mo, upload, set_ingest_trigger):
+    """Ingest trigger bundled as a form (associates the button + checkbox).
+
+    The checkbox travels *inside* the form, so its value is read atomically when
+    the submit button is clicked — marimo only emits a form's value on submit, so
+    there is no checkbox-reset race. `on_change` fires only on submit; it snapshots
+    the uploaded files and the flag into `ingest_trigger`, mirroring the on_click
+    trigger pattern the other buttons use.
+
+    Unchecked (default) → a cheap *deterministic* lint+repair runs after ingest.
+    Checked → the full LLM lint+repair also runs (contradictions, data gaps, plus
+    the LLM-backed stale/missing-concept repairs). See ingest_runner.
+    """
+    import time as _t
+
+    ingest_form = mo.ui.form(
+        mo.ui.checkbox(
+            label="Also run full LLM lint & repair after ingest (slower, uses tokens)",
+            value=False,
+        ),
+        submit_button_label="⚙️ Ingest uploaded file(s)",
+        on_change=lambda _full: set_ingest_trigger(
+            (_t.time(), list(upload.value), bool(_full)),
+        ),
+    )
+    return (ingest_form,)
 
 
 
 @app.cell
-def upload_section(mo, upload, saved, ingest_btn):
+def upload_section(mo, upload, saved, ingest_form):
     """Upload column."""
     mo.vstack([
         mo.md("### 📂 Upload Documents"),
         mo.md("Supports `.pdf` and `.docx`. Files are saved to `sources/`."),
         upload,
         mo.vstack([mo.md(r) for r in saved]) if saved else mo.Html(""),
-        ingest_btn,
+        ingest_form,
     ], gap=2)
 
 
@@ -296,10 +325,20 @@ def ingest_runner(
     WORKSPACE, DB_PATH, llm_client, llm_model,
     set_log_lines, set_running_op, logger, make_timed_logger,
 ):
-    """Runs ingestion when ingest_trigger changes."""
+    """Runs ingestion when ingest_trigger changes, then a lint+repair pass.
+
+    The third trigger element (full_repair, from the ingest form checkbox) picks
+    the reconciliation depth:
+      - False (default): deterministic lint+repair only — no LLM calls, fast/free.
+      - True: full lint+repair, including the LLM checks (contradictions, data
+        gaps) and the LLM-backed stale/missing-concept repairs.
+    The `orphan` check is excluded either way: concept pages created by *this*
+    ingest may legitimately have no inbound links yet, and repair_orphan would
+    delete them (same guard as the chat→wiki post-save hook, §6.8).
+    """
     mo.stop(ingest_trigger() is None)
 
-    _, _files = ingest_trigger()  # files captured at button-click time
+    _, _files, _full_repair = ingest_trigger()  # snapshot at submit time
     if not _files:
         set_log_lines(["⚠️ No files uploaded — drop a PDF or DOCX first."])
         mo.stop(True)
@@ -307,6 +346,9 @@ def ingest_runner(
     try:
         from domain.ingestion import ingest_file as _if
         from domain.ingestion.trace import run_scope as _run_scope
+        from domain.lint.runner import lint_wiki as _lw
+        from domain.lint.report import LintReport as _LintReport
+        from domain.repair.runner import repair_wiki as _rw
     except Exception as _e:
         logger.error("Import error: %s", _e, exc_info=True)
         set_log_lines([f"❌ Import error: {_e}"])
@@ -325,6 +367,23 @@ def ingest_runner(
                         _fp.write_bytes(_f.contents)
                     _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
                     logger.info("Result: %s — %s", _result.status, _result.message)
+
+            # Reconciliation pass — deterministic by default (client=None → the
+            # LLM checks/repairs are skipped), full when the checkbox was ticked.
+            _client = llm_client if _full_repair else None
+            _mode = "full LLM" if _full_repair else "deterministic"
+            _cb(f"🩺 Running {_mode} lint…")
+            _report = _lw(DB_PATH, WORKSPACE, client=_client, model=llm_model)
+            _fixable = [i for i in _report.issues if i.check != "orphan"]
+            if _fixable:
+                _cb(f"🔧 {len(_fixable)} issue(s) — repairing ({_mode})…")
+                _rw(
+                    _LintReport(issues=_fixable, checked_at=_report.checked_at),
+                    DB_PATH, WORKSPACE,
+                    llm_client=_client, model=llm_model, progress_cb=_cb,
+                )
+            else:
+                _cb("✅ Lint clean — no repairs needed.")
             _finish()
         finally:
             set_running_op(None)
@@ -437,7 +496,7 @@ def lint_repair_widget_cell(mo):
 
 
 @app.cell
-def debug_panel(mo, ingest_btn, scan_btn, upload, DB_PATH, debug_mode, logger):
+def debug_panel(mo, ingest_form, scan_btn, upload, DB_PATH, debug_mode, logger):
     """Debug panel — only visible when WIKI_DEBUG=1."""
     from domain.ingestion.pipeline import open_db
 
@@ -461,7 +520,7 @@ def debug_panel(mo, ingest_btn, scan_btn, upload, DB_PATH, debug_mode, logger):
         debug_view = mo.callout(
             mo.md(
                 f"**🐛 Debug panel** (`WIKI_DEBUG=1`)\n\n"
-                f"- `ingest_btn.value` = `{ingest_btn.value}`\n"
+                f"- `ingest_form.value` = `{ingest_form.value}`\n"
                 f"- `scan_btn.value`   = `{scan_btn.value}`\n"
                 f"- `upload.value`     = `{upload_names}`\n"
                 f"- `DB_PATH`          = `{DB_PATH}`\n"
@@ -470,8 +529,8 @@ def debug_panel(mo, ingest_btn, scan_btn, upload, DB_PATH, debug_mode, logger):
             kind="info",
         )
         logger.debug(
-            "debug_panel: ingest_btn=%s scan_btn=%s upload=%s db=%s",
-            ingest_btn.value, scan_btn.value, upload_names, db_info,
+            "debug_panel: ingest_form=%s scan_btn=%s upload=%s db=%s",
+            ingest_form.value, scan_btn.value, upload_names, db_info,
         )
     return (debug_view,)
 
