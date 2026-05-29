@@ -1767,3 +1767,77 @@ Prepared the project for manual ingestion testing of the English PDFs: documente
 ### Next Steps
 
 - None - task complete
+
+
+## Session 33: Project audit, doc refactor & ingest-app live progress
+
+**Date**: 2026-05-29
+**Task**: Project audit, doc refactor & ingest-app live progress
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+Full-project review, documentation overhaul, and a round of ingest-app UX work. All commits on master; full suite green (210 unit / 6 regression / 9 E2E); ruff clean.
+
+## Code
+
+| Area | Change |
+|------|--------|
+| Dead code | Deleted `./llmwiki` (365-line stdlib CLI disconnected from the marimo project) |
+| Bug fixes | B1 `save_to_wiki` double `wiki/` prefix; B2 `scan_and_ingest` hidden-file filter over absolute path; B3 `repair_missing_xref` dead idempotency branch; L4 `_relative_link` → posixpath; L5 `index_manager` blank-line guard index; L8 chunker oversized-paragraph split |
+| Ingest form | Replaced ingest button with `mo.ui.form` (submit + "full LLM lint & repair" checkbox); post-ingest reconciliation deterministic by default / full LLM when ticked, **scoped to the ingested doc's pages**, orphan excluded |
+| Live progress | `domain.ingestion` log handler streams INFO into the Activity Log (de-duped, capped); `lint_wiki`/`contradiction_check`/`data_gap_check` gained `progress_cb` (per-pair) to fill the silent LLM-lint gap |
+| Activity Log | Replaced kernel-blocking `op_spinner` loop with a 1s `mo.ui.refresh` + non-blocking indicator (live streaming); fixed-height `column-reverse` scrollable panel that auto-sticks to the newest line |
+| `repair_missing_xref` | Log message now shows origin → destination |
+| Test fix | Narrowed stale `test_no_edit_controls_present` (the `💾 Save to wiki` button is intended, §6.8) |
+
+## Docs
+
+- Rewrote `programmer_manual.md` as guide + backlog (removed the §15 review log; migrated/then-fixed open bugs).
+- Added per-workflow Mermaid diagrams + a table-write CRUD matrix to §6.
+- **Split §6 Workflows into `docs/manual/workflows.md`** (1835 → ~1000 lines; `§N` numbering preserved, locator notes, TOC + CODEMAPS updated).
+- Added a **Karpathy coverage matrix** to §1 and compensation notes to §12 (HITL ingest via read-app chat; web search external+manual).
+- Doc-sync fixes: test counts (210/9), §7 cell table, `create_agent` signature.
+- `marimo-thinking-guide.md`: added auto-refresh live-progress and column-reverse auto-scroll patterns.
+- Closed **E1** as port contention (not a read_app bug); added §9 "run E2E with ports free" note.
+
+## Key learnings
+- marimo: a cell blocking the kernel (`while: sleep`) freezes all reactive re-renders; background-thread `set_state` is buffered → use `mo.ui.refresh` to drive live panels.
+- Post-ingest reconciliation must be scoped to the ingested doc's pages, or it rewrites unrelated pages.
+- E2E fixtures connect to whatever's on ports 2719/2720 — stale/dev servers cause spurious failures.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f262b75` | (see git log) |
+| `9d515ab` | (see git log) |
+| `ecd64b8` | (see git log) |
+| `a77fc54` | (see git log) |
+| `26bedc3` | (see git log) |
+| `6b888ee` | (see git log) |
+| `1b81176` | (see git log) |
+| `3cc5978` | (see git log) |
+| `8b9a325` | (see git log) |
+| `d30458d` | (see git log) |
+| `4493fd3` | (see git log) |
+| `9f40af1` | (see git log) |
+| `0da5985` | (see git log) |
+| `aa721fe` | (see git log) |
+| `be07abc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
