@@ -1841,3 +1841,63 @@ Full-project review, documentation overhaul, and a round of ingest-app UX work. 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 34: Open-source release prep + runtime wiki picker
+
+**Date**: 2026-05-29
+**Task**: Open-source release prep + runtime wiki picker
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+Prepared the project for an open-source MVP release (implementation of Karpathy's
+LLM-Wiki idea) and added a runtime wiki picker so both marimo apps can switch
+between multiple wikis without editing WIKI_PATH in .env and restarting.
+
+| Area | Description |
+|------|-------------|
+| Release hygiene | Added CONTRIBUTING.md + SECURITY.md; rewrote CI test.yml to run THIS project's unit suite + ruff via uv (it referenced a different project: api/, mcp/, Postgres/supavault); removed npm-based playwright.yml |
+| README | Fixed broken clone URL (llmwiki → llmwiki-marimo), test count (→232), added "How is this different from RAG/NotebookLM?" and "Limitations & non-goals" sections |
+| Feature: wiki picker | base/domain/wiki_registry.py (discovery + recent list at ~/.llmwiki/recent_wikis.json + path hygiene; 22 unit tests). read_app + ingest_app: active_wiki mo.state + wiki_context cell derive all path-bound objects reactively; consumer cells retarget by name. Dropdown over discovered+recent wikis + "open another folder" accordion |
+| Key gotcha | mo.ui.file_browser(selection_mode="directory") emits no value in marimo 0.23.x (GH #1478) — used discovery + sanitised text path instead |
+| Config | WIKI_PATH now the default selection; optional WIKI_HOME sets discovery root |
+| Docs/spec | programmer_manual §7.1 + tables/config; .env.example; Trellis spec: backend/directory-structure + marimo-thinking-guide (runtime-switch pattern) |
+
+**Verification**: ruff clean, 232 unit tests pass, both app graphs load (read_app 19 cells, ingest_app 29 cells, no cycles/dup-defs), user confirmed both apps work live.
+
+**Updated/Added Files**:
+- `base/domain/wiki_registry.py` (new)
+- `tests/unit/test_wiki_registry.py` (new)
+- `marimo/read_app.py`, `marimo/layouts/read_app.grid.json`, `marimo/ingest_app.py`
+- `marimo/prototypes/wiki_picker.py` (new)
+- `CONTRIBUTING.md`, `SECURITY.md` (new)
+- `.github/workflows/test.yml` (rewritten), `.github/workflows/playwright.yml` (removed)
+- `README.md`, `.env.example`, `docs/programmer_manual.md`
+- `.trellis/spec/backend/directory-structure.md`, `.trellis/spec/guides/marimo-thinking-guide.md`
+
+**Remaining open-source launch items**: screenshots/demo GIF (user to capture), optional CI badge once pushed/green.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `43ede18` | (see git log) |
+| `941c643` | (see git log) |
+| `3cc13ac` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
