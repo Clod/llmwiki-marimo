@@ -467,12 +467,20 @@ deleted/modified source) left the wiki out of sync, which §6.2 Repair then fixe
 report = lint_wiki(
     db_path,
     workspace,
-    client=None,    # pass an LLM client to enable the LLM checks
+    client=None,        # pass an LLM client to enable the LLM checks
     model="",
+    progress_cb=None,   # optional callable(str) — reports progress per check
 )
 print(report.summary())             # "3 issue(s): 1 error(s), 2 warning(s), 0 info"
 for issue in report.issues: ...
 ```
+
+`progress_cb` is called before each check and, crucially, **before each pair in the
+pairwise `contradiction_check`** — the one slow (per-pair LLM) check. The ingest
+runner and the manual "Run Wiki Lint & Repair" button pass the timed Activity-Log
+callback here so the long LLM lint reports progress instead of going silent (a user
+watching the log would otherwise think the run had hung). Deterministic-only lint is
+fast, so the callback mostly matters in full-LLM mode.
 
 **Seven checks (`base/domain/lint/checks.py`):**
 
@@ -1234,7 +1242,7 @@ Cells (selected — see source for the full list):
 | `regen_btn`          | "🤖 Regenerate wiki" → `regenerate_wiki_pages`                                  |
 | `clear_btn`          | Resets the live progress log                                                    |
 | `progress_display`   | Accumulates `progress_cb(message)` lines                                        |
-| `timing_helper`      | Returns `make_timed_logger(set_log_lines, logger, tag)` shared by all runners   |
+| `timing_helper`      | `make_timed_logger(set_log_lines, logger, tag)` — timed cb + a `domain.ingestion` log handler that streams INFO into the panel (de-duped, capped) |
 | `debug_panel` (L330) | Visible when `WIKI_DEBUG=1`                                                     |
 
 **Timed Activity Log.** Each runner (`ingest`, `scan`, `regen`, `lint_repair`) wraps
@@ -1244,6 +1252,16 @@ a bold `total: Ns` is appended when the run finishes. Because messages mark the 
 of each step, the delta on a line is the duration of the step named on the line above —
 which makes the slow steps (the LLM calls) jump out for optimization. Timing lives
 entirely in the app layer; `pipeline.py` and the domain are untouched.
+
+To keep progress visible, `make_timed_logger` also installs a `logging.Handler` on
+the `domain.ingestion` logger for the duration of each run, so those modules' INFO
+lines — e.g. the extractor's per-file progress, which inherit the root `WARNING`
+level and so reach neither console nor panel today — stream into the Activity Log
+too (the "app + ingestion" subset). Lines are de-duped against the `progress_cb`
+copy (a domain `_cb` logs the same text to its module logger *and* via `progress_cb`)
+and the panel is capped to the last 200 lines so a chatty run can't flood the
+reactive UI. The handler is attached per run and removed in `finish()` (called from
+each runner's `finally`), with a defensive sweep of leaked handlers on the next run.
 
 ### `read_app.py`
 

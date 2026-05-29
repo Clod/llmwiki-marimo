@@ -173,9 +173,14 @@ or "NO CONTRADICTION" if none."""
 
 
 def contradiction_check(
-    db_path: str, workspace: Path, client, model: str
+    db_path: str, workspace: Path, client, model: str, progress_cb=None
 ) -> list[LintIssue]:
-    """LLM-powered contradiction detection between related concept pages."""
+    """LLM-powered contradiction detection between related concept pages.
+
+    This is the slowest lint check — one LLM call per concept pair that shares a
+    cited source. progress_cb (if given) is called before each pair so the caller
+    can report movement during what is otherwise a long silent stretch.
+    """
     issues = []
     with get_connection(db_path) as conn:
         pairs = conn.execute("""
@@ -200,7 +205,13 @@ def contradiction_check(
                 AND d2.source_kind = 'wiki' AND d2.content IS NOT NULL
         """).fetchall()
 
-    for pair in pairs:
+    total = len(pairs)
+    for _i, pair in enumerate(pairs, 1):
+        if progress_cb:
+            progress_cb(
+                f"⚖️ contradiction {_i}/{total}: "
+                f"{pair['path_a'].rsplit('/', 1)[-1]} ⇄ {pair['path_b'].rsplit('/', 1)[-1]}"
+            )
         prompt = _CONTRADICTION_TEMPLATE.format(
             path_a=pair["path_a"],
             content_a=(pair["content_a"] or "")[:2000],
@@ -244,7 +255,7 @@ or "NO GAPS" if coverage looks comprehensive."""
 
 
 def data_gap_check(
-    db_path: str, workspace: Path, client, model: str
+    db_path: str, workspace: Path, client, model: str, progress_cb=None
 ) -> list[LintIssue]:
     """LLM-powered check for missing or underdeveloped topics."""
     issues = []
@@ -256,6 +267,9 @@ def data_gap_check(
 
     if not rows:
         return []
+
+    if progress_cb:
+        progress_cb(f"🔍 data-gap scan: reviewing {len(rows)} concept title(s)")
 
     concept_list = "\n".join(
         f"- {r['title'] or r['filename']} ({r['path']}{r['filename']})"

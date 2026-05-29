@@ -189,27 +189,83 @@ def timing_helper():
     so the largest numbers in the log point straight at the slow steps (the LLM
     calls). finish() appends a bold total. Defined once here and returned so every
     runner shares one implementation.
+
+    To keep the user informed of progress, the factory also installs a logging
+    handler on the "ingestion" loggers (`domain.ingestion`) so their INFO lines —
+    e.g. the extractor's per-file progress, which otherwise reach neither console
+    nor panel — stream into the Activity Log alongside the cb messages. The "app"
+    half of the curated subset is the cb itself. Lines are de-duped (a domain `_cb`
+    logs the same text to its module logger *and* via progress_cb) and the panel is
+    capped to the last N lines so a chatty run can't flood the reactive UI.
     """
     import time as _time
+    import logging as _logging
+    import threading as _threading
+
+    _PANEL_LOGGERS = ("domain.ingestion",)   # the "ingestion" half of the subset
+    _MAX_PANEL_LINES = 200
+
+    class _PanelHandler(_logging.Handler):
+        """Mirror INFO records into the Activity Log via emit_line."""
+        def __init__(self, emit_line):
+            super().__init__(level=_logging.INFO)
+            self._emit_line = emit_line
+
+        def emit(self, record):
+            try:
+                self._emit_line(record.getMessage())
+            except Exception:
+                pass
 
     def make_timed_logger(set_log_lines, logger, tag):
         msgs: list[str] = []
         start = _time.monotonic()
         prev = [start]
+        last_raw = [None]
+        done = [False]
+        lock = _threading.Lock()
+
+        def _emit_line(text: str) -> None:
+            with lock:
+                if text == last_raw[0]:
+                    return  # de-dupe: cb and the module logger emit the same line
+                now = _time.monotonic()
+                dt = now - prev[0]
+                prev[0] = now
+                last_raw[0] = text
+                msgs.append(f"`+{dt:5.1f}s` {text}")
+                del msgs[:-_MAX_PANEL_LINES]
+                set_log_lines(list(msgs))
 
         def cb(msg: str) -> None:
-            now = _time.monotonic()
-            dt = now - prev[0]
-            prev[0] = now
-            msgs.append(f"`+{dt:5.1f}s` {msg}")
-            set_log_lines(list(msgs))
+            _emit_line(msg)
             logger.info("[%s] %s", tag, msg)
 
+        # Stream the ingestion loggers' INFO into the panel for the duration of the
+        # run. Defensive: drop any handler leaked by a run that didn't finish.
+        handler = _PanelHandler(_emit_line)
+        captured = []
+        for _name in _PANEL_LOGGERS:
+            _lg = _logging.getLogger(_name)
+            _lg.handlers = [h for h in _lg.handlers if not isinstance(h, _PanelHandler)]
+            captured.append((_lg, _lg.level))
+            _lg.addHandler(handler)
+            if _lg.level == _logging.NOTSET or _lg.level > _logging.INFO:
+                _lg.setLevel(_logging.INFO)
+
         def finish() -> None:
-            total = _time.monotonic() - start
-            msgs.append(f"**total: {total:.1f}s**")
-            set_log_lines(list(msgs))
-            logger.info("[%s] total: %.1fs", tag, total)
+            with lock:
+                if done[0]:
+                    return
+                done[0] = True
+                total = _time.monotonic() - start
+                msgs.append(f"**total: {total:.1f}s**")
+                del msgs[:-_MAX_PANEL_LINES]
+                set_log_lines(list(msgs))
+            for _lg, _prev_level in captured:
+                _lg.removeHandler(handler)
+                _lg.setLevel(_prev_level)
+            logger.info("[%s] total: %.1fs", tag, _time.monotonic() - start)
 
         return cb, finish
 
@@ -407,7 +463,7 @@ def ingest_runner(
             _client = llm_client if _full_repair else None
             _mode = "full LLM" if _full_repair else "deterministic"
             _cb(f"🩺 Running {_mode} lint on {len(_related)} ingested page(s)…")
-            _report = _lw(DB_PATH, WORKSPACE, client=_client, model=llm_model)
+            _report = _lw(DB_PATH, WORKSPACE, client=_client, model=llm_model, progress_cb=_cb)
             _fixable = [
                 i for i in _report.issues
                 if i.check != "orphan" and i.page in _related
@@ -421,8 +477,8 @@ def ingest_runner(
                 )
             else:
                 _cb("✅ Ingested pages consistent — no repairs needed.")
-            _finish()
         finally:
+            _finish()
             set_running_op(None)
 
     mo.Thread(target=_run).start()
@@ -450,8 +506,8 @@ def scan_runner(
         set_running_op("scan")
         try:
             _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
-            _finish()
         finally:
+            _finish()
             set_running_op(None)
 
     mo.Thread(target=_run).start()
@@ -479,8 +535,8 @@ def regen_runner(
         set_running_op("regen")
         try:
             _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
-            _finish()
         finally:
+            _finish()
             set_running_op(None)
 
     mo.Thread(target=_run).start()
@@ -710,7 +766,7 @@ def lint_repair_runner(
     def _run():
         set_running_op("lint_repair")
         try:
-            _lint_report = _lw(DB_PATH, WORKSPACE, client=llm_client, model=llm_model)
+            _lint_report = _lw(DB_PATH, WORKSPACE, client=llm_client, model=llm_model, progress_cb=_cb)
             _issue_count = len(_lint_report.issues)
             if _issue_count == 0:
                 _cb("✅ No issues found.")
@@ -721,8 +777,8 @@ def lint_repair_runner(
                     llm_client=llm_client, model=llm_model,
                     progress_cb=_cb,
                 )
-            _finish()
         finally:
+            _finish()
             set_running_op(None)
 
     mo.Thread(target=_run).start()

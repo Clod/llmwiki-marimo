@@ -20,20 +20,34 @@ def lint_wiki(
     workspace: Path,
     client=None,
     model: str = "",
+    progress_cb=None,
 ) -> LintReport:
     """Run all lint checks and return a structured report.
 
     LLM-powered checks (contradiction, data_gap) are skipped when client is None.
+    progress_cb (if given) is called before each check so a long run — chiefly the
+    pairwise LLM contradiction sweep — reports progress instead of going silent.
     """
+    def _p(msg: str) -> None:
+        if progress_cb:
+            progress_cb(msg)
+
     issues = []
+    _p("🔎 lint: orphans")
     issues.extend(orphan_check(db_path))
+    _p("🔎 lint: staleness")
     issues.extend(staleness_check(db_path))
+    _p("🔎 lint: missing cross-refs")
     issues.extend(missing_xref_check(db_path))
+    _p("🔎 lint: missing concept links")
     issues.extend(missing_concept_check(db_path, workspace))
+    _p("🔎 lint: gap-filled markers")
     issues.extend(gap_filled_check(db_path))
     if client:
-        issues.extend(contradiction_check(db_path, workspace, client, model))
-        issues.extend(data_gap_check(db_path, workspace, client, model))
+        _p("🔎 lint: contradiction sweep (LLM, pairwise)…")
+        issues.extend(contradiction_check(db_path, workspace, client, model, progress_cb))
+        _p("🔎 lint: data-gap scan (LLM)…")
+        issues.extend(data_gap_check(db_path, workspace, client, model, progress_cb))
 
     return LintReport(
         issues=issues,
