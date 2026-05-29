@@ -54,3 +54,46 @@
 1. Does view mode use `editor.value`? → It should use `current_content` instead.
 2. Does the disk-reading cell have `content_version` as a dependency?
    → Without it, switching pages and then coming back re-reads; but saving does not.
+
+---
+
+## Before Adding Multi-Path Navigation (Back Button / History)
+
+When multiple UI paths (table click, link button, back button) all change
+the same page-selection state, route every navigation through a single
+`navigate_to()` wrapper so history is always consistent:
+
+```python
+# In page_state cell — export navigate_to alongside set_selected_page
+def navigate_to(page):
+    set_prev_page(selected_page())   # snapshot before the jump
+    set_selected_page(page)
+```
+
+- `set_selected_page` is still exported for non-navigation writes (e.g. setting to
+  `None` after a delete).
+- Every button/table `on_change` calls `navigate_to`, not `set_selected_page` directly.
+- To sync a table's highlighted row after external navigation, add `selected_page` as
+  a cell dependency and pass `initial_selection=[idx]` (row index as `list[int]`) to
+  `mo.ui.table`. The cell re-runs on every navigation and rebuilds the table with the
+  correct row pre-highlighted; `on_change` does not fire on programmatic selection.
+
+---
+
+## Before Writing a Multi-File Runner Cell That Uses WIKI_TRACE
+
+`ingest_file` owns its own trace scope: when no outer scope is active it creates
+a new `trace.jsonl`, finalises it, and resets `_active` to `None` — so a bare loop
+produces **one trace file per file**, not one per run.
+
+Always wrap the loop in `trace.run_scope` so all files land in a single trace:
+
+```python
+from domain.ingestion.trace import run_scope as _run_scope
+
+with _run_scope(WORKSPACE, DB_PATH):
+    for _f in _files:
+        _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
+```
+
+`run_scope` is a no-op when `WIKI_TRACE` is unset, so it is always safe to add.
