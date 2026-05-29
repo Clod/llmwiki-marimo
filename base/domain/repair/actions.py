@@ -5,7 +5,7 @@ optional LLM client) and returns a RepairResult describing what was done.
 """
 
 import json
-import os
+import posixpath
 import re
 import logging
 from pathlib import Path
@@ -26,8 +26,12 @@ logger = logging.getLogger(__name__)
 
 
 def _relative_link(from_page: str, to_page: str) -> str:
-    """On-disk relative href from one /wiki/.../x.md page to another."""
-    return os.path.relpath(to_page, start=os.path.dirname(from_page))
+    """Relative href (always '/'-separated) from one /wiki/.../x.md page to another.
+
+    Uses posixpath so the result never contains backslashes on Windows, which
+    would break the markdown link.
+    """
+    return posixpath.relpath(to_page, start=posixpath.dirname(from_page))
 
 
 def _parse_page_path(page: str) -> tuple[str, str]:

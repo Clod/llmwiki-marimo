@@ -86,8 +86,9 @@ def chunk_text(
     if not content or not content.strip():
         return []
 
-    # 2. Slice text into separate paragraphs
-    paragraphs = _split_paragraphs(content)
+    # 2. Slice text into separate paragraphs, then break apart any single
+    #    paragraph larger than chunk_size so it can't become one oversized chunk.
+    paragraphs = _split_oversized(_split_paragraphs(content), chunk_size)
 
     # Stores tuples of (header_level, header_title) to track markdown outline depth
     header_stack: list[tuple[int, str]] = []
@@ -196,6 +197,55 @@ def _split_paragraphs(text: str) -> list[str]:
     """Split text into paragraphs by looking for double-newlines (blank lines)."""
     parts = re.split(r'\n\s*\n', text)
     return [p.strip() for p in parts if p.strip()]
+
+
+def _split_oversized(paragraphs: list[str], chunk_size: int) -> list[str]:
+    """Break any paragraph larger than chunk_size into sentence-packed pieces.
+
+    A paragraph with no blank lines can exceed chunk_size on its own; without this
+    it would land in a single oversized chunk. Each returned piece is <= chunk_size
+    tokens where the sentence structure allows; a lone sentence longer than
+    chunk_size is hard-split on a character budget as a last resort.
+    """
+    out: list[str] = []
+    for para in paragraphs:
+        if _estimate_tokens(para) <= chunk_size:
+            out.append(para)
+            continue
+        out.extend(_pack_sentences(para, chunk_size))
+    return out
+
+
+def _pack_sentences(text: str, chunk_size: int) -> list[str]:
+    """Greedily pack sentences into pieces no larger than chunk_size tokens."""
+    char_budget = chunk_size * 4  # _estimate_tokens uses ~4 chars/token
+    pieces: list[str] = []
+    buf: list[str] = []
+    buf_tokens = 0
+
+    def _flush() -> None:
+        nonlocal buf, buf_tokens
+        if buf:
+            pieces.append(" ".join(buf))
+            buf, buf_tokens = [], 0
+
+    for sentence in SENTENCE_RE.split(text):
+        if not sentence:
+            continue
+        sent_tokens = _estimate_tokens(sentence)
+        # A single sentence over budget: flush, then hard-split it by characters.
+        if sent_tokens > chunk_size:
+            _flush()
+            for i in range(0, len(sentence), char_budget):
+                pieces.append(sentence[i:i + char_budget])
+            continue
+        if buf_tokens + sent_tokens > chunk_size and buf:
+            _flush()
+        buf.append(sentence)
+        buf_tokens += sent_tokens
+
+    _flush()
+    return pieces
 
 
 def _get_overlap(blocks: list[str], target_tokens: int) -> tuple[list[str], int]:

@@ -1346,13 +1346,7 @@ in §12.
 
 ### Open bugs
 
-Small, known defects, none blocking. Each lists severity · location · fix.
-
-| ID  | Severity | Where | Problem | Fix |
-| --- | -------- | ----- | ------- | --- |
-| L4  | 🟡 low | `repair/actions.py:_relative_link` | `os.path.relpath` yields backslashes on Windows, which break markdown hrefs (project is macOS-only today). | Force `/` separators on the result. |
-| L5  | 🟡 low (cosmetic) | `ingestion/index_manager.py:_upsert_entry` | After `lines.insert(insert_at, entry)`, the blank-line guard checks `lines[insert_at]` — which is now the just-inserted entry, not the next `## ` heading (that shifted to `insert_at+1`). So the guard never fires and a new entry can butt directly against the next section heading. | Check `lines[insert_at+1]` (or insert the blank line explicitly). |
-| L8  | 🟡 low | `ingestion/chunker.py:chunk_text` | Chunking is paragraph-granular; a single paragraph with no blank lines larger than `CHUNK_SIZE` becomes one oversized chunk (the size guard only fires when `current_blocks` is non-empty). | Hard-split paragraphs that exceed `CHUNK_SIZE` on sentence boundaries. |
+None currently tracked.
 
 ---
 

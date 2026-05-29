@@ -98,8 +98,11 @@ def _upsert_entry(text: str, section: str, filename: str, new_entry: str) -> str
         insert_at = section_end if section_end is not None else len(lines)
         # Insert before the next section (or at end), leaving a blank line
         lines.insert(insert_at, new_entry + "\n")
-        # Ensure blank line before next section heading
-        if insert_at < len(lines) and lines[insert_at].startswith("## "):
-            lines.insert(insert_at, "\n")
+        # Ensure a blank line before the next section heading. After the insert
+        # above, the heading that was at insert_at is now at insert_at+1 — check
+        # there (the old code checked insert_at, i.e. the entry we just added, so
+        # the blank was never inserted and entries butted against the heading).
+        if insert_at + 1 < len(lines) and lines[insert_at + 1].startswith("## "):
+            lines.insert(insert_at + 1, "\n")
 
     return "".join(lines)
