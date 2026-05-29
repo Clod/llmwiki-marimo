@@ -376,8 +376,11 @@ def activity_log(mo, log_lines, clear_btn, auto_refresh):
         mo.md("\n".join(f"- {line}" for line in _lines)) if _lines
         else mo.md("_No activity yet._")
     )
+    # column-reverse pins the scroll to the bottom of the (chronological) list, so
+    # the newest line is always in view as it streams in — no JS needed.
     _scroll = mo.Html(
-        '<div style="max-height:70vh; overflow-y:auto; padding-right:8px;">'
+        '<div style="display:flex; flex-direction:column-reverse; '
+        'max-height:14em; overflow-y:auto; padding-right:8px;">'
         f'{_body.text}'
         '</div>'
     )
