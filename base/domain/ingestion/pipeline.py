@@ -482,7 +482,10 @@ def scan_and_ingest(
         p for p in sorted(sources_dir.rglob("*"))
         if p.is_file()
         and p.suffix.lower() in SUPPORTED_EXTENSIONS
-        and not any(part.startswith(".") for part in p.parts)
+        # Only consider the path *below* sources/ when skipping hidden entries —
+        # otherwise a workspace under a dot-directory (e.g. ~/.local/share/ws)
+        # would make every source look hidden and be skipped.
+        and not any(part.startswith(".") for part in p.relative_to(sources_dir).parts)
     ]
     _cb(f"🔎 Found {len(candidates)} candidate file(s)")
 

@@ -189,14 +189,13 @@ def repair_missing_xref(
         ).fetchone()
     title_b = (row["title"] if row and row["title"] else slug_b.replace("-", " ").title())
 
-    # Idempotency — already linked?
-    if f"]({rel})" in content_a or "](#" in content_a:
-        if rel in content_a:
-            return RepairResult(
-                check="missing_xref", page=a_path,
-                action="skipped", success=True,
-                message="already linked",
-            )
+    # Idempotency — already linked to B at this relative href?
+    if f"]({rel})" in content_a:
+        return RepairResult(
+            check="missing_xref", page=a_path,
+            action="skipped", success=True,
+            message="already linked",
+        )
 
     if "## See also" in content_a:
         bullet = f"- [{title_b}]({rel})"

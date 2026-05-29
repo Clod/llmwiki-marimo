@@ -141,7 +141,8 @@ llmwiki/
 │       │   ├── trace.py                # opt-in ingestion trace (see §14)
 │       │   └── wiki_generator.py       # all LLM prompt builders (see §6)
 │       ├── lint/
-│       │   ├── checks.py               # 6 check functions
+│       │   ├── checks.py               # 7 check functions (incl. gap_filled)
+│       │   ├── markers.py              # DATA_GAP markers + fts_safe (shared w/ repair)
 │       │   ├── report.py               # LintIssue, LintReport
 │       │   └── runner.py               # lint_wiki()
 │       ├── repair/
@@ -157,20 +158,26 @@ llmwiki/
 ├── marimo/
 │   ├── ingest_app.py                   # Upload + ingest + scan + regenerate UI
 │   ├── read_app.py                     # 3-pane reader + chat + save_to_wiki
-│   ├── chat_app.py                     # Standalone chat tester
+│   ├── trace_report_app.py             # WIKI_TRACE run viewer (see §7, §14)
 │   ├── widgets/
 │   │   ├── __init__.py
 │   │   └── delete_confirm.py           # DeleteConfirmWidget (anywidget) — reusable
-│   └── prototypes/                     # Experimental patterns (not imported by apps)
+│   └── prototypes/                     # Scratch experiments (chat_app.py et al.) — not imported by apps
 ├── database/
 │   └── sqlite_schema.sql               # Canonical schema (applied by open_db)
+├── scripts/
+│   ├── build_golden_corpus.py          # Build/freeze the golden-corpus snapshot (§9)
+│   └── render_trace.py                 # Render a trace.jsonl run to a timeline (§14.7)
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
-│   ├── helpers/{fake_llm.py,workspace.py}
-│   ├── unit/                           # 197 unit tests (no LLM, no network)
-│   └── e2e/                            # Playwright tests (live marimo + LLM)
+│   ├── helpers/{fake_llm.py,workspace.py,golden.py}
+│   ├── unit/                           # 210 unit tests (no LLM, no network)
+│   ├── regression/                     # golden-corpus invariants (skips until frozen)
+│   └── e2e/                            # 7 Playwright tests (live marimo + LLM)
 ├── docs/
 │   ├── programmer_manual.md            # THIS FILE
+│   ├── sqlite_data_dictionary.md       # Per-column DB reference
+│   ├── CODEMAPS/                       # Auto-generated code maps
 │   └── archive/                        # Superseded design docs
 ├── Karpathy_concepts.md                # Foundational pattern reference
 ├── README.md                           # End-user quickstart
@@ -262,10 +269,11 @@ And it is what the reconciliation checks reason over:
 
 If the `cites` edges are missing, the graph still has all its **nodes** (the documents
 exist) but is missing the **arrows** between them — so every check above silently
-produces wrong answers. (This was exactly the failure mode of finding **H1** in §15:
-the `## Sources` parser stopped matching the page format, so concept pages generated
-zero `cites` edges. Now fixed — the parser accepts both footnote and plain-bullet
-Sources.)
+produces wrong answers. This was a real regression once: the `## Sources` parser
+stopped matching the page format, so concept pages generated zero `cites` edges.
+The parser now accepts both the footnote (`[^N]: file`) and plain-bullet (`- file`)
+Sources forms — see `references.py:update_references` and its regression tests in
+`tests/unit/test_references.py`.
 
 #### Edges are rebuilt, never patched
 
@@ -304,7 +312,7 @@ Three properties follow:
   DB can never drift from the markdown.
 
 The practical consequence cuts both ways. **Regenerating or editing a page automatically
-heals its edges** — which is why the fix for a parser bug like **H1** needs no migration:
+heals its edges** — which is why the fix for a Sources-parser regression needs no migration:
 correct the parser, reprocess each affected page (or run a regen pass), and every missing
 `cites` edge is rebuilt. But the same property makes a parser bug *total*: since edges are
 never patched incrementally, there is no historical residue to fall back on. The moment
@@ -422,16 +430,20 @@ print(report.summary())             # "3 issue(s): 1 error(s), 2 warning(s), 0 i
 for issue in report.issues: ...
 ```
 
-**Six checks (`base/domain/lint/checks.py`):**
+**Seven checks (`base/domain/lint/checks.py`):**
 
-| Check             | Function (line)                | Type                            | Severity       | What it finds                                                                                  |
-| ----------------- | ------------------------------ | ------------------------------- | -------------- | ---------------------------------------------------------------------------------------------- |
-| `orphan`          | `orphan_check` (L12)           | deterministic                   | warning        | Concept pages with no inbound `links_to` edge                                                  |
-| `stale`           | `staleness_check` (L35)        | deterministic                   | warning        | Wiki pages older than any of their cited sources (SQL `MAX(src.updated_at) > wiki.updated_at`) |
-| `missing_xref`    | `missing_xref_check` (L73)     | deterministic                   | info           | Concept pairs that share a cited source but don't link to each other                           |
-| `missing_concept` | `missing_concept_check` (L127) | deterministic                   | warning        | `[text](concepts/foo.md)` links to non-existent files (regex `_CONCEPT_LINK_RE` at L122)       |
-| `contradiction`   | `contradiction_check` (L172)   | **LLM** (skip if `client=None`) | error          | Pair-wise LLM comparison of concepts sharing a source                                          |
-| `data_gap`        | `data_gap_check` (L242)        | **LLM** (skip if `client=None`) | info / warning | LLM scan of all concept titles for missing/underdeveloped topics                               |
+| Check             | Function           | Type                            | Severity       | What it finds                                                                                  |
+| ----------------- | ------------------ | ------------------------------- | -------------- | ---------------------------------------------------------------------------------------------- |
+| `orphan`          | `orphan_check`     | deterministic                   | warning        | Concept pages with no inbound `links_to` edge                                                  |
+| `stale`           | `staleness_check`  | deterministic                   | warning        | Wiki pages older than any of their cited sources (SQL `MAX(src.updated_at) > wiki.updated_at`) |
+| `missing_xref`    | `missing_xref_check` | deterministic                 | info           | Concept pairs that share a cited source but don't link to each other                           |
+| `missing_concept` | `missing_concept_check` | deterministic              | warning        | `[text](concepts/foo.md)` links to non-existent files (regex `_CONCEPT_LINK_RE`)               |
+| `gap_filled`      | `gap_filled_check` | deterministic (always runs)     | info           | `<!-- DATA_GAP: slug -->` TODO markers whose topic is now covered by a source                  |
+| `contradiction`   | `contradiction_check` | **LLM** (skip if `client=None`) | error       | Pair-wise LLM comparison of concepts sharing a source                                          |
+| `data_gap`        | `data_gap_check`   | **LLM** (skip if `client=None`) | info           | LLM scan of all concept titles for missing/underdeveloped topics                               |
+
+The runner calls the five deterministic checks unconditionally and the two LLM
+checks only when a `client` is passed (`lint/runner.py:lint_wiki`).
 
 **LLM prompts (in `checks.py`):**
 
@@ -1085,6 +1097,16 @@ subdirectory pages appear in the left-panel table. `read_page(rel_path)` reads
 The agent is created once per session via `create_agent(db_path)` and reused  
 across messages.
 
+### `trace_report_app.py`
+
+A read-only viewer for ingestion traces (§14). Point it at a directory, it
+discovers every `trace.jsonl` run underneath, and renders each run two ways: a
+human-readable per-document timeline (same layout as `scripts/render_trace.py`)
+and an `mo.tree` of the raw events grouped by document. Payload channels
+(`prompts`, `responses`, `extracted_text`, `chunks`, `markdown`) can be inlined
+on demand. It only reads traces produced by `WIKI_TRACE=1` runs — it never
+ingests or writes anything.
+
 ### Running locally
 
 ```bash
@@ -1139,8 +1161,8 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 ### Run
 
 ```bash
-uv run pytest tests/unit/ -v               # 197 unit tests — fast, no LLM
-uv run pytest tests/e2e/ -v -s             # 9 E2E tests — live marimo + LLM
+uv run pytest tests/unit/ -v               # 210 unit tests — fast, no LLM
+uv run pytest tests/e2e/ -v -s             # 7 E2E tests — live marimo + LLM
 ```
 
 Slash commands: `/test-ingest`, `/test-read`, `/test-all`.
@@ -1192,7 +1214,7 @@ regression test.
 
 ```bash
 python scripts/build_golden_corpus.py build    # ingest into _golden_staging/ (needs LLM keys)
-# inspect tests/fixtures/_golden_staging/wiki/ — the report flags the H1 signature
+# inspect tests/fixtures/_golden_staging/wiki/ — the report flags missing cites edges
 python scripts/build_golden_corpus.py freeze    # snapshot -> tests/fixtures/golden_corpus/
 git add tests/fixtures/golden_corpus            # sources/ + wiki/ + index.db + index.db.sql
 ```
@@ -1201,7 +1223,7 @@ git add tests/fixtures/golden_corpus            # sources/ + wiki/ + index.db + 
   workspace and returns `(db_path, workspace)` (the DB stores only relative paths, so
   it is relocatable).
 - `tests/regression/test_golden_corpus.py` asserts LLM-variation-robust invariants:
-  4 sources `ready`, **every concept page has a `cites` edge** (the H1 guard), each
+  4 sources `ready`, **every concept page has a `cites` edge** (the citation-graph guard), each
   summary cites its source, lint reports no errors, and the DB rows agree with the
   markdown tree on disk. The whole module **skips** until the corpus is frozen.
 - The snapshot ships both `index.db` (binary — the restore source; FTS5 doesn't
@@ -1321,6 +1343,16 @@ in §12.
 13. **Warn on duplicate upload** (§6.3–§6.4). When an uploaded or dropped file is
   already ingested and unchanged, surface a GUI warning instead of the current  
    silent `status="skipped"`.
+
+### Open bugs
+
+Small, known defects, none blocking. Each lists severity · location · fix.
+
+| ID  | Severity | Where | Problem | Fix |
+| --- | -------- | ----- | ------- | --- |
+| L4  | 🟡 low | `repair/actions.py:_relative_link` | `os.path.relpath` yields backslashes on Windows, which break markdown hrefs (project is macOS-only today). | Force `/` separators on the result. |
+| L5  | 🟡 low (cosmetic) | `ingestion/index_manager.py:_upsert_entry` | After `lines.insert(insert_at, entry)`, the blank-line guard checks `lines[insert_at]` — which is now the just-inserted entry, not the next `## ` heading (that shifted to `insert_at+1`). So the guard never fires and a new entry can butt directly against the next section heading. | Check `lines[insert_at+1]` (or insert the blank line explicitly). |
+| L8  | 🟡 low | `ingestion/chunker.py:chunk_text` | Chunking is paragraph-granular; a single paragraph with no blank lines larger than `CHUNK_SIZE` becomes one oversized chunk (the size guard only fires when `current_blocks` is non-empty). | Hard-split paragraphs that exceed `CHUNK_SIZE` on sentence boundaries. |
 
 ---
 
@@ -1551,190 +1583,3 @@ LLM and ask it to reconcile against `index.db`, or script it in a few lines of S
 - **Tests:** `tests/unit/test_trace.py` — channel resolution, disabled no-op, proxy
   transparency, sha/size-always-present, meta header shape, contextvar tagging, and an
   end-to-end ingest whose trace joins against the DB.
-
----
-
-## 15. MVP Review Findings (2026-05-26)
-
-> Full doc-sync + code review of `base/domain/`, `marimo/`, and this manual at the
-> "MVP complete" milestone. Severity: 🔴 high · 🟠 medium · 🟡 low · 📘 doc.
-> **Status:** H1, M1, M2, M3 and lows L1–L3/L6–L7 are fixed; L4, L5, L8 remain open by
-> choice; the D1–D7 doc-sync items are swept. Smoke test now **197 unit tests pass**.
-
-### 🔴 H1 — Citation graph broken for concept pages (regression) — ✅ FIXED
-
-> **Resolved.** `update_references` now parses plain `- file.pdf` bullets under a
-> `## Sources` heading in addition to `[^n]: file` footnotes (it also strips a leading
-> `[^n]:` to tolerate legacy/placeholder bullets). Concept and chat pages rebuild their
-> `cites` edges again. Regression coverage added in `tests/unit/test_references.py`
-> (`test_update_references_creates_cites_edge_from_plain_bullet`,
-> `..._parses_plain_bullet_with_page`, `..._ignores_bullets_outside_sources`).
-> No data migration needed — reprocessing/regenerating each concept page rebuilds the
-> missing edges (see §4 "Edges are rebuilt, never patched"). Original analysis follows.
-
-**Where:** `base/domain/ingestion/wiki_generator.py` (`_CONCEPT_NEW_TEMPLATE` L139-140,
-`_CONCEPT_UPDATE_TEMPLATE` L154, `_CHAT_CONCEPT_*` L184-185, L203) ×
-`base/domain/tools/references.py` (`_CITATION_RE`, L13).
-
-**What:** `update_references` builds `cites` edges by matching footnote markers
-`[^n]: filename` via `_CITATION_RE = r"\[\^\d+\]:\s*(.+)$"`. A recent fix
-(commit `860a8a5`, "remove footnote syntax from Sources") changed the concept
-templates' Sources section from `- [^1]: {filename}` to plain `- {filename}`.
-Result: **concept pages no longer emit any parseable citation**, so
-`update_references` creates **zero `cites` edges** for them. Verified:
-`_CITATION_RE.findall("## Sources\n- Cenicienta.pdf")` → `[]`.
-
-`build_summary_page` is deterministic and still emits `[^1]: {filename}` (L316), so
-**summary** pages are unaffected — only concept/chat pages regressed.
-
-**Downstream impact** (every check below JOINs `reference_type='cites'`):
-- `missing_xref_check` / `repair_missing_xref` — concept cross-linking silently stops.
-- `find_uncited_sources` — false positives (sources cited only by concepts look uncited).
-- `staleness_check` / `repair_stale` — concept pages never flagged stale on source change.
-
-**Why tests didn't catch it:** all citation/lint tests hand-write `[^1]: x.pdf`
-content (e.g. `test_references.py:46`, `test_lint_full.py:69`). No test asserts the
-*template output* is parseable, so the integration seam is uncovered.
-
-**Recommended fix (robust, format-agnostic — preferred):** broaden
-`update_references` to also parse plain bullet filenames under a `## Sources`
-heading (strip any leading `[^n]:`), so it accepts both `- [^1]: x.pdf` and
-`- x.pdf`. This also fixes a *pre-existing* bug: when the LLM copied the literal
-`[^N]` placeholder (seen in `charles-perrault.md`), `\d+` never matched it either.
-**Alternative (minimal):** restore `- [^1]: {filename}` in the concept templates;
-the read-app render strip (`read_app.py` `middle_panel`) already hides the footnote
-artifact at display time, so the empty-bullet bug stays fixed.
-**Regression test:** feed a plain-list `## Sources` page through `update_references`
-and assert a `cites` edge exists (and/or assert the template constant yields a
-citation parseable by `_CITATION_RE`).
-
-### 🟠 M1 — Path traversal in `read_wiki_page` — ✅ FIXED
-
-> **Resolved.** `read_wiki_page` now resolves the requested path and confines it to the
-> `wiki/` tree (`wiki_root = (_workspace(db_path) / "wiki").resolve()`, reject unless
-> `file.resolve().is_relative_to(wiki_root)`), returning `"Invalid path: …"` for escapes.
-> `.resolve()` normalises `..` segments and symlinks before the check. Regression tests
-> added in `tests/unit/test_wiki_tools.py` (`..._rejects_parent_traversal`,
-> `..._rejects_deep_traversal`). Original analysis follows.
-
-**Where:** `base/domain/chat/wiki_tools.py:49` — `file = _workspace(db_path) / path.lstrip("/")`.
-
-**What:** `lstrip("/")` removes leading slashes but does **not** neutralise `../`.
-`read_wiki_page` is an **LLM-callable tool**; ingested document content can carry
-prompt-injection. A crafted `path` like `wiki/../../../.env` resolves outside the
-workspace, enabling arbitrary file reads echoed back in chat.
-
-**Fix:** resolve and confine to the workspace (ideally to `wiki/`):
-```python
-base = (_workspace(db_path) / "wiki").resolve()
-target = (base / Path(path).name if ... ).resolve()   # or resolve full path
-if not target.is_relative_to(base):
-    return f"Invalid path: {path}"
-```
-Use `Path.resolve()` + `is_relative_to(base)` (3.9+) before reading.
-
-### 🟠 M2 — `delete_source`: doc/code mismatch + latent over-deletion — ✅ FIXED
-
-> **Resolved.** `delete_source` now classifies dependent pages by relationship:
-> 1-to-1 summary pages (`source_document_id == doc_id`) are deleted; pages that merely
-> *cite* the source (`reference_type='cites'`, e.g. multi-source concept pages) are kept
-> and marked `stale_since=datetime('now')` instead of deleted. The `by_ref` deletion set
-> is gone, so deleting one source no longer destroys a multi-source concept. §6.9 updated
-> to match (and to note `stale_since` is surfaced by `find_stale_pages`, not yet consumed
-> by the timestamp-based `staleness_check`). Regression test
-> `test_delete_source_marks_multi_source_concept_stale` added. Original analysis follows.
-
-**Where:** `base/domain/tools/deletion.py:59-98`; manual §6.9.
-
-**What:** (a) §6.9 states dependent wiki pages are *marked `stale_since = now()`*.
-The code does **not** set `stale_since` anywhere — it **deletes** derived pages
-outright (`delete_page`). The doc is wrong. (b) `by_ref` collects *every* wiki page
-that cites the source (`SELECT source_document_id ... WHERE target_document_id=?`).
-Today this only catches summary pages (because of H1), but **once H1 is fixed**,
-deleting one source would also delete multi-source **concept** pages that merely
-cite it — a concept derived from several sources should not vanish.
-
-**Fix:** restrict deletion to the 1-to-1 summary pages (via `source_document_id`
-column only), and mark citing concept pages `stale_since` instead of deleting them
-— then update §6.9 to match the real behavior.
-
-### 🟠 M3 — Partial-failure leaves orphaned concept pages — ✅ FIXED
-
-> **Resolved (scoped rollback).** `ingest_file` records a compensation for every page
-> created/overwritten in steps 8-9 (`wiki_compensations`). On failure, `_rollback_wiki_pages`
-> deletes pages this run newly created (removing their `index.md` entry via
-> `remove_index_entry`) and restores overwritten pages to their pre-run content
-> (`_snapshot_wiki_page`), before the source is marked `status='failed'`. Rollback is
-> best-effort and never masks the original error. Regression tests added in
-> `tests/unit/test_pipeline_phase2.py` (`test_ingest_rolls_back_created_pages_on_failure`,
-> `test_ingest_restores_overwritten_page_on_failure`). See §6.3 "Partial-failure rollback".
-> Original analysis follows.
-
-**Where:** `base/domain/ingestion/pipeline.py:224-317` (steps 7-9 + except handler).
-
-**What:** Steps 8-9 create concept/summary pages after the source row is committed
-(step 6) and the connection closed. If an exception occurs partway through step 8
-(e.g. an LLM error on the 3rd of 5 concepts), the already-created concept pages
-persist on disk + DB while the source is marked `status='failed'`. No rollback of
-partial wiki state. Some are caught later by the `orphan` check, but not all.
-
-**Fix (PoC-acceptable):** document as a known limitation in §6.3, or track
-created page paths during steps 8-9 and delete them in the `except` handler.
-
-### 🟡 Low-severity
-
-- **L1** ✅ FIXED — `chat/config.py` `load_config` returned the shared module-level
-  `_DEFAULT_PROMPTS` list when the TOML key was absent. Now wrapped in
-  `list(...)` so a caller's mutation can't corrupt the default. Tests in
-  `tests/unit/test_chat_config.py`.
-- **L2** ✅ FIXED — `wiki_generator.py:inject_see_also` used a boundary-less substring
-  match; now uses `re.search(rf"\b{re.escape(slug)}\b", ...)` so short slugs don't
-  over-match inside larger words. Tests `test_inject_see_also_respects_word_boundaries`,
-  `..._matches_whole_word`.
-- **L3** ✅ FIXED — `read_app.py:page_links_nav` link regex now has the `(?<!!)`
-  lookbehind so `![alt](src)` image embeds are excluded (matches `_WIKI_LINK_RE`).
-- **L4** `repair/actions.py:_relative_link` uses `os.path.relpath`, which yields
-  backslashes on Windows and would break markdown hrefs. Force `/` (project is macOS).
-- **L5** `ingestion/index_manager.py:_upsert_entry` — after inserting an entry the
-  blank-line guard checks the wrong index, so entries can butt directly against the
-  next `## ` heading. Cosmetic.
-- **L6** ✅ FIXED — `tools/wiki_fs.py:delete_page` now cleans the DB first and unlinks
-  the file last, so an exception during DB cleanup no longer leaves an orphan DB row
-  pointing at a deleted file.
-- **L7** ✅ FIXED — `chat/tools.py` no longer re-runs `PRAGMA journal_mode=WAL` on every
-  read-only search call (`journal_mode` is a persistent DB-level setting applied by
-  `open_db`).
-- **L8** `ingestion/chunker.py` chunks at paragraph granularity; a single paragraph
-  with no blank lines larger than `CHUNK_SIZE` becomes one oversized chunk.
-
-### 📘 Doc-sync (manual accuracy) — ✅ SWEPT
-
-> All D-items below resolved in the doc-sync sweep. Original notes retained for trace.
-
-- **D1 Line-number drift** ✅ — the enumerated entry-point citations (`batch_ingest`,
-  `create_agent`, `_DEFAULT_SYSTEM_PROMPT`, `delete_page`, `read_wiki_page`,
-  `search_wiki_fts`, `file_to_wiki`, `save_to_wiki`, `search_source_chunks`) were
-  converted to drift-proof `module.py:symbol` form, and a caveat was added near the TOC
-  noting any remaining bare `:NN`/`(L NN)` are approximate snapshots. *(DB schema §4 and
-  tool layer §5 were re-verified and remain accurate.)*
-- **D2 `inject_see_also` undocumented** ✅ — §6.8 now has it as step 5 (deterministic
-  See-also injection via `_related_pages_for` + `inject_see_also`), and §7 `read_app.py`
-  documents the `middle_panel` footnote-stripping and `page_links_nav` relative-link
-  resolution.
-- **D3 §6.9 `stale_since`** ✅ — corrected as part of M2 (1-to-1 summaries deleted,
-  citing concepts marked `stale_since`).
-- **D4 §6.1 `LintIssue` dataclass** ✅ — `related_page` and `topic` fields added to the
-  documented dataclass.
-- **D5 §6.1 `summary()` format** ✅ — example corrected to
-  `"N issue(s): E error(s), W warning(s), X info"`.
-- **D6 §11.9 / §11.11** ✅ — §11.9 marked done; §11.11 marked partially done (manual
-  "Run Wiki Lint & Repair" button exists; always-on auto-trigger still pending).
-- **D7 Test count** ✅ — §3 and §9 updated from "125" to the current **197** unit tests.
-
-### Suggested priority
-
-1. **H1** (functional regression in a core subsystem) — fix + regression test.
-2. **M1** (security) — confine `read_wiki_page` to the workspace.
-3. **M2/M3** — align deletion behavior/doc; handle partial-ingest cleanup.
-4. **D1-D7** — doc-sync sweep (cheap, high clarity payoff).
-5. **L1-L8** — opportunistic.

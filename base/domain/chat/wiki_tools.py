@@ -407,7 +407,9 @@ def save_to_wiki(
     update_index(workspace, page_path, summary, category + "s")
 
     # 8. Run automatic post-save validator checks and fixes (lint + repair)
-    msg = f"{action} wiki/{page_path}"
+    #    page_path already begins with "wiki/" (e.g. "wiki/concepts/foo.md"), so it
+    #    is used as-is — prefixing another "wiki/" would double the segment.
+    msg = f"{action} {page_path}"
     repair_summary = _lint_and_repair_after_save(db_path, workspace, page_path,
                                                   client=client, model=model or "")
     if repair_summary:
