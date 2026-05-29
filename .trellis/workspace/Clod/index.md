@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 31
+- **Total Sessions**: 32
 - **Last Active**: 2026-05-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1724 | Active |
+| `journal-1.md` | ~1769 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 32 | 2026-05-28 | Navigation, trace report fixes, and trace-per-batch bug | `f2d9880`, `8ab4b54` |
 | 31 | 2026-05-28 | Manual-test prep: tracing docs, English-only fixtures, golden corpus freeze | `cabfa00`, `c1f5c41`, `5170c11`, `f70aee4` |
 | 30 | 2026-05-28 | Opt-in ingestion trace (LLM exchanges + data-flow) & data-dictionary fix | `0200130`, `3aa0dee` |
 | 29 | 2026-05-27 | Golden-corpus regression harness | `b83ce59`, `6b9ad3a` |

@@ -1722,3 +1722,48 @@ Prepared the project for manual ingestion testing of the English PDFs: documente
 ### Next Steps
 
 - None - task complete
+
+
+## Session 32: Navigation, trace report fixes, and trace-per-batch bug
+
+**Date**: 2026-05-28
+**Task**: Navigation, trace report fixes, and trace-per-batch bug
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Change |
+|------|--------|
+| read_app: back button | Added `navigate_to()` wrapper tracking `prev_page` state; back button prepended to link row, always visible, shows previous page title |
+| read_app: table sync | Left-panel table now depends on `selected_page` and uses `initial_selection` to highlight the currently viewed page after any navigation |
+| read_app: unified nav | Both left-panel table and link buttons route through `navigate_to()` so history is always consistent |
+| trace_report_app: review fixes | Fixed broken intro markdown, removed dead `discover_traces`/`load_events` exports, replaced hardcoded `/Users/claudiograsso/...` path with `WIKI_TRACE_DIR` env var text input, added warning callout when sidecar channels selected but no base dir set |
+| ingest_app: trace bug | Wrapped the per-file loop in `run_scope` so all files in one upload land in a single `trace.jsonl` instead of one file per document |
+
+**Updated Files**:
+- `marimo/read_app.py`
+- `marimo/trace_report_app.py`
+- `marimo/ingest_app.py`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f2d9880` | (see git log) |
+| `8ab4b54` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
