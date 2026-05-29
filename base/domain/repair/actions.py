@@ -220,7 +220,7 @@ def repair_missing_xref(
     return RepairResult(
         check="missing_xref", page=a_path,
         action="xref_added", success=True,
-        message=f"Linked → {b_path}",
+        message=f"Linked {a_path} → {b_path}",
     )
 
 

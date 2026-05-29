@@ -427,8 +427,9 @@ What each workflow does to the four DB tables and the wiki filesystem.
 | 6.10 Page delete | D | – | D | D | U/D |
 
 6.3 (via the `ingest_app` runner) closes with a 6.1/6.2 reconciliation pass —
-deterministic by default, full LLM if the form checkbox is ticked — so the 6.2-row
-writes can also fire as the tail of an ingest. 6.4/6.5 reuse 6.3 per file (6.4 defers
+deterministic by default, full LLM if the form checkbox is ticked, scoped to the
+pages the ingest touched — so the 6.2-row writes can also fire as the tail of an
+ingest (without touching unrelated pages). 6.4/6.5 reuse 6.3 per file (6.4 defers
 overview/log/commit to once per batch). 6.6 touches **summary pages only** — no
 `document_references`, `index.md`, `overview.md`, or lint. 6.7 is read-only unless the agent calls `file_to_wiki` (→ 6.8). 6.9/6.10
 deletions cascade via `ON DELETE CASCADE` + the `chunks_fts` triggers; 6.10 also
@@ -643,7 +644,7 @@ sequenceDiagram
     P->>FS: write overview.md · append log.md
     P->>GIT: auto_commit
     P-->>UI: IngestResult
-    UI->>UI: lint+repair tail (§6.1–6.2) · orphan excluded<br/>deterministic by default · full LLM if checkbox ticked
+    UI->>UI: lint+repair tail (§6.1–6.2), scoped to ingested pages<br/>orphan excluded · deterministic by default · full LLM if checkbox ticked
     Note over P,FS: on error → _rollback_wiki_pages (compensations)
 ```
 
@@ -710,9 +711,12 @@ result = ingest_file(
   runner** closes that gap: after every ingest it runs a lint **and** repair pass
   (`ingest_runner`), **deterministic by default** (no LLM) or **full LLM** when the
   form checkbox is ticked, so new concept/summary pages get cross-linked and lint
-  comes back clean. The `orphan` check is excluded so pages created by *this* run
-  aren't deleted for lacking inbound links yet. Remaining: extend the same auto-close
-  to scan and regenerate (§11.11).
+  comes back clean. The pass is **scoped to the pages this ingest touched** — the
+  summary pages of the ingested sources plus every wiki page that cites them — so an
+  ingest reconciles only its own document and never rewrites unrelated pages (the
+  manual "Run Wiki Lint & Repair" button does the wiki-wide sweep). The `orphan`
+  check is excluded so pages created by *this* run aren't deleted for lacking inbound
+  links yet. Remaining: extend the same auto-close to scan and regenerate (§11.11).
 - **Duplicate handling.** Today an unchanged file returns `status="skipped"`
   silently (`detector.needs_ingestion`). **Target:** the GUI warns "already
   ingested" rather than skipping quietly (§11.13).
@@ -1545,9 +1549,11 @@ in §12.
    **deterministic by default**, or **full LLM** when the form checkbox is ticked —  
    with the `orphan` check excluded so just-created pages survive. The manual "Run  
    Wiki Lint & Repair" button (`lint_repair_widget` + `lint_repair_runner`) remains  
-   for an on-demand full sweep. **Remaining:** give **scan** (§6.5) and **regenerate**  
-   (§6.6) the same automatic tail (today they still don't reconcile afterwards), and  
-   optionally surface the same checkbox on those actions.
+   for an on-demand **wiki-wide** sweep — the automatic post-ingest pass is instead  
+   **scoped to the pages the ingest touched** so it never rewrites unrelated pages.  
+   **Remaining:** give **scan** (§6.5) and **regenerate** (§6.6) the same automatic  
+   tail (today they still don't reconcile afterwards), and optionally surface the  
+   same checkbox on those actions.
 12. ✅ **Finish the skipped repairs** (§6.2). Implemented `repair_missing_xref`
   (appends `## See also` + records `links_to` edge), `repair_contradiction`  
    (idempotent `⚠️` callout), and `repair_data_gap` (inserts `<!-- DATA_GAP -->`  

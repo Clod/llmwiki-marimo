@@ -332,9 +332,13 @@ def ingest_runner(
       - False (default): deterministic lint+repair only — no LLM calls, fast/free.
       - True: full lint+repair, including the LLM checks (contradictions, data
         gaps) and the LLM-backed stale/missing-concept repairs.
-    The `orphan` check is excluded either way: concept pages created by *this*
-    ingest may legitimately have no inbound links yet, and repair_orphan would
-    delete them (same guard as the chat→wiki post-save hook, §6.8).
+    The pass is **scoped to the pages this ingest touched** — the summary pages of
+    the ingested sources plus every wiki page that cites them — so an ingest only
+    reconciles its own document and never rewrites unrelated pages. (The manual
+    "Run Wiki Lint & Repair" button is the place for a wiki-wide sweep.) The
+    `orphan` check is excluded either way: concept pages created by *this* ingest
+    may legitimately have no inbound links yet, and repair_orphan would delete them
+    (same guard as the chat→wiki post-save hook, §6.8).
     """
     mo.stop(ingest_trigger() is None)
 
@@ -349,10 +353,35 @@ def ingest_runner(
         from domain.lint.runner import lint_wiki as _lw
         from domain.lint.report import LintReport as _LintReport
         from domain.repair.runner import repair_wiki as _rw
+        from domain.tools.db import get_connection as _get_conn
     except Exception as _e:
         logger.error("Import error: %s", _e, exc_info=True)
         set_log_lines([f"❌ Import error: {_e}"])
         mo.stop(True)
+
+    def _related_pages(src_ids):
+        """Wiki pages touched by this ingest: summaries of the ingested sources
+        plus every wiki page that cites them. Returns a set of '/wiki/.../x.md'."""
+        if not src_ids:
+            return set()
+        _ph = ",".join("?" * len(src_ids))
+        _paths = set()
+        with _get_conn(DB_PATH) as _conn:
+            for _r in _conn.execute(
+                f"SELECT path || filename AS p FROM documents "
+                f"WHERE source_kind='wiki' AND source_document_id IN ({_ph})",
+                src_ids,
+            ).fetchall():
+                _paths.add(_r["p"])
+            for _r in _conn.execute(
+                f"SELECT d.path || d.filename AS p FROM document_references dr "
+                f"JOIN documents d ON dr.source_document_id = d.id "
+                f"WHERE dr.target_document_id IN ({_ph}) "
+                f"AND dr.reference_type = 'cites' AND d.source_kind = 'wiki'",
+                src_ids,
+            ).fetchall():
+                _paths.add(_r["p"])
+        return _paths
 
     _cb, _finish = make_timed_logger(set_log_lines, logger, "ingest")
     _cb("⏳ Ingestion started…")
@@ -360,30 +389,38 @@ def ingest_runner(
     def _run():
         set_running_op("ingest")
         try:
+            _results = []
             with _run_scope(WORKSPACE, DB_PATH):
                 for _f in _files:
                     _fp = WORKSPACE / "sources" / _f.name
                     if not _fp.exists():
                         _fp.write_bytes(_f.contents)
                     _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
+                    _results.append(_result)
                     logger.info("Result: %s — %s", _result.status, _result.message)
 
-            # Reconciliation pass — deterministic by default (client=None → the
-            # LLM checks/repairs are skipped), full when the checkbox was ticked.
+            # Reconciliation pass — deterministic by default (client=None → the LLM
+            # checks/repairs are skipped), full when the checkbox was ticked. Scoped
+            # to the pages this ingest touched so unrelated pages are never rewritten.
+            _src_ids = [r.doc_id for r in _results if r.status == "ingested" and r.doc_id]
+            _related = _related_pages(_src_ids)
             _client = llm_client if _full_repair else None
             _mode = "full LLM" if _full_repair else "deterministic"
-            _cb(f"🩺 Running {_mode} lint…")
+            _cb(f"🩺 Running {_mode} lint on {len(_related)} ingested page(s)…")
             _report = _lw(DB_PATH, WORKSPACE, client=_client, model=llm_model)
-            _fixable = [i for i in _report.issues if i.check != "orphan"]
+            _fixable = [
+                i for i in _report.issues
+                if i.check != "orphan" and i.page in _related
+            ]
             if _fixable:
-                _cb(f"🔧 {len(_fixable)} issue(s) — repairing ({_mode})…")
+                _cb(f"🔧 {len(_fixable)} issue(s) on ingested pages — repairing ({_mode})…")
                 _rw(
                     _LintReport(issues=_fixable, checked_at=_report.checked_at),
                     DB_PATH, WORKSPACE,
                     llm_client=_client, model=llm_model, progress_cb=_cb,
                 )
             else:
-                _cb("✅ Lint clean — no repairs needed.")
+                _cb("✅ Ingested pages consistent — no repairs needed.")
             _finish()
         finally:
             set_running_op(None)
