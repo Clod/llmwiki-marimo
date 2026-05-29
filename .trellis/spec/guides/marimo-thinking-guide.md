@@ -97,3 +97,50 @@ with _run_scope(WORKSPACE, DB_PATH):
 ```
 
 `run_scope` is a no-op when `WIKI_TRACE` is unset, so it is always safe to add.
+
+---
+
+## Before Showing Live Progress From a Background Operation
+
+Long work (LLM calls, ingestion) runs in a `mo.Thread` and reports via a state
+setter (`set_log_lines`). Two traps make the progress panel look frozen mid-run:
+
+- [ ] Does any cell **block the kernel** with a poll-loop, e.g.
+      `with mo.status.spinner(): while running_op() is not None: time.sleep(0.1)`?
+      → It holds the single kernel thread for the whole operation, so every reactive
+        re-render — including the progress panel the worker thread is updating —
+        queues up and only flushes when the op ends. The panel appears to "sleep".
+        **Never block the kernel just to show a spinner.**
+- [ ] Are you relying on the worker thread's `set_state` *alone* to repaint the panel?
+      → Background-thread UI updates are buffered, so the panel may not stream even
+        without a blocking cell. Drive the repaint from the frontend instead.
+
+**Fix — a 1s `mo.ui.refresh` mounted only while an op runs:**
+
+```python
+@app.cell
+def auto_refresh(mo, running_op):
+    # Frontend-driven ticker; mounted only while running (idle → no polling).
+    auto_refresh = mo.ui.refresh(default_interval="1s") if running_op() is not None else None
+    auto_refresh if auto_refresh is not None else mo.md("")
+    return (auto_refresh,)
+
+@app.cell(column=1)
+def activity_log(mo, log_lines, auto_refresh):
+    if auto_refresh is not None:
+        auto_refresh.value          # depend on the tick → repaint each interval
+    _lines = log_lines()
+    mo.md("\n".join(f"- {l}" for l in _lines))
+```
+
+- The tick comes from the **frontend**, so the panel repaints independently of the
+  worker thread — *as long as no other cell is blocking the kernel*.
+- Show a **non-blocking** indicator (`mo.md("⏳ Running…")` gated on `running_op()`),
+  not a `mo.status.spinner` poll-loop.
+- Fill long *silent* steps too: thread a `progress_cb` into the slow callee (e.g. the
+  pairwise LLM lint) so it emits a line per unit of work — otherwise even a live panel
+  shows nothing for the duration and the user thinks it hung.
+- Exception: a short **synchronous** op done inside the cell itself (e.g. a quick
+  delete) can still use `with mo.status.spinner(): ...`. The rule is only about
+  background-threaded work whose progress another cell must display.
+
