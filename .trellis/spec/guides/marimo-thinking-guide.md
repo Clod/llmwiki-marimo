@@ -144,3 +144,26 @@ def activity_log(mo, log_lines, auto_refresh):
   delete) can still use `with mo.status.spinner(): ...`. The rule is only about
   background-threaded work whose progress another cell must display.
 
+**Keep the newest line in view (CSS, no JS):** a streaming log wants a fixed-height,
+scrollable panel that auto-sticks to the bottom. `mo` has no scroll container, so wrap
+the rendered markdown in an `mo.Html` div and use `flex-direction: column-reverse` —
+it pins the scroll to the bottom of a chronological list with no JS, and it re-pins on
+every auto-refresh repaint:
+
+```python
+_body = mo.md("\n".join(f"- {l}" for l in _lines)) if _lines else mo.md("_No activity yet._")
+_scroll = mo.Html(
+    '<div style="display:flex; flex-direction:column-reverse; '
+    'max-height:14em; overflow-y:auto; padding-right:8px;">'
+    f'{_body.text}'        # `.text` = the rendered HTML of an mo.md object
+    '</div>'
+)
+```
+
+- The list stays in normal (chronological) order; `column-reverse` only moves the
+  scroll anchor to the bottom, so the newest line is always visible.
+- Use `max-height` (not fixed `height`) so a short log doesn't leave a big empty box;
+  note that with few lines `column-reverse` parks them at the *bottom* of the panel.
+- `mo.md(...).text` is the same disk-to-HTML trick `read_app.py`'s `middle_panel` uses
+  to embed rendered markdown inside a custom container.
+
