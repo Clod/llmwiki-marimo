@@ -367,13 +367,23 @@ def upload_section(mo, upload, saved, ingest_form):
 @app.cell(column=1)
 def activity_log(mo, log_lines, clear_btn, auto_refresh):
     """Activity Log — repaints on each auto-refresh tick while an op runs, so the
-    background thread's progress streams in instead of flushing only at the end."""
+    background thread's progress streams in instead of flushing only at the end.
+    The header stays fixed; the lines live in a vertically scrollable panel."""
     if auto_refresh is not None:
         auto_refresh.value  # re-run on each refresh tick
     _lines = log_lines()
+    _body = (
+        mo.md("\n".join(f"- {line}" for line in _lines)) if _lines
+        else mo.md("_No activity yet._")
+    )
+    _scroll = mo.Html(
+        '<div style="max-height:70vh; overflow-y:auto; padding-right:8px;">'
+        f'{_body.text}'
+        '</div>'
+    )
     mo.vstack([
         mo.hstack([mo.md("### 📋 Activity Log"), clear_btn], justify="space-between", align="center"),
-        mo.md("\n".join(f"- {line}" for line in _lines)) if _lines else mo.md("_No activity yet._"),
+        _scroll,
     ], gap=1)
 
 
