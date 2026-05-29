@@ -158,8 +158,9 @@ def op_state(mo):
     """Shared log + per-operation trigger states.
 
     Buttons set a trigger via on_click (fast, no work done).
-    Runner cells depend on the trigger and do the real work — this lets
-    marimo show mo.status.spinner() while the operation runs.
+    Runner cells depend on the trigger and do the real work in a background
+    thread, setting running_op so the non-blocking status indicator and the 1s
+    auto-refresh (see auto_refresh / op_spinner) stay live during the operation.
     """
     log_lines, set_log_lines = mo.state([])
     ingest_trigger, set_ingest_trigger = mo.state(None)
@@ -364,8 +365,11 @@ def upload_section(mo, upload, saved, ingest_form):
 
 
 @app.cell(column=1)
-def activity_log(mo, log_lines, clear_btn):
-    """Activity Log — own cell so it re-renders independently during long operations."""
+def activity_log(mo, log_lines, clear_btn, auto_refresh):
+    """Activity Log — repaints on each auto-refresh tick while an op runs, so the
+    background thread's progress streams in instead of flushing only at the end."""
+    if auto_refresh is not None:
+        auto_refresh.value  # re-run on each refresh tick
     _lines = log_lines()
     mo.vstack([
         mo.hstack([mo.md("### 📋 Activity Log"), clear_btn], justify="space-between", align="center"),
@@ -543,9 +547,29 @@ def regen_runner(
 
 
 @app.cell
-def op_spinner(mo, running_op):
-    """Shows a spinner while any background operation is running."""
-    import time as _t
+def auto_refresh(mo, running_op):
+    """While an operation runs, mount a 1s auto-refresh so the Activity Log repaints
+    from the background thread's state on a timer.
+
+    The work runs in a `mo.Thread`; the old blocking `op_spinner` loop held the
+    kernel for the whole op, so the panel's reactive re-renders queued up and only
+    flushed at the end. A frontend-driven refresh ticks independently of the worker
+    thread, so progress streams in. Idle → no ticker, no polling.
+    """
+    auto_refresh = mo.ui.refresh(default_interval="1s") if running_op() is not None else None
+    auto_refresh if auto_refresh is not None else mo.md("")
+    return (auto_refresh,)
+
+
+@app.cell
+def op_spinner(mo, running_op, auto_refresh):
+    """Non-blocking 'running' indicator — re-evaluated on each auto-refresh tick.
+
+    Replaces the old `while running_op(): sleep(0.1)` loop, which blocked the kernel
+    and prevented the Activity Log from streaming mid-operation.
+    """
+    if auto_refresh is not None:
+        auto_refresh.value  # depend on the tick so it stays live and clears at the end
     _labels = {
         "ingest":       "Ingesting documents…",
         "scan":         "Scanning sources/…",
@@ -553,10 +577,7 @@ def op_spinner(mo, running_op):
         "lint_repair":  "Running wiki lint & repair…",
     }
     _op = running_op()
-    if _op:
-        with mo.status.spinner(title=_labels.get(_op, "Running…")):
-            while running_op() is not None:
-                _t.sleep(0.1)
+    mo.md(f"⏳ **{_labels.get(_op, 'Running…')}**") if _op else mo.md("")
 
 
 @app.cell
