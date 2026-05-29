@@ -48,5 +48,5 @@ those curated pages trustworthy after every ingest and chat→wiki save.
 
 ## Status
 
-All ten §6 workflows are ✅ (see programmer_manual §6 table). Web search (RAG
-Phase 4) is a deliberate out-of-scope future enhancement (§12).
+All ten §6 workflows are ✅ (see `docs/manual/workflows.md`). Web search (RAG
+Phase 4) is a deliberate out-of-scope future enhancement (programmer_manual §12).
