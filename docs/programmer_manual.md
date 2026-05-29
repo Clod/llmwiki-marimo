@@ -1346,7 +1346,9 @@ in §12.
 
 ### Open bugs
 
-None currently tracked.
+| ID  | Severity | Where | Problem | Fix |
+| --- | -------- | ----- | ------- | --- |
+| E1  | 🟠 medium (test) | `marimo/read_app.py:chat_panel` × `tests/e2e/test_read_app.py` | 4 of the 5 read-app E2E tests time out waiting for the static `### Chat with your Wiki` heading (5s) — the `chat_panel` cell errors at runtime, so the heading never renders, while the left/middle panes load fine. Pre-existing (reproduces at commit `e252b2d`, before the 2026-05-28 audit work); unrelated to the chunker/index/link fixes. `pydantic_ai.messages` imports resolve (pydantic_ai 1.97.0), so the break is most likely in the `mo.ui.chat` + `run_stream` wiring against the current marimo/pydantic_ai versions. | Reproduce locally (`HEADLESS=1 uv run pytest tests/e2e/test_read_app.py`), read the marimo server stderr for the `chat_panel` traceback, and align the `mo.ui.chat`/`run_stream` usage with the installed versions. |
 
 ---
 
