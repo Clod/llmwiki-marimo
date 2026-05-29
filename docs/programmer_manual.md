@@ -407,9 +407,50 @@ legend (✅ implemented · 🟡 partial · ❌ missing) still applies per workfl
 the GUI (upload widget) **or** by dropping files into `workspace/sources/` and
 running Scan sources (§6.5).
 
+### Table-write matrix
+
+What each workflow does to the four DB tables and the wiki filesystem.
+**C**reate · **R**ead · **U**pdate · **D**elete · `D+I` = rebuilt (delete-then-insert) · – = untouched.
+`chunks_fts` mirrors `document_chunks` via triggers, so it tracks that column.
+
+| Workflow | `documents` | `document_pages` | `document_chunks` | `document_references` | `wiki/` FS |
+| --- | --- | --- | --- | --- | --- |
+| 6.1 Lint | R | R | R | R | R |
+| 6.2 Repair | C/U/D | – | C/U/D | C/U/D | C/U/D |
+| 6.3 Single ingest | C/U | D+I | D+I | C/U | C/U |
+| 6.4 Batch ingest | C/U | D+I | D+I | C/U | C/U |
+| 6.5 Scan sources | C/U | D+I | D+I | C/U | C/U |
+| 6.6 Regenerate | U | R | D+I | – | U |
+| 6.7 Chat / RAG | R | – | R | R | R |
+| 6.8 Chat → Wiki | C/U | – | D+I | C/U | C/U |
+| 6.9 Source delete | U/D | D | D | D | D |
+| 6.10 Page delete | D | – | D | D | U/D |
+
+6.4/6.5 reuse 6.3 per file (6.4 defers overview/log/commit to once per batch). 6.6
+touches **summary pages only** — no `document_references`, `index.md`, `overview.md`,
+or lint. 6.7 is read-only unless the agent calls `file_to_wiki` (→ 6.8). 6.9/6.10
+deletions cascade via `ON DELETE CASCADE` + the `chunks_fts` triggers; 6.10 also
+**U**pdates *other* pages when stripping dead links to the deleted page.
+
+The per-workflow diagram at the top of each §6.x section below shows the routines
+and stores involved; 🧠 marks a step that calls the LLM.
+
 ---
 
 ### 6.1 Lint ✅
+
+```mermaid
+flowchart LR
+    L["lint_wiki()"] -->|always| DET["5 deterministic checks:<br/>orphan · stale · missing_xref<br/>missing_concept · gap_filled"]
+    L -->|client set| LLM["2 LLM checks 🧠:<br/>contradiction · data_gap"]
+    DET -. reads .-> S[("index.db + wiki/ FS")]
+    LLM -. reads .-> S
+    DET --> RPT["LintReport"]
+    LLM --> RPT
+    RPT --> RW["repair_wiki() — §6.2"]
+```
+
+Lint is **read-only**: it never writes a table or file, it only produces a `LintReport`.
 
 **Entry:** `lint_wiki()` — `base/domain/lint/runner.py:17`
 
@@ -490,6 +531,27 @@ beyond titles (§11.7). Tracked in §11.11.
 
 ### 6.2 Repair ✅
 
+```mermaid
+flowchart TD
+    RW["repair_wiki()"] -->|per issue| DISP{"issue.check"}
+    DISP -->|orphan| O["repair_orphan"]
+    DISP -->|stale 🧠| ST["repair_stale"]
+    DISP -->|missing_concept 🧠| MC["repair_missing_concept"]
+    DISP -->|missing_xref| MX["repair_missing_xref"]
+    DISP -->|contradiction| CO["repair_contradiction"]
+    DISP -->|data_gap| DG["repair_data_gap"]
+    DISP -->|gap_filled| GF["repair_gap_filled"]
+    O --> W1["DELETE documents · document_chunks<br/>· document_references · FS page"]
+    ST --> W2["create_page overwrite:<br/>documents U · chunks D+I<br/>· references U · FS U"]
+    MC --> W3["create_page new:<br/>documents C · chunks C · references C<br/>· index.md U · FS C"]
+    MX --> W4["append_to_page:<br/>documents U · chunks D+I<br/>· references C · FS U"]
+    CO --> W4
+    DG --> W4
+    GF --> W2
+```
+
+🧠 = needs an LLM client; skipped when `llm_client=None` (`stale`, `missing_concept`).
+
 **Entry:** `repair_wiki()` — `base/domain/repair/runner.py:30`
 
 Repair is the **safety net** of the cycle: it consumes a `LintReport` and applies
@@ -550,6 +612,36 @@ scan, and regenerate, with an explicit "Run Repair" button. Tracked in §11.11.
 ---
 
 ### 6.3 Single-document ingestion ✅
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as ingest_app (ingest_btn)
+    participant P as ingest_file
+    participant EX as extractor · chunker
+    participant GEN as wiki_generator 🧠
+    participant DB as index.db
+    participant FS as wiki/ (FS)
+    participant GIT as git_ops
+    UI->>P: ingest_file(path …)
+    P->>DB: needs_ingestion? · upsert documents (status=processing)
+    P->>EX: extract → chunk_pages
+    P->>DB: documents status=ready · rebuild document_pages + document_chunks (→chunks_fts)
+    Note over P,DB: source committed, conn closed (step 6)
+    P->>GEN: extract_structured
+    loop each concept
+        P->>GEN: build_concept_page
+        P->>FS: create_page concepts/{slug}.md
+        P->>DB: documents (wiki) + chunks · update_references → document_references
+        P->>FS: update_index → index.md
+    end
+    P->>FS: build_summary_page → create_page summaries/{slug}.md
+    P->>DB: documents + chunks + document_references (source_document_id set)
+    P->>GEN: update_overview
+    P->>FS: write overview.md · append log.md
+    P->>GIT: auto_commit
+    Note over P,FS: on error → _rollback_wiki_pages (compensations)
+```
 
 **Entry:** `ingest_file()` — `base/domain/ingestion/pipeline.py:88`
 
@@ -639,6 +731,27 @@ uv run pytest tests/unit/test_pipeline_phase2.py -v
 
 ### 6.4 Batch / multi-document ingestion ✅
 
+```mermaid
+sequenceDiagram
+    participant UI as ingest_app
+    participant B as batch_ingest
+    participant P as ingest_file (_batch_mode)
+    participant GEN as wiki_generator 🧠
+    participant FS as wiki/ (FS)
+    participant GIT as git_ops
+    UI->>B: batch_ingest(files …)
+    loop each file
+        B->>P: steps 1–9 of §6.3 (no overview/log/commit)
+        Note over P: documents · document_pages · document_chunks<br/>· document_references · concept + summary pages
+    end
+    B->>GEN: update_overview (once, combined summaries)
+    B->>FS: write overview.md · append log.md (1 batch entry)
+    B->>GIT: auto_commit (1 commit)
+```
+
+The per-file work is the §6.3 pipeline in batch mode (the boxed `loop` step); only
+the overview/log/commit tail is collapsed to once per batch.
+
 **Entry:** `batch_ingest()` — `base/domain/ingestion/batch.py`
 
 ```python
@@ -691,6 +804,18 @@ overview×1) which proves the overview is *not* called per file.
 
 ### 6.5 Scan sources folder ✅
 
+```mermaid
+flowchart TD
+    S["scan_and_ingest()"] --> D["discover sources/*.pdf|*.docx<br/>skip hidden + unchanged"]
+    D --> LP{"for each candidate"}
+    LP --> I["ingest_file() — full §6.3 pipeline"]
+    I --> LP
+    LP -->|done| R["report: ingested / skipped / failed"]
+```
+
+The boxed `ingest_file()` step is the entire §6.3 pipeline (run sequentially, not in
+batch mode). One trace run wraps the whole scan (no-op unless `WIKI_TRACE=1`).
+
 **Entry:** `scan_and_ingest()` — `base/domain/ingestion/pipeline.py:340`
 
 Walks `workspace/sources/` recursively, collects `.pdf` / `.docx` files  
@@ -736,6 +861,22 @@ lint+repair to bring the wiki back into a consistent state.**
 
 ### 6.6 Regenerate wiki pages ✅
 
+```mermaid
+flowchart TD
+    RG["regenerate_wiki_pages()"] --> Q["SELECT documents<br/>source_kind='source' · status='ready'"]
+    Q --> LP{"for each source"}
+    LP --> RD["read document_pages (no re-extract)"]
+    RD --> BW["build_wiki_page 🧠 (legacy single-shot)"]
+    BW --> CP["create_page overwrite summaries/{slug}.md"]
+    CP --> WR["documents U · document_chunks D+I · FS U"]
+    WR --> LP
+    LP -->|done| Z["done — no references · index.md · overview · lint"]
+```
+
+Unlike §6.3, regenerate refreshes **summary pages only** via the legacy
+`build_wiki_page`, and skips references, index, overview, and lint (see Today vs
+Target below).
+
 **Entry:** `regenerate_wiki_pages()` — `base/domain/ingestion/pipeline.py:379`
 
 Iterates over every `documents` row with `source_kind='source'` and  
@@ -767,6 +908,20 @@ re-extraction), and re-runs:
 ---
 
 ### 6.7 Query / Chat (multi-phase RAG) ✅
+
+```mermaid
+flowchart TD
+    Q["user question"] --> P1["Phase 1 · read_wiki_page(index.md)"]
+    P1 --> P2["Phase 2 · search_wiki_fts 🔎 (wiki)<br/>+ read_wiki_page likely paths"]
+    P2 -->|enough| ANS["answer + cite source/page"]
+    P2 -->|not enough| P3["Phase 3 · search_source_chunks 🔎 (sources)"]
+    P3 --> ANS
+    P3 -. deferred .-> P4["Phase 4 · web search ❌ §12"]
+    ANS -->|worth keeping| CAP["file_to_wiki → §6.8"]
+```
+
+Routing is prompt-driven, not code-driven. Phases 1–3 are **read-only** over
+`index.db` + `wiki/`; only the capture branch (`file_to_wiki`, §6.8) writes.
 
 **Entry:** `create_agent()` — `base/domain/chat/agent.py`, paired with  
 the system prompt in `base/domain/chat/config.py` (`_DEFAULT_SYSTEM_PROMPT`).
@@ -855,6 +1010,24 @@ guarantee the LLM does it. Track regressions via the E2E suite.
 
 ### 6.8 Chat → Wiki (`file_to_wiki`) ✅
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as save_to_wiki · file_to_wiki
+    participant GEN as wiki_generator 🧠
+    participant FS as wiki/ (FS)
+    participant DB as index.db
+    participant LR as lint+repair (§6.1–6.2)
+    U->>GEN: make_wiki_slug · structure_chat_content 🧠
+    U->>U: inject_see_also (deterministic, from related pages)
+    U->>FS: create_page concepts|summaries/{slug}.md
+    U->>DB: documents C/U · document_chunks D+I
+    U->>DB: update_references → document_references
+    U->>FS: update_index → index.md
+    U->>LR: _lint_and_repair_after_save (page-scoped, det-only lint, no orphan)
+    Note over LR,DB: fixable issues → repair_wiki (may write more pages/refs)
+```
+
 **Entry:**
 
 - Agent tool: `file_to_wiki()` — `base/domain/chat/wiki_tools.py:file_to_wiki`
@@ -940,6 +1113,20 @@ saves a chat reply, the LLM structures it into a proper page (step 4),
 
 ### 6.9 Source deletion ✅
 
+```mermaid
+flowchart TD
+    DS["delete_source()"] --> CL["classify dependents<br/>before cascade"]
+    CL --> SUM["1:1 summary pages<br/>(source_document_id == id)"]
+    CL --> CON["citing concept pages<br/>(reference_type='cites')"]
+    SUM --> DEL["delete_page each →<br/>documents D · chunks D · references D · FS D"]
+    CON --> STALE["documents U · stale_since=now (kept)"]
+    DEL --> SRC["DELETE documents (source row)"]
+    STALE --> SRC
+    SRC --> CAS[("ON DELETE CASCADE:<br/>document_pages · document_chunks<br/>· chunks_fts trigger · document_references")]
+    CAS --> OPT["optional: unlink sources/ file"]
+    OPT --> GIT["auto_commit"]
+```
+
 **Entry:** `delete_source()` — `base/domain/tools/deletion.py:11`
 
 ```python
@@ -971,6 +1158,21 @@ dropdown of indexed sources, a confirmation checkbox, and an optional
 ---
 
 ### 6.10 Wiki page deletion ✅
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant D as delete_page
+    participant DB as index.db
+    participant FS as wiki/ (FS)
+    D->>DB: find documents row (relative_path)
+    D->>DB: _strip_dead_links → other pages: documents U · document_chunks D+I
+    D->>FS: write cleaned referencing pages
+    D->>DB: DELETE document_chunks
+    D->>DB: DELETE document_references (source OR target)
+    D->>DB: DELETE documents row
+    D->>FS: unlink {slug}.md (last)
+```
 
 **Entry:** `delete_page()` — `base/domain/tools/wiki_fs.py:delete_page`
 
