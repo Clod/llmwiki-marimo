@@ -173,7 +173,7 @@ llmwiki/
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
 │   ├── unit/                           # 210 unit tests (no LLM, no network)
 │   ├── regression/                     # golden-corpus invariants (skips until frozen)
-│   └── e2e/                            # 7 Playwright tests (live marimo + LLM)
+│   └── e2e/                            # 9 Playwright tests (live marimo + LLM)
 ├── docs/
 │   ├── programmer_manual.md            # THIS FILE
 │   ├── sqlite_data_dictionary.md       # Per-column DB reference
@@ -1232,18 +1232,21 @@ script header declares their dependencies inline. They share no global state.
 
 Cells (selected — see source for the full list):
 
-| Cell                 | Purpose                                                                         |
-| -------------------- | ------------------------------------------------------------------------------- |
-| `setup`              | `.env` + paths + open SQLite                                                    |
-| `llm_setup`          | Build `openai.OpenAI` from `settings.wiki_*`                                    |
-| `source_uploader`    | `mo.ui.file(filetypes=[".pdf",".docx"])` → saves to `sources/`                  |
-| `ingest_form_cell`   | Form: "⚙️ Ingest uploaded file(s)" submit + "full LLM lint & repair" checkbox → `ingest_file` (or `batch_ingest` for multi-file), then a lint+repair tail |
-| `scan_btn`           | "🔄 Scan sources" → `scan_and_ingest`                                           |
-| `regen_btn`          | "🤖 Regenerate wiki" → `regenerate_wiki_pages`                                  |
-| `clear_btn`          | Resets the live progress log                                                    |
-| `progress_display`   | Accumulates `progress_cb(message)` lines                                        |
-| `timing_helper`      | `make_timed_logger(set_log_lines, logger, tag)` — timed cb + a `domain.ingestion` log handler that streams INFO into the panel (de-duped, capped) |
-| `debug_panel` (L330) | Visible when `WIKI_DEBUG=1`                                                     |
+| Cell                  | Purpose                                                                         |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `setup`               | `.env` + paths + open SQLite + build the `openai.OpenAI` client from `settings.WIKI_LLM_*`/`LLM_*` |
+| `op_state`            | Shared `mo.state`: the log lines + per-operation trigger/`running_op` states     |
+| `timing_helper`       | `make_timed_logger(set_log_lines, logger, tag)` — timed cb + a `domain.ingestion` log handler that streams INFO into the panel (de-duped, capped) |
+| `upload_widget` / `handle_upload` | `mo.ui.file(filetypes=[".pdf",".docx"], multiple)`; saves dropped files to `sources/` |
+| `ingest_form_cell`    | Form: "⚙️ Ingest uploaded file(s)" submit + "full LLM lint & repair" checkbox → sets the ingest trigger |
+| `action_buttons`      | "🔄 Scan sources" / "🤖 Regenerate wiki" / "🗑 Clear log" buttons → triggers      |
+| `ingest_runner` / `scan_runner` / `regen_runner` | Do the work in a `mo.Thread`; the ingest runner closes with the scoped lint+repair tail (§6.3) |
+| `auto_refresh`        | 1s `mo.ui.refresh` mounted while an op runs (drives live panel repaint)           |
+| `op_spinner`          | Non-blocking "⏳ Running…" indicator (re-evaluated on each refresh tick)          |
+| `activity_log`        | Fixed-height, `column-reverse` auto-scrolling log panel (sticks to the newest line) |
+| `lint_repair_widget_cell` / `lint_repair_runner` | Manual "Run Wiki Lint & Repair" (wiki-wide, LLM-enabled) |
+| `sources_table_cell` / `also_file_check_cell` / `delete_widget_cell` / `delete_runner` | Source list + delete flow (§6.9) |
+| `debug_panel`         | Visible when `WIKI_DEBUG=1`                                                      |
 
 **Timed Activity Log.** Each runner (`ingest`, `scan`, `regen`, `lint_repair`) wraps
 its `progress_cb` with `make_timed_logger` (the `timing_helper` cell). Every log line
@@ -1328,8 +1331,9 @@ subdirectory pages appear in the left-panel table. `read_page(rel_path)` reads
 `wiki/{rel_path}.md`. The title display strips the directory prefix with  
 `.rsplit("/", 1)[-1]`.
 
-The agent is created once per session via `create_agent(db_path)` and reused  
-across messages.
+The agent is created once per session via `create_agent(base_url, api_key, model)`
+and reused across messages; the `db_path` is passed as the agent's `deps` on each
+`run_stream(...)` call, not to the factory.
 
 ### `trace_report_app.py`
 
@@ -1396,7 +1400,7 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 
 ```bash
 uv run pytest tests/unit/ -v               # 210 unit tests — fast, no LLM
-uv run pytest tests/e2e/ -v -s             # 7 E2E tests — live marimo + LLM
+uv run pytest tests/e2e/ -v -s             # 9 E2E tests — live marimo + LLM (test_ingest_pdf is parametrized over 3 PDFs)
 ```
 
 Slash commands: `/test-ingest`, `/test-read`, `/test-all`.
