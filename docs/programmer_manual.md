@@ -168,15 +168,16 @@ llmwiki/
 │       │   ├── actions.py              # 6 repair functions
 │       │   ├── report.py               # RepairResult, RepairReport
 │       │   └── runner.py               # repair_wiki()
-│       └── tools/
-│           ├── db.py                   # open_db(), get_connection()
-│           ├── git_ops.py              # init_wiki_repo, auto_commit
-│           ├── references.py           # citation graph CRUD + queries
-│           ├── search.py               # search_chunks() scoped FTS5
-│           └── wiki_fs.py              # create/read/append/delete_page
+│       ├── tools/
+│       │   ├── db.py                   # open_db(), get_connection()
+│       │   ├── git_ops.py              # init_wiki_repo, auto_commit
+│       │   ├── references.py           # citation graph CRUD + queries
+│       │   ├── search.py               # search_chunks() scoped FTS5
+│       │   └── wiki_fs.py              # create/read/append/delete_page
+│       └── wiki_registry.py            # wiki discovery + recent list + path hygiene (the picker, §7.1)
 ├── marimo/
-│   ├── ingest_app.py                   # Upload + ingest + scan + regenerate UI
-│   ├── read_app.py                     # 3-pane reader + chat + save_to_wiki
+│   ├── ingest_app.py                   # Wiki picker + upload + ingest + scan + regenerate UI
+│   ├── read_app.py                     # Wiki picker + 3-pane reader + chat + save_to_wiki
 │   ├── trace_report_app.py             # WIKI_TRACE run viewer (see §7, §14)
 │   ├── widgets/
 │   │   ├── __init__.py
@@ -190,7 +191,7 @@ llmwiki/
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
-│   ├── unit/                           # 210 unit tests (no LLM, no network)
+│   ├── unit/                           # 232 unit tests (no LLM, no network)
 │   ├── regression/                     # golden-corpus invariants (skips until frozen)
 │   └── e2e/                            # 9 Playwright tests (live marimo + LLM)
 ├── docs/
@@ -206,7 +207,7 @@ llmwiki/
 ### Runtime workspace layout
 
 ```
-workspace/                              # = $WIKI_PATH
+workspace/                              # = the active wiki (default $WIKI_PATH; switchable in-app, §7.1)
 ├── sources/                            # Drop PDFs / DOCXs here
 ├── wiki/
 │   ├── index.md                        # Auto-maintained catalogue
@@ -395,13 +396,49 @@ hyphenated filenames like `fed-paper.pdf` are not truncated to `fed`.
 Both apps live in `marimo/` and are self-contained `uv` scripts — the  
 script header declares their dependencies inline. They share no global state.
 
+### 7.1 Wiki picker (shared by both apps)
+
+Both apps let you **switch the active wiki at runtime** instead of editing
+`WIKI_PATH` in `.env` and restarting. `WIKI_PATH` is now only the *default*
+selection. The picker (top-left in `read_app`, top of `ingest_app`) is one
+`mo.ui.dropdown` over **discovered + recent** wikis, plus an accordion text box
+to open any other folder (including a new/empty one).
+
+Pure logic lives in `base/domain/wiki_registry.py` (unit-tested,
+`tests/unit/test_wiki_registry.py`):
+
+| Function | Role |
+| --- | --- |
+| `discover_wikis(home)` | immediate sub-folders of `home` that look like a wiki (`is_wiki_dir` → has `wiki/` or `.llmwiki/`), plus `home` itself |
+| `merge_options(home, recent, active)` | ordered, de-duplicated option list: active first, then discovered, then recent |
+| `load/save/push_recent(...)` | recent-wikis list persisted to `~/.llmwiki/recent_wikis.json` (most-recent-first, capped) |
+| `clean_path_input(raw)` | strips surrounding quotes/whitespace from a pasted path ("Copy as Pathname" yields `'/a/b c'`) |
+| `resolve_wiki_home(env_wiki_path)` | folder to scan: `$WIKI_HOME`, else parent of `WIKI_PATH`, else `~` |
+| `short_label(path)` | compact dropdown label like `…/finanzas/my-wiki` |
+
+**Reactive wiring.** Each app holds an `active_wiki` `mo.state` (seeded from
+`WIKI_PATH`). A `wiki_context` cell *derives* the path-bound objects from it and
+re-runs on switch, so the rest of the graph retargets automatically:
+
+- `read_app` → `WIKI_PATH`, `wiki_db_path`, `wiki_chat_config`, `wiki_agent`
+- `ingest_app` → `WORKSPACE`, `DB_PATH`, `SOURCES_DIR` (+ workspace-row DB init)
+
+Because `ingest_app` injects these by name, moving their definition from `setup`
+into `wiki_context` needed **no** changes to consumer cells.
+
+> **Why a path picker, not a folder browser:** `mo.ui.file_browser(selection_mode="directory")`
+> does not emit a value in marimo 0.23.x (GH #1478), so directory picking is done
+> via discovery + recent list + a sanitised text path instead.
+
 ### `ingest_app.py`
 
 Cells (selected — see source for the full list):
 
 | Cell                  | Purpose                                                                         |
 | --------------------- | ------------------------------------------------------------------------------- |
-| `setup`               | `.env` + paths + open SQLite + build the `openai.OpenAI` client from `settings.WIKI_LLM_*`/`LLM_*` |
+| `setup`               | `.env` + logging + `sys.path` + build the `openai.OpenAI` client from `settings.WIKI_LLM_*`/`LLM_*` + picker defaults (`ENV_DEFAULT`, `WIKI_HOME`) |
+| `wiki_state` / `wiki_context` | Active-wiki `mo.state`; derives `WORKSPACE`/`DB_PATH`/`SOURCES_DIR` + DB init on switch (§7.1) |
+| `wiki_picker` / `wiki_add` / `wiki_add_runner` | Wiki dropdown + "open another folder" accordion (§7.1) |
 | `op_state`            | Shared `mo.state`: the log lines + per-operation trigger/`running_op` states     |
 | `timing_helper`       | `make_timed_logger(set_log_lines, logger, tag)` — timed cb + a `domain.ingestion` log handler that streams INFO into the panel (de-duped, capped) |
 | `upload_widget` / `handle_upload` | `mo.ui.file(filetypes=[".pdf",".docx"], multiple)`; saves dropped files to `sources/` |
@@ -439,6 +476,8 @@ Three-column grid:
 
 | Pane                  | Cell                       | Role                                                                                                   |
 | --------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Left (top)            | `wiki_picker` / `wiki_add` / `wiki_add_runner` | Wiki dropdown + "open another folder" accordion (§7.1)                             |
+| — (logic only)        | `wiki_state` / `wiki_context` | Active-wiki `mo.state`; derives `WIKI_PATH`/`wiki_db_path`/`wiki_chat_config`/`wiki_agent` on switch (§7.1) |
 | Left                  | `left_panel`               | Page selector with refresh button (`scan_pages()`)                                                     |
 | Left (below selector) | `delete_widget_cell`       | Renders `DeleteConfirmWidget` — disabled when no page is selected; resets event counter on page change |
 | — (logic only)        | `delete_event_cell`        | Watches `delete_widget.event_id`; fires `set_delete_trigger` on confirm                                |
@@ -515,11 +554,11 @@ ingests or writes anything.
 ### Running locally
 
 ```bash
-# Against $WIKI_PATH from .env
+# Opens on $WIKI_PATH from .env (the default) — switch wikis in-app via the picker (§7.1)
 uv run marimo run marimo/ingest_app.py --port 2718
 uv run marimo run marimo/read_app.py --port 2720
 
-# Against a specific workspace
+# Start on a specific workspace (still switchable in-app afterwards)
 WIKI_PATH=/path/to/workspace uv run marimo run marimo/read_app.py --port 2720
 ```
 
@@ -530,7 +569,9 @@ WIKI_PATH=/path/to/workspace uv run marimo run marimo/read_app.py --port 2720
 ### `.env` (loaded by `base/config.py` via `pydantic-settings`)
 
 ```ini
-WIKI_PATH=/path/to/workspace
+WIKI_PATH=/path/to/workspace   # default wiki on launch; switchable in-app (§7.1)
+WIKI_HOME=                      # optional: folder the picker scans for sibling wikis
+                               #          (default: parent of WIKI_PATH)
 LLM_BASE_URL=https://openrouter.ai/api/v1
 LLM_API_KEY=sk-or-...
 LLM_MODEL=anthropic/claude-haiku-4-5
@@ -555,6 +596,7 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 | Flag                       | Effect                                                                                       |
 | -------------------------- | ------------------------------------------------------------------------------------------- |
 | `WIKI_DEBUG=1`             | Shows debug panel in `ingest_app.py`                                                         |
+| `WIKI_HOME=…`              | Folder the wiki picker scans for sibling wikis (default: parent of `WIKI_PATH`). See §7.1.   |
 | `HEADLESS=1`               | Used by the E2E test suite for non-interactive Playwright runs                               |
 | `WIKI_TRACE=1`             | Turns on the opt-in ingestion trace (LLM exchanges + data-flow). See §14.                    |
 | `WIKI_TRACE_CAPTURE=…`     | Selects trace payload channels: `all` (default) · `none` · CSV of `extracted_text,chunks,prompts,responses,markdown`. See §14. |
@@ -566,7 +608,7 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 ### Run
 
 ```bash
-uv run pytest tests/unit/ -v               # 210 unit tests — fast, no LLM
+uv run pytest tests/unit/ -v               # 232 unit tests — fast, no LLM
 uv run pytest tests/e2e/ -v -s             # 9 E2E tests — live marimo + LLM (test_ingest_pdf is parametrized over 3 PDFs)
 ```
 

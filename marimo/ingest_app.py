@@ -31,7 +31,6 @@ def setup():
     """Load config, configure logging, resolve paths, initialise DB."""
     import sys
     import logging
-    import uuid
     import marimo as mo
     import os
     from pathlib import Path
@@ -74,28 +73,13 @@ def setup():
     logger.info("Config loaded from: %s", sys.modules["config"].__file__)
     logger.info("WIKI_PATH=%s  LLM_MODEL=%s", settings.WIKI_PATH, settings.LLM_MODEL)
 
-    # ── Paths ─────────────────────────────────────────────────────────────────
-    WORKSPACE = Path(settings.WIKI_PATH).resolve()
-    DB_PATH   = str(WORKSPACE / ".llmwiki" / "index.db")
-    SOURCES_DIR = WORKSPACE / "sources"
-    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info("WORKSPACE=%s  DB=%s", WORKSPACE, DB_PATH)
-
-    # ── Initialise DB + workspace row ─────────────────────────────────────────
-    from domain.ingestion.pipeline import open_db as _open_db
-    _conn = _open_db(DB_PATH)
-    _row = _conn.execute("SELECT id FROM workspace LIMIT 1").fetchone()
-    if not _row:
-        ws_id = str(uuid.uuid4())
-        _conn.execute(
-            "INSERT INTO workspace (id, name, description, user_id) VALUES (?,?,?,?)",
-            (ws_id, WORKSPACE.name, "", ws_id),
-        )
-        _conn.commit()
-        logger.info("Created workspace row: %s", ws_id)
-    else:
-        logger.debug("Workspace row exists: %s", _row["id"])
-    _conn.close()
+    # ── Wiki picker defaults ──────────────────────────────────────────────────
+    # WORKSPACE/DB_PATH/SOURCES_DIR are no longer constants here — they are derived
+    # reactively in `wiki_context` from the active-wiki state so the wiki can be
+    # switched at runtime. settings.WIKI_PATH is only the default selection.
+    from domain.wiki_registry import resolve_wiki_home
+    ENV_DEFAULT = str(Path(settings.WIKI_PATH).resolve())
+    WIKI_HOME = resolve_wiki_home(settings.WIKI_PATH)
 
     # ── LLM client ────────────────────────────────────────────────────────────
     wiki_base_url = settings.WIKI_LLM_BASE_URL or settings.LLM_BASE_URL
@@ -106,10 +90,104 @@ def setup():
 
     return (
         mo, logger, debug_mode,
-        WORKSPACE, DB_PATH, SOURCES_DIR,
-        llm_client, llm_model,
-        wiki_base_url,
+        llm_client, llm_model, wiki_base_url,
+        ENV_DEFAULT, WIKI_HOME,
     )
+
+
+@app.cell
+def wiki_state(mo, ENV_DEFAULT):
+    """Active-wiki selection + recent-wikis list (the picker's reactive roots)."""
+    from domain.wiki_registry import load_recent
+
+    active_wiki, set_active_wiki = mo.state(ENV_DEFAULT or None)
+    recent_list, set_recent_list = mo.state(load_recent())
+    return active_wiki, recent_list, set_active_wiki, set_recent_list
+
+
+@app.cell
+def wiki_context(active_wiki, logger):
+    """Derive WORKSPACE/DB_PATH/SOURCES_DIR from the active wiki; init its DB.
+
+    Re-runs whenever the active wiki changes, so every downstream cell that
+    consumes these names (ingest/scan/regen/delete runners, tables, debug panel)
+    automatically retargets the new wiki — no signature changes needed.
+    """
+    import uuid as _uuid
+    from pathlib import Path as _Path
+    from domain.ingestion.pipeline import open_db as _open_db
+
+    WORKSPACE = _Path(active_wiki()).resolve()
+    DB_PATH = str(WORKSPACE / ".llmwiki" / "index.db")
+    SOURCES_DIR = WORKSPACE / "sources"
+    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
+
+    _conn = _open_db(DB_PATH)
+    _row = _conn.execute("SELECT id FROM workspace LIMIT 1").fetchone()
+    if not _row:
+        _ws_id = str(_uuid.uuid4())
+        _conn.execute(
+            "INSERT INTO workspace (id, name, description, user_id) VALUES (?,?,?,?)",
+            (_ws_id, WORKSPACE.name, "", _ws_id),
+        )
+        _conn.commit()
+        logger.info("Created workspace row: %s", _ws_id)
+    _conn.close()
+    logger.info("Active wiki — WORKSPACE=%s  DB=%s", WORKSPACE, DB_PATH)
+    return WORKSPACE, DB_PATH, SOURCES_DIR
+
+
+@app.cell
+def wiki_picker(mo, active_wiki, recent_list, set_active_wiki, WIKI_HOME):
+    """The picker — one dropdown over discovered + recent wikis."""
+    from domain.wiki_registry import merge_options, short_label
+
+    _opts = merge_options(WIKI_HOME, recent_list(), active_wiki())
+    _label_map = {short_label(p): p for p in _opts}
+    _current = short_label(active_wiki()) if active_wiki() else None
+
+    wiki_dropdown = mo.ui.dropdown(
+        options=_label_map,
+        value=_current if _current in _label_map else None,
+        label="📚 Wiki",
+        on_change=lambda v: set_active_wiki(v) if v else None,
+    )
+    mo.vstack([wiki_dropdown])
+    return
+
+
+@app.cell
+def wiki_add(mo):
+    """Add / open another wiki by path — tucked into an accordion."""
+    add_path = mo.ui.text(placeholder="/absolute/path/to/wiki", full_width=True)
+    add_btn = mo.ui.run_button(label="Open")
+    mo.accordion(
+        {"➕ Open another wiki folder": mo.hstack([add_path, add_btn], justify="start")}
+    )
+    return add_btn, add_path
+
+
+@app.cell
+def wiki_add_runner(mo, add_btn, add_path, recent_list, set_active_wiki, set_recent_list):
+    """Commit a typed path: sanitise, validate, make active, remember."""
+    from pathlib import Path as _Path
+    from domain.wiki_registry import clean_path_input, push_recent
+
+    _cleaned = clean_path_input(add_path.value)
+    if not add_btn.value:
+        _out = mo.md("")
+    elif not _cleaned:
+        _out = mo.md("⚠️ Enter a path.")
+    else:
+        _resolved = str(_Path(_cleaned).expanduser().resolve())
+        if not _Path(_resolved).is_dir():
+            _out = mo.callout(mo.md(f"⚠️ `{_resolved}` is not a directory."), kind="warn")
+        else:
+            set_active_wiki(_resolved)
+            set_recent_list(push_recent(_resolved, recent_list()))
+            _out = mo.callout(mo.md(f"✅ Opened `{_resolved}`"), kind="success")
+    _out
+    return
 
 
 @app.cell

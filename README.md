@@ -6,6 +6,24 @@ Inspired by [Karpathy's LLM Wiki idea](https://x.com/karpathy/status/20398056595
 
 ---
 
+## How is this different from RAG / NotebookLM?
+
+Classic RAG (and tools like NotebookLM or ChatGPT file uploads) re-discovers
+knowledge from scratch on every question: it retrieves chunks at query time and
+synthesises an answer that vanishes into chat history. Nothing accumulates.
+
+LLM Wiki **compiles knowledge once and keeps it current**. Each ingested source
+is read, summarised, and integrated into a persistent, interlinked set of
+markdown pages — cross-references, contradictions, and synthesis are already
+written down before you ask anything. The wiki is a compounding artifact that
+gets richer with every document; the chat agent reads those curated pages first
+and only falls back to raw chunks when needed.
+
+> Filing cabinet (SQLite + FTS5) vs. encyclopedia (human-readable markdown) —
+> this project maintains both, and the encyclopedia is the point.
+
+---
+
 ## What it does
 
 1. **Ingest** — drop PDFs or DOCXs into the ingest app. The pipeline extracts text page by page, chunks it with overlap, runs structured concept extraction, and creates / updates summary + concept pages plus the catalogue, overview, and timeline — all auto-committed to git.
@@ -57,7 +75,8 @@ base/                   # Ingestion pipeline + chat agent (self-contained Python
     ├── chat/              # PydanticAI agent + wiki/source/save tools
     ├── lint/              # Wiki health checks
     ├── repair/            # Auto-fixes for safe lint issues
-    └── tools/             # Native CRUD: wiki_fs, search, references, git_ops, db
+    ├── tools/             # Native CRUD: wiki_fs, search, references, git_ops, db
+    └── wiki_registry.py   # Multi-wiki picker: discovery + recent list + path hygiene
 
 marimo/                # Marimo notebook apps
 ├── ingest_app.py          # Upload → ingest → wiki generation UI
@@ -72,7 +91,7 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 tests/
-├── unit/                  # 125 unit tests (FakeLLM, no network)
+├── unit/                  # 232 unit tests (FakeLLM, no network)
 ├── e2e/                   # Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + workspace
 ```
@@ -92,8 +111,8 @@ tests/
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/Clod/llmwiki.git
-cd llmwiki
+git clone https://github.com/Clod/llmwiki-marimo.git
+cd llmwiki-marimo
 uv sync
 ```
 
@@ -102,11 +121,17 @@ uv sync
 Copy `.env.example` to `.env` and fill in:
 
 ```env
-WIKI_PATH=/path/to/your/wiki          # where your documents and wiki pages live
+WIKI_PATH=/path/to/your/wiki          # the wiki opened on launch (the default)
 LLM_BASE_URL=https://openrouter.ai/api/v1
 LLM_API_KEY=sk-or-...
 LLM_MODEL=anthropic/claude-haiku-4-5
 ```
+
+`WIKI_PATH` is just the **default** — both apps have a wiki picker (top-left) so
+you can switch between multiple wikis at runtime without editing `.env`. It lists
+wikis discovered next to `WIKI_PATH` plus a recent list, and you can open any
+other folder by path. Set `WIKI_HOME=/path/to/wikis` to point discovery at a
+specific folder instead of the parent of `WIKI_PATH`.
 
 See [LLM providers](#llm-providers) for Ollama and LM Studio config.
 
@@ -211,6 +236,33 @@ HEADLESS=1 uv run pytest tests/e2e/test_read_app.py -v -s
 Test PDFs live in `tests/fixtures/pdfs/`. The test workspace is gitignored and rebuilt on each ingest run.
 
 Use the skills `/test-ingest`, `/test-read`, and `/test-all` in Claude Code for self-testing.
+
+---
+
+## Limitations & non-goals
+
+This is a working proof of concept of the LLM-Wiki pattern, not a finished
+product. The core loop — ingest → build/maintain wiki → read → chat with
+citations → lint → repair — is fully implemented. Some ideas from the original
+concept are **deliberately deferred** for the PoC:
+
+- **No web search.** The thesis is answering from *your* curated local corpus.
+  Add findings manually by dropping files into `sources/`.
+- **No image / vision handling.** Text-only ingestion today.
+- **No graph visualization, Marp decks, or canvas output.** The citation graph
+  exists in the DB (`document_references`); it just isn't rendered.
+- **Automated, not interactive, ingestion.** You shape pages *after* ingest via
+  the read-app chat (`file_to_wiki` / `save_to_wiki`) rather than mid-ingest.
+
+The rationale for each cut and the revisit plan live in
+[`docs/programmer_manual.md`](docs/programmer_manual.md) §12.
+
+---
+
+## Contributing & security
+
+- Contribution setup, test workflow, and conventions: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Security model and how to report issues: [`SECURITY.md`](SECURITY.md)
 
 ---
 
