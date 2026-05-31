@@ -203,7 +203,8 @@ Create `wiki_config.toml` in your `WIKI_PATH`:
 [assistant]
 system_prompt = """
 You are a personal investment wiki assistant.
-ALWAYS use search_source_chunks to find relevant information before answering.
+Answer from the curated wiki first: read wiki/index.md, then search_wiki_fts;
+only fall back to search_source_chunks when the wiki pages lack the detail.
 Cite document name and page for specific facts.
 """
 
@@ -257,14 +258,31 @@ product. The core loop — ingest → build/maintain wiki → read → chat with
 citations → lint → repair — is fully implemented. Some ideas from the original
 concept are **deliberately deferred** for the PoC:
 
-- **No web search.** The thesis is answering from *your* curated local corpus.
-  Add findings manually by dropping files into `sources/`.
-- **No image / vision handling.** Text-only ingestion today.
-- **Text-based PDFs only.** No OCR for scanned / image-only PDFs yet.
-- **No graph visualization, Marp decks, or canvas output.** The citation graph
-  exists in the DB (`document_references`); it just isn't rendered.
-- **Automated, not interactive, ingestion.** You shape pages *after* ingest via
-  the read-app chat (`file_to_wiki` / `save_to_wiki`) rather than mid-ingest.
+- **No web search.** The chat agent answers only from *your* curated local
+  corpus — it never reaches out to the web, and there's no automatic web→wiki
+  loop. To bring in an outside source, fetch it yourself (e.g. save the article
+  as a PDF) and then **ingest it manually** — dropping a file into `sources/`
+  does nothing on its own. Open the ingest app and either (a) drag the file into
+  the upload box and click **⚙️ Ingest uploaded file(s)**, or (b) put it in
+  `WIKI_PATH/sources/` and click **🔄 Scan sources/ for changes**, which detects
+  and ingests anything new or modified.
+- **No image / vision handling.** Text-only ingestion — images embedded in a
+  document are skipped, not described or summarised.
+- **Text-based PDFs only.** No OCR yet, so a scanned / image-only PDF ingests as
+  empty or garbled text. Use a text-based PDF or convert it first.
+- **Output is markdown only — no visualisations or alternate formats.** The wiki
+  records a full citation/link graph in the database (`document_references`:
+  which page cites which source, which pages link to which), but there's no
+  interactive **graph view** to *see* that shape, and no generators for slide
+  decks (**Marp**) or spatial **canvas** layouts. You read the wiki as linked
+  markdown pages — cross-links are clickable, the graph just isn't drawn.
+- **Ingestion is automated, not a guided conversation.** Karpathy's flow has the
+  LLM discuss a source with you and write pages under your direction; here you
+  drop a file and the pipeline extracts → summarises → files it in one shot, with
+  no mid-ingest review. You steer the wiki *afterwards*: open the resulting page
+  in the read app, chat about the document, and save corrections or new syntheses
+  back as wiki pages via the chat's save tools (`file_to_wiki` / `save_to_wiki`).
+  So the human-in-the-loop step is post-hoc rather than during ingestion.
 
 The rationale for each cut and the revisit plan live in
 [`docs/programmer_manual.md`](docs/programmer_manual.md) §12.
