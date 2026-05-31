@@ -8,18 +8,18 @@ Inspired by [Karpathy's LLM Wiki idea](https://x.com/karpathy/status/20398056595
 
 ## How is this different from RAG / NotebookLM?
 
-Classic RAG (and tools like NotebookLM or ChatGPT file uploads) re-discovers
-knowledge from scratch on every question: it retrieves chunks at query time and
+Classic RAG (and tools like NotebookLM or ChatGPT file uploads) re-discovers  
+knowledge from scratch on every question: it retrieves chunks at query time and  
 synthesises an answer that vanishes into chat history. Nothing accumulates.
 
-LLM Wiki **compiles knowledge once and keeps it current**. Each ingested source
-is read, summarised, and integrated into a persistent, interlinked set of
-markdown pages — cross-references, contradictions, and synthesis are already
-written down before you ask anything. The wiki is a compounding artifact that
-gets richer with every document; the chat agent reads those curated pages first
+LLM Wiki **compiles knowledge once and keeps it current**. Each ingested source  
+is read, summarised, and integrated into a persistent, interlinked set of  
+markdown pages — cross-references, contradictions, and synthesis are already  
+written down before you ask anything. The wiki is a compounding artifact that  
+gets richer with every document; the chat agent reads those curated pages first  
 and only falls back to raw chunks when needed.
 
-> Filing cabinet (SQLite + FTS5) vs. encyclopedia (human-readable markdown) —
+> Filing cabinet (SQLite + FTS5) vs. encyclopedia (human-readable markdown) —  
 > this project maintains both, and the encyclopedia is the point.
 
 ---
@@ -31,10 +31,10 @@ and only falls back to raw chunks when needed.
 3. **Chat** — ask questions about your documents. A PydanticAI agent reads curated wiki pages first and falls back to raw-source FTS5 only when needed. Streams responses with citations.
 4. **Maintain** — run lint to surface orphans, stale pages, missing cross-references, and missing concepts; run repair to auto-fix the safe ones.
 
-> **For developers:** the canonical reference is
-> [`docs/programmer_manual.md`](docs/programmer_manual.md) — workflows, prompts,
-> entry points, gaps, and the pending-work roadmap. Earlier design notes are in
-> [`docs/archive/`](docs/archive/).
+> **For developers:** the canonical reference is  
+> `[docs/programmer_manual.md](docs/programmer_manual.md)` — workflows, prompts,  
+> entry points, gaps, and the pending-work roadmap. Earlier design notes are in  
+> `[docs/archive/](docs/archive/)`.
 
 ---
 
@@ -61,7 +61,14 @@ YOUR_WIKI_PATH/
 ```
 
 Source files are never modified. Delete `.llmwiki/` anytime — re-ingest rebuilds it.
-The `wiki/` directory is its own git repo, so every ingest is a trackable snapshot.
+
+Your **`WIKI_PATH` workspace is its own git repo** (a separate repo from this
+project's). Each ingest commits the generated `wiki/` as a labelled snapshot
+(`ingest: paper.pdf`), giving you version history of the knowledge base for free.
+It only ever stages `wiki/` — never your `sources/` or the database — and uses a
+local `LLM Wiki <llmwiki@local>` identity, so your global git config is untouched.
+Set `WIKI_AUTOCOMMIT=0` in `.env` to turn this off and manage the wiki's git
+yourself (then LLM Wiki runs no `git init` and no commits).
 
 ---
 
@@ -91,7 +98,7 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 tests/
-├── unit/                  # 237 unit tests (FakeLLM, no network)
+├── unit/                  # 246 unit tests (FakeLLM, no network)
 ├── e2e/                   # Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + workspace
 ```
@@ -129,10 +136,10 @@ LLM_API_KEY=ollama                    # any non-empty string for Ollama
 LLM_MODEL=llama3.2
 ```
 
-`WIKI_PATH` is just the **default** — both apps have a wiki picker (top-left) so
-you can switch between multiple wikis at runtime without editing `.env`. It lists
-wikis discovered next to `WIKI_PATH` plus a recent list, and you can open any
-other folder by path. Set `WIKI_HOME=/path/to/wikis` to point discovery at a
+`WIKI_PATH` is just the **default** — both apps have a wiki picker (top-left) so  
+you can switch between multiple wikis at runtime without editing `.env`. It lists  
+wikis discovered next to `WIKI_PATH` plus a recent list, and you can open any  
+other folder by path. Set `WIKI_HOME=/path/to/wikis` to point discovery at a  
 specific folder instead of the parent of `WIKI_PATH`.
 
 See [LLM providers](#llm-providers) for Ollama and LM Studio config.
@@ -143,7 +150,7 @@ See [LLM providers](#llm-providers) for Ollama and LM Studio config.
 uv run marimo run marimo/ingest_app.py --no-sandbox
 ```
 
-Open http://localhost:2718, drop in your PDFs or DOCXs, click **Ingest**.
+Open [http://localhost:2718](http://localhost:2718), drop in your PDFs or DOCXs, click **Ingest**.
 
 ### 4. Read and chat
 
@@ -151,7 +158,7 @@ Open http://localhost:2718, drop in your PDFs or DOCXs, click **Ingest**.
 uv run marimo run marimo/read_app.py --no-sandbox
 ```
 
-Open http://localhost:2718. Select a page on the left, read it in the middle, chat on the right.
+Open [http://localhost:2718](http://localhost:2718). Select a page on the left, read it in the middle, chat on the right.
 
 ---
 
@@ -160,6 +167,7 @@ Open http://localhost:2718. Select a page on the left, read it in the middle, ch
 The stack uses the OpenAI-compatible API everywhere. Switch providers by changing `.env` only — no code changes needed.
 
 **Ollama (local, free):**
+
 ```env
 LLM_BASE_URL=http://localhost:11434/v1
 LLM_API_KEY=ollama
@@ -167,6 +175,7 @@ LLM_MODEL=llama3.2
 ```
 
 **LM Studio (local, free):**
+
 ```env
 LLM_BASE_URL=http://localhost:1234/v1
 LLM_API_KEY=lm-studio
@@ -174,6 +183,7 @@ LLM_MODEL=local-model-name
 ```
 
 **OpenRouter (cloud, hosted models):**
+
 ```env
 LLM_BASE_URL=https://openrouter.ai/api/v1
 LLM_API_KEY=sk-or-...
@@ -181,6 +191,7 @@ LLM_MODEL=anthropic/claude-haiku-4-5
 ```
 
 **Split config** — use a cheap/local model for chat but a stronger model for wiki generation:
+
 ```env
 LLM_BASE_URL=http://localhost:11434/v1   # chat uses this
 LLM_API_KEY=ollama
@@ -221,14 +232,14 @@ Copy `wiki_config.example.toml` from the project root as a starting point. If th
 
 ## Document formats
 
-| Format | Parser | Notes |
-|--------|--------|-------|
-| PDF | opendataloader-pdf | Text-heavy PDFs work well |
-| DOCX | LibreOffice → PDF | Requires LibreOffice installed |
+| Format | Parser             | Notes                          |
+| ------ | ------------------ | ------------------------------ |
+| PDF    | opendataloader-pdf | Text-heavy PDFs work well      |
+| DOCX   | LibreOffice → PDF  | Requires LibreOffice installed |
 
-**Text-based PDFs only.** Scanned / image-only PDFs are not OCR'd yet — they
-ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap
-(see [`docs/programmer_manual.md`](docs/programmer_manual.md) §12).
+**Text-based PDFs only.** Scanned / image-only PDFs are not OCR'd yet — they  
+ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap  
+(see `[docs/programmer_manual.md](docs/programmer_manual.md)` §12).
 
 ---
 
@@ -253,46 +264,46 @@ Use the skills `/test-ingest`, `/test-read`, and `/test-all` in Claude Code for 
 
 ## Limitations & non-goals
 
-This is a working proof of concept of the LLM-Wiki pattern, not a finished
-product. The core loop — ingest → build/maintain wiki → read → chat with
-citations → lint → repair — is fully implemented. Some ideas from the original
+This is a working proof of concept of the LLM-Wiki pattern, not a finished  
+product. The core loop — ingest → build/maintain wiki → read → chat with  
+citations → lint → repair — is fully implemented. Some ideas from the original  
 concept are **deliberately deferred** for the PoC:
 
-- **No web search.** The chat agent answers only from *your* curated local
-  corpus — it never reaches out to the web, and there's no automatic web→wiki
-  loop. To bring in an outside source, fetch it yourself (e.g. save the article
-  as a PDF) and then **ingest it manually** — dropping a file into `sources/`
-  does nothing on its own. Open the ingest app and either (a) drag the file into
-  the upload box and click **⚙️ Ingest uploaded file(s)**, or (b) put it in
-  `WIKI_PATH/sources/` and click **🔄 Scan sources/ for changes**, which detects
-  and ingests anything new or modified.
-- **No image / vision handling.** Text-only ingestion — images embedded in a
-  document are skipped, not described or summarised.
-- **Text-based PDFs only.** No OCR yet, so a scanned / image-only PDF ingests as
-  empty or garbled text. Use a text-based PDF or convert it first.
-- **Output is markdown only — no visualisations or alternate formats.** The wiki
-  records a full citation/link graph in the database (`document_references`:
-  which page cites which source, which pages link to which), but there's no
-  interactive **graph view** to *see* that shape, and no generators for slide
-  decks (**Marp**) or spatial **canvas** layouts. You read the wiki as linked
-  markdown pages — cross-links are clickable, the graph just isn't drawn.
-- **Ingestion is automated, not a guided conversation.** Karpathy's flow has the
-  LLM discuss a source with you and write pages under your direction; here you
-  drop a file and the pipeline extracts → summarises → files it in one shot, with
-  no mid-ingest review. You steer the wiki *afterwards*: open the resulting page
-  in the read app, chat about the document, and save corrections or new syntheses
-  back as wiki pages via the chat's save tools (`file_to_wiki` / `save_to_wiki`).
-  So the human-in-the-loop step is post-hoc rather than during ingestion.
+- **No web search.** The chat agent answers only from *your* curated local  
+corpus — it never reaches out to the web, and there's no automatic web→wiki  
+loop. To bring in an outside source, fetch it yourself (e.g. save the article  
+as a PDF) and then **ingest it manually** — dropping a file into `sources/`  
+does nothing on its own. Open the ingest app and either (a) drag the file into  
+the upload box and click **⚙️ Ingest uploaded file(s)**, or (b) put it in  
+`WIKI_PATH/sources/` and click **🔄 Scan sources/ for changes**, which detects  
+and ingests anything new or modified.
+- **No image / vision handling.** Text-only ingestion — images embedded in a  
+document are skipped, not described or summarised.
+- **Text-based PDFs only.** No OCR yet, so a scanned / image-only PDF ingests as  
+empty or garbled text. Use a text-based PDF or convert it first.
+- **Output is markdown only — no visualisations or alternate formats.** The wiki  
+records a full citation/link graph in the database (`document_references`:  
+which page cites which source, which pages link to which), but there's no  
+interactive **graph view** to *see* that shape, and no generators for slide  
+decks (**Marp**) or spatial **canvas** layouts. You read the wiki as linked  
+markdown pages — cross-links are clickable, the graph just isn't drawn.
+- **Ingestion is automated, not a guided conversation.** Karpathy's flow has the  
+LLM discuss a source with you and write pages under your direction; here you  
+drop a file and the pipeline extracts → summarises → files it in one shot, with  
+no mid-ingest review. You steer the wiki *afterwards*: open the resulting page  
+in the read app, chat about the document, and save corrections or new syntheses  
+back as wiki pages via the chat's save tools (`file_to_wiki` / `save_to_wiki`).  
+So the human-in-the-loop step is post-hoc rather than during ingestion.
 
-The rationale for each cut and the revisit plan live in
-[`docs/programmer_manual.md`](docs/programmer_manual.md) §12.
+The rationale for each cut and the revisit plan live in  
+`[docs/programmer_manual.md](docs/programmer_manual.md)` §12.
 
 ---
 
 ## Contributing & security
 
-- Contribution setup, test workflow, and conventions: [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- Security model and how to report issues: [`SECURITY.md`](SECURITY.md)
+- Contribution setup, test workflow, and conventions: `[CONTRIBUTING.md](CONTRIBUTING.md)`
+- Security model and how to report issues: `[SECURITY.md](SECURITY.md)`
 
 ---
 

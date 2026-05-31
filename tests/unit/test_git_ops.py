@@ -3,7 +3,9 @@
 import subprocess
 from pathlib import Path
 
-from domain.tools.git_ops import auto_commit, init_wiki_repo
+import pytest
+
+from domain.tools.git_ops import auto_commit, autocommit_enabled, init_wiki_repo
 
 
 def _git(args: list[str], cwd: Path) -> str:
@@ -45,3 +47,45 @@ def test_auto_commit_silent_on_nothing_to_commit(tmp_path: Path) -> None:
     (tmp_path / "wiki").mkdir()
     auto_commit(tmp_path, "first commit")
     auto_commit(tmp_path, "second commit — nothing new")  # must not raise
+
+
+# ── WIKI_AUTOCOMMIT opt-out ───────────────────────────────────────────────────
+
+
+def test_autocommit_enabled_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("WIKI_AUTOCOMMIT", raising=False)
+    assert autocommit_enabled() is True
+
+
+@pytest.mark.parametrize("value", ["0", "false", "no", "off", "FALSE", " Off "])
+def test_autocommit_disabled_by_falsy_env(monkeypatch, value: str) -> None:
+    monkeypatch.setenv("WIKI_AUTOCOMMIT", value)
+    assert autocommit_enabled() is False
+
+
+def test_disabled_init_skips_git(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("WIKI_AUTOCOMMIT", "0")
+    init_wiki_repo(tmp_path)
+    assert not (tmp_path / ".git").exists()
+    assert not (tmp_path / ".gitignore").exists()
+
+
+def test_disabled_auto_commit_is_noop(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("WIKI_AUTOCOMMIT", "0")
+    # Manually set up a repo with a seed commit (bypassing the gated init).
+    for args in (
+        ["init"],
+        ["config", "user.email", "t@t"],
+        ["config", "user.name", "t"],
+    ):
+        subprocess.run(["git"] + args, cwd=tmp_path, check=True, capture_output=True)
+    (tmp_path / "seed.txt").write_text("x")
+    _git(["add", "-A"], tmp_path)
+    _git(["commit", "-m", "seed"], tmp_path)
+    # A wiki change + disabled auto_commit must NOT create a new commit.
+    (tmp_path / "wiki").mkdir()
+    (tmp_path / "wiki" / "page.md").write_text("# Page\n")
+    auto_commit(tmp_path, "should not be committed")  # must not raise
+    log = _git(["log", "--oneline"], tmp_path)
+    assert "should not be committed" not in log
+    assert "seed" in log
