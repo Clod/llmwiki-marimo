@@ -618,6 +618,11 @@ The agent receives `db_path` as `deps_type=str`. Every tool derives the
 workspace from it via `workspace = Path(db_path).parent.parent` (because the  
 DB is always at `workspace/.llmwiki/index.db`).
 
+The registered set is exactly `chat/agent.py:create_agent` →
+`tools=[read_wiki_page, search_wiki_fts, file_to_wiki, search_source_chunks]`.
+`save_to_wiki` is **not** an agent tool — it's the read-app save form's path
+(§6.8); the agent's write tool is `file_to_wiki`.
+
 #### Routing rules (from `_DEFAULT_SYSTEM_PROMPT`)
 
 The intended retrieval flow is staged — *wiki first, raw sources second, web*  
@@ -647,7 +652,8 @@ tried.
 ```toml
 [assistant]
 system_prompt = """
-You are a specialist in mortgage-backed securities...
+You are a specialist in mortgage-backed securities.
+# ...keep the wiki-first routing block here — see wiki_config.example.toml
 """
 suggested_prompts = [
     "What is a CDO?",
@@ -656,10 +662,21 @@ suggested_prompts = [
 ```
 
 Loaded by `chat/config.py:load_config()` at agent creation time; falls back to  
-the defaults if absent.
+the defaults if absent. The repo ships a fully-commented template at  
+`wiki_config.example.toml` (project root) — copy it into the workspace as  
+`wiki_config.toml`. Both keys are optional; omit either to keep the defaults.
 
-**Triggers:** the right panel chat in `marimo/read_app.py` (`chat_panel`  
-cell at L174). The agent streams responses via `Agent.iter_stream(...)`.
+> ⚠️ **A custom `system_prompt` must preserve the wiki-first routing**  
+> (index → `search_wiki_fts` → `search_source_chunks` *fallback*). Because routing  
+> is prompt-driven (above), a prompt that tells the agent to "always use  
+> `search_source_chunks`" silently degrades the system to plain RAG and defeats the  
+> whole LLM-Wiki design. The shipped example keeps the routing intact and only  
+> specialises the domain line.
+
+**Triggers:** the right-panel chat in `marimo/read_app.py` (`chat_panel` cell).  
+The agent streams responses via `wiki_agent.run_stream(...)` →  
+`result.stream_text(delta=True)`. The agent, system prompt, and `db_path` are  
+rebuilt by the `wiki_context` cell whenever the active wiki changes (§7.1).
 
 **Gaps:**
 
