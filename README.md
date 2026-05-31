@@ -130,7 +130,10 @@ tests/
 
 - **Python 3.12+** and **[uv](https://docs.astral.sh/uv/)**
 - An **OpenAI-compatible LLM API** (OpenRouter, Ollama, LM Studio, etc.)
-- **LibreOffice** — only needed for DOCX ingestion (`brew install --cask libreoffice` on macOS)
+- **LibreOffice** — only needed for DOCX ingestion:
+    - macOS: `brew install --cask libreoffice`
+    - Debian/Ubuntu: `sudo apt install libreoffice` (Fedora: `sudo dnf install libreoffice`)
+    - Windows: `winget install TheDocumentFoundation.LibreOffice`
 - **git** — *optional*; powers the wiki's version-history auto-commit. Most systems already have it; if it's missing, snapshots are skipped (with a warning) and ingestion still works — or set `WIKI_AUTOCOMMIT=0` to opt out.
 
 ---
