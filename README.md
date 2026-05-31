@@ -70,6 +70,27 @@ local `LLM Wiki <llmwiki@local>` identity, so your global git config is untouche
 Set `WIKI_AUTOCOMMIT=0` in `.env` to turn this off and manage the wiki's git
 yourself (then LLM Wiki runs no `git init` and no commits).
 
+**The wiki repo is local-only — nothing is pushed anywhere.** It has no remote
+and stays entirely on your machine; LLM Wiki only ever commits locally, it never
+pushes. That's deliberate: your sources and the knowledge derived from them are
+private by default. If you *want* to back the wiki up or sync it across machines,
+add your own remote — and use a **private** repo, since it holds your personal
+knowledge:
+
+```bash
+cd "$WIKI_PATH"                                       # your wiki folder
+git remote add origin git@github.com:you/my-wiki.git # a PRIVATE repo you own
+git push -u origin HEAD
+```
+
+From then on, pushing is on you (`git push` whenever you like, or wire up your
+own automation) — the app's job ends at the local commit.
+
+> Each wiki is a **separate** repo from this project and from your other wikis.
+> So a wiki you back up to GitHub is its own private repo — not a folder inside
+> `llmwiki-marimo`, and nothing about your documents ever lands in the public
+> project repo.
+
 ---
 
 ## Project structure
