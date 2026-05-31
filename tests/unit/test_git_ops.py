@@ -89,3 +89,30 @@ def test_disabled_auto_commit_is_noop(monkeypatch, tmp_path: Path) -> None:
     log = _git(["log", "--oneline"], tmp_path)
     assert "should not be committed" not in log
     assert "seed" in log
+
+
+# ── git is optional: a missing/failing git must not fail an ingest ────────────
+
+
+def test_missing_git_does_not_raise(monkeypatch, tmp_path: Path) -> None:
+    # Simulate git not installed: every git invocation raises FileNotFoundError.
+    def _boom(*_a, **_k):
+        raise FileNotFoundError("git: command not found")
+
+    monkeypatch.setattr("domain.tools.git_ops._run", _boom)
+
+    init_wiki_repo(tmp_path)            # must not raise
+    assert not (tmp_path / ".git").exists()
+    (tmp_path / "wiki").mkdir()
+    auto_commit(tmp_path, "skipped")   # must not raise
+    assert not (tmp_path / ".git").exists()
+
+
+def test_git_command_error_is_swallowed(monkeypatch, tmp_path: Path) -> None:
+    def _boom(*_a, **_k):
+        raise subprocess.CalledProcessError(1, ["git"])
+
+    monkeypatch.setattr("domain.tools.git_ops._run", _boom)
+
+    init_wiki_repo(tmp_path)   # must not raise
+    auto_commit(tmp_path, "x")  # must not raise

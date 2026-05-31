@@ -191,7 +191,7 @@ llmwiki/
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
-│   ├── unit/                           # 246 unit tests (no LLM, no network)
+│   ├── unit/                           # 248 unit tests (no LLM, no network)
 │   ├── regression/                     # golden-corpus invariants (skips until frozen)
 │   └── e2e/                            # 9 Playwright tests (live marimo + LLM)
 ├── docs/
@@ -370,7 +370,7 @@ These functions are the CRUD primitives every other layer depends on. They know
 | `tools/wiki_fs.py`    | `create_page`, `read_page`, `append_to_page`, `delete_page`                                                               | Disk + DB simultaneously (single source of truth — never bypass)                            |
 | `tools/search.py`     | `search_chunks(db, query, limit, scope)`                                                                                  | FTS5 search; `scope ∈ {"all", "wiki", "sources"}`                                           |
 | `tools/references.py` | `update_references`, `get_backlinks`, `get_forward_refs`, `find_orphan_pages`, `find_uncited_sources`, `find_stale_pages` | Parses `[[wikilinks]]` plus citations in both `[^N]: file.pdf, p.3` footnote and `- file.pdf` Sources-bullet form; maintains `document_references` |
-| `tools/git_ops.py`    | `init_wiki_repo`, `auto_commit`, `autocommit_enabled`                                                                     | Idempotent git init + silent commits of `wiki/` in the workspace repo; both no-op when `WIKI_AUTOCOMMIT` is falsy |
+| `tools/git_ops.py`    | `init_wiki_repo`, `auto_commit`, `autocommit_enabled`                                                                     | Idempotent git init + silent commits of `wiki/` in the workspace repo; both no-op when `WIKI_AUTOCOMMIT` is falsy. **git is optional** — a missing/failing `git` is caught (one-time warning) and skipped, never failing an ingest |
 
 Two structural notes:
 
@@ -610,7 +610,7 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 ### Run
 
 ```bash
-uv run pytest tests/unit/ -v               # 246 unit tests — fast, no LLM
+uv run pytest tests/unit/ -v               # 248 unit tests — fast, no LLM
 uv run pytest tests/e2e/ -v -s             # 9 E2E tests — live marimo + LLM (test_ingest_pdf is parametrized over 3 PDFs)
 ```
 

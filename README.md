@@ -119,7 +119,7 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 tests/
-├── unit/                  # 246 unit tests (FakeLLM, no network)
+├── unit/                  # 248 unit tests (FakeLLM, no network)
 ├── e2e/                   # Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + workspace
 ```
@@ -131,6 +131,7 @@ tests/
 - **Python 3.12+** and **[uv](https://docs.astral.sh/uv/)**
 - An **OpenAI-compatible LLM API** (OpenRouter, Ollama, LM Studio, etc.)
 - **LibreOffice** — only needed for DOCX ingestion (`brew install --cask libreoffice` on macOS)
+- **git** — *optional*; powers the wiki's version-history auto-commit. Most systems already have it; if it's missing, snapshots are skipped (with a warning) and ingestion still works — or set `WIKI_AUTOCOMMIT=0` to opt out.
 
 ---
 
