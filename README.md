@@ -122,9 +122,11 @@ Copy `.env.example` to `.env` and fill in:
 
 ```env
 WIKI_PATH=/path/to/your/wiki          # the wiki opened on launch (the default)
-LLM_BASE_URL=https://openrouter.ai/api/v1
-LLM_API_KEY=sk-or-...
-LLM_MODEL=anthropic/claude-haiku-4-5
+
+# Any OpenAI-compatible endpoint works. Example: Ollama (local, free).
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_API_KEY=ollama                    # any non-empty string for Ollama
+LLM_MODEL=llama3.2
 ```
 
 `WIKI_PATH` is just the **default** — both apps have a wiki picker (top-left) so
@@ -169,6 +171,13 @@ LLM_MODEL=llama3.2
 LLM_BASE_URL=http://localhost:1234/v1
 LLM_API_KEY=lm-studio
 LLM_MODEL=local-model-name
+```
+
+**OpenRouter (cloud, hosted models):**
+```env
+LLM_BASE_URL=https://openrouter.ai/api/v1
+LLM_API_KEY=sk-or-...
+LLM_MODEL=anthropic/claude-haiku-4-5
 ```
 
 **Split config** — use a cheap/local model for chat but a stronger model for wiki generation:

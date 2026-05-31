@@ -572,9 +572,11 @@ WIKI_PATH=/path/to/workspace uv run marimo run marimo/read_app.py --port 2720
 WIKI_PATH=/path/to/workspace   # default wiki on launch; switchable in-app (§7.1)
 WIKI_HOME=                      # optional: folder the picker scans for sibling wikis
                                #          (default: parent of WIKI_PATH)
-LLM_BASE_URL=https://openrouter.ai/api/v1
-LLM_API_KEY=sk-or-...
-LLM_MODEL=anthropic/claude-haiku-4-5
+# Any OpenAI-compatible endpoint. Example: Ollama (local, free).
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_API_KEY=ollama
+LLM_MODEL=llama3.2
+# Cloud alternative: LLM_BASE_URL=https://openrouter.ai/api/v1 / sk-or-... / anthropic/claude-haiku-4-5
 
 # Optional override for ingestion-time LLM (falls back to LLM_* if blank)
 WIKI_LLM_BASE_URL=
