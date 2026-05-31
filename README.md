@@ -103,13 +103,13 @@ base/                   # Ingestion pipeline + chat agent (self-contained Python
     ├── chat/              # PydanticAI agent + wiki/source/save tools
     ├── lint/              # Wiki health checks
     ├── repair/            # Auto-fixes for safe lint issues
-    ├── tools/             # Native CRUD: wiki_fs, search, references, git_ops, db
+    ├── tools/             # Native CRUD: wiki_fs, search, references, deletion, git_ops, db
     └── wiki_registry.py   # Multi-wiki picker: discovery + recent list + path hygiene
 
 marimo/                # Marimo notebook apps
 ├── ingest_app.py          # Upload → ingest → wiki generation UI
 ├── read_app.py            # Read-only viewer + chat (3-column grid)
-└── chat_app.py            # Standalone chat testbed
+└── trace_report_app.py    # Ingestion trace viewer (WIKI_TRACE=1 runs)
 
 database/
 └── sqlite_schema.sql      # Canonical DB schema
