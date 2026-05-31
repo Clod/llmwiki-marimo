@@ -26,15 +26,15 @@ and only falls back to raw chunks when needed.
 
 ## What it does
 
-1. **Ingest** — drop PDFs or DOCXs into the ingest app. The pipeline extracts text page by page, chunks it with overlap, runs structured concept extraction, and creates / updates summary + concept pages plus the catalogue, overview, and timeline — all auto-committed to git.
+1. **Ingest** — drop PDFs or DOCXs into the ingest app. The pipeline extracts text page by page, chunks it with overlap, runs structured concept extraction, and creates / updates summary + concept pages plus the catalogue, overview, and timeline — then snapshots the result to the wiki's own git repo (optional; see [What ends up on disk](#what-ends-up-on-disk)).
 2. **Read** — browse the generated wiki pages in a clean 3-column interface. Navigation, content viewer, and AI chat all in one.
 3. **Chat** — ask questions about your documents. A PydanticAI agent reads curated wiki pages first and falls back to raw-source FTS5 only when needed. Streams responses with citations.
 4. **Maintain** — run lint to surface orphans, stale pages, missing cross-references, and missing concepts; run repair to auto-fix the safe ones.
 
 > **For developers:** the canonical reference is  
-> `[docs/programmer_manual.md](docs/programmer_manual.md)` — workflows, prompts,  
+> [`docs/programmer_manual.md`](docs/programmer_manual.md) — workflows, prompts,  
 > entry points, gaps, and the pending-work roadmap. Earlier design notes are in  
-> `[docs/archive/](docs/archive/)`.
+> [`docs/archive/`](docs/archive/).
 
 ---
 
@@ -239,7 +239,7 @@ Copy `wiki_config.example.toml` from the project root as a starting point. If th
 
 **Text-based PDFs only.** Scanned / image-only PDFs are not OCR'd yet — they  
 ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap  
-(see `[docs/programmer_manual.md](docs/programmer_manual.md)` §12).
+(see [`docs/programmer_manual.md`](docs/programmer_manual.md) §12).
 
 ---
 
@@ -296,14 +296,14 @@ back as wiki pages via the chat's save tools (`file_to_wiki` / `save_to_wiki`).
 So the human-in-the-loop step is post-hoc rather than during ingestion.
 
 The rationale for each cut and the revisit plan live in  
-`[docs/programmer_manual.md](docs/programmer_manual.md)` §12.
+[`docs/programmer_manual.md`](docs/programmer_manual.md) §12.
 
 ---
 
 ## Contributing & security
 
-- Contribution setup, test workflow, and conventions: `[CONTRIBUTING.md](CONTRIBUTING.md)`
-- Security model and how to report issues: `[SECURITY.md](SECURITY.md)`
+- Contribution setup, test workflow, and conventions: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Security model and how to report issues: [`SECURITY.md`](SECURITY.md)
 
 ---
 
