@@ -1,9 +1,16 @@
-<!-- Generated: 2026-05-25 | Files scanned: 25 | Token estimate: ~950 -->
+<!-- Generated: 2026-05-31 | Files scanned: 26 | Token estimate: ~1000 -->
 
 # Backend (base/domain)
 
 Pure domain layer. No web framework — entry points are called directly by the
 marimo apps. Tools derive `workspace = Path(db_path).parent.parent`.
+
+`base/config.py` (pydantic-settings) holds no hardcoded provider/model — LLM
+values come from `.env`. `require_llm_config(base_url, api_key, model, *, purpose)`
+fails fast with a "set LLM_* in .env" message; the apps call it before building a
+client. `wiki_registry.py` (sibling of `domain/`-subdirs) backs the wiki picker:
+`discover_wikis`, `merge_options`, `load/save/push_recent`, `clean_path_input`,
+`resolve_wiki_home`, `short_label` (pure, unit-tested).
 
 ## ingestion/ — sources → wiki
 
@@ -47,7 +54,8 @@ actions.py  one repair_* fn per check. All but stale/missing_concept are
 ## chat/ — PydanticAI agent (RAG)
 
 ```
-create_agent(db_path)  agent.py:12   deps_type=str (db_path)
+create_agent(base_url, api_key, model, system_prompt=_DEFAULT)  agent.py
+  deps_type=str — db_path is passed as deps at run_stream time, not to the factory
   tools = [read_wiki_page, search_wiki_fts, file_to_wiki, search_source_chunks]
 config.py   _DEFAULT_SYSTEM_PROMPT + load_config(wiki_path) ← wiki_config.toml
 wiki_tools.py  read_wiki_page · search_wiki_fts · file_to_wiki / save_to_wiki

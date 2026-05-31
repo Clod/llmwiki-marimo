@@ -1,12 +1,14 @@
-<!-- Generated: 2026-05-25 | Files scanned: ~45 | Token estimate: ~700 -->
+<!-- Generated: 2026-05-31 | Files scanned: ~46 | Token estimate: ~720 -->
 
 # Architecture
 
 **llmwiki-marimo** — an LLM-powered knowledge base. Raw sources (PDF/DOCX) are ingested
 into a curated wiki (summaries + concept pages) backed by SQLite. A chat agent
 answers questions wiki-first, falling back to raw source chunks. A lint→repair
-cycle keeps the wiki internally consistent. See `docs/programmer_manual.md` for
-the authoritative §-by-§ spec.
+cycle keeps the wiki internally consistent. Both apps can switch the active wiki
+at runtime via a picker (`base/domain/wiki_registry.py`, §7.1); `WIKI_PATH` in
+`.env` is only the default. See `docs/programmer_manual.md` for the authoritative
+§-by-§ spec.
 
 ## Layers
 
@@ -18,7 +20,8 @@ base/domain/    Pure domain logic (no UI, no network except LLM)
    ├── lint/       detect wiki inconsistencies → LintReport
    ├── repair/     fix lint issues → RepairReport
    ├── chat/       PydanticAI agent + RAG tools
-   └── tools/      DB, references graph, FTS search, fs, deletion, git
+   ├── tools/      DB, references graph, FTS search, fs, deletion, git
+   └── wiki_registry.py   multi-wiki discovery + recent list (the picker)
    │
 database/            sqlite_schema.sql (single source of DB truth)
 workspace/         per-user data: sources/, wiki/, .llmwiki/index.db

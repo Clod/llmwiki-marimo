@@ -1,4 +1,5 @@
-<!-- Generated: 2026-05-25 | Files scanned: 1 | Token estimate: ~600 -->
+<!-- Generated: 2026-05-31 | Files scanned: 1 | Token estimate: ~600 -->
+<!-- Schema unchanged since 2026-05-25; header refreshed. -->
 
 # Data Model
 

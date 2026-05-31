@@ -1,4 +1,4 @@
-<!-- Generated: 2026-05-25 | Files scanned: 1 (pyproject.toml) | Token estimate: ~450 -->
+<!-- Generated: 2026-05-31 | Files scanned: 2 (pyproject.toml, config.py) | Token estimate: ~470 -->
 
 # Dependencies
 
@@ -39,6 +39,15 @@ filesystem     workspace/ holds sources/, wiki/, .llmwiki/index.db.
 
 ## Config keys (config.settings)
 
-`WIKI_LLM_BASE_URL`/`API_KEY`/`MODEL` (fall back to `LLM_BASE_URL`/`API_KEY`/`MODEL`).
+No hardcoded provider/model — all LLM values from `.env`; defaults are blank.
+`require_llm_config()` fails fast when an LLM is unconfigured.
+
+```
+LLM_BASE_URL / LLM_API_KEY / LLM_MODEL        chat + default for ingestion
+WIKI_LLM_BASE_URL / _API_KEY / _MODEL         ingestion; fall back to LLM_* if blank
+WIKI_PATH                                     default wiki on launch (picker switches it)
+WIKI_HOME                                     folder the picker scans (default: parent of WIKI_PATH)
+```
+PDF extraction is opendataloader-pdf only (text PDFs; no OCR/`PDF_BACKEND` today).
 Per-workspace overrides in `workspace/wiki_config.toml` (system_prompt,
 suggested_prompts).

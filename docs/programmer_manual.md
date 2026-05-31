@@ -585,7 +585,7 @@ WIKI_LLM_MODEL=
 ```
 
 PDF extraction uses opendataloader-pdf (text-based PDFs only; no OCR backend yet
-— see §12). There is no `PDF_BACKEND` / `MISTRAL_API_KEY` setting today.
+— see §12). There is no PDF-backend selector setting today.
 
 ### `workspace/wiki_config.toml` (optional, per-workspace)
 
@@ -839,8 +839,8 @@ output. Add a pluggable OCR path in `extractor._extract_pdf`. Keep it
 **local OCR engine** (Tesseract via ocrmypdf, docTR, Surya, RapidOCR, or Docling
 — fits the local-first ethos, no extra key) or **reusing a vision-capable LLM
 through the already-configured OpenAI-compatible endpoint** (send page images to
-the same `LLM_*`/`WIKI_LLM_*` model — no new provider). A hosted OCR API (e.g.
-Mistral OCR, Google Document AI) is a third option but adds a vendor + key.
+the same `LLM_*`/`WIKI_LLM_*` model — no new provider). A hosted document-OCR
+API is a third option but adds a vendor + key.
 - **Image handling.** Store images from clipped articles in `sources/assets/`;  
 optionally pass them to a vision-capable LLM during ingestion.
 - **Knowledge graph visualisation.** Render `document_references` as an  
