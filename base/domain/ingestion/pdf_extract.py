@@ -1,7 +1,8 @@
 """PDF extraction via opendataloader-pdf.
 
-Shared module used by both the hosted OCR service and the local processor.
-No server-specific dependencies (no asyncpg, S3, httpx).
+Converts a PDF to per-page markdown for the ingestion pipeline. Text-based PDFs
+only — image-only / scanned PDFs are not OCR'd (no OCR backend yet; see
+docs/programmer_manual.md §12).
 """
 
 import json

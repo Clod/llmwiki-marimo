@@ -28,9 +28,6 @@ class Settings(BaseSettings):
     # Default wiki opened on launch; the apps' picker can switch it at runtime.
     WIKI_PATH: str = "."
 
-    PDF_BACKEND: str = "opendataloader"   # "opendataloader" (no key) | "mistral"
-    MISTRAL_API_KEY: str = ""
-
     # Chat LLM (read_app). Also the fallback for the WIKI_LLM_* group below.
     LLM_BASE_URL: str = ""
     LLM_API_KEY: str = ""

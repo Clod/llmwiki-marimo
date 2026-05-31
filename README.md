@@ -225,7 +225,9 @@ Copy `wiki_config.example.toml` from the project root as a starting point. If th
 | PDF | opendataloader-pdf | Text-heavy PDFs work well |
 | DOCX | LibreOffice → PDF | Requires LibreOffice installed |
 
-Scanned PDFs (image-only) require OCR — set `PDF_BACKEND=mistral` and `MISTRAL_API_KEY` in `.env`.
+**Text-based PDFs only.** Scanned / image-only PDFs are not OCR'd yet — they
+ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap
+(see [`docs/programmer_manual.md`](docs/programmer_manual.md) §12).
 
 ---
 
@@ -258,6 +260,7 @@ concept are **deliberately deferred** for the PoC:
 - **No web search.** The thesis is answering from *your* curated local corpus.
   Add findings manually by dropping files into `sources/`.
 - **No image / vision handling.** Text-only ingestion today.
+- **Text-based PDFs only.** No OCR for scanned / image-only PDFs yet.
 - **No graph visualization, Marp decks, or canvas output.** The citation graph
   exists in the DB (`document_references`); it just isn't rendered.
 - **Automated, not interactive, ingestion.** You shape pages *after* ingest via

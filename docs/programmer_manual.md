@@ -156,7 +156,7 @@ llmwiki/
 │       │   ├── detector.py             # mtime + SHA-256 change detection
 │       │   ├── extractor.py            # PDF/DOCX → list[(page, markdown)]
 │       │   ├── index_manager.py        # wiki/index.md upsert (deterministic)
-│       │   ├── pdf_extract.py          # opendataloader / mistral backends
+│       │   ├── pdf_extract.py          # opendataloader-pdf (text PDFs; no OCR yet)
 │       │   ├── trace.py                # opt-in ingestion trace (see §14)
 │       │   └── wiki_generator.py       # all LLM prompt builders (see §6)
 │       ├── lint/
@@ -582,11 +582,10 @@ LLM_MODEL=llama3.2
 WIKI_LLM_BASE_URL=
 WIKI_LLM_API_KEY=
 WIKI_LLM_MODEL=
-
-# PDF backend
-PDF_BACKEND=opendataloader     # or "mistral"
-MISTRAL_API_KEY=
 ```
+
+PDF extraction uses opendataloader-pdf (text-based PDFs only; no OCR backend yet
+— see §12). There is no `PDF_BACKEND` / `MISTRAL_API_KEY` setting today.
 
 ### `workspace/wiki_config.toml` (optional, per-workspace)
 
@@ -833,6 +832,15 @@ source. (Distinct from §11.5 web search at query time.) *Today's manual
 compensation:* run the search yourself and drop the finding into `sources/` (or
 paste it into the chat and `file_to_wiki`) — the corpus still compounds, just
 without the in-loop automation.
+- **OCR for scanned / image-only PDFs.** Today `pdf_extract.py` uses only
+opendataloader-pdf, which extracts *text*; image-only PDFs yield empty/garbled
+output. Add a pluggable OCR path in `extractor._extract_pdf`. Keep it
+**provider-agnostic** (don't hardcode a vendor): the most on-brand options are a
+**local OCR engine** (Tesseract via ocrmypdf, docTR, Surya, RapidOCR, or Docling
+— fits the local-first ethos, no extra key) or **reusing a vision-capable LLM
+through the already-configured OpenAI-compatible endpoint** (send page images to
+the same `LLM_*`/`WIKI_LLM_*` model — no new provider). A hosted OCR API (e.g.
+Mistral OCR, Google Document AI) is a third option but adds a vendor + key.
 - **Image handling.** Store images from clipped articles in `sources/assets/`;  
 optionally pass them to a vision-capable LLM during ingestion.
 - **Knowledge graph visualisation.** Render `document_references` as an  
