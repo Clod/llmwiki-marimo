@@ -37,6 +37,9 @@ workspace/
 /mcp/wiki/
 /emails/
 
+# Private launch / marketing drafts — never publish
+launch-kit.md
+
 # Deploy
 deploy.sh
 
