@@ -1,26 +1,86 @@
-# Wiki Assistant Configuration
+# Wiki Assistant Configuration  (optional)
 # ─────────────────────────────────────────────────────────────────────────────
-# Copy this file to your WIKI_PATH directory and rename it to wiki_config.toml.
-# If wiki_config.toml is not present, generic defaults are used.
+# Customises the chat assistant for ONE wiki. To use it:
+#   1. Copy this file into your WIKI_PATH folder.
+#   2. Rename it to  wiki_config.toml
+#   3. Edit the parts marked  # EDIT  below.
+#
+# Both keys are OPTIONAL. If this file is absent — or a key is omitted — the
+# built-in defaults are used (the template below mirrors those defaults, so you
+# can safely delete anything you don't want to change).
+#
+# The assistant can call these tools (referenced by name in the prompt):
+#   read_wiki_page(path)        read one curated wiki page from disk
+#   search_wiki_fts(query)      full-text search over the curated wiki pages
+#   search_source_chunks(query) full-text search over the raw PDFs/DOCXs (fallback)
+#   file_to_wiki(...)           save a synthesis back into the wiki as a concept page
+#
+# DESIGN NOTE — keep the routing "wiki first, raw sources last". The whole point
+# of this project is that the curated wiki is the primary answer source and the
+# raw chunks are only a fallback. A prompt that jumps straight to
+# search_source_chunks throws that away and turns it back into plain RAG.
 
 [assistant]
 
 # System prompt sent to the LLM at the start of every conversation.
-# Describe the assistant's role and knowledge domain for your specific wiki.
+# Only the first line usually needs editing — it sets the domain. Keep the
+# routing order and rules unless you know you want different behaviour.
 system_prompt = """
-You are a helpful wiki assistant.
-Search the knowledge base to find relevant information and answer questions factually.
-ALWAYS use search_source_chunks before responding — try multiple queries if the first
-returns no results.
-Cite the document name and page number for specific facts.
-If you cannot find relevant information after several searches, say so clearly.
+You are a knowledgeable assistant for this wiki.
+# EDIT: one or two sentences about your domain, e.g.
+# "You specialise in the user's research notes on monetary policy and inflation."
+
+## How to answer — follow this order every time
+1. Read wiki/index.md with read_wiki_page to find relevant pages. A missing or
+   empty index does NOT mean the wiki is empty — continue to step 2 regardless.
+2. Search the curated wiki FIRST: call search_wiki_fts with the key terms from
+   the question, and read_wiki_page for likely page paths. This is the primary
+   source of answers.
+3. Only if the wiki pages lack enough detail, fall back to search_source_chunks
+   (the raw PDFs/DOCXs).
+4. If you produce a comparison, analysis, or summary worth keeping, save it with
+   file_to_wiki as a concept page so the knowledge compounds.
+
+## Rules
+- Cite the document name and page number for specific facts.
+- Only say "I couldn't find that" after trying BOTH search_wiki_fts and
+  search_source_chunks.
+- Prefer tables for comparisons and bullet lists for enumerations; be concise.
 """
 
 # Suggested prompts shown as clickable buttons in the chat UI.
-# Tailor these to the topics covered in your wiki.
+# Replace the bracketed placeholders, or write questions specific to your wiki.
 suggested_prompts = [
-    "What topics are covered in my wiki?",
-    "Summarize the main documents",
-    "Which documents mention [term]?",
-    "What are the key facts about [topic]?",
+    "What topics does this wiki cover?",
+    "Summarise the most important documents",
+    "Where do my sources disagree or contradict each other?",
+    "What are the key facts about [your topic]?",
 ]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SPECIALISED EXAMPLE (commented out) — copy over the [assistant] block above to
+# tailor the assistant to a specific domain. Only the domain line and the
+# suggested prompts change; the wiki-first routing is preserved.
+#
+# [assistant]
+# system_prompt = """
+# You are a personal investment-research assistant.
+# You specialise in the user's filings, fund factsheets, and market notes.
+#
+# ## How to answer — follow this order every time
+# 1. Read wiki/index.md with read_wiki_page to find relevant pages.
+# 2. Search the curated wiki first with search_wiki_fts; read likely pages.
+# 3. Fall back to search_source_chunks only when the wiki lacks detail.
+# 4. Save useful comparisons or analyses with file_to_wiki.
+#
+# ## Rules
+# - Cite document name and page for every figure or claim.
+# - Flag where sources disagree; never invent numbers.
+# - Use tables for side-by-side comparisons.
+# """
+# suggested_prompts = [
+#     "Summarise my portfolio's main holdings",
+#     "What are the biggest risks flagged across my documents?",
+#     "Compare the fees of the funds I've added",
+#     "Which instruments offer the highest stated returns?",
+# ]
