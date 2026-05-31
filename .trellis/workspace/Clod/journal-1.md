@@ -1901,3 +1901,56 @@ between multiple wikis without editing WIKI_PATH in .env and restarting.
 ### Next Steps
 
 - None - task complete
+
+
+## Session 35: Docs hardening: optional git, LibreOffice install, wiki registry, README
+
+**Date**: 2026-05-31
+**Task**: Docs hardening: optional git, LibreOffice install, wiki registry, README
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Description |
+|------|-------------|
+| Wiki git auto-commit | Added `WIKI_AUTOCOMMIT` opt-out for wiki git auto-commit; crisper README |
+| Git optional | Made git optional — a missing/failing git no longer fails an ingest (hardened git_ops + docs + test) |
+| Docs | Explained the wiki is a local-only git repo + how to back it up; reworded auto-commit line; un-backticked broken doc links |
+| LibreOffice | Added install commands for Mac, Linux, and Windows in README |
+| Wiki registry | Documented marimo file_browser directory bug; switched to discovery + recent-list + sanitized text path in base/domain/wiki_registry.py |
+| GitHub identity | Confirmed Clod <claudio.grasso@yahoo.com> is the GitHub identity; wiki workspaces are intentionally remote-less |
+
+**Updated Files**:
+- `README.md`
+- `base/config.py`, `base/domain/wiki_registry.py`, `base/domain/ingestion/pdf_extract.py`
+- `marimo/read_app.py`, `marimo/ingest_app.py`, `marimo/prototypes/wiki_picker.py`
+- `tests/unit/test_wiki_registry.py`, `tests/unit/test_config_guard.py`
+- `.env.example`, `wiki_config.example.toml`, `.gitignore`, `.github/workflows/test.yml`
+- `CONTRIBUTING.md`, `SECURITY.md`, `docs/programmer_manual.md`, `docs/manual/workflows.md`
+- `docs/CODEMAPS/*`, `.trellis/spec/backend/directory-structure.md`, `.trellis/spec/guides/marimo-thinking-guide.md`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5fdecd8` | (see git log) |
+| `118edeb` | (see git log) |
+| `fb01082` | (see git log) |
+| `0530572` | (see git log) |
+| `140ad96` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

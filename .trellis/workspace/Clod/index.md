@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 34
-- **Last Active**: 2026-05-29
+- **Total Sessions**: 35
+- **Last Active**: 2026-05-31
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1903 | Active |
+| `journal-1.md` | ~1956 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 35 | 2026-05-31 | Docs hardening: optional git, LibreOffice install, wiki registry, README | `5fdecd8`, `118edeb`, `fb01082`, `0530572`, `140ad96` |
 | 34 | 2026-05-29 | Open-source release prep + runtime wiki picker | `43ede18`, `941c643`, `3cc13ac` |
 | 33 | 2026-05-29 | Project audit, doc refactor & ingest-app live progress | `f262b75`, `9d515ab`, `ecd64b8`, `a77fc54`, `26bedc3`, `6b888ee`, `1b81176`, `3cc5978`, `8b9a325`, `d30458d`, `4493fd3`, `9f40af1`, `0da5985`, `aa721fe`, `be07abc` |
 | 32 | 2026-05-28 | Navigation, trace report fixes, and trace-per-batch bug | `f2d9880`, `8ab4b54` |
