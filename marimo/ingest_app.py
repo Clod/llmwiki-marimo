@@ -68,7 +68,7 @@ def setup():
 
     # Force fresh import so base/config.py wins over api/config.py
     sys.modules.pop("config", None)
-    from config import settings
+    from config import settings, require_llm_config
 
     logger.info("Config loaded from: %s", sys.modules["config"].__file__)
     logger.info("WIKI_PATH=%s  LLM_MODEL=%s", settings.WIKI_PATH, settings.LLM_MODEL)
@@ -85,6 +85,7 @@ def setup():
     wiki_base_url = settings.WIKI_LLM_BASE_URL or settings.LLM_BASE_URL
     wiki_api_key  = settings.WIKI_LLM_API_KEY  or settings.LLM_API_KEY
     llm_model     = settings.WIKI_LLM_MODEL    or settings.LLM_MODEL
+    require_llm_config(wiki_base_url, wiki_api_key, llm_model, purpose="wiki generation / ingestion")
     llm_client    = OpenAI(base_url=wiki_base_url, api_key=wiki_api_key)
     logger.info("LLM: model=%s  base_url=%s", llm_model, wiki_base_url)
 

@@ -91,7 +91,7 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 tests/
-├── unit/                  # 232 unit tests (FakeLLM, no network)
+├── unit/                  # 237 unit tests (FakeLLM, no network)
 ├── e2e/                   # Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + workspace
 ```

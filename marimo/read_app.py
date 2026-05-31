@@ -52,7 +52,7 @@ with app.setup:
         sys.path.insert(0, _marimo)
     sys.modules.pop("config", None)
 
-    from config import settings
+    from config import settings, require_llm_config
     from domain.chat.agent import create_agent
     from domain.chat.config import load_config
     from domain.wiki_registry import (
@@ -436,6 +436,10 @@ def wiki_context(active_wiki):
     _ap = active_wiki()
     WIKI_PATH = Path(_ap) if _ap else None
     if WIKI_PATH is not None and WIKI_PATH.is_dir():
+        require_llm_config(
+            settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
+            purpose="chat",
+        )
         wiki_db_path = str(WIKI_PATH / ".llmwiki" / "index.db")
         wiki_chat_config = load_config(WIKI_PATH)
         wiki_agent = create_agent(
