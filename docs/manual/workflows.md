@@ -661,9 +661,22 @@ suggested_prompts = [
 ]
 ```
 
-Loaded by `chat/config.py:load_config()` at agent creation time; falls back to  
-the defaults if absent. The repo ships a fully-commented template at  
-`wiki_config.example.toml` (project root) — copy it into the workspace as  
+Loaded by `chat/config.py:load_config()` at agent creation time
+(`read_app.py:wiki_context` calls it). Defaults apply at three levels, all in
+`chat/config.py`:
+
+1. **File absent** → `load_config` hits `if not config_file.exists(): return
+   WikiAssistantConfig()` — the dataclass with its default fields.
+2. **`[assistant]` section missing** → `data.get("assistant", {})` yields `{}`.
+3. **A key missing** → per-key fallback:
+   `assistant.get("system_prompt", _DEFAULT_SYSTEM_PROMPT)` and
+   `assistant.get("suggested_prompts", _DEFAULT_PROMPTS)`.
+
+The defaults themselves are `_DEFAULT_SYSTEM_PROMPT` and `_DEFAULT_PROMPTS` in the
+same module (and the `WikiAssistantConfig` field defaults reference them). So a
+*partial* `wiki_config.toml` — e.g. only `suggested_prompts` — still keeps the
+default `system_prompt`. The repo ships a fully-commented template at
+`wiki_config.example.toml` (project root) — copy it into the workspace as
 `wiki_config.toml`. Both keys are optional; omit either to keep the defaults.
 
 > ⚠️ **A custom `system_prompt` must preserve the wiki-first routing**  
