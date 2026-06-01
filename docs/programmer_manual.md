@@ -198,7 +198,7 @@ llmwiki/
 │       │   ├── report.py               # LintIssue, LintReport
 │       │   └── runner.py               # lint_wiki()
 │       ├── repair/
-│       │   ├── actions.py              # 6 repair functions
+│       │   ├── actions.py              # 7 repair functions (one per lint check)
 │       │   ├── report.py               # RepairResult, RepairReport
 │       │   └── runner.py               # repair_wiki()
 │       ├── tools/
@@ -1062,7 +1062,7 @@ file is skipped (`ref` is `null`). So `WIKI_TRACE_CAPTURE=none` still lets you v
 - **Transparent client proxy.** `tracer.wrap(client)` returns a `TracingClient` that
   delegates everything to the real client and returns the real response object
   untouched — it only *observes* `chat.completions.create`. This is why none of the
-  ~6 call sites in `wiki_generator.py` changed. `wrap()` is idempotent (a client
+  five `chat.completions.create` call sites in `wiki_generator.py` changed. `wrap()` is idempotent (a client
   already wrapped for this run is returned as-is), which matters on the batch path.
 - **Correlation via contextvars.** `tracer.document(...)`/`tracer.stage(...)` set
   `_current_doc`/`_current_stage`, so the proxy can tag each `llm_call` with the
