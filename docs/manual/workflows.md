@@ -15,15 +15,15 @@ Each workflow below follows the same template:
 
 | #    | Workflow           | Status | Entry                                                                | Pending                                                |
 | ---- | ------------------ | ------ | -------------------------------------------------------------------- | ------------------------------------------------------ |
-| 6.1  | Lint               | ✅      | `lint/runner.py:17`                                                  | `data_gap` shallow; `gap_filled_check` runs always; not auto-triggered yet (§11.11) |
-| 6.2  | Repair             | ✅      | `repair/runner.py:30`                                                | All five deterministic repairs implemented             |
-| 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:88`                                           | Lint+repair tail opt-in today (§11.11)                 |
+| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; not auto-triggered yet (§11.11) |
+| 6.2  | Repair             | ✅      | `repair/runner.py:repair_wiki`                                                | All five deterministic repairs implemented             |
+| 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:ingest_file`                                           | Lint+repair tail opt-in today (§11.11)                 |
 | 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:batch_ingest`                                   | Lint+repair tail opt-in today (§11.11)                 |
-| 6.5  | Scan sources       | ✅      | `ingestion/pipeline.py:340`                                          | Should chain into lint+repair (§11.11)                 |
-| 6.6  | Regenerate         | ✅      | `ingestion/pipeline.py:379`                                          | Should chain into lint+repair (§11.8)                  |
+| 6.5  | Scan sources       | ✅      | `ingestion/pipeline.py:scan_and_ingest`                                          | Should chain into lint+repair (§11.11)                 |
+| 6.6  | Regenerate         | ✅      | `ingestion/pipeline.py:regenerate_wiki_pages`                                          | Should chain into lint+repair (§11.8)                  |
 | 6.7  | Chat / RAG         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Phases 1–3 (wiki + sources) complete; web search (Phase 4) is a future enhancement (§12) |
 | 6.8  | Chat → Wiki        | ✅      | `chat/wiki_tools.py:file_to_wiki` and `:save_to_wiki`               | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred (§12) |
-| 6.9  | Source deletion    | ✅      | `tools/deletion.py:11`                                               | —                                                      |
+| 6.9  | Source deletion    | ✅      | `tools/deletion.py:delete_source`                                               | —                                                      |
 | 6.10 | Wiki page deletion | ✅      | `tools/wiki_fs.py:delete_page`                               | —                                                     |
 
 Every ingestion and save workflow shares one goal: **leave the wiki in an
@@ -99,7 +99,7 @@ flowchart LR
 
 Lint is **read-only**: it never writes a table or file, it only produces a `LintReport`.
 
-**Entry:** `lint_wiki()` — `base/domain/lint/runner.py:17`
+**Entry:** `lint_wiki()` — `base/domain/lint/runner.py:lint_wiki`
 
 Lint is the **verification gate** of the reconciliation cycle: it inspects the
 wiki for internal-consistency defects and reports them, but changes nothing. In
@@ -207,7 +207,7 @@ flowchart TD
 
 🧠 = needs an LLM client; skipped when `llm_client=None` (`stale`, `missing_concept`).
 
-**Entry:** `repair_wiki()` — `base/domain/repair/runner.py:30`
+**Entry:** `repair_wiki()` — `base/domain/repair/runner.py:repair_wiki`
 
 Repair is the **safety net** of the cycle: it consumes a `LintReport` and applies
 automatic fixes where it is safe to do so, skipping anything that needs human
@@ -300,7 +300,7 @@ sequenceDiagram
     Note over P,FS: on error → _rollback_wiki_pages (compensations)
 ```
 
-**Entry:** `ingest_file()` — `base/domain/ingestion/pipeline.py:88`
+**Entry:** `ingest_file()` — `base/domain/ingestion/pipeline.py:ingest_file`
 
 ```python
 result = ingest_file(
@@ -433,7 +433,7 @@ results = batch_ingest(
 ```
 
 **Difference from 6.3:** each file goes through steps 1–9 of `ingest_file`  
-with `_batch_mode=True` (set at `batch.py:63`), which suppresses steps 10–13.  
+with `_batch_mode=True` (set in `batch.py:batch_ingest`), which suppresses steps 10–13.  
 Then at the end of the batch the wrapper does **once**:
 
 1. `update_overview()` with all new summaries combined.
@@ -482,7 +482,7 @@ flowchart TD
 The boxed `ingest_file()` step is the entire §6.3 pipeline (run sequentially, not in
 batch mode). One trace run wraps the whole scan (no-op unless `WIKI_TRACE=1`).
 
-**Entry:** `scan_and_ingest()` — `base/domain/ingestion/pipeline.py:340`
+**Entry:** `scan_and_ingest()` — `base/domain/ingestion/pipeline.py:scan_and_ingest`
 
 Walks `workspace/sources/` recursively, collects `.pdf` / `.docx` files  
 (case-insensitive, skipping hidden entries), and calls `ingest_file()` for each.  
@@ -500,7 +500,7 @@ on demand.
 triggers an overview rewrite and a git commit. If you scan many files, prefer  
 calling `batch_ingest(files=list(...))` directly.
 
-**Triggers:** Marimo button "🔄 Scan sources" in `ingest_app.py:194`  
+**Triggers:** Marimo button "🔄 Scan sources/ for changes" in `ingest_app.py` (`action_buttons` cell)  
 (`scan_btn`).
 
 **Scan vs lint+repair (important).** Scanning is *source→wiki freshness*: it
@@ -543,7 +543,7 @@ Unlike §6.3, regenerate refreshes **summary pages only** via the legacy
 `build_wiki_page`, and skips references, index, overview, and lint (see Today vs
 Target below).
 
-**Entry:** `regenerate_wiki_pages()` — `base/domain/ingestion/pipeline.py:379`
+**Entry:** `regenerate_wiki_pages()` — `base/domain/ingestion/pipeline.py:regenerate_wiki_pages`
 
 Iterates over every `documents` row with `source_kind='source'` and  
 `status='ready'`, reloads the cached page text from `document_pages` (no PDF  
@@ -559,7 +559,7 @@ re-extraction), and re-runs:
 - Prompt templates in `wiki_generator.py` were refined.
 - A wiki page was accidentally deleted from disk.
 
-**Triggers:** Marimo button "🤖 Regenerate wiki" in `ingest_app.py:198`  
+**Triggers:** Marimo button "🤖 Regenerate all wiki pages" in `ingest_app.py` (`action_buttons` cell)  
 (`regen_btn`).
 
 **Today vs Target:**
@@ -771,7 +771,7 @@ Both share identical logic:
 
 - Agent-decided when the chat produces something worth keeping (governed by  
 the system prompt's "Capture" rule).
-- Manual save form in `read_app.py:209` (`save_form` cell) → `save_action`  
+- Manual save form in `read_app.py` (`save_form` cell) → `save_action`  
 cell at ~L235 calls `save_to_wiki` with an explicit client built from  
 `settings.LLM_*`.
 
@@ -823,7 +823,7 @@ flowchart TD
     OPT --> GIT["auto_commit"]
 ```
 
-**Entry:** `delete_source()` — `base/domain/tools/deletion.py:11`
+**Entry:** `delete_source()` — `base/domain/tools/deletion.py:delete_source`
 
 ```python
 delete_source(db_path, workspace, doc_id, *, also_delete_file=False)
