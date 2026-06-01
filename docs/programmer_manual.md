@@ -81,13 +81,45 @@ Which ideas from `Karpathy_concepts.md` this project implements. ✅ done ·
 | Lint: contradictions · stale · orphans · missing concepts · missing xrefs · data gaps | ✅ | §6.1 — all six |
 | Auto-repair of flagged issues | ✅➕ | §6.2 — the concept doc only *flags* |
 | `index.md` catalog · `log.md` timeline · git repo | ✅ | §3, §13 |
-| Search engine over the wiki | 🟡 | SQLite FTS5 (`search_chunks`); no vector/rerank/MCP |
+| Search engine over the wiki | 🟡 | SQLite FTS5 (`search_chunks`); no vector/rerank/MCP — [why partial](#why-the-wiki-search-engine-is-partial) |
 | Interactive / HITL ingest ("discuss, then write") | 🟡 | auto today; post-ingest read-app chat + save-to-wiki partly compensates → §12 |
 | Web search (query Phase 4 + data-gap fill) | ❌ | external search + manual add compensates → §12 |
 | Image handling (download + vision) | ❌ | → §12 |
 | Alternate outputs: Marp decks · charts · canvas | ❌ | → §12 |
 | Graph visualization | ❌ | the graph exists in `document_references`; just not rendered → §12 |
 | Obsidian web-clipper · graph view · Dataview | N/A | this is a marimo project, not Obsidian |
+
+### Why the wiki search engine is partial
+
+The matrix grades "search engine over the wiki" against a specific passage in
+`Karpathy_concepts.md`: *"as the wiki grows you want proper search… **qmd** is a good
+option: a local search engine for markdown files with **hybrid BM25/vector search and
+LLM re-ranking**, all on-device, with both a **CLI** and an **MCP server**."* That sets
+the ✅-full bar at four named properties.
+
+**What exists.** `tools/search.py:search_chunks` runs a single SQLite **FTS5** query
+(`chunks_fts → document_chunks → documents`), scopeable to `wiki` / `sources` / `all`
+and ordered by FTS5 `rank` (BM25). It's wired into the agent as `search_wiki_fts` (§6.7).
+So there *is* a working keyword search engine over the wiki — strictly more than "just
+read `index.md`", which is why this isn't ❌.
+
+**What's missing for ✅** — every piece of the concept's "proper search" definition:
+
+| Karpathy's bar | Here |
+| --- | --- |
+| **Vector / semantic** retrieval | ❌ FTS5 is purely lexical — matches tokens, not meaning. A query for "central bank" won't surface a page that only says "the Fed". (Porter stemming handles word forms, not synonyms.) |
+| **Hybrid** BM25 + vector fusion | ❌ BM25 only |
+| **LLM re-ranking** | ❌ raw FTS5 `rank` order, no rerank pass |
+| **CLI + MCP** surface | ❌ an internal Python function, not a standalone tool an external LLM can shell out to or call over MCP |
+
+**Why it's also a deliberate scope choice, not just unfinished work.** The same concept
+doc notes the `index.md` catalog *"works surprisingly well at moderate scale (~100
+sources) and avoids the need for embedding-based RAG infrastructure"*, and the project
+leans into exactly that: the agent's retrieval cascade is **`index.md` → wiki FTS → raw
+source chunks** (wiki-first RAG, §6.7). At PoC scale, keyword FTS plus the curated index
+covers the need; vector/rerank/MCP is the "as the wiki grows" upgrade that hasn't been
+needed yet. If revisited, the on-brand path is a local hybrid engine (e.g. qmd) exposed
+as an MCP tool, alongside — not replacing — the index-first cascade.
 
 ---
 
