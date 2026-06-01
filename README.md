@@ -232,6 +232,15 @@ WIKI_LLM_MODEL=anthropic/claude-haiku-4-5
 
 If `WIKI_LLM_*` are blank, ingestion falls back to `LLM_*`.
 
+> **Don't use too small a model for ingestion.** Summarisation, concept
+> extraction, and contradiction-checking all lean on the model's reasoning, so a
+> model that's underpowered for *your* documents yields thin summaries, weak
+> citations, or hallucinated pages. What counts as "too small" depends on your
+> corpus and your standards — judge it on the pages it actually produces. If wiki
+> quality disappoints, raise the `WIKI_LLM_*` (ingest) model before blaming the
+> pipeline; the split config above lets you do that while keeping chat on a
+> smaller local model.
+
 ---
 
 ## Customising the chat assistant
@@ -290,6 +299,27 @@ Use the skills `/test-ingest`, `/test-read`, and `/test-all` in Claude Code for 
 
 ---
 
+## Performance at scale
+
+For a personal-sized wiki (tens to low-hundreds of documents) the pipeline stays
+comfortable — nothing here grows quadratically with the document count:
+
+- **Ingestion is incremental.** Unchanged files are skipped by content hash, so
+  re-scanning a large `sources/` folder only re-processes what actually changed.
+- **Lint doesn't compare every page against every other.** The cross-reference
+  and contradiction checks only look at concept-page *pairs that cite a common
+  source*, so their cost scales with how topically interconnected your wiki is —
+  not with the raw document count. Unrelated pages are never compared.
+- **The overview synthesis is incremental.** Each ingest folds the new document
+  into the existing overview instead of re-reading the whole corpus.
+
+The one cost that *can* grow is the **contradiction** lint check: it makes one
+LLM call per shared-source page pair, so a single source cited by many concept
+pages can make that (opt-in) check slow. It reports progress and never blocks
+ingestion — everything else stays roughly linear.
+
+---
+
 ## Limitations & non-goals
 
 This is a working proof of concept of the LLM-Wiki pattern, not a finished  
@@ -304,7 +334,9 @@ as a PDF) and then **ingest it manually** — dropping a file into `sources/`
 does nothing on its own. Open the ingest app and either (a) drag the file into  
 the upload box and click **⚙️ Ingest uploaded file(s)**, or (b) put it in  
 `WIKI_PATH/sources/` and click **🔄 Scan sources/ for changes**, which detects  
-and ingests anything new or modified.
+and ingests anything new or modified. Treat a document from an untrusted origin  
+the way you'd treat untrusted code: its text reaches the chat agent, which can  
+write wiki pages — see [`SECURITY.md`](SECURITY.md).
 - **No image / vision handling.** Text-only ingestion — images embedded in a  
 document are skipped, not described or summarised.
 - **Text-based PDFs only.** No OCR yet, so a scanned / image-only PDF ingests as  
