@@ -26,7 +26,7 @@ and only falls back to raw chunks when needed.
 
 ## What it does
 
-1. **Ingest** — drop PDFs or DOCXs into the ingest app. The pipeline extracts text page by page, chunks it with overlap, runs structured concept extraction, and creates / updates summary + concept pages plus the catalogue, overview, and timeline — then snapshots the result to the wiki's own git repo (optional; see [What ends up on disk](#what-ends-up-on-disk)).
+1. **Ingest** — drop PDFs or DOCXs into the ingest app (this only saves them to `sources/`), then click **Ingest** to run the pipeline. It extracts text page by page, chunks it with overlap, runs structured concept extraction, and creates / updates summary + concept pages plus the catalogue, overview, and timeline — then snapshots the result to the wiki's own git repo (optional; see [What ends up on disk](#what-ends-up-on-disk)).
 2. **Read** — browse the generated wiki pages in a clean 3-column interface. Navigation, content viewer, and AI chat all in one.
 3. **Chat** — ask questions about your documents. A PydanticAI agent reads curated wiki pages first and falls back to raw-source FTS5 only when needed. Streams responses with citations.
 4. **Maintain** — run lint to surface orphans, stale pages, missing cross-references, and missing concepts; run repair to auto-fix the safe ones.

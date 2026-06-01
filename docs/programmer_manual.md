@@ -59,10 +59,11 @@ And onto the "Two Layers of Knowledge" framing:
 
 Two operating principles flow from this:
 
-1. **Ingestion is not just indexing.** Dropping a PDF triggers extraction +
-  chunking + structured concept extraction + creation/update of summary and  
-   concept pages + overview rewrite + git commit. The wiki *grows* with each  
-   source.
+1. **Ingestion is not just indexing.** Dropping a PDF only saves it to
+  `sources/`; submitting the ingest form (or running a scan) then triggers
+   extraction + chunking + structured concept extraction + creation/update of  
+   summary and concept pages + overview rewrite + git commit. The wiki *grows*  
+   with each ingested source.
 2. **Wiki-first retrieval.** The chat agent reads curated wiki pages before
   touching raw chunks; raw-source FTS is a fallback, not the default.
 
