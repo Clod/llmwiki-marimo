@@ -65,7 +65,7 @@ Source files are never modified. Delete `.llmwiki/` anytime — re-ingest rebuil
 Your **`WIKI_PATH` workspace is its own git repo** (a separate repo from this
 project's). Each ingest commits the generated `wiki/` as a labelled snapshot
 (`ingest: paper.pdf`), giving you version history of the knowledge base for free.
-It only ever stages `wiki/` — never your `sources/` or the database — and uses a
+It only ever stages `wiki/` and the `.gitignore` it creates — never your `sources/` or the database — and uses a
 local `LLM Wiki <llmwiki@local>` identity, so your global git config is untouched.
 Set `WIKI_AUTOCOMMIT=0` in `.env` to turn this off and manage the wiki's git
 yourself (then LLM Wiki runs no `git init` and no commits).
