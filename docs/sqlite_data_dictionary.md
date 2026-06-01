@@ -141,16 +141,16 @@ Stores key metadata, raw text content, and extraction/indexing status of files i
 | `file_type` | `TEXT` | `NOT NULL` | None | File extension or MIME category (e.g. `md`, `pdf`, `txt`). |
 | `file_size` | `INTEGER` | None | `0` | Physical file size on disk in bytes. |
 | `document_number`| `INTEGER` | None | None | Internal sequential number assigned during import or processing passes. |
-| `status` | `TEXT` | `CHECK(status IN ('pending', 'processing', 'ready', 'failed'))` | `'pending'` | The parsing lifecycle status of the document:<br>• `'pending'`: Discovered but not yet parsed.<br>• `'processing'`: Text parsing/embedding in progress.<br>• `'ready'`: Fully extracted, chunked, and searchable.<br>• `'failed'`: Encountered processing errors. |
+| `status` | `TEXT` | `CHECK(status IN ('pending', 'processing', 'ready', 'failed'))` | `'pending'` | The parsing lifecycle status of the document:<br>• `'pending'`: Discovered but not yet parsed.<br>• `'processing'`: Text parsing/chunking in progress.<br>• `'ready'`: Fully extracted, chunked, and searchable.<br>• `'failed'`: Encountered processing errors. |
 | `page_count` | `INTEGER` | None | None | Total count of extracted pages (meaningful for PDFs; typically `1` for Markdown). |
 | `content` | `TEXT` | None | None | Full concatenated plain text content of the document. |
-| `tags` | `TEXT` | JSON Array Validation | `'[]'` | JSON array string storing tag associations (e.g., `'["finance", "policy"]'`). |
+| `tags` | `TEXT` | None | `'[]'` | JSON array string storing tag associations (e.g., `'["finance", "policy"]'`). JSON by convention only — the schema does **not** enforce a `CHECK`/`json_valid` constraint. |
 | `date` | `TEXT` | None | None | Arbitrary date metadata associated with the file (e.g., publication date). |
-| `metadata` | `TEXT` | JSON Object Validation | None | Unstructured JSON metadata containing author, publisher, or parsing-specific payloads. |
+| `metadata` | `TEXT` | None | None | Unstructured JSON metadata containing author, publisher, or parsing-specific payloads. JSON by convention only — no `CHECK`/`json_valid` constraint in the schema. |
 | `error_message` | `TEXT` | None | None | Stack trace or failure description if the document `status` is `'failed'`. |
 | `version` | `INTEGER` | None | `0` | Incremental revision number used to track updates and invalidate cache layers. |
-| `parser` | `TEXT` | None | None | Name of the parsing engine that processed the file (e.g. `"markdown"`, `"pdfplumber"`). |
-| `content_hash` | `TEXT` | None | None | MD5 or SHA-256 hash of the source file content to detect modification. |
+| `parser` | `TEXT` | None | None | Name of the parsing engine that processed the file. Actual values: `"opendataloader"` (PDF) or `"libreoffice+opendataloader"` (DOCX, converted to PDF first). `NULL` for generated wiki pages (`create_page` does not set it). |
+| `content_hash` | `TEXT` | None | None | SHA-256 hash of the source file content (`detector.py` uses `hashlib.sha256`), used to detect modification. |
 | `mtime_ns` | `INTEGER` | None | None | The source file's last modified timestamp on disk (in nanoseconds) used for incremental updates. |
 | `last_indexed_at`| `TEXT` | None | None | UTC timestamp of when this document was successfully written into the database index. |
 | `stale_since` | `TEXT` | None | None | Timestamp marking the moment this record was marked as out-of-sync or needing re-ingestion. |
@@ -169,12 +169,12 @@ Stores the raw extracted text of multi-page files (e.g., PDFs) segregated page-b
 | `document_id` | `TEXT` | `NOT NULL`, `FOREIGN KEY REFERENCES documents(id) ON DELETE CASCADE` | None | Links to the parent document. If the document is deleted, all pages are cascadingly deleted. |
 | `page` | `INTEGER` | `NOT NULL`, `UNIQUE(document_id, page)` | None | The 1-indexed page number of the document. |
 | `content` | `TEXT` | `NOT NULL` | None | Raw extracted plain text specific to this page. |
-| `elements` | `TEXT` | JSON Field | None | Rich structural components (e.g., layout coordinates, tables, images, bounding boxes) stored as a JSON payload. |
+| `elements` | `TEXT` | None | None | Rich structural components (e.g., layout coordinates, tables, images, bounding boxes) stored as a JSON payload. Plain `TEXT` — no JSON constraint in the schema. |
 
 ---
 
 ### 3.4. `document_chunks`
-Stores smaller, semantic fragments (chunks) of documents. These are fed to LLMs to avoid context window overflows and optimize vector similarity searches.
+Stores smaller, semantic fragments (chunks) of documents. They back the **FTS5 keyword search** (`chunks_fts`) and are fed to the chat agent as retrieval context. (There is no vector/embedding search — retrieval is lexical BM25 only.)
 
 | Column | Data Type | Key / Constraints | Default Value | Description |
 | :--- | :--- | :--- | :--- | :--- |

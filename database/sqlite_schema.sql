@@ -9,9 +9,13 @@
 -- (chunks), and links between documents so the AI can search and read them instantly.
 --
 -- KEY CONCEPT: "Derived State"
--- This database contains "derived state". This means that if you delete this 
--- database file, the system can rebuild it completely by scanning the files 
--- inside the workspace filesystem again. No data is lost permanently!
+-- This database is a "derived" index, not the system of record (the files in
+-- sources/ and wiki/ are). It can be repopulated by re-running the ingestion
+-- pipeline, but that is NOT a passive rescan: it re-invokes the LLM, so the
+-- rebuild is non-deterministic and overwrites the generated wiki markdown.
+-- DB-only data (page text, chunks, the summary->source link) is recoverable
+-- only by re-extracting the original sources. See docs/sqlite_data_dictionary.md
+-- section 1 for the full caveats.
 --
 -- =============================================================================
 
@@ -117,10 +121,11 @@ CREATE TABLE IF NOT EXISTS documents (
     -- Revision/version number of the document (used to track updates)
     version INTEGER DEFAULT 0,
     
-    -- Name of the parsing engine/system used to extract text (e.g. "markdown", "pdfplumber")
+    -- Name of the parsing engine that extracted the text. Actual values:
+    -- "opendataloader" (PDF) or "libreoffice+opendataloader" (DOCX); NULL for wiki pages.
     parser TEXT,
     
-    -- MD5/SHA256 hash of the content to quickly check if a file has changed on disk
+    -- SHA-256 hash of the content (detector.py uses hashlib.sha256) to detect file changes
     content_hash TEXT,
     
     -- Last modified timestamp in nanoseconds, used for efficient caching
