@@ -6,7 +6,6 @@ Three public entry points:
   regenerate_wiki_pages() — regenerate wiki pages without re-extracting
 
 All functions are synchronous — safe to call directly from Marimo cells.
-The migration (source_document_id column) is applied automatically on open_db().
 """
 
 import json

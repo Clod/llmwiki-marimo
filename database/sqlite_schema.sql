@@ -135,7 +135,12 @@ CREATE TABLE IF NOT EXISTS documents (
     -- Timestamps indicating when this database record was created and last updated
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    
+
+    -- Self-reference: a derived wiki page (e.g. a /wiki/summaries/ page) points back
+    -- to the 'source' document it was generated from. ON DELETE SET NULL orphans the
+    -- derived page rather than destroying it when the source is deleted.
+    source_document_id TEXT REFERENCES documents(id) ON DELETE SET NULL,
+
     -- Constraint: Every document must have a unique relative path (no duplicates)
     UNIQUE(relative_path)
 );
@@ -286,6 +291,9 @@ CREATE INDEX IF NOT EXISTS idx_documents_path ON documents(path);
 -- Optimizes filtering files by kind ('wiki', 'source', etc.) or status ('ready', 'failed')
 CREATE INDEX IF NOT EXISTS idx_documents_source_kind ON documents(source_kind);
 CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
+
+-- Optimizes backlinks from a derived wiki page to its origin document (summary -> source)
+CREATE INDEX IF NOT EXISTS idx_documents_source_doc ON documents(source_document_id);
 
 -- Optimizes fetching chunks that belong to a particular document
 CREATE INDEX IF NOT EXISTS idx_chunks_doc ON document_chunks(document_id);

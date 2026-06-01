@@ -16,10 +16,15 @@ The database uses two performance-critical SQLite configurations:
 1. **Write-Ahead Logging (`PRAGMA journal_mode=WAL;`):** Enables concurrent reading and writing. Multiple reader processes (e.g., Marimo notebook frontend cells, search queries) can read the database while a backend process is indexing new files.
 2. **Foreign Key Enforcement (`PRAGMA foreign_keys=ON;`):** Ensures relational integrity. Cascade deletes (`ON DELETE CASCADE`) are heavily utilized to prevent "orphan" pages, chunks, and citations when a document is deleted.
 
-### Schema Source: Base DDL + Migrations
-The runtime schema is the base DDL **plus migrations applied automatically by `open_db()`** (`base/domain/tools/db.py`), so the live database is a superset of [sqlite_schema.sql](../database/sqlite_schema.sql):
-
-* **Migration 001** adds `documents.source_document_id` (a self-reference) and its index `idx_documents_source_doc`. Columns and indexes introduced by migrations are flagged as such in the tables below.
+### Schema Source
+The runtime schema is exactly [sqlite_schema.sql](../database/sqlite_schema.sql), applied
+verbatim by `open_db()` (`base/domain/tools/db.py`) on first connection — every statement is
+`CREATE … IF NOT EXISTS`, so re-opening an existing database is a no-op. There is **no
+migration layer**: this is a greenfield project with no deployed databases to upgrade, so the
+final schema lives in the DDL from the start. (A self-reference column, `documents.source_document_id`,
+was briefly added at runtime during development; it has since been folded into the base DDL and
+the runtime `ALTER` removed.) If a post-release schema change ever becomes necessary, the
+right tool is a `PRAGMA user_version`-gated migration step, added then — not before.
 
 ---
 
@@ -151,7 +156,7 @@ Stores key metadata, raw text content, and extraction/indexing status of files i
 | `stale_since` | `TEXT` | None | None | Timestamp marking the moment this record was marked as out-of-sync or needing re-ingestion. |
 | `created_at` | `TEXT` | None | `(datetime('now'))` | Timestamp of database record insertion. |
 | `updated_at` | `TEXT` | None | `(datetime('now'))` | Timestamp of the last update to this database row. |
-| `source_document_id` | `TEXT` | `FOREIGN KEY REFERENCES documents(id) ON DELETE SET NULL` | None | **Added by migration 001** (not in the base DDL). Self-reference linking a *derived* wiki page back to the `'source'` document it was generated from — e.g. each `/wiki/summaries/` page points to its origin PDF. Backs the citation graph. `ON DELETE SET NULL` orphans (rather than destroys) the derived page if the source is deleted. Indexed by `idx_documents_source_doc`. |
+| `source_document_id` | `TEXT` | `FOREIGN KEY REFERENCES documents(id) ON DELETE SET NULL` | None | Self-reference linking a *derived* wiki page back to the `'source'` document it was generated from — e.g. each `/wiki/summaries/` page points to its origin PDF. Backs the citation graph. `ON DELETE SET NULL` orphans (rather than destroys) the derived page if the source is deleted. Indexed by `idx_documents_source_doc`. |
 
 ---
 
@@ -267,4 +272,4 @@ Speed indexes allow the SQLite engine to locate records in $O(\log N)$ logarithm
 | `idx_chunks_doc` | `document_chunks` | `document_id` | Optimizes joining documents with their constituent chunks and mass deletions. |
 | `idx_refs_source` | `document_references`| `source_document_id`| Optimizes graph traversal for finding outbound links (what documents does *this* document cite?). |
 | `idx_refs_target` | `document_references`| `target_document_id`| Optimizes graph traversal for finding inbound links/backlinks (what documents cite *this* document?). |
-| `idx_documents_source_doc` | `documents` | `source_document_id` | **Added by migration 001.** Optimizes backlinks from derived wiki pages to their origin document (e.g. summary → source). |
+| `idx_documents_source_doc` | `documents` | `source_document_id` | Optimizes backlinks from derived wiki pages to their origin document (e.g. summary → source). |

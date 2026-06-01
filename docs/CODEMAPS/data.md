@@ -51,5 +51,6 @@ chunks; `source`/`target` on references.
 
 ## Migrations
 
-No migration framework — `db.py:_ensure_migration` applies idempotent additions
-on open; `database/sqlite_schema.sql` is the canonical schema.
+None. `database/sqlite_schema.sql` is the single canonical schema, applied
+verbatim by `db.py:open_db` (all statements are `CREATE … IF NOT EXISTS`, so
+re-opening is a no-op). Greenfield project, no deployed DBs to upgrade.

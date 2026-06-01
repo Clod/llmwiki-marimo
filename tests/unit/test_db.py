@@ -43,12 +43,12 @@ def test_open_db_idempotent(tmp_path) -> None:
     conn2.close()
 
 
-def test_open_db_migration_idempotent(tmp_path) -> None:
+def test_open_db_has_source_document_id(tmp_path) -> None:
     db_path = str(tmp_path / "index.db")
-    # First open applies migration
+    # The self-reference column ships in the base schema; a fresh DB has it.
     conn = open_db(db_path)
     conn.close()
-    # Second open must not raise even though column already exists
+    # Re-opening must stay idempotent.
     conn = open_db(db_path)
     cols = {row[1] for row in conn.execute("PRAGMA table_info(documents)").fetchall()}
     conn.close()
