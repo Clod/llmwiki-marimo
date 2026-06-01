@@ -172,7 +172,7 @@ See [LLM providers](#llm-providers) for Ollama and LM Studio config.
 ### 3. Ingest documents
 
 ```bash
-uv run marimo run marimo/ingest_app.py --no-sandbox
+uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
 ```
 
 Open [http://localhost:2718](http://localhost:2718), drop in your PDFs or DOCXs, click **Ingest**.
@@ -180,10 +180,13 @@ Open [http://localhost:2718](http://localhost:2718), drop in your PDFs or DOCXs,
 ### 4. Read and chat
 
 ```bash
-uv run marimo run marimo/read_app.py --no-sandbox
+uv run marimo run marimo/read_app.py --no-sandbox --port 2720
 ```
 
-Open [http://localhost:2718](http://localhost:2718). Select a page on the left, read it in the middle, chat on the right.
+Open [http://localhost:2720](http://localhost:2720). Select a page on the left, read it in the middle, chat on the right.
+
+> Using distinct ports (2718 for ingest, 2720 for read) lets you run both apps  
+> at once without a collision — marimo defaults both to 2718 otherwise.
 
 ---
 
