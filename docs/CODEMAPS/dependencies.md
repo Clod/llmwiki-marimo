@@ -1,4 +1,4 @@
-<!-- Generated: 2026-05-31 | Files scanned: 2 (pyproject.toml, config.py) | Token estimate: ~470 -->
+<!-- Generated: 2026-06-01 | Files scanned: 2 (pyproject.toml, config.py) | Token estimate: ~470 -->
 
 # Dependencies
 
@@ -33,7 +33,9 @@ Web search     NOT integrated — RAG Phase 4, deferred future enhancement (§12
 
 ```
 SQLite + FTS5  All persistence + full-text search (no external DB/vector store).
-git            Per-workspace auto-commit of wiki changes (tools/git_ops.py).
+git            OPTIONAL. Per-workspace auto-commit of wiki changes
+               (tools/git_ops.py). A missing/failing git is warned once and
+               skipped — never fails an ingest; WIKI_AUTOCOMMIT=0 disables it.
 filesystem     workspace/ holds sources/, wiki/, .llmwiki/index.db.
 ```
 

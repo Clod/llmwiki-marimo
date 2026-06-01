@@ -1,5 +1,5 @@
-<!-- Generated: 2026-05-31 | Files scanned: 1 | Token estimate: ~600 -->
-<!-- Schema unchanged since 2026-05-25; header refreshed. -->
+<!-- Generated: 2026-06-01 | Files scanned: 1 | Token estimate: ~600 -->
+<!-- 2026-06-01: source_document_id + idx folded into base DDL; runtime migration removed. -->
 
 # Data Model
 
@@ -46,8 +46,8 @@ documents *──* documents via document_references
 
 ## Indexes
 
-`relative_path`, `path`, `source_kind`, `status` on documents; `document_id` on
-chunks; `source`/`target` on references.
+`relative_path`, `path`, `source_kind`, `status`, `source_document_id` on
+documents; `document_id` on chunks; `source`/`target` on references.
 
 ## Migrations
 

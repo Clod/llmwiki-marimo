@@ -1,4 +1,4 @@
-<!-- Generated: 2026-05-31 | Files scanned: 26 | Token estimate: ~1000 -->
+<!-- Generated: 2026-06-01 | Files scanned: 26 | Token estimate: ~1000 -->
 
 # Backend (base/domain)
 
@@ -15,14 +15,14 @@ client. `wiki_registry.py` (sibling of `domain/`-subdirs) backs the wiki picker:
 ## ingestion/ — sources → wiki
 
 ```
-ingest_file(db_path, workspace, file_path, client, model, ...)   pipeline.py:88
+ingest_file(db_path, workspace, file_path, client, model, ...)   pipeline.py:89
   detector.detect_file_type → extractor / pdf_extract (opendataloader-pdf)
   → chunker.chunk_pages → wiki_generator.extract_structured (LLM)
   → build_summary_page / build_concept_page → wiki_fs.create_page
   → references.update_references → index_manager.update_index → git_ops.auto_commit
-scan_and_ingest(...)        pipeline.py:340   bulk ingest a sources/ dir
-regenerate_wiki_pages(...)  pipeline.py:379   rebuild pages from stored sources
-batch_ingest(...)           batch.py:20       many files, global updates once at end
+scan_and_ingest(...)        pipeline.py:463   bulk ingest a sources/ dir
+regenerate_wiki_pages(...)  pipeline.py:508   rebuild pages from stored sources
+batch_ingest(...)           batch.py:44       many files, global updates once at end
 ```
 Key: `wiki_generator.py` holds all LLM prompts (`structure_chat_content`,
 `extract_structured`, `build_*_page`, `update_overview`, `make_wiki_slug`).
@@ -66,11 +66,14 @@ tools.py    search_source_chunks (async, raw source FTS fallback)
 ## tools/ — infrastructure
 
 ```
-db.py          open_db / get_connection (WAL, FK on; applies shared schema)
+db.py          open_db / get_connection (WAL, FK on; applies sqlite_schema.sql,
+               idempotent — no migration layer)
 wiki_fs.py     create_page · read_page · append_to_page · delete_page (+chunking)
 references.py  update_references (rebuild cites/links_to edges) · get_backlinks ·
                get_forward_refs · find_orphan_pages · find_stale_pages
 search.py      search_chunks(db, query, limit, scope=all|wiki|sources)  FTS5
 deletion.py    delete_source (FK cascade; marks dependent pages stale)
-git_ops.py     init_wiki_repo · auto_commit
+git_ops.py     init_wiki_repo · auto_commit · autocommit_enabled
+               (git is OPTIONAL — a missing/failing git is warned once and skipped,
+                never fails an ingest; WIKI_AUTOCOMMIT=0 disables it entirely)
 ```
