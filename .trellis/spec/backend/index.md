@@ -15,7 +15,7 @@ This directory contains guidelines for backend development. Fill in each file wi
 | Guide | Description | Status |
 |-------|-------------|--------|
 | [Directory Structure](./directory-structure.md) | base/ layout, sys.path convention, module naming | Done |
-| [Database Guidelines](./database-guidelines.md) | SQLite patterns, open_db, migrations, query conventions | Done |
+| [Database Guidelines](./database-guidelines.md) | SQLite patterns, open_db, schema management (no migration layer), query conventions | Done |
 | [Error Handling](./error-handling.md) | IngestResult, custom exceptions, marimo cell patterns | Done |
 | [Quality Guidelines](./quality-guidelines.md) | Forbidden patterns, required conventions, test commands | Done |
 | [Logging Guidelines](./logging-guidelines.md) | wiki logger hierarchy, debug mode, progress callbacks | Done |

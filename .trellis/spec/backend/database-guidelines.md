@@ -37,7 +37,8 @@ with get_connection(db_path) as conn:
 ```
 
 `open_db()` sets `row_factory = sqlite3.Row`, enables WAL mode and foreign keys,
-applies the base schema, and runs any pending migrations.
+and applies the canonical schema (idempotent — every statement is
+`CREATE … IF NOT EXISTS`, so re-opening an existing DB is a no-op).
 
 Do not leave connections open across cell boundaries in marimo notebooks.
 
@@ -45,34 +46,32 @@ Do not leave connections open across cell boundaries in marimo notebooks.
 
 ## Schema Management
 
-The canonical schema lives in `database/sqlite_schema.sql`.
-It uses `CREATE TABLE IF NOT EXISTS` throughout — safe to apply on every open.
+The canonical schema lives in `database/sqlite_schema.sql` and is the **single
+source of truth**. It uses `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT
+EXISTS` throughout, so `open_db()` applies it safely on every open.
 
-**Do not modify `database/sqlite_schema.sql` directly.**
-Add structural changes via migration functions (see below).
+**Make structural changes directly in `database/sqlite_schema.sql`.**
+Add a new column to its `CREATE TABLE` body, or a new index to the index block.
+There is **no migration layer** — this is a greenfield project with no deployed
+databases to upgrade, so the final schema lives in the DDL from the start.
 
-### Migrations
+### No migrations (and what to do if that ever changes)
 
-Additive schema changes (new columns, new indexes) are applied in `_ensure_migration()`:
+`open_db()` does *not* run a migration step. A `_ensure_migration()` /
+`ALTER TABLE` shim once existed for `source_document_id`; it has been removed and
+the column folded into the base DDL.
 
-```python
-def _ensure_migration(conn: sqlite3.Connection) -> None:
-    try:
-        conn.execute(
-            "ALTER TABLE documents ADD COLUMN source_document_id TEXT "
-            "REFERENCES documents(id) ON DELETE SET NULL"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_documents_source_doc "
-            "ON documents(source_document_id)"
-        )
-        conn.commit()
-    except sqlite3.OperationalError:
-        pass  # Column already exists — safe to ignore
-```
+The reason there is no migration framework: with no databases deployed anywhere,
+editing the canonical DDL is enough — fresh DBs get the change, and there are no
+old-shape DBs to reconcile. `CREATE … IF NOT EXISTS` does **not** alter an
+existing table, so this only works while every existing DB is disposable
+(dev DBs, the regenerable golden corpus).
 
-Migrations are idempotent: `ALTER TABLE` raises `OperationalError` if the column exists,
-which is silently swallowed.
+If the project ever ships and a *post-release* schema change becomes necessary,
+add a real `PRAGMA user_version`-gated migration step at that point — version the
+DB, apply each step exactly once in order — and update this section. Do not
+reintroduce the broad `try/except OperationalError` shim: it has no version
+tracking and silently swallows unrelated errors.
 
 ---
 
