@@ -869,6 +869,43 @@ worth it. If revisited: add an async tool in `chat/tools.py` alongside
 `search_source_chunks`, pick a provider (e.g. Tavily/Brave free tiers, both  
 RAG-oriented; DuckDuckGo keyless but weaker), number the prompt phases  
 explicitly, and mock the network in tests.
+- **Non-LLM reindex from disk (`reindex_from_disk`).** Today the only way to
+  repopulate a lost or corrupt `index.db` is to re-run the LLM ingestion pipeline
+  (`scan_and_ingest`). That path is **non-deterministic** — it re-invokes the model,
+  so regenerated wiki pages, document IDs, and chunk boundaries all differ run to run —
+  and it **overwrites** the on-disk wiki markdown, destroying any manual edits (and it
+  can't reconstruct a page at all once its source file is gone). That contradicts the
+  derived-state principle in [`sqlite_data_dictionary.md`](sqlite_data_dictionary.md) §1
+  and the Two-Layers framing in §1 here: the durable layer is the **Encyclopedia**
+  (`wiki/**/*.md`) plus the sources, and the **Filing Cabinet** (the DB) should be
+  rebuildable from them *mechanically, without the LLM*. `reindex_from_disk(workspace,
+  db_path)` would be that deterministic complement:
+  1. Apply the schema to a fresh DB (`open_db`) and re-create the `workspace` row.
+  2. Walk `sources/*` → one `source_kind='source'` `documents` row per file (recompute
+     `content_hash` / `mtime_ns` / `file_size`), **re-extract** pages with the existing
+     deterministic extractor, re-chunk, and fill `document_pages` + `document_chunks`.
+     Re-extraction is the only step that reads the original file and it uses **no LLM**.
+  3. Walk `wiki/**/*.md` → one `source_kind='wiki'` row per page; read title/tags from
+     frontmatter and re-chunk the markdown into `document_chunks` (the FTS5 triggers
+     repopulate `chunks_fts`).
+  4. Once every node exists, run `update_references` per wiki page to rebuild
+     `document_references` from the on-disk citations / wikilinks — already idempotent
+     (§4, "Edges are rebuilt, never patched").
+  5. Re-derive `source_document_id` for each `wiki/summaries/<slug>.md` by matching
+     `<slug>` back to the source whose `make_wiki_slug(filename)` equals it (a
+     deterministic heuristic — the link itself is never written to disk).
+
+  **Recovered deterministically (identical every run, no LLM):** all `documents` rows,
+  `document_chunks` + `chunks_fts`, the `document_references` graph, and
+  `index.md` / `overview.md` / `log.md` (read back verbatim — they are just files).
+  **Cannot come from disk alone:** internal counters (`version`, `document_number`)
+  reset, and `created_at` resets to "now" (git history could backfill it — out of
+  scope). **Caveats:** `document_pages` / `elements` repopulate only while the source
+  files are still present to re-extract — a "metadata-only" fast mode could skip that
+  and leave `regenerate_wiki_pages` degraded until a real ingest; and a wiki page whose
+  source was deleted re-registers fine but its `cites` edge stays dangling, exactly as
+  today. Net: same index end-state as `scan_and_ingest`, but it treats the
+  human-readable markdown as the source of truth and never rewrites it.
 
 ---
 
