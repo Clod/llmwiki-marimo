@@ -56,9 +56,9 @@ actions.py  one repair_* fn per check. All but stale/missing_concept are
 ```
 create_agent(base_url, api_key, model, system_prompt=_DEFAULT)  agent.py
   deps_type=str — db_path is passed as deps at run_stream time, not to the factory
-  tools = [read_wiki_page, search_wiki_fts, file_to_wiki, search_source_chunks]
+  tools = [read_wiki_page, search_wiki_fts, search_source_chunks]  (read-only; no write tool)
 config.py   _DEFAULT_SYSTEM_PROMPT + load_config(wiki_path) ← wiki_config.toml
-wiki_tools.py  read_wiki_page · search_wiki_fts · file_to_wiki / save_to_wiki
+wiki_tools.py  read_wiki_page · search_wiki_fts · save_to_wiki (form-driven, not an agent tool)
                + _lint_and_repair_after_save (post-save reconciliation hook)
 tools.py    search_source_chunks (async, raw source FTS fallback)
 ```

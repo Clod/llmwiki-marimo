@@ -5,9 +5,8 @@ Actual agent routing (which tool the LLM chooses to call) requires a real
 LLM and is covered by manual / E2E testing.
 """
 
-from unittest.mock import patch
 
-from domain.chat.wiki_tools import file_to_wiki, read_wiki_page, search_wiki_fts, save_to_wiki
+from domain.chat.wiki_tools import read_wiki_page, search_wiki_fts, save_to_wiki
 from domain.tools.wiki_fs import create_page
 from tests.helpers.fake_llm import FakeLLMClient
 from tests.helpers.workspace import WorkspaceFixture
@@ -132,70 +131,31 @@ def test_search_wiki_fts_respects_wiki_scope(tmp_workspace: WorkspaceFixture) ->
     assert "No wiki pages found" in result
 
 
-# ── 4.3: file_to_wiki ────────────────────────────────────────────────────────
+# ── save_to_wiki: index + FTS coverage ───────────────────────────────────────
+# (create/update/structured-output are covered in the save_to_wiki section below)
 
-def test_file_to_wiki_creates_new_concept_page(tmp_workspace: WorkspaceFixture) -> None:
-    with patch("domain.ingestion.wiki_generator.structure_chat_content", return_value=_STRUCTURED):
-        result = file_to_wiki(
-            _Ctx(tmp_workspace.db_path),
-            title="Yield Curve Analysis",
-            content=_CONTENT,
-            category="concept",
-        )
-    assert "Created" in result
-    assert (tmp_workspace.workspace / "wiki" / "concepts" / "yield-curve-analysis.md").exists()
-
-
-def test_file_to_wiki_updates_existing_page(tmp_workspace: WorkspaceFixture) -> None:
-    _update = _STRUCTURED + "\n## Update\n\nNew information added by the agent.\n"
-    with patch("domain.ingestion.wiki_generator.structure_chat_content", return_value=_STRUCTURED):
-        file_to_wiki(_Ctx(tmp_workspace.db_path), "Yield Curve", _CONTENT, "concept")
-    with patch("domain.ingestion.wiki_generator.structure_chat_content", return_value=_update):
-        result = file_to_wiki(
-            _Ctx(tmp_workspace.db_path),
-            title="Yield Curve",
-            content="## Update\n\nNew information added by the agent.\n",
-            category="concept",
-        )
-    assert "Updated" in result
-    on_disk = (tmp_workspace.workspace / "wiki" / "concepts" / "yield-curve.md").read_text()
-    assert "New information added" in on_disk
-    assert "Definition" in on_disk  # structured content preserved
-
-
-def test_file_to_wiki_adds_to_index(tmp_workspace: WorkspaceFixture) -> None:
-    with patch("domain.ingestion.wiki_generator.structure_chat_content", return_value=_STRUCTURED):
-        file_to_wiki(
-            _Ctx(tmp_workspace.db_path),
-            title="Yield Curve",
-            content=_CONTENT,
-            category="concept",
-        )
+def test_save_to_wiki_adds_to_index(tmp_workspace: WorkspaceFixture) -> None:
+    """A saved page is registered in wiki/index.md."""
+    fake = FakeLLMClient(response_content=_STRUCTURED)
+    save_to_wiki(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "Yield Curve", _CONTENT, "concept",
+        client=fake, model="fake",
+    )
     index = (tmp_workspace.workspace / "wiki" / "index.md").read_text()
     assert "yield-curve" in index.lower()
 
 
-def test_file_to_wiki_page_searchable_via_fts(tmp_workspace: WorkspaceFixture) -> None:
-    with patch("domain.ingestion.wiki_generator.structure_chat_content", return_value=_STRUCTURED):
-        file_to_wiki(
-            _Ctx(tmp_workspace.db_path),
-            title="Yield Curve",
-            content=_CONTENT,
-            category="concept",
-        )
+def test_save_to_wiki_page_searchable_via_fts(tmp_workspace: WorkspaceFixture) -> None:
+    """A saved page becomes searchable through the wiki FTS index."""
+    fake = FakeLLMClient(response_content=_STRUCTURED)
+    save_to_wiki(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "Yield Curve", _CONTENT, "concept",
+        client=fake, model="fake",
+    )
     result = search_wiki_fts(_Ctx(tmp_workspace.db_path), "monetary policy")
     assert "result" in result.lower()
-
-
-def test_file_to_wiki_structured_output_on_disk(tmp_workspace: WorkspaceFixture) -> None:
-    """Structured content (frontmatter + sections) must be written to disk."""
-    with patch("domain.ingestion.wiki_generator.structure_chat_content", return_value=_STRUCTURED):
-        file_to_wiki(_Ctx(tmp_workspace.db_path), "Yield Curve", _CONTENT, "concept")
-    on_disk = (tmp_workspace.workspace / "wiki" / "concepts" / "yield-curve.md").read_text()
-    assert "tags: [concept]" in on_disk
-    assert "## Definition" in on_disk
-    assert "## Key Characteristics" in on_disk
-    assert "## Sources" in on_disk
 
 
 # ── 4.2: agent configuration ──────────────────────────────────────────────────

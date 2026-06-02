@@ -119,7 +119,7 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 tests/
-├── unit/                  # 250 unit tests (FakeLLM, no network)
+├── unit/                  # 252 unit tests (FakeLLM, no network)
 ├── e2e/                   # Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + workspace
 ```
@@ -371,9 +371,10 @@ markdown pages — cross-links are clickable, the graph just isn't drawn.
 LLM discuss a source with you and write pages under your direction; here you  
 drop a file and the pipeline extracts → summarises → files it in one shot, with  
 no mid-ingest review. You steer the wiki *afterwards*: open the resulting page  
-in the read app, chat about the document, and save corrections or new syntheses  
-back as wiki pages via the chat's save tools (`file_to_wiki` / `save_to_wiki`).  
-So the human-in-the-loop step is post-hoc rather than during ingestion.
+in the read app, chat about the document, then save a corrected or synthesised  
+answer back as a wiki page via the read app's **Save to wiki** form
+(`save_to_wiki`). The agent only drafts and proposes — the save is your explicit  
+click — so the human-in-the-loop step is post-hoc rather than during ingestion.
 
 The rationale for each cut and the revisit plan live in  
 [`docs/programmer_manual.md`](docs/programmer_manual.md) §12.

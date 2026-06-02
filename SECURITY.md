@@ -26,16 +26,18 @@ LLM Wiki is **local-first** and designed to keep your data on your machine:
 - DOCX ingestion shells out to LibreOffice for conversion. Only ingest documents
   you trust.
 - **Prompt injection from ingested documents.** Document text is *untrusted
-  input* that reaches the chat agent — and the agent can **write files** to your
-  wiki via its save tools (`file_to_wiki` / `save_to_wiki`). A maliciously
-  crafted source could, in principle, try to steer the agent into writing or
-  overwriting wiki pages with attacker-chosen content. In ordinary personal use
-  you ingest your own documents, so this is low risk; but treat any file from an
-  untrusted origin (for example a PDF downloaded from the web) the way you'd
-  treat untrusted code — review it before ingesting, and review the wiki's git
-  history before relying on or sharing pages the agent saved. This version ships
-  no automatic defense against injection; the safeguard is that the wiki is
-  local, every change is a reviewable git commit, and you choose what to ingest.
+  input* that reaches the chat agent. The agent itself is **read-only** — it has
+  no file-writing tool, so a malicious source cannot steer it into silently
+  writing or overwriting wiki pages. The only way a chat answer becomes a wiki
+  page is the read-app **Save to wiki** form, which *you* submit (`save_to_wiki`);
+  what gets written is the response you reviewed on screen. Injected text could
+  still try to influence the *content* of an answer you then choose to save, so
+  treat any file from an untrusted origin (for example a PDF downloaded from the
+  web) the way you'd treat untrusted code — review it before ingesting, and read
+  a drafted page before pressing Save. This version ships no automatic defense
+  against injection; the safeguard is that the agent never writes on its own, the
+  wiki is local, every change is a reviewable git commit, and you choose what to
+  ingest and what to save.
 
 ## Reporting a vulnerability
 

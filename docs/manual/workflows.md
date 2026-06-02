@@ -22,7 +22,7 @@ Each workflow below follows the same template:
 | 6.5  | Scan sources       | ✅      | `ingestion/pipeline.py:scan_and_ingest`                                          | Should chain into lint+repair (§11.11)                 |
 | 6.6  | Regenerate         | ✅      | `ingestion/pipeline.py:regenerate_wiki_pages`                                          | Should chain into lint+repair (§11.8)                  |
 | 6.7  | Chat / RAG         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Phases 1–3 (wiki + sources) complete; web search (Phase 4) is a future enhancement (§12) |
-| 6.8  | Chat → Wiki        | ✅      | `chat/wiki_tools.py:file_to_wiki` and `:save_to_wiki`               | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred (§12) |
+| 6.8  | Chat → Wiki        | ✅      | `read_app.py` Save form → `chat/wiki_tools.py:save_to_wiki` (user-driven; agent has no write tool) | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred (§12) |
 | 6.9  | Source deletion    | ✅      | `tools/deletion.py:delete_source`                                               | —                                                      |
 | 6.10 | Wiki page deletion | ✅      | `tools/wiki_fs.py:delete_page`                               | —                                                     |
 
@@ -75,7 +75,7 @@ deterministic by default, full LLM if the form checkbox is ticked, scoped to the
 pages the ingest touched — so the 6.2-row writes can also fire as the tail of an
 ingest (without touching unrelated pages). 6.4/6.5 reuse 6.3 per file (6.4 defers
 overview/log/commit to once per batch). 6.6 touches **summary pages only** — no
-`document_references`, `index.md`, `overview.md`, or lint. 6.7 is read-only unless the agent calls `file_to_wiki` (→ 6.8). 6.9/6.10
+`document_references`, `index.md`, `overview.md`, or lint. 6.7 is fully read-only; the agent has no write tool, so 6.8 (Chat → Wiki) is a separate user-driven save. 6.9/6.10
 deletions cascade via `ON DELETE CASCADE` + the `chunks_fts` triggers; 6.10 also
 **U**pdates *other* pages when stripping dead links to the deleted page.
 
@@ -583,11 +583,12 @@ flowchart TD
     P2 -->|not enough| P3["Phase 3 · search_source_chunks 🔎 (sources)"]
     P3 --> ANS
     P3 -. deferred .-> P4["Phase 4 · web search ❌ §12"]
-    ANS -->|worth keeping| CAP["file_to_wiki → §6.8"]
+    ANS -->|worth keeping| CAP["user saves via form → §6.8"]
 ```
 
-Routing is prompt-driven, not code-driven. Phases 1–3 are **read-only** over
-`index.db` + `wiki/`; only the capture branch (`file_to_wiki`, §6.8) writes.
+Routing is prompt-driven, not code-driven. All phases are **read-only** over
+`index.db` + `wiki/`; the agent never writes — saving (§6.8) is a separate
+user action via the read-app Save form (`save_to_wiki`).
 
 **Entry:** `create_agent()` — `base/domain/chat/agent.py`, paired with  
 the system prompt in `base/domain/chat/config.py` (`_DEFAULT_SYSTEM_PROMPT`).
@@ -610,7 +611,6 @@ and higher-signal than re-deriving knowledge from raw chunks on every query.
 | ---------------------------------------- | -------------------------- | ---------------------- | ----------------------------------------- |
 | `read_wiki_page(path)`                   | `chat/wiki_tools.py:read_wiki_page`       | single file            | Direct page lookup by known path          |
 | `search_wiki_fts(query, limit=10)`       | `chat/wiki_tools.py:search_wiki_fts`      | `source_kind='wiki'`   | Topic discovery across all wiki pages     |
-| `file_to_wiki(title, content, category)` | `chat/wiki_tools.py:file_to_wiki`         | write                  | Persist a synthesis (see §6.8)            |
 | `search_source_chunks(query, limit=10)`  | `chat/tools.py:search_source_chunks` (async) | `source_kind='source'` | Last-resort lookup into raw PDFs/DOCXs    |
 | Web search                               | —                          | —                      | ❌ **NOT YET IMPLEMENTED** (Pending §11.5) |
 
@@ -619,9 +619,9 @@ workspace from it via `workspace = Path(db_path).parent.parent` (because the
 DB is always at `workspace/.llmwiki/index.db`).
 
 The registered set is exactly `chat/agent.py:create_agent` →
-`tools=[read_wiki_page, search_wiki_fts, file_to_wiki, search_source_chunks]`.
-`save_to_wiki` is **not** an agent tool — it's the read-app save form's path
-(§6.8); the agent's write tool is `file_to_wiki`.
+`tools=[read_wiki_page, search_wiki_fts, search_source_chunks]` — all read-only.
+The agent has **no write tool**: saving a chat answer as a wiki page is the
+user's action via the read-app Save form (`save_to_wiki`, §6.8).
 
 #### Routing rules (from `_DEFAULT_SYSTEM_PROMPT`)
 
@@ -638,7 +638,8 @@ The intended retrieval flow is staged — *wiki first, raw sources second, web*
 4. **Phase 4 — Web search.** Only when phases 1–3 returned nothing useful.
   **Not implemented yet** — track in §11.5 and §11.6.
 5. **Capture.** When the agent produces a comparison/analysis/summary worth
-  keeping, call `file_to_wiki` (§6.8).
+  keeping, it proposes a title + category and directs the user to the Save form;
+  the user saves it (`save_to_wiki`, §6.8). The agent does not write.
 
 **Output guidelines (also in the prompt):** cite source + page for facts; use  
 tables for comparisons, bullets for enumerations; "no information found" is  
@@ -704,12 +705,17 @@ guarantee the LLM does it. Track regressions via the E2E suite.
 
 ---
 
-### 6.8 Chat → Wiki (`file_to_wiki`) ✅
+### 6.8 Chat → Wiki (`save_to_wiki`) ✅
+
+Saving a chat answer as a wiki page is **the user's action**, not the agent's:
+the agent has no write tool. It drafts a cited answer and proposes a title +
+category; the user commits it via the read-app **Save to wiki** form, which calls
+`save_to_wiki`.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as save_to_wiki · file_to_wiki
+    participant U as save_to_wiki (read-app Save form)
     participant GEN as wiki_generator 🧠
     participant FS as wiki/ (FS)
     participant DB as index.db
@@ -724,16 +730,12 @@ sequenceDiagram
     Note over LR,DB: fixable issues → repair_wiki (may write more pages/refs)
 ```
 
-**Entry:**
-
-- Agent tool: `file_to_wiki()` — `base/domain/chat/wiki_tools.py:file_to_wiki`
-- UI-direct (no `RunContext`): `save_to_wiki()` — `base/domain/chat/wiki_tools.py:save_to_wiki`
+**Entry:** `save_to_wiki()` — `base/domain/chat/wiki_tools.py:save_to_wiki`
+(no `RunContext`; called directly from the read-app save form). The agent has no
+write counterpart.
 
 ```python
-# Agent tool — called by PydanticAI via RunContext
-file_to_wiki(ctx, title="Yield Curve Analysis", content="...", category="concept")
-
-# UI helper — called directly from read_app.py:save_action
+# Called directly from read_app.py:save_action when the user submits the form
 save_to_wiki(
     db_path, workspace, title, content, category,
     client=llm_client,   # OpenAI-compatible client; if None, built from config
@@ -741,13 +743,13 @@ save_to_wiki(
 )
 ```
 
-Both share identical logic:
+The save flow:
 
 1. Slugify the title with `wiki_generator.make_wiki_slug` (NFKD-normalised — diacritics stripped, so "Política Común" → `politica-comun`).
 2. Pick directory by category: `concept` → `/wiki/concepts/`, `summary` → `/wiki/summaries/`.
 3. Read existing page content (if any) via `wiki_fs.read_page`.
-4. **LLM structuring pass** — call `wiki_generator.structure_chat_content(title, category, raw_content, existing, client, model)`. Returns properly structured markdown (YAML frontmatter + Definition / Key Characteristics / Context / Sources).
-5. **Deterministic See-also injection** — gather the existing wiki pages via `_related_pages_for(workspace, exclude_slug, current_dir)` and call `wiki_generator.inject_see_also(structured, related)`. It scans the structured markdown for **whole-word** mentions (`\b…\b`) of known page slugs and inserts a `## See also` section (before `## Sources`) linking each mentioned page that isn't already linked. Runs in both `file_to_wiki` and `save_to_wiki`. This is why chat-sourced pages get cross-links even though the LLM is told never to invent links.
+4. **LLM structuring pass** — call `wiki_generator.structure_chat_content(title, category, raw_content, existing, client, model)`. Returns properly structured markdown (YAML frontmatter + Definition / Key Characteristics / Context / Sources). The prompts (`_CONCEPT_SYSTEM` + chat templates) **preserve every inline citation verbatim** and build Sources from what was actually cited, and the output is run through `_strip_wrapping_fence` so a whole-page ```​markdown wrapper never reaches disk.
+5. **Deterministic See-also injection** — gather the existing wiki pages via `_related_pages_for(workspace, exclude_slug, current_dir)` and call `wiki_generator.inject_see_also(structured, related)`. It scans the structured markdown for **whole-word** mentions (`\b…\b`) of known page slugs and inserts a `## See also` section (before `## Sources`) linking each mentioned page that isn't already linked. This is why chat-sourced pages get cross-links even though the LLM is told never to invent links.
 6. Write with `create_page(overwrite=True)` if the page existed (LLM merge); `create_page(overwrite=False)` if new.
 7. Look up the doc id and call `references.update_references` to keep the citation graph in sync.
 8. Derive a one-line summary from the first heading and call `index_manager.update_index`.
@@ -760,20 +762,16 @@ Both share identical logic:
 | `structure_chat_content` (new page) | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_NEW_TEMPLATE`    | title, category, raw content      | Markdown w/ frontmatter + Definition/Characteristics/Context/Sources | 0.3         |
 | `structure_chat_content` (update)   | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_UPDATE_TEMPLATE` | title, raw content, existing page | Merged markdown, no duplication                                      | 0.3         |
 
-`**file_to_wiki` — client injection:** builds `openai.OpenAI` lazily from  
-`config.settings` (`WIKI_LLM_*` falling back to `LLM_*`). Keeps `deps_type=str`  
-(db path) unchanged so existing RunContext mocks in tests remain unaffected.
-
-`**save_to_wiki` — client injection:** optional keyword-only `client=None, model=None`; builds from settings when omitted, allowing tests to inject  
-`FakeLLMClient` directly.
+`**save_to_wiki` — client injection:** optional keyword-only `client=None, model=None`; builds `openai.OpenAI` from `config.settings` (`WIKI_LLM_*` falling  
+back to `LLM_*`) when omitted, allowing tests to inject `FakeLLMClient` directly.
 
 **Triggers:**
 
-- Agent-decided when the chat produces something worth keeping (governed by  
-the system prompt's "Capture" rule).
-- Manual save form in `read_app.py` (`save_form` cell) → `save_action`  
-cell at ~L235 calls `save_to_wiki` with an explicit client built from  
-`settings.LLM_*`.
+- The **only** save trigger is the manual save form in `read_app.py`
+(`save_form` cell) → `save_action` cell calls `save_to_wiki` with an explicit
+client built from `settings.LLM_*`. The agent cannot save on its own; the system
+prompt's "Capture" rule makes it *propose* a title + category and point the user
+at this form.
 
 **Today:**
 

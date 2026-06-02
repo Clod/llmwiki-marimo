@@ -78,7 +78,7 @@ Which ideas from `Karpathy_concepts.md` this project implements. ✅ done ·
 | Three layers: raw sources · wiki · schema | ✅ | §3; schema = `_DEFAULT_SYSTEM_PROMPT` + `wiki_config.toml` |
 | Ingest → summary + concept pages + index + overview + log + git | ✅ | §6.3–§6.4 |
 | Wiki-first query **with citations** | ✅ | §6.7 (index → wiki FTS → raw chunks) |
-| File good answers **back into** the wiki | ✅ | §6.8 `file_to_wiki` / `save_to_wiki` |
+| File good answers **back into** the wiki | ✅ | §6.8 Save form → `save_to_wiki` (user-driven; agent has no write tool) |
 | Lint: contradictions · stale · orphans · missing concepts · missing xrefs · data gaps | ✅ | §6.1 — all six |
 | Auto-repair of flagged issues | ✅➕ | §6.2 — the concept doc only *flags* |
 | `index.md` catalog · `log.md` timeline · git repo | ✅ | §3, §13 |
@@ -180,7 +180,7 @@ llmwiki/
 │       │   ├── config.py               # _DEFAULT_SYSTEM_PROMPT + load_config()
 │       │   ├── tools.py                # search_source_chunks (async, sources scope)
 │       │   └── wiki_tools.py           # read_wiki_page, search_wiki_fts,
-│       │                               #   file_to_wiki, save_to_wiki
+│       │                               #   save_to_wiki (form-driven)
 │       ├── ingestion/
 │       │   ├── pipeline.py             # ingest_file, scan_and_ingest,
 │       │   │                           #   regenerate_wiki_pages
@@ -224,7 +224,7 @@ llmwiki/
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
-│   ├── unit/                           # 250 unit tests (no LLM, no network)
+│   ├── unit/                           # 252 unit tests (no LLM, no network)
 │   ├── regression/                     # golden-corpus invariants (skips until frozen)
 │   └── e2e/                            # 9 Playwright tests (live marimo + LLM)
 ├── docs/
@@ -643,7 +643,7 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 ### Run
 
 ```bash
-uv run pytest tests/unit/ -v               # 250 unit tests — fast, no LLM
+uv run pytest tests/unit/ -v               # 252 unit tests — fast, no LLM
 uv run pytest tests/e2e/ -v -s             # 9 E2E tests — live marimo + LLM (test_ingest_pdf is parametrized over 3 PDFs)
 ```
 
@@ -779,7 +779,7 @@ in §12.
 1. ✅ **LLM structuring pass on chat-to-wiki save** (§6.8). Implemented:
   `wiki_generator.structure_chat_content()` with `_CHAT_CONCEPT_NEW_TEMPLATE`  
    / `_CHAT_CONCEPT_UPDATE_TEMPLATE` (both use `_CONCEPT_SYSTEM`). Applied in  
-   `file_to_wiki` and `save_to_wiki`; `create_page(overwrite=True)` replaces  
+   `save_to_wiki`; `create_page(overwrite=True)` replaces  
    blind `append_to_page` for existing pages. `save_to_wiki` accepts optional  
    `client`/`model` keyword args. `make_wiki_slug` now normalises diacritics  
    via NFKD.
@@ -787,8 +787,8 @@ in §12.
   `_lint_and_repair_after_save(db_path, workspace, page_path, client, model)`  
    in `chat/wiki_tools.py`. Runs deterministic `lint_wiki`, filters issues to  
    the saved page, excludes the `orphan` check (would delete the new page), then  
-   calls `repair_wiki`. Both `save_to_wiki` and `file_to_wiki` append a  
-   `🔧 Post-save repair: …` line to their return message when repairs occur.
+   calls `repair_wiki`. `save_to_wiki` appends a  
+   `🔧 Post-save repair: …` line to its return message when repairs occur.
 3. ✅ **Source deletion** (§6.9). `delete_source(db_path, workspace, doc_id, ...)` in
   `tools/deletion.py`. FK cascade cleans up chunks, references, and FTS; 1-to-1  
    summary pages are deleted while citing concept pages are marked `stale_since`  
@@ -858,13 +858,13 @@ Aspirational features from `Karpathy_concepts.md` not yet on the roadmap:
 and `commit_to_wiki(edited_json)` so the user can review and edit the LLM's  
 extraction before it's written. *Today's partial compensation:* ingestion is
 automated, but after it you can discuss the document in the read-app chat and
-correct/refine the resulting pages via `file_to_wiki`/`save_to_wiki` (§6.8) —
-post-hoc rather than mid-ingest, but the human still gets to shape the wiki.
+correct/refine the resulting pages via the **Save to wiki** form (`save_to_wiki`,
+§6.8) — post-hoc rather than mid-ingest, but the human still gets to shape the wiki.
 - **Web search → ingest loop.** When lint reveals a gap, a tool can search the  
 web, present candidate articles, and on approval ingest the content as a new  
 source. (Distinct from §11.5 web search at query time.) *Today's manual
 compensation:* run the search yourself and drop the finding into `sources/` (or
-paste it into the chat and `file_to_wiki`) — the corpus still compounds, just
+paste it into the chat and save via the form) — the corpus still compounds, just
 without the in-loop automation.
 - **OCR for scanned / image-only PDFs.** Today `pdf_extract.py` uses only
 opendataloader-pdf, which extracts *text*; image-only PDFs yield empty/garbled
