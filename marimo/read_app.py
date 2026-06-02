@@ -23,7 +23,7 @@ The active wiki is chosen at runtime via the picker (top-left): discovered wikis
 
 import marimo
 
-__generated_with = "0.23.8"
+__generated_with = "0.23.6"
 app = marimo.App(width="full", layout_file="layouts/read_app.grid.json")
 
 with app.setup:
@@ -139,7 +139,14 @@ def page_state(scan_pages):
 
 
 @app.cell
-def left_panel(navigate_to, page_list, scan_pages, selected_page, set_page_list, wiki_db_path):
+def left_panel(
+    navigate_to,
+    page_list,
+    scan_pages,
+    selected_page,
+    set_page_list,
+    wiki_db_path,
+):
     """Navigation sidebar — column 0."""
     pages = page_list()
     _current = selected_page()
@@ -268,7 +275,13 @@ def current_page(read_page, selected_page):
 
 
 @app.cell
-def page_links_nav(current_content, navigate_to, page_list, prev_page, selected_stem):
+def page_links_nav(
+    current_content,
+    navigate_to,
+    page_list,
+    prev_page,
+    selected_stem,
+):
     """Navigation buttons for internal wiki links found on the current page.
 
     Links are relative to the current page's directory (e.g. a concept page
@@ -370,8 +383,22 @@ def chat_panel(wiki_agent, wiki_chat_config, wiki_db_path):
 
 
 @app.cell
-def save_form(last_response):
-    """Save-to-wiki form — value persists after submission (unlike a button)."""
+def save_feedback_state():
+    """State for the save flow (kept in its own cell — one concern per cell):
+    `save_tick` forces the form to rebuild after a save so the title box clears;
+    `saved_notice` holds the last result so the confirmation survives that
+    rebuild."""
+    save_tick, set_save_tick = mo.state(0)
+    saved_notice, set_saved_notice = mo.state(None)
+    return save_tick, saved_notice, set_save_tick, set_saved_notice
+
+
+@app.cell
+def save_form(last_response, save_tick):
+    """Save-to-wiki form. Depends on `save_tick` so a completed save rebuilds the
+    widgets with an empty title: this clears the box AND resets `form.value` to
+    None, which also prevents an accidental re-save when the chat later updates."""
+    save_tick()  # dependency only — rebuild fresh widgets after each save
     _title = mo.ui.text(label="Title", placeholder="Page title...")
     _category = mo.ui.dropdown(
         {"Concept": "concept", "Summary": "summary"},
@@ -396,29 +423,48 @@ def save_form(last_response):
 
 
 @app.cell
-def save_action(WIKI_PATH, form, last_response, wiki_db_path):
-    """Show result after form submission — re-runs when form.value changes."""
+def save_action(
+    WIKI_PATH,
+    form,
+    last_response,
+    set_save_tick,
+    set_saved_notice,
+    wiki_db_path,
+):
+    """Perform the save exactly once per submission, store the result, then bump
+    `save_tick` to clear the form. Rendering is handled by `save_notice`."""
     from openai import OpenAI
     from domain.chat.wiki_tools import save_to_wiki
 
-    _llm_client = OpenAI(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY)
-
-    def _run():
-        if form.value is None:
-            return mo.md("")
-        title = (form.value.get("title") or "").strip()
-        category = form.value.get("category", "concept")
+    if form.value is not None:
+        _client = OpenAI(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY)
+        _title = (form.value.get("title") or "").strip()
+        _category = form.value.get("category", "concept")
         try:
-            msg = save_to_wiki(
-                wiki_db_path, WIKI_PATH, title, last_response(), category,
-                client=_llm_client, model=settings.LLM_MODEL,
+            _msg = save_to_wiki(
+                wiki_db_path, WIKI_PATH, _title, last_response(), _category,
+                client=_client, model=settings.LLM_MODEL,
             )
-            return mo.callout(mo.md(f"✅ {msg}"), kind="success")
+            set_saved_notice(("success", _msg))
         except Exception as exc:
-            return mo.callout(mo.md(f"❌ Save failed: {exc}"), kind="danger")
+            set_saved_notice(("danger", f"Save failed: {exc}"))
+        # Rebuild the form: clears the title box and resets form.value (→ no re-save).
+        set_save_tick(lambda t: t + 1)
+    return
 
-    out = _run()
-    out
+
+@app.cell
+def save_notice(saved_notice):
+    """Persistent save confirmation — reads state (not form.value) so it survives
+    the form rebuild and stays visible until the next save."""
+    _n = saved_notice()
+    if _n is None:
+        _out = mo.md("")
+    else:
+        _kind, _text = _n
+        _icon = "✅" if _kind == "success" else "❌"
+        _out = mo.callout(mo.md(f"{_icon} {_text}"), kind=_kind)
+    _out
     return
 
 
@@ -482,7 +528,13 @@ def wiki_add():
 
 
 @app.cell
-def wiki_add_runner(add_btn, add_path, recent_list, set_active_wiki, set_recent_list):
+def wiki_add_runner(
+    add_btn,
+    add_path,
+    recent_list,
+    set_active_wiki,
+    set_recent_list,
+):
     """Commit a typed path: sanitise, validate, make active, remember."""
     _cleaned = clean_path_input(add_path.value)
     if not add_btn.value:
