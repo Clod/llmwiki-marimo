@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 36
+- **Total Sessions**: 37
 - **Last Active**: 2026-06-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~62 | Active |
+| `journal-2.md` | ~122 | Active |
 | `journal-1.md` | ~1956 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 37 | 2026-06-01 | Pre-release test plan + strict traceable chat agent | `3094990`, `9da0501`, `8e1e090`, `ae4b267`, `8e23507` |
 | 36 | 2026-06-01 | Docs accuracy pass: DB rebuild claim, migration removal, codemaps, search-engine rating | `69502dc`, `6899baa`, `ecc6aaf`, `997d14c`, `720968e` |
 | 35 | 2026-05-31 | Docs hardening: optional git, LibreOffice install, wiki registry, README | `5fdecd8`, `118edeb`, `fb01082`, `0530572`, `140ad96` |
 | 34 | 2026-05-29 | Open-source release prep + runtime wiki picker | `43ede18`, `941c643`, `3cc13ac` |
