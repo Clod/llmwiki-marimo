@@ -200,8 +200,13 @@ def test_file_to_wiki_structured_output_on_disk(tmp_workspace: WorkspaceFixture)
 
 # ── 4.2: agent configuration ──────────────────────────────────────────────────
 
-def test_agent_created_with_all_tools() -> None:
-    """Verify the agent is built with all four tools, not just the legacy one."""
+def test_agent_has_only_read_tools_no_autonomous_save() -> None:
+    """The agent is built with read-only tools and CANNOT write wiki pages itself.
+
+    Product decision — creating/updating a wiki page is the user's explicit action
+    via the "Save to wiki" form (read_app.py → save_to_wiki). This guards against
+    re-registering an autonomous write tool (e.g. file_to_wiki) on the agent.
+    """
     from domain.chat.agent import create_agent
 
     agent = create_agent(
@@ -212,8 +217,8 @@ def test_agent_created_with_all_tools() -> None:
     tool_names = set(agent._function_toolset.tools.keys())
     assert "read_wiki_page" in tool_names
     assert "search_wiki_fts" in tool_names
-    assert "file_to_wiki" in tool_names
     assert "search_source_chunks" in tool_names
+    assert "file_to_wiki" not in tool_names
 
 
 def test_system_prompt_contains_routing_instructions() -> None:
@@ -222,7 +227,21 @@ def test_system_prompt_contains_routing_instructions() -> None:
     assert "wiki/index.md" in _DEFAULT_SYSTEM_PROMPT
     assert "search_wiki_fts" in _DEFAULT_SYSTEM_PROMPT
     assert "search_source_chunks" in _DEFAULT_SYSTEM_PROMPT
-    assert "file_to_wiki" in _DEFAULT_SYSTEM_PROMPT
+
+
+def test_system_prompt_directs_save_to_the_form_not_autonomous() -> None:
+    """Contract: on a save request the agent proposes a title/category and points the
+    user at the Save form — it never claims to write pages itself. Guards the
+    user-controlled save flow (read_app.py 'Save last response to wiki' form)."""
+    from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
+
+    # Must reference the actual form button label so guidance stays in sync with the UI.
+    assert "💾 Save to wiki" in _DEFAULT_SYSTEM_PROMPT
+    # Must not instruct the agent to call a write tool.
+    assert "file_to_wiki" not in _DEFAULT_SYSTEM_PROMPT
+    prompt = _DEFAULT_SYSTEM_PROMPT.lower()
+    assert "category" in prompt  # agent proposes Concept vs Summary
+    assert "never write to the wiki yourself" in prompt
 
 
 def test_system_prompt_enforces_strict_grounding_and_citations() -> None:

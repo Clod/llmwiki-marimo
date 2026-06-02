@@ -214,3 +214,54 @@ def test_inject_see_also_matches_whole_word() -> None:
     content = "# X\n\nThis page is about art history.\n\n## Sources\n- Chat synthesis\n"
     result = inject_see_also(content, related)
     assert "- [Art](art.md)" in result
+
+
+def test_strip_wrapping_fence_removes_outer_markdown_fence() -> None:
+    """Regression (comparisson.md): a whole page wrapped in ```markdown ... ```
+    must not be written verbatim, or it renders as one literal code block."""
+    from domain.ingestion.wiki_generator import _strip_wrapping_fence
+    wrapped = "```markdown\n---\ntags: [concept]\n---\n\n# Title\n\nBody.\n```"
+    result = _strip_wrapping_fence(wrapped)
+    assert not result.startswith("```")
+    assert result.startswith("---")
+    assert result.rstrip().endswith("Body.")
+
+
+def test_strip_wrapping_fence_preserves_inner_code_block() -> None:
+    """An inner fenced code block (not an outer wrapper) must be left intact."""
+    from domain.ingestion.wiki_generator import _strip_wrapping_fence
+    page = "# Title\n\nExample:\n\n```python\nprint('hi')\n```\n\nDone."
+    assert _strip_wrapping_fence(page) == page
+
+
+def test_strip_wrapping_fence_noop_on_plain_markdown() -> None:
+    """Plain markdown with no wrapping fence is returned unchanged (trimmed)."""
+    from domain.ingestion.wiki_generator import _strip_wrapping_fence
+    page = "# Title\n\nBody."
+    assert _strip_wrapping_fence(page) == page
+
+
+def test_concept_structuring_prompts_preserve_citations() -> None:
+    """Contract: the save-time structuring pass must NOT strip inline citations.
+
+    Root cause of the 'references gone on save' regression — structure_chat_content
+    reshapes a cited chat answer into a concept page; if its prompts don't mandate
+    keeping citations, the saved page loses all traceability. Guards that mandate.
+    """
+    from domain.ingestion.wiki_generator import (
+        _CONCEPT_SYSTEM,
+        _CHAT_CONCEPT_NEW_TEMPLATE,
+        _CHAT_CONCEPT_UPDATE_TEMPLATE,
+    )
+
+    system = _CONCEPT_SYSTEM.lower()
+    assert "citation" in system
+    assert "verbatim" in system or "exactly as written" in system
+
+    new = _CHAT_CONCEPT_NEW_TEMPLATE.lower()
+    assert "citation" in new
+    # Sources must be derived from what was cited, not a hardcoded generic line.
+    assert "- chat synthesis\n" not in _CHAT_CONCEPT_NEW_TEMPLATE
+
+    update = _CHAT_CONCEPT_UPDATE_TEMPLATE.lower()
+    assert "citation" in update

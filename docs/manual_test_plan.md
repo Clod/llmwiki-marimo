@@ -378,15 +378,24 @@ Ask, one at a time:
 
 ## 8. Chat — save-to-wiki (human-in-the-loop)
 
-The chat can write back to the wiki via its save tools (`file_to_wiki` /
-`save_to_wiki`).
+Saving a chat response as a wiki page is **the user's action, never the
+agent's**. The agent has no write tool: it drafts the page and proposes a title
+and category, then *you* commit it via the **"Save last response to wiki"** form
+below the chat (which calls `save_to_wiki`). This keeps every page the user
+explicitly approved — see the SECURITY.md "local + reviewable" stance.
 
 **Do**
 
-In chat: *"Write a new concept page that compares the villains across these
-stories and save it to the wiki."*
+1. In chat: *"Write a new concept page that compares the villains across these
+   stories and save it to the wiki."*
+2. Read the agent's reply. It should produce a **cited** comparison draft, then
+   propose a **Title** and a **Category** (*Concept* here) and tell you to use
+   the Save form — it must **not** claim to have saved anything itself.
+3. In the **"Save last response to wiki"** form under the chat, type the
+   proposed title, pick **Concept**, and press **💾 Save to wiki**.
+4. Wait for the green ✅ confirmation callout.
 
-**SQL**
+**SQL** (run *after* you submit the form — not before)
 
 ```sql
 SELECT relative_path, source_kind, status, datetime(created_at) AS created
@@ -398,12 +407,20 @@ LIMIT 5;
 
 **Expect (conceptually)**
 
-- A **new** `wiki` row appears (a `concepts/*.md`), newest `created_at`.
-- The file exists on disk (`ls /tmp/test-wiki/wiki/concepts/`) and contains a
-  real comparison (Cinderella's stepmother, Snow White's queen, etc.) — not a
-  stub.
-- Re-open the nav in the read app (or refresh): the new page is listed and
-  readable. This proves the save path updates **both** disk and DB index.
+- **Before** you press the button: **no** new `wiki` row, and nothing new on
+  disk under `wiki/concepts/`. The agent only drafted and proposed — confirm it
+  did *not* assert it saved/created/filed the page (that would be a regression of
+  the no-autonomous-write contract).
+- The agent's draft is a real, **cited** comparison (Cinderella's stepmother,
+  Snow White's queen, etc.), and it names a title + the *Concept* category.
+- **After** you submit the form: a **new** `wiki` row appears (a `concepts/*.md`)
+  with the newest `created_at`, the file exists on disk
+  (`ls /tmp/test-wiki/wiki/concepts/`), and re-opening/refreshing the nav lists
+  and renders it. This proves the user-driven save path updates **both** disk
+  and DB index.
+- An **empty** title in the form is rejected ("Title cannot be empty."), and
+  submitting before any chat response is rejected ("Chat with the assistant
+  first.") — the form validates, it doesn't save junk.
 
 ---
 
@@ -637,7 +654,9 @@ Tick these before release. Each maps to a section above.
 - [ ] **§7** Chat streams; **every fact is cited**; stays grounded; **refuses
   off-corpus questions** (doesn't answer "Paris"). A PDF-specific detail is
   answered correctly *with* a citation (proves retrieval, not recall).
-- [ ] **§8** Save-to-wiki creates a real page in both disk and DB.
+- [ ] **§8** Agent drafts + proposes title/category but does **not** self-save;
+  pressing **💾 Save to wiki** creates a real page in both disk and DB; the form
+  validates (rejects empty title / no chat yet).
 - [ ] **§9** Lint runs, categorises by severity, points at real pages.
 - [ ] **§10** Repair clears a finding and adds a real reference edge,
   non-destructively.

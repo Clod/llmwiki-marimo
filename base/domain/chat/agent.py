@@ -22,8 +22,10 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from .config import _DEFAULT_SYSTEM_PROMPT
 # Import the tool that searches raw source document text chunks (fallback search)
 from .tools import search_source_chunks
-# Import the tools that allow the agent to interact specifically with our Wiki
-from .wiki_tools import file_to_wiki, read_wiki_page, search_wiki_fts
+# Import the read-only tools that let the agent interact with our Wiki.
+# Note: the agent has NO write tool — creating/updating wiki pages is the user's
+# explicit action via the "Save to wiki" form in read_app.py (save_to_wiki).
+from .wiki_tools import read_wiki_page, search_wiki_fts
 
 
 def create_agent(
@@ -46,11 +48,15 @@ def create_agent(
         - Str 1: The type of the runtime dependency (the SQLite database path string).
         - Str 2: The type of the output returned by the agent (plain text response).
 
-    Tools (in priority order per system prompt):
+    Tools (in priority order per system prompt) — all read-only:
         read_wiki_page       — reads a wiki page from disk by its file path
         search_wiki_fts      — FTS5 search scoped strictly to wiki pages only
-        file_to_wiki         — saves a synthesized response as a new/updated concept page
         search_source_chunks — FTS5 search on raw source chunks (fallback when wiki lacks answer)
+
+    The agent has no write tool by design: saving a chat response as a wiki page is the
+    user's explicit action via the "Save to wiki" form (read_app.py → save_to_wiki).
+    The system prompt instructs the agent to propose a title/category and point the
+    user at that form rather than persisting anything itself.
     """
 
     # 1. Instantiate the Language Model (LLM) client.
@@ -79,5 +85,5 @@ def create_agent(
         # Register the suite of Python tool functions the agent is allowed to call.
         # PydanticAI automatically inspects these functions, parses their docstrings
         # and arguments, and explains them to the LLM so it knows exactly when to call them!
-        tools=[read_wiki_page, search_wiki_fts, file_to_wiki, search_source_chunks],
+        tools=[read_wiki_page, search_wiki_fts, search_source_chunks],
     )

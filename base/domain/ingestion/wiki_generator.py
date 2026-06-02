@@ -110,7 +110,13 @@ Extract 2-5 concepts. Only include concepts worth a dedicated wiki page."""
 _CONCEPT_SYSTEM = """\
 You are a wiki page author. Write clear, factual concept pages in markdown.
 Each page should have a brief definition, key characteristics, and context.
-Never invent facts not supported by the provided content."""
+Never invent facts not supported by the provided content.
+
+Preserve traceability above all. If the provided content carries inline citations \
+— e.g. (wiki/summaries/cinderella.md) or (Cinderella.pdf, p. 3) — keep EVERY one \
+exactly as written, attached to the same claim. Never drop, merge, summarise away, \
+or reword a citation while reshaping the text. A claim you cannot keep its citation \
+for must be removed, not left uncited."""
 
 _CONCEPT_NEW_TEMPLATE = """\
 Write a wiki concept page for: {name}
@@ -182,9 +188,13 @@ sources: [chat]
 (how this concept relates to the broader domain)
 
 ## Sources
-- Chat synthesis
+(list each distinct source cited in the content above, one per line — \
+e.g. "- wiki/summaries/cinderella.md" or "- Cinderella.pdf, p. 3")
 
-Output only the markdown."""
+Keep every inline citation from the content above attached to the exact claim it \
+supports — carry them verbatim into the Definition, Key Characteristics, and \
+Context sections. Do NOT strip citations when reshaping into this structure, and \
+do NOT replace them with a generic "Chat synthesis" line. Output only the markdown."""
 
 _CHAT_CONCEPT_UPDATE_TEMPLATE = """\
 Update this existing wiki concept page for: {name}
@@ -199,8 +209,11 @@ Existing page:
 {existing}
 ---
 
-Merge the new content into the existing page. Add insights, avoid duplication, \
-and add a `- Chat synthesis` list item in the Sources section if not already present.
+Merge the new content into the existing page. Add insights, avoid duplication. \
+Keep every inline citation from BOTH the existing page and the new content exactly \
+as written, attached to its claim — never drop or reword one. In the Sources \
+section, keep the existing entries and add any new distinct source cited in the new \
+content (one per line, e.g. "- wiki/summaries/cinderella.md").
 Keep all existing content intact. Output only the updated markdown page."""
 
 _OVERVIEW_SYSTEM = """\
@@ -348,7 +361,25 @@ def build_concept_page(
         ],
         temperature=0.3,
     )
-    return response.choices[0].message.content.strip()
+    return _strip_wrapping_fence(response.choices[0].message.content)
+
+
+def _strip_wrapping_fence(text: str) -> str:
+    """Remove a single markdown code fence that wraps the entire output.
+
+    Some models return a whole page wrapped in ```​markdown ... ```; written
+    verbatim that renders the page as one literal code block (see the
+    comparisson.md regression). Strip only an *outer* wrapper — the first line
+    opens a fence and the last line is a bare closing fence — so genuine fenced
+    code blocks inside the page are preserved.
+    """
+    stripped = text.strip()
+    if not stripped.startswith("```"):
+        return stripped
+    lines = stripped.splitlines()
+    if len(lines) < 2 or lines[-1].strip() != "```":
+        return stripped
+    return "\n".join(lines[1:-1]).strip()
 
 
 def structure_chat_content(
@@ -385,7 +416,7 @@ def structure_chat_content(
         ],
         temperature=0.3,
     )
-    return response.choices[0].message.content.strip()
+    return _strip_wrapping_fence(response.choices[0].message.content)
 
 
 def update_overview(
@@ -410,7 +441,7 @@ def update_overview(
         ],
         temperature=0.4,
     )
-    return response.choices[0].message.content.strip()
+    return _strip_wrapping_fence(response.choices[0].message.content)
 
 
 # ── Legacy single-pass (kept for regenerate_wiki_pages) ──────────────────────
@@ -444,7 +475,7 @@ def build_wiki_page(
         ],
         temperature=0.3,
     )
-    return response.choices[0].message.content.strip()
+    return _strip_wrapping_fence(response.choices[0].message.content)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

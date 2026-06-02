@@ -155,7 +155,7 @@ didn't neutralise `../`. Fix: `resolve()` the path and reject unless it
 `is_relative_to(wiki_root)`. **Lesson:** any path that originates from an LLM/tool argument
 is a boundary input — validate it like user input before it touches disk.
 
-### Lesson 5: Citations are a four-part seam that fails silently
+### Lesson 5: Citations are a multi-layer seam that fails silently
 
 **What happened:** With the strict default agent (`chat/config.py:_DEFAULT_SYSTEM_PROMPT` —
 "answer only from the wiki, cite every fact"), in-corpus answers still arrived **uncited**.
@@ -196,3 +196,35 @@ not be.
 - Citation/grounding quality is **model-gated**. Document a recommended chat-model floor
   (see the README model-guidance note) rather than assuming the pipeline is broken when a
   small model leaks.
+
+**Extension — the save path makes the seam longer (the `comparisson.md` regression):**
+Saving a chat answer as a wiki page (`read_app.py` Save form → `wiki_tools.save_to_wiki` →
+`wiki_generator.structure_chat_content`) re-runs the cited answer through a **second LLM pass**
+that re-authors it into the concept-page shape. That pass is *more* layers the citation has to
+survive — and they failed silently in two new ways, plus the request framing re-broke the
+earlier ones:
+
+5. **Re-authoring prompt (instruction layer, again).** `_CONCEPT_SYSTEM` + the chat-concept
+   templates said "write a clear concept page" but nothing about *keeping* citations, and they
+   hardcoded `## Sources` → `- Chat synthesis`. A perfectly cited draft was reshaped into an
+   uncited page with a generic source line. Fix: the structuring prompts now mandate carrying
+   every inline citation verbatim and build Sources from what was actually cited.
+6. **Serialization (data layer).** The same pass returned the page wrapped in a ```​markdown
+   fence; written verbatim it rendered the whole page as one literal code block. Whole-document
+   LLM output must be fence-stripped before it hits disk. Fix: `_strip_wrapping_fence()` on all
+   four markdown generators — it strips only an *outer* wrapper, preserving genuine inner code
+   blocks.
+7. **Request framing re-disables layers 2–3.** "Write a concept page that compares X and Y"
+   reads to the model as *authoring*, not *answering*, so it composed from memory and skipped
+   retrieval+citation entirely — even though the same model cited the *question* form ("what do
+   X and Y have in common?") correctly. Fix: the prompt now declares a "write/create a page"
+   request to be a factual question, with no drafting exception to grounding.
+
+**The sharper rule:** a citation must survive **every** layer between retrieval and the bytes a
+human reads. Count the LLM passes — the answer path is four layers; the **save path adds two
+more** (re-authoring prompt + serialization), and re-framing the request can silently re-disable
+the earlier ones. Any pass that re-touches cited text is a place the citation can die with no
+error and no test failure. Guard each at the seam:
+`test_concept_structuring_prompts_preserve_citations` and `test_strip_wrapping_fence_*` in
+`tests/unit/test_structured_extraction.py`, and
+`test_system_prompt_directs_save_to_the_form_not_autonomous` in `tests/unit/test_wiki_tools.py`.
