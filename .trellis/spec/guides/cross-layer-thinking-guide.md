@@ -154,3 +154,45 @@ injection, so `path` is **untrusted input crossing into the filesystem layer**. 
 didn't neutralise `../`. Fix: `resolve()` the path and reject unless it
 `is_relative_to(wiki_root)`. **Lesson:** any path that originates from an LLM/tool argument
 is a boundary input — validate it like user input before it touches disk.
+
+### Lesson 5: Citations are a four-part seam that fails silently
+
+**What happened:** With the strict default agent (`chat/config.py:_DEFAULT_SYSTEM_PROMPT` —
+"answer only from the wiki, cite every fact"), in-corpus answers still arrived **uncited**.
+Nothing errored; the model simply omitted citations. The cause was not one bug but a seam
+spanning four layers that all have to line up for a citation to appear:
+
+1. **Tool output (data layer)** — the retrieval tool must emit attribution *inline* with the
+   content. `search_wiki_fts` / `search_source_chunks` already prefixed `**path/filename** p.N`,
+   but `read_wiki_page` returned **bare page text**, so a wiki-first answer had no anchor to
+   cite. Fix: `read_wiki_page` now prepends `[wiki page: <rel-path>]`.
+2. **Prompt (instruction layer)** — the prompt must define what a citation *is* for each
+   source kind (wiki-page path vs. source doc + page) and demand one per claim. The old prompt
+   only showed a source-PDF example, so wiki-derived facts had no matching format and were
+   dropped.
+3. **Format example (instruction layer)** — rules alone didn't make the model cite a
+   cross-document **synthesis**; it treated a comparison as "its own analysis." A worked
+   example of a fully-cited comparison in the prompt is what made synthesis citations land.
+4. **Model capability** — even with 1–3 correct, a weak model leaks. `gpt-4o-mini` skipped
+   citations / answered off-corpus; `gpt-4o` honoured the contract. The prompt is a *request*;
+   the model has to be able to follow it.
+
+**The boundary that bit us:** a citation is an emergent property of (tool attribution ×
+prompt × example × model). Any single layer being wrong drops the citation **with no error and
+no test failure** — the answer is just untraceable, which is the one thing a personal wiki must
+not be.
+
+**Rules to avoid it:**
+- Treat every retrieval tool's return value as a **citation source**: it must carry its own
+  attribution (path / filename + page) inline, never bare content. If you "clean up" tool
+  output, you may be deleting the model's only citation anchor.
+- When you tighten the prompt, cover **every** retrieval path's citation format and include a
+  worked example for the hardest case (multi-document synthesis) — examples drive format
+  compliance far harder than rules.
+- Guard the contract with executable tests at the seam, not prose:
+  `test_read_wiki_page_prefixes_citation_anchor` (tool attribution) and
+  `test_system_prompt_enforces_strict_grounding_and_citations` (prompt mandate) in
+  `tests/unit/test_wiki_tools.py`.
+- Citation/grounding quality is **model-gated**. Document a recommended chat-model floor
+  (see the README model-guidance note) rather than assuming the pipeline is broken when a
+  small model leaks.
