@@ -49,8 +49,9 @@ def read_wiki_page(ctx: RunContext[str], path: str) -> str:
     #    injection, so a crafted path like "wiki/../../.env" must not escape the
     #    wiki tree. lstrip("/") keeps the join relative; resolve() normalises any
     #    ".." segments (and symlinks) so is_relative_to can reject escapes.
-    wiki_root = (_workspace(db_path) / "wiki").resolve()
-    file = (_workspace(db_path) / path.lstrip("/")).resolve()
+    ws_root = _workspace(db_path).resolve()
+    wiki_root = (ws_root / "wiki").resolve()
+    file = (ws_root / path.lstrip("/")).resolve()
     if not file.is_relative_to(wiki_root):
         logger.warning("read_wiki_page rejected out-of-bounds path: %s", path)
         return f"Invalid path: {path}"
@@ -60,8 +61,14 @@ def read_wiki_page(ctx: RunContext[str], path: str) -> str:
         return f"Page not found: {path}"
 
     try:
-        # 4. Read the entire file as a UTF-8 encoded string and return it
-        return file.read_text(encoding="utf-8")
+        # 4. Read the page, prefixed with a canonical attribution header so the
+        #    agent always has a citation anchor inline with the content it uses.
+        #    Without this the model has to recall the path it requested, and
+        #    wiki-first answers routinely arrive uncited. The search tools already
+        #    carry their own path/page attribution; this gives read_wiki_page parity.
+        content = file.read_text(encoding="utf-8")
+        rel = file.relative_to(ws_root).as_posix()
+        return f"[wiki page: {rel}]\n\n{content}"
     except Exception as exc:
         # 5. Catch any unexpected errors (e.g. permission issues), log it, and return a clean error message
         logger.warning("read_wiki_page failed for %s: %s", path, exc)

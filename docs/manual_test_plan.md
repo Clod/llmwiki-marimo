@@ -324,33 +324,55 @@ INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check');
 
 ## 7. Chat — wiki-first RAG with citations
 
+The default agent is **strict by design**: it answers *only* from your wiki and
+sources, never from world knowledge, and every fact must be cited
+(`base/domain/chat/config.py:_DEFAULT_SYSTEM_PROMPT`). This section tests that
+contract.
+
+> **Caveat on famous corpora.** These four tales are in essentially every
+> model's pretraining, so a question about the *plot* ("what happens at the
+> ball?") can't tell retrieval from recall — a model can answer correctly from
+> memory. To actually probe grounding, use a **PDF-specific detail** (a phrase,
+> name, or wording that exists only in *your* file), where a correct answer
+> *proves* a tool fired. Questions 1 and 4 below are built for that.
+
 **Do** (in the read app's right column)
 
 Ask, one at a time:
 
-1. *"What happens to Cinderella at the ball?"* (answerable from one summary)
+1. **Grounding probe — PDF-specific detail.** Open one summary or source on disk,
+   pick a distinctive phrase/detail that is *particular to this edition* (an
+   unusual translation, a named minor character, a specific number), and ask
+   about it. A correct, **cited** answer proves retrieval fired; a vague or wrong
+   answer means it's leaning on memory.
 2. *"What do these stories have in common?"* (cross-document synthesis)
 3. *"List the royal characters across all the stories."* (forces breadth)
+4. **Off-corpus refusal.** Ask something plainly outside the wiki, e.g.
+   *"What's the capital of France?"*
 
 **Expect (conceptually)**
 
 - Answers **stream** in token by token.
+- **Every factual claim is cited** — document name and, where available, page
+  (e.g. `(Cinderella.pdf, p. 3)`). With the strict default this is mandatory, not
+  best-effort: an uncited factual answer is a **failure**.
 - Content is **grounded in the corpus** — names and events match the tales, no
-  invented plot points. If the model hallucinates a character that isn't in any
-  story, that's a failure of grounding.
-- **Citations appear** — document name and/or page. Question 1 should cite the
-  Cinderella material specifically.
-- The agent prefers curated wiki pages: a single-tale question should be
-  answerable without it falling back to raw chunks. Breadth questions may pull
-  from several pages.
-- Ask something **not in the corpus** (e.g. *"What's the capital of France?"*).
-  The assistant should decline / say it's outside the wiki rather than answer
-  from world knowledge — it's a *local-corpus* agent (no web). Wording varies;
-  the *behaviour* (refusal-to-roam) is what you're checking.
+  invented plot points. A character or fact that appears in no document is a
+  grounding failure.
+- The agent searches the wiki first (`read_wiki_page` / `search_wiki_fts`) and
+  only falls back to `search_source_chunks` when the wiki pages lack detail.
+- **Question 4 must be declined.** The assistant should say the question is
+  outside your knowledge base and *not* answer "Paris" from world knowledge.
+  Wording varies; the behaviour (refusal-to-roam) is the check. **If it answers
+  "Paris", the grounding mandate isn't taking effect** — see below.
 
-> Optionally confirm the fallback tool exists by asking a very specific detail
-> only present in raw page text (a minor phrase not in any summary). A correct
-> answer implies `search_source_chunks` fired against the FTS index from §5.
+> **If grounding/citations leak** (off-corpus questions get answered, or facts
+> arrive uncited): first check `WIKI_PATH/wiki_config.toml` isn't overriding the
+> strict default with a looser `system_prompt`; then suspect the **model**. A
+> model too weak to follow instructions will ignore the mandate and lean on
+> pretraining no matter how strict the prompt — try a stronger `WIKI_LLM_*` /
+> `LLM_*` model (see the README "Don't use too small a model" note). The prompt
+> sets the contract; the model has to be capable of honouring it.
 
 ---
 
@@ -612,7 +634,9 @@ Tick these before release. Each maps to a section above.
 - [ ] **§5** `chunks == fts_rows`; keyword search returns relevant hits;
   integrity-check passes.
 - [ ] **§6** Read app renders all on-disk pages; internal links navigate.
-- [ ] **§7** Chat streams, cites, stays grounded, refuses off-corpus questions.
+- [ ] **§7** Chat streams; **every fact is cited**; stays grounded; **refuses
+  off-corpus questions** (doesn't answer "Paris"). A PDF-specific detail is
+  answered correctly *with* a citation (proves retrieval, not recall).
 - [ ] **§8** Save-to-wiki creates a real page in both disk and DB.
 - [ ] **§9** Lint runs, categorises by severity, points at real pages.
 - [ ] **§10** Repair clears a finding and adds a real reference edge,

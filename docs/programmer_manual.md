@@ -224,7 +224,7 @@ llmwiki/
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
-│   ├── unit/                           # 248 unit tests (no LLM, no network)
+│   ├── unit/                           # 250 unit tests (no LLM, no network)
 │   ├── regression/                     # golden-corpus invariants (skips until frozen)
 │   └── e2e/                            # 9 Playwright tests (live marimo + LLM)
 ├── docs/
@@ -643,7 +643,7 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 ### Run
 
 ```bash
-uv run pytest tests/unit/ -v               # 248 unit tests — fast, no LLM
+uv run pytest tests/unit/ -v               # 250 unit tests — fast, no LLM
 uv run pytest tests/e2e/ -v -s             # 9 E2E tests — live marimo + LLM (test_ingest_pdf is parametrized over 3 PDFs)
 ```
 

@@ -45,6 +45,16 @@ def test_read_wiki_page_returns_index(tmp_workspace: WorkspaceFixture) -> None:
     assert "Wiki Index" in result
 
 
+def test_read_wiki_page_prefixes_citation_anchor(tmp_workspace: WorkspaceFixture) -> None:
+    """Contract: read_wiki_page returns an inline attribution header so the agent
+    has a citation anchor next to the content. Without it, wiki-first answers
+    arrive uncited. See docs/manual_test_plan.md §7."""
+    result = read_wiki_page(_Ctx(tmp_workspace.db_path), "/wiki/index.md")
+    # Canonical path, leading slash normalised away, content still present.
+    assert result.startswith("[wiki page: wiki/index.md]")
+    assert "Wiki Index" in result
+
+
 def test_read_wiki_page_returns_concept_content(tmp_workspace: WorkspaceFixture) -> None:
     create_page(tmp_workspace.db_path, tmp_workspace.workspace,
                 "/wiki/concepts/", "federal-reserve", "Federal Reserve", _CONTENT, [])
@@ -210,8 +220,28 @@ def test_system_prompt_contains_routing_instructions() -> None:
     from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
 
     assert "wiki/index.md" in _DEFAULT_SYSTEM_PROMPT
+    assert "search_wiki_fts" in _DEFAULT_SYSTEM_PROMPT
     assert "search_source_chunks" in _DEFAULT_SYSTEM_PROMPT
     assert "file_to_wiki" in _DEFAULT_SYSTEM_PROMPT
+
+
+def test_system_prompt_enforces_strict_grounding_and_citations() -> None:
+    """Contract: the default agent is corpus-only and traceable.
+
+    Product decision — answers must come from the user's knowledge base (never
+    world knowledge) and every fact must be cited. This test guards against the
+    grounding/citation mandate being silently softened. See docs/manual_test_plan.md
+    §7 and the strict-default rationale.
+    """
+    from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
+
+    prompt = _DEFAULT_SYSTEM_PROMPT.lower()
+    # Must forbid answering from the model's own knowledge.
+    assert "world knowledge" in prompt
+    assert "never answer from memory" in prompt
+    # Must require retrieval before answering and mandatory citations.
+    assert "retriev" in prompt  # "retrieve"/"retrieval"
+    assert "cite" in prompt
 
 
 # ── save_to_wiki ──────────────────────────────────────────────────────────────
