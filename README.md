@@ -241,6 +241,28 @@ If `WIKI_LLM_*` are blank, ingestion falls back to `LLM_*`.
 > pipeline; the split config above lets you do that while keeping chat on a
 > smaller local model.
 
+> **Chat grounding & citations scale with the chat model, too.** The chat agent's
+> default prompt is strict — *answer only from your wiki, and cite every fact* —
+> but a prompt is only a request; the model has to be capable of honouring it.
+> A concrete example from testing on OpenRouter, same provider, same wiki:
+>
+> | Question | `openai/gpt-4o-mini` | `openai/gpt-4o` |
+> | --- | --- | --- |
+> | "What's the capital of France?" (off-corpus) | sometimes answers "Paris" | declines — outside the wiki |
+> | "Who is Cinderella?" (single fact) | answers, but cites the raw PDF or nothing | cites the curated wiki page |
+>
+> The hardest case is a cross-document **synthesis or comparison** ("what do these
+> two have in common?"): *both* models tended to drop citations there, answering
+> from their own training instead of re-grounding in your pages. That's why the
+> default prompt includes an explicit worked example of a fully-cited comparison —
+> a capable model plus that example is what gets synthesis answers cited reliably;
+> a weaker model gives up citations there first.
+>
+> If chat answers arrive uncited or stray outside your documents, raise the chat
+> model (`LLM_MODEL`) before assuming the agent is broken. You can keep a cheap
+> model for ingestion and a stronger one for chat (or vice versa) via the split
+> config above.
+
 ---
 
 ## Customising the chat assistant

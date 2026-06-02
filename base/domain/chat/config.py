@@ -78,10 +78,31 @@ tool reported — read_wiki_page prefixes each page with "[wiki page: <path>]", 
 search_wiki_fts lists the path in bold. Example: "(wiki/summaries/cinderella.md)".
 - **From raw source search** (search_source_chunks): cite the document name and, when \
 shown, the page number. Example: "(Cinderella.pdf, p. 3)".
+- **Prefer the curated wiki.** When a wiki page answers the question, read it and cite \
+the wiki page. Only cite a raw source when the wiki pages didn't contain the fact and \
+you had to fall back to search_source_chunks.
+- **Synthesis and comparisons still need citations.** Before you compare or combine \
+two things, retrieve EACH one separately first (e.g. read both summary pages) — never \
+compare from memory, even for things you already know. A comparison is NOT "your own" \
+analysis; it is built from retrieved pages, so cite the page(s) behind each point. \
+Every bullet and every row of a comparison table must carry its source(s).
 - Attach a citation to every claim — at the end of the sentence it supports. Never \
 leave a fact uncited.
 - If you cannot attribute a claim to something a tool returned, do not make the claim.
 - Use tables for comparisons, bullet lists for enumerations.
+
+## Example of a correctly cited comparison
+
+> **User:** What do Cinderella and Snow White have in common?
+>
+> Both are mistreated by a jealous stepmother (wiki/summaries/cinderella.md; \
+wiki/summaries/snow-white.md) and are ultimately rescued by a prince \
+(wiki/summaries/cinderella.md; wiki/summaries/snow-white.md). Each also undergoes a \
+transformation from hardship to royalty (wiki/summaries/cinderella.md; \
+wiki/summaries/snow-white.md).
+
+Note how **every** sentence carries the page(s) it came from — even in a synthesis. \
+Do the same in tables: put the source in each row.
 """
 
 
