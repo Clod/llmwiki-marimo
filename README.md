@@ -119,7 +119,7 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 tests/
-├── unit/                  # 252 unit tests (FakeLLM, no network)
+├── unit/                  # 259 unit tests (FakeLLM, no network)
 ├── e2e/                   # Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + workspace
 ```
@@ -260,6 +260,11 @@ If `WIKI_LLM_*` are blank, ingestion falls back to `LLM_*`.
 > your documents, raise the chat model (`LLM_MODEL`) before assuming the agent is
 > broken. You can keep a cheap model for ingestion and a stronger one for chat (or
 > vice versa) via the split config above.
+>
+> **Not sure if a model clears the bar?** Run `uv run python scripts/eval_chat_model.py`
+> — it asks the built-in sample wiki a few fixed questions and gives a PASS/FAIL on
+> exactly these behaviours (off-corpus refusal, citations, cited synthesis). See
+> [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Part C.
 
 ---
 
@@ -302,20 +307,45 @@ ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap
 
 ## Testing
 
+Three layers, fastest first.
+
+**1. Fast regression gate** — deterministic, no LLM keys or running apps, finishes
+in seconds. Run it after any change:
+
 ```bash
-# Install Playwright browsers (once)
-uv run playwright install chromium
-
-# Step 1 — ingest pipeline (populates tests/fixtures/workspace/)
-HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s
-
-# Step 2 — read app (uses workspace from step 1)
-HEADLESS=1 uv run pytest tests/e2e/test_read_app.py -v -s
+uv run pytest tests/unit tests/regression -q
 ```
 
-Test PDFs live in `tests/fixtures/pdfs/`. The test workspace is gitignored and rebuilt on each ingest run.
+It asserts the structural invariants (DB integrity, FTS alignment, deletion
+cascade, save mechanics, lint logic, git snapshots) over fake-LLM unit tests plus
+a **frozen real-ingest "golden corpus"** — so the backbone is checked against a
+real ingest without re-calling the model.
 
-Use the skills `/test-ingest`, `/test-read`, and `/test-all` in Claude Code for self-testing.
+**2. End-to-end (Playwright)** — drives the actual marimo apps:
+
+```bash
+uv run playwright install chromium                            # once
+HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s   # ingest pipeline
+HEADLESS=1 uv run pytest tests/e2e/test_read_app.py  -v -s    # read app (uses the step-1 workspace)
+```
+
+**3. Acceptance & model check (manual)** — the human-judgment pass for the things
+assertions can't grade. The full plan is **[`docs/uat_test_plan.md`](docs/uat_test_plan.md)**,
+a user-acceptance test in three parts:
+
+- **Part A** — the automated gate above.
+- **Part B** — a manual checklist: does the chat stay grounded and cite sources?
+  do generated pages read like real entries? do lint findings make sense?
+- **Part C** — *is the model you picked good enough?* A one-command check of the
+  chat model (no documents needed — it uses the built-in sample wiki):
+
+  ```bash
+  uv run python scripts/eval_chat_model.py    # PASS/FAIL for the chat model (LLM_MODEL)
+  ```
+
+Test PDFs live in `tests/fixtures/pdfs/`; the E2E workspace is gitignored and
+rebuilt on each ingest run. Use the skills `/test-ingest`, `/test-read`, and
+`/test-all` in Claude Code for self-testing.
 
 ---
 
