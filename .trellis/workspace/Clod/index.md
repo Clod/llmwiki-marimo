@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 39
+- **Total Sessions**: 40
 - **Last Active**: 2026-06-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~221 | Active |
+| `journal-2.md` | ~273 | Active |
 | `journal-1.md` | ~1956 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 40 | 2026-06-02 | UAT restructure + deterministic regression gate | `ba33d72`, `8c090c0`, `9256251`, `3e71988` |
 | 39 | 2026-06-02 | Save-form UX: clear-on-save + persistent notification | `0c207b4`, `0c298cd` |
 | 38 | 2026-06-02 | User-controlled, citation-safe save-to-wiki + dead-code removal | `f4de9da`, `3bb137f` |
 | 37 | 2026-06-01 | Pre-release test plan + strict traceable chat agent | `3094990`, `9da0501`, `8e1e090`, `ae4b267`, `8e23507` |
