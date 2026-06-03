@@ -75,6 +75,41 @@ tracking and silently swallows unrelated errors.
 
 ---
 
+## Deletion semantics (`delete_source`)
+
+Deleting a source is **not** a pure FK cascade — `delete_source(db_path,
+workspace, doc_id, *, also_delete_file=False)` in
+`base/domain/tools/deletion.py` combines DB cascade with relationship-aware
+handling of derived pages. Get this contract right; it has been mis-documented
+before (the manual test plan once claimed summaries are orphan-kept).
+
+| What | On `delete_source(<a source>)` | Mechanism |
+|------|-------------------------------|-----------|
+| `document_pages`, `document_chunks`, `chunks_fts`, `document_references` of the source | **deleted** | FK `ON DELETE CASCADE` (+ FTS triggers) |
+| 1-to-1 summary page (`source_document_id == doc_id`) | **deleted outright** (row + markdown file) | application logic — no source left to regenerate it from |
+| Multi-source concept page (merely *cites* the source) | **kept**, marked `stale_since` | application logic — it may draw on surviving sources |
+| `source_document_id` FK | `ON DELETE SET NULL` is only a **backstop** | it never fires for 1-to-1 summaries because they're deleted first |
+
+Invariants that must hold after a delete: no orphan `document_pages` /
+`document_chunks` rows, `document_chunks` count == `chunks_fts` count, and zero
+dangling `document_references` (both endpoints resolve).
+
+**Tests (assertion points):** `tests/unit/test_delete_source.py`
+(`test_delete_source_deletes_derived_wiki_page`,
+`test_delete_source_marks_multi_source_concept_stale`) and the end-to-end
+invariant over the frozen corpus in
+`tests/regression/test_golden_corpus.py::test_deleting_a_source_cascades_and_drops_its_summary`.
+
+> **Regression strategy note.** Deterministic structural invariants like these are
+> asserted over the **frozen golden corpus** (`tests/fixtures/golden_corpus/`,
+> restored via `tests/helpers/golden.py`) — a real, human-verified ingest checked
+> with **no live LLM**. Non-deterministic, model-dependent behavior (chat
+> grounding, summary quality) is *not* regressioned; it lives in the manual UAT
+> (`docs/manual_test_plan.md` Part B). When you add a deterministic DB/file
+> invariant, add it to `tests/regression/`, not to the manual plan.
+
+---
+
 ## Query Patterns
 
 ### Parameterized queries only
