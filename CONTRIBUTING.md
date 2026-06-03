@@ -42,7 +42,7 @@ HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s   # populates the wo
 HEADLESS=1 uv run pytest tests/e2e/test_read_app.py   -v -s   # uses that workspace
 ```
 
-CI runs the unit suite and `ruff` on every push and PR to `master`.
+CI runs the unit and regression suites and `ruff` on every push and PR to `master`.
 
 ## Conventions
 
