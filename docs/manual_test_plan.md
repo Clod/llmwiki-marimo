@@ -394,6 +394,10 @@ explicitly approved — see the SECURITY.md "local + reviewable" stance.
 3. In the **"Save last response to wiki"** form under the chat, type the
    proposed title, pick **Concept**, and press **💾 Save to wiki**.
 4. Wait for the green ✅ confirmation callout.
+5. **Re-save guard.** After the save, send **another** chat message (any
+   question). Watch the `wiki/concepts/` row count — it must **not** grow on its
+   own. (Before the fix, the persisted form value silently re-saved the previous
+   answer under the old title whenever the chat updated.)
 
 **SQL** (run *after* you submit the form — not before)
 
@@ -421,6 +425,11 @@ LIMIT 5;
 - An **empty** title in the form is rejected ("Title cannot be empty."), and
   submitting before any chat response is rejected ("Chat with the assistant
   first.") — the form validates, it doesn't save junk.
+- **After a successful save the title box clears** and the ✅ callout **persists**
+  (stays visible until your next save). The cleared box is also the re-save guard:
+  in step 5, the follow-up chat message must produce **no** new `wiki` row and
+  nothing new under `wiki/concepts/`. A page appearing without you pressing the
+  button is a regression.
 
 ---
 
@@ -656,7 +665,9 @@ Tick these before release. Each maps to a section above.
   answered correctly *with* a citation (proves retrieval, not recall).
 - [ ] **§8** Agent drafts + proposes title/category but does **not** self-save;
   pressing **💾 Save to wiki** creates a real page in both disk and DB; the form
-  validates (rejects empty title / no chat yet).
+  validates (rejects empty title / no chat yet); after save the **title box
+  clears** + ✅ notice **persists**, and a follow-up chat message triggers **no**
+  auto re-save.
 - [ ] **§9** Lint runs, categorises by severity, points at real pages.
 - [ ] **§10** Repair clears a finding and adds a real reference edge,
   non-destructively.
