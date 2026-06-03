@@ -26,6 +26,34 @@
 
 ---
 
+## Before Adding a Form That Saves (Submit → Side Effect)
+
+A submitted `mo.ui....form()` keeps its `form.value` **after** submission (that's
+its design — unlike a button it doesn't reset). So a consumer cell that performs
+the side effect *and* depends on other changing state will silently re-fire.
+
+- [ ] Does my save cell read `form.value` **and** any other reactive state
+      (e.g. `last_response()`)? → **Re-save trap.** When that other state changes,
+      the cell re-runs with the *same* persisted `form.value` and saves again — in
+      `read_app.py` this re-saved the previous chat answer under the old title.
+- [ ] How do I clear the inputs and stop the re-save in one move?
+      → Add a `save_tick` `mo.state`; make the **form cell depend on it** (call
+        `save_tick()` so it rebuilds). On a successful save, `set_save_tick(t+1)`
+        rebuilds the form with empty widgets, which also resets `form.value` to
+        `None` — clearing the box *and* disarming the re-save.
+- [ ] Where does the success/error notice live?
+      → **Not** in the save cell (it re-runs to `form.value is None` and the
+        message vanishes). Put it in its own cell backed by a `saved_notice`
+        `mo.state` so it survives the rebuild and persists until the next save.
+- [ ] One concern per cell: split into `state · form · action (side-effect only)
+      · notice`. The action cell sets state via the same setter-in-runner pattern
+      as `wiki_add_runner` / `delete_runner`.
+
+Reference implementation: `read_app.py` cells `save_feedback_state`, `save_form`,
+`save_action`, `save_notice`.
+
+---
+
 ## Before Designing an Edit / View Mode Toggle
 
 - [ ] Will view mode ever need to show content that was just saved?
