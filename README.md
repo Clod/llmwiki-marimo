@@ -3,6 +3,8 @@
 A personal, local-first wiki that ingests your documents, builds a structured knowledge base, and lets you read and chat with it — all on your machine, no cloud required.
 
 Inspired by [Karpathy's LLM Wiki idea](https://x.com/karpathy/status/2039805659525644595).
+The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas Astorian's open-source LLM Wiki](https://github.com/lucasastorian/llmwiki)
+(Apache-2.0); the rest is an independent local-first build on Marimo + SQLite. See [`NOTICE`](NOTICE).
 
 ---
 

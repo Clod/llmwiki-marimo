@@ -1,0 +1,36 @@
+LLM Wiki (llmwiki-marimo)
+Copyright 2026 Claudio Grasso
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This project implements the "LLM Wiki" pattern proposed by Andrej Karpathy
+(https://x.com/karpathy/status/2039805659525644595).
+
+It is an independent, local-first implementation built on Marimo + SQLite/FTS5.
+It is not a fork or a port of an existing application: the design and the large
+majority of the code are original to this project, including the chat agent, the
+ingestion-pipeline orchestration, wiki generation, the lint and repair
+subsystems, the ingestion trace, the multi-wiki registry, and the Marimo apps.
+
+
+Attribution
+-----------
+
+A small, foundational slice of the document-ingestion and indexing layer was
+reused from the open-source "LLM Wiki" project by Lucas Astorian
+(https://github.com/lucasastorian/llmwiki), licensed under the Apache License,
+Version 2.0. That project is a hosted web application (FastAPI + Supabase + a web
+frontend) with a different architecture and feature set; only the following
+low-level, framework-agnostic pieces were carried over into this codebase:
+
+  * base/domain/ingestion/pdf_extract.py — PDF-to-markdown extraction.
+      Closely based on the upstream module; largely unchanged apart from a
+      deferred import and an updated docstring.
+
+  * base/domain/ingestion/chunker.py  — text chunking
+  * base/domain/tools/references.py   — citation / cross-reference parsing
+  * database/sqlite_schema.sql        — SQLite schema
+      Partially derived from the upstream equivalents, then modified and
+      extended for this project.
+
+Everything not listed above was written for this project.

@@ -40,6 +40,10 @@ workspace/
 # Private launch / marketing drafts — never publish
 launch-kit.md
 
+# Scratch prototypes + inspiration notes — kept locally, out of the public repo
+marimo/prototypes/
+Karpathy_concepts.md
+
 # Deploy
 deploy.sh
 
