@@ -97,3 +97,92 @@ def test_db_and_markdown_tree_agree(golden) -> None:
         ).fetchall()
     missing = [r["relative_path"] for r in rows if not (workspace / r["relative_path"]).exists()]
     assert missing == []
+
+
+def test_fts_rowcount_matches_chunks(golden) -> None:
+    """§5: external-content FTS must stay row-aligned with document_chunks."""
+    db_path, _ = golden
+    with get_connection(db_path) as conn:
+        chunks = conn.execute("SELECT COUNT(*) FROM document_chunks").fetchone()[0]
+        fts = conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0]
+    assert chunks == fts, "FTS index drifted from document_chunks (a trigger didn't fire)"
+
+
+def test_fts_search_returns_hits(golden) -> None:
+    """§5: a keyword present across the corpus returns ranked hits (tokenizer ok)."""
+    db_path, _ = golden
+    with get_connection(db_path) as conn:
+        n = conn.execute(
+            "SELECT COUNT(*) FROM chunks_fts WHERE chunks_fts MATCH 'prince'"
+        ).fetchone()[0]
+    assert n > 0, "no FTS hits for 'prince' on a corpus full of princes"
+
+
+def test_fts_integrity_check_passes(golden) -> None:
+    """§5: the FTS5 integrity self-check must not raise (shadow tables intact)."""
+    db_path, _ = golden
+    with get_connection(db_path) as conn:
+        # Raises sqlite3.DatabaseError if the FTS shadow tables are corrupt.
+        conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check')")
+
+
+def test_deleting_a_source_cascades_and_drops_its_summary(golden) -> None:
+    """§12: delete_source removes the source, cascades pages/chunks/refs, keeps the
+    FTS aligned, and DELETES its 1-to-1 summary outright (it is not orphan-kept).
+    Mutates only the restored temp copy."""
+    from unittest.mock import patch
+
+    from domain.tools.deletion import delete_source
+
+    db_path, workspace = golden
+    with get_connection(db_path) as conn:
+        src = conn.execute(
+            "SELECT id FROM documents WHERE source_kind='source' "
+            "AND filename LIKE 'Little Red%'"
+        ).fetchone()
+        assert src is not None
+        src_id = src["id"]
+        summaries = [
+            r["relative_path"]
+            for r in conn.execute(
+                "SELECT relative_path FROM documents "
+                "WHERE source_kind='wiki' AND source_document_id=?",
+                (src_id,),
+            ).fetchall()
+        ]
+    assert summaries, "expected a 1-to-1 summary for the source"
+
+    with patch("domain.tools.git_ops.auto_commit"):
+        result = delete_source(db_path, workspace, src_id)
+    assert result.success
+
+    with get_connection(db_path) as conn:
+        assert conn.execute("SELECT 1 FROM documents WHERE id=?", (src_id,)).fetchone() is None
+        orphan_pages = conn.execute(
+            "SELECT COUNT(*) FROM document_pages p "
+            "LEFT JOIN documents d ON d.id=p.document_id WHERE d.id IS NULL"
+        ).fetchone()[0]
+        orphan_chunks = conn.execute(
+            "SELECT COUNT(*) FROM document_chunks c "
+            "LEFT JOIN documents d ON d.id=c.document_id WHERE d.id IS NULL"
+        ).fetchone()[0]
+        assert orphan_pages == 0 and orphan_chunks == 0, "cascade left orphan rows"
+        chunks = conn.execute("SELECT COUNT(*) FROM document_chunks").fetchone()[0]
+        fts = conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0]
+        assert chunks == fts, "delete triggers left the FTS index misaligned"
+        dangling = conn.execute(
+            "SELECT COUNT(*) FROM document_references r "
+            "LEFT JOIN documents s ON s.id=r.source_document_id "
+            "LEFT JOIN documents t ON t.id=r.target_document_id "
+            "WHERE s.id IS NULL OR t.id IS NULL"
+        ).fetchone()[0]
+        assert dangling == 0, "dangling reference edge after delete"
+
+    # The 1-to-1 summary is deleted outright — on disk and in the DB.
+    for rel in summaries:
+        assert not (workspace / rel).exists(), f"{rel} should be deleted, not kept"
+    with get_connection(db_path) as conn:
+        for rel in summaries:
+            assert conn.execute(
+                "SELECT 1 FROM documents WHERE relative_path=?", (rel,)
+            ).fetchone() is None
