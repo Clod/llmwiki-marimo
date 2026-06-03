@@ -47,7 +47,7 @@ def test_read_wiki_page_returns_index(tmp_workspace: WorkspaceFixture) -> None:
 def test_read_wiki_page_prefixes_citation_anchor(tmp_workspace: WorkspaceFixture) -> None:
     """Contract: read_wiki_page returns an inline attribution header so the agent
     has a citation anchor next to the content. Without it, wiki-first answers
-    arrive uncited. See docs/manual_test_plan.md §7."""
+    arrive uncited. See docs/uat_test_plan.md §B3."""
     result = read_wiki_page(_Ctx(tmp_workspace.db_path), "/wiki/index.md")
     # Canonical path, leading slash normalised away, content still present.
     assert result.startswith("[wiki page: wiki/index.md]")
@@ -209,8 +209,8 @@ def test_system_prompt_enforces_strict_grounding_and_citations() -> None:
 
     Product decision — answers must come from the user's knowledge base (never
     world knowledge) and every fact must be cited. This test guards against the
-    grounding/citation mandate being silently softened. See docs/manual_test_plan.md
-    §7 and the strict-default rationale.
+    grounding/citation mandate being silently softened. See docs/uat_test_plan.md
+    §B3 and the strict-default rationale.
     """
     from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
 

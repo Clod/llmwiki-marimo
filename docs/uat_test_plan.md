@@ -14,6 +14,10 @@ human:
   citations, generated-content quality, GUI interactions, and lint *finding*
   quality. **Run this before a release, or after changing the model, prompts, or
   UI.**
+- **Part C — Model check (optional).** Reuses the Part-B ideas to answer one
+  practical question: **is the AI model you picked good enough?** One command for
+  the chat model, plus an eyeball check for the page-writing model. **Run this
+  when choosing or switching models.**
 
 > Always run **Part A first**. If it's red, fix that before bothering with the
 > manual pass — a structural break will surface as confusing manual symptoms.
@@ -294,6 +298,68 @@ timeline. Useful for diagnosing a bad summary in B1.
 - [ ] **B5** Lint findings are sensible; repair adds a real link non-destructively.
 - [ ] **B6** Picker switches wikis cleanly; indexes stay independent.
 - [ ] **B7** (optional) Trace captured and viewable.
+
+---
+
+# Part C — Is your model good enough? (model check)
+
+The wiki runs on an AI model, and **the model you choose matters**. A weak model
+does two bad things: it **makes up answers** that aren't in your documents, and it
+**forgets to show where an answer came from**. This part lets you check a model
+*before* you rely on it — no deep technical knowledge needed.
+
+There are really **two jobs**, and you can use a different model for each:
+
+- **The answering model** (`LLM_MODEL` in your `.env`) — chats with you and
+  answers questions.
+- **The page-writing model** (`WIKI_LLM_MODEL`) — writes the wiki pages when you
+  add a document. If you don't set this one separately, it uses the answering
+  model.
+
+## Check the answering model — one command
+
+You don't need to add any documents: this uses a small **sample wiki** (four fairy
+tales) that ships with the project. Put the model you want to try in your `.env`
+as `LLM_MODEL`, then run:
+
+```bash
+uv run python scripts/eval_chat_model.py
+```
+
+It asks the assistant three questions and checks the answers:
+
+1. **Does it refuse a question that isn't in the wiki?** We ask for the capital of
+   France — which is *not* in the fairy tales. A good model says it doesn't know;
+   a weak one blurts "Paris".
+2. **Does it show its source?** Every fact should come with a small reference like
+   `(wiki/summaries/cinderella.md)`.
+3. **Does it still show sources when comparing two things?** Weak models drop the
+   references exactly here.
+
+You get a ✓ or ✗ for each, then a verdict:
+
+- **✓ good enough** — it refuses off-topic questions and shows its sources. Safe
+  to use.
+- **✗ likely too weak** — it answered something it shouldn't, or gave facts with
+  no source. Pick a stronger model and run it again.
+
+> This is a quick check, not a full exam. If a result looks borderline, run it
+> once or twice more — the model words things a little differently each time.
+
+## Check the page-writing model — by eye
+
+The page-writing model is judged by the pages it produces. Add the four sample
+PDFs (the [quick-start](#quick-start--reset--run) in Part B), open a generated
+summary, and ask: **does it read like a real encyclopedia page, or like a messy
+dump?** That's exactly **[B1](#b1-ingest-happy-path--content-quality)** above — if
+the summaries look good, the page-writing model is good enough.
+
+## Choosing between two models
+
+Run the command once with each model set as `LLM_MODEL`. The one that passes —
+and, on the comparison question, cites **both** stories — is the better pick for
+chat. For a worked example of a weak vs. a strong model, see the model-guidance
+note in the README.
 
 ---
 

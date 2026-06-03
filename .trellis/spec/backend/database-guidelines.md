@@ -105,7 +105,7 @@ invariant over the frozen corpus in
 > restored via `tests/helpers/golden.py`) — a real, human-verified ingest checked
 > with **no live LLM**. Non-deterministic, model-dependent behavior (chat
 > grounding, summary quality) is *not* regressioned; it lives in the manual UAT
-> (`docs/manual_test_plan.md` Part B). When you add a deterministic DB/file
+> (`docs/uat_test_plan.md` Part B). When you add a deterministic DB/file
 > invariant, add it to `tests/regression/`, not to the manual plan.
 
 ---
