@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 38
+- **Total Sessions**: 39
 - **Last Active**: 2026-06-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~172 | Active |
+| `journal-2.md` | ~221 | Active |
 | `journal-1.md` | ~1956 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 39 | 2026-06-02 | Save-form UX: clear-on-save + persistent notification | `0c207b4`, `0c298cd` |
 | 38 | 2026-06-02 | User-controlled, citation-safe save-to-wiki + dead-code removal | `f4de9da`, `3bb137f` |
 | 37 | 2026-06-01 | Pre-release test plan + strict traceable chat agent | `3094990`, `9da0501`, `8e1e090`, `ae4b267`, `8e23507` |
 | 36 | 2026-06-01 | Docs accuracy pass: DB rebuild claim, migration removal, codemaps, search-engine rating | `69502dc`, `6899baa`, `ecc6aaf`, `997d14c`, `720968e` |
