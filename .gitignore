@@ -44,6 +44,9 @@ launch-kit.md
 marimo/prototypes/
 Karpathy_concepts.md
 
+# Internal release-readiness review (candid; not for the public repo)
+docs/release_readiness_review.md
+
 # Deploy
 deploy.sh
 
