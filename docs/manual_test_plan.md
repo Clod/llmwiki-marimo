@@ -1,29 +1,93 @@
-# Pre-Release Manual Test Plan
+# Acceptance & Regression Test Plan
 
-A hands-on smoke/acceptance plan to exercise the **main user-facing
-functionalities** before opening the project to the public. It uses the four
-fairy-tale PDFs already in the repo and gives you, for each step:
+This is the **user-acceptance test (UAT)** for the wiki, split into two tiers so
+the parts that *can* be regressioned are separated from the parts that need a
+human:
 
-- **Do** — the concrete action.
-- **SQL** — a query to inspect the resulting database state.
-- **Expect (conceptually)** — what a *correct* result looks like. Because the
-  pipeline calls an LLM, exact rows, wording, and counts are
-  **non-deterministic** — so the expectations are framed as **invariants and
-  ranges**, not exact strings. Judge against the *shape* of the result, not a
-  golden value.
+- **Part A — Automated deterministic regression gate.** One `pytest` command that
+  asserts the structural invariants (DB integrity, FTS alignment, deletion
+  cascade, derived-page provenance, hash idempotency, save mechanics, lint logic,
+  git snapshots). No LLM, no servers, runs in seconds. **Run this on every code
+  change.**
+- **Part B — Manual acceptance (UAT).** The human-judgment checks that can't be
+  regressioned because their output is non-deterministic: chat grounding and
+  citations, generated-content quality, GUI interactions, and lint *finding*
+  quality. **Run this before a release, or after changing the model, prompts, or
+  UI.**
 
-> This is a manual plan, complementary to the automated suites
-> (`tests/unit/`, `tests/e2e/`). It checks the things a human notices —
-> readability of pages, citation quality, chat behaviour — that assertions
-> don't cover well.
+> Always run **Part A first**. If it's red, fix that before bothering with the
+> manual pass — a structural break will surface as confusing manual symptoms.
+
+It uses the four fairy-tale PDFs in `tests/fixtures/pdfs/`. Every Part-B
+expectation is framed as an **invariant or range**, not an exact string — the
+pipeline calls an LLM, so judge against the *shape* of the result.
 
 ---
+
+# Part A — Automated deterministic regression gate
+
+Run this after any change. It's fast (fake-LLM unit tests + a frozen real-ingest
+golden corpus), needs no API keys and no running apps:
+
+```bash
+uv run pytest tests/unit tests/regression -q
+```
+
+`tests/regression/` restores a **frozen, human-verified ingest** of the four PDFs
+(`tests/fixtures/golden_corpus/index.db` + `wiki/`) into a temp dir and asserts
+LLM-variation-robust invariants over it — so the deterministic backbone is
+checked against a *real* ingest without re-calling the model.
+
+## What Part A asserts (and where)
+
+| Invariant | Enforced by |
+|-----------|-------------|
+| Ingest: 4 sources all `ready`, one summary each | golden `test_four_sources_all_ready`; unit `test_pipeline_phase2`, `test_batch_ingest` |
+| Derived-page provenance: each summary resolves to and **cites** its source | golden `test_each_summary_cites_its_source` |
+| Every concept page has a `cites` edge (H1 citation-graph guard) | golden `test_every_concept_page_has_a_cites_edge` |
+| FTS5 stays row-aligned with `document_chunks`, is searchable, integrity-checks | golden `test_fts_rowcount_matches_chunks` / `test_fts_search_returns_hits` / `test_fts_integrity_check_passes` |
+| Save-to-wiki mechanics (create / update / index / FTS) | unit `test_wiki_tools` |
+| Deletion cascade: source + pages + chunks + refs removed, FTS realigned, **1-to-1 summary deleted outright**, no dangling edges | golden `test_deleting_a_source_cascades_and_drops_its_summary`; unit `test_delete_source` |
+| Multi-source concept page **kept and marked stale** on source delete (not deleted) | unit `test_delete_source_marks_multi_source_concept_stale` |
+| Change detection / hash idempotency (unchanged skips, changed re-ingests) | unit `test_pipeline_phase2`, `test_batch_ingest` |
+| Git snapshot: labelled, clean tree, local identity, `sources/`+`.llmwiki/` untracked | unit `test_git_ops` |
+| Lint logic (each check) + repair adds real reference edges, non-destructively | unit `test_lint_*`, `test_repair*`; golden `test_lint_reports_no_errors` |
+| DB rows and on-disk markdown tree agree | golden `test_db_and_markdown_tree_agree` |
+
+**If a row goes red**, the hands-on SQL probe for that invariant is in
+[Appendix A](#appendix-a--sql-probes-for-debugging-a-red-part-a) — restore a wiki
+and run the query to see the actual state.
+
+## Re-freezing the golden corpus (after an intentional behavior change)
+
+The golden corpus is committed; regression runs against it offline. If you
+*intentionally* change ingest/summary structure, rebuild and re-freeze it (this
+is the one step that needs LLM keys):
+
+```bash
+python scripts/build_golden_corpus.py build     # re-ingest the 4 PDFs (needs LLM)
+# inspect tests/fixtures/_golden_staging/wiki/ by eye
+python scripts/build_golden_corpus.py freeze     # snapshot → tests/fixtures/golden_corpus/
+git add tests/fixtures/golden_corpus               # commit the new baseline
+```
+
+Only re-freeze on a *deliberate* change — otherwise a drifting baseline hides
+regressions.
+
+---
+
+# Part B — Manual acceptance (UAT)
+
+These need a human, a live LLM, or the GUI, so they can't be regressioned. Run
+before a release or after changing the model, prompts, or UI. The DB-state
+*mechanics* under several of these are already covered by Part A; here you judge
+the things assertions can't — readability, grounding, and interaction.
 
 ## Quick start — reset & run
 
 Paste this from the **project root** to wipe any previous test wiki, stage the
-four fairy-tale PDFs, and launch both apps + a SQL session. Each block is a
-separate terminal.
+four PDFs, and launch both apps + a SQL session. Each block is a separate
+terminal.
 
 ```bash
 # ── Terminal 1: fresh wiki + ingest app ──────────────────────────────────
@@ -40,599 +104,161 @@ WIKI_PATH=/tmp/test-wiki uv run marimo run marimo/read_app.py --no-sandbox --por
 ```
 
 ```bash
-# ── Terminal 3: live SQL session against the index ───────────────────────
+# ── Terminal 3: live SQL session (optional, for eyeballing) ───────────────
 sqlite3 /tmp/test-wiki/.llmwiki/index.db
 #   then, once:  .mode box   .headers on
-#   first look:  SELECT source_kind, status, COUNT(*) n FROM documents
-#                GROUP BY source_kind, status ORDER BY 1,2;
 ```
 
-> Setting `WIKI_PATH` inline (as above) overrides `.env` for that process only,
-> so your real default wiki is untouched. You can also leave `.env` alone and
-> just switch to `/tmp/test-wiki` with the in-app picker (top-left).
-
-To reset and start over at any point: re-run the first three lines of
-Terminal 1.
-
-The sections below walk each functionality in depth, with the SQL and the
-"what to look for" for every step.
-
----
-
-## 0. Conventions & setup
-
-### Test corpus
-
-Four public-domain fairy tales live in `tests/fixtures/pdfs/`:
-
-| File | Notes |
-|------|-------|
-| `Cinderella.pdf` | small, text-based |
-| `Little Red Riding Hood.pdf` | small, text-based |
-| `The Sleeping Beauty in the Wood.pdf` | small, text-based |
-| `Snow White and the Seven Dwarfs.pdf` | larger (~1.2 MB), multi-page |
-
-They share characters/motifs (princes, royalty, a curse/spell, a transformation),
-which is **deliberate** — it gives the wiki something to cross-link and lets the
-`missing_xref` / concept machinery actually fire.
-
-### A throwaway wiki for testing
-
-Don't pollute a real wiki. Make a scratch one:
-
-```bash
-mkdir -p /tmp/test-wiki/sources
-cp tests/fixtures/pdfs/*.pdf /tmp/test-wiki/sources/
-```
-
-Point the apps at it either via `.env` (`WIKI_PATH=/tmp/test-wiki`) or via the
-in-app wiki picker (top-left in both apps).
-
-### The database
-
-The runtime index lives at:
-
-```
-$WIKI_PATH/.llmwiki/index.db        # e.g. /tmp/test-wiki/.llmwiki/index.db
-```
-
-Open a read-only SQL session against it in a **second terminal** while the apps
-run (WAL mode allows concurrent reads):
-
-```bash
-sqlite3 /tmp/test-wiki/.llmwiki/index.db
-```
-
-Inside `sqlite3`, turn on readable output once:
-
-```sql
-.mode box
-.headers on
-```
-
-> **Run queries against a quiet DB.** If an ingest is mid-flight you'll see
-> partial state (`status='processing'`). Let the app finish before asserting.
-
-### Reusable "health" query
-
-Keep this handy — it's the one-glance dashboard used throughout:
-
-```sql
-SELECT source_kind, status, COUNT(*) AS n
-FROM documents
-GROUP BY source_kind, status
-ORDER BY source_kind, status;
-```
-
----
-
-## 1. Environment sanity
-
-**Do**
-
-```bash
-uv sync
-uv run python -c "import marimo, pydantic_ai, opendataloader_pdf; print('deps ok')"
-```
-
-Confirm `.env` has a reachable `LLM_*` endpoint (and `WIKI_LLM_*` if you split
-models). For a fully local run, start Ollama / LM Studio first.
-
-**Expect (conceptually)**
-
-- `deps ok` prints with no import error.
-- The LLM endpoint answers a trivial request (the ingest will fail loudly
-  otherwise). If you only want to test the *non-LLM* plumbing, note that
-  ingestion **requires** the LLM — there's no offline ingest path.
-
----
-
-## 2. Ingest via upload (the primary happy path)
-
-**Do**
-
-1. `uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718`
-2. Open <http://localhost:2718>, confirm the wiki picker shows `/tmp/test-wiki`.
-3. Drag **`Cinderella.pdf`** into the upload box → click **⚙️ Ingest uploaded
-   file(s)**.
-4. Wait for completion (watch the status/log area).
-
-**SQL**
-
-```sql
--- The source document and its derived wiki summary page
-SELECT filename, source_kind, status, page_count, parser, file_type,
-       length(content) AS content_len
-FROM documents
-WHERE filename LIKE 'Cinderella%' OR filename LIKE 'cinderella%'
-ORDER BY source_kind;
-
--- Pages and chunks were extracted
-SELECT
-  (SELECT COUNT(*) FROM document_pages  p JOIN documents d ON d.id=p.document_id
-     WHERE d.filename LIKE 'Cinderella%') AS pages,
-  (SELECT COUNT(*) FROM document_chunks c JOIN documents d ON d.id=c.document_id
-     WHERE d.filename LIKE 'Cinderella%') AS chunks;
-```
-
-**Expect (conceptually)**
-
-- Exactly **one** `source` row for the PDF with `status='ready'`,
-  `parser='opendataloader'`, `file_type='pdf'`, `page_count >= 1`,
-  `content_len > 0`.
-- At least **one** `wiki` row appears — the generated summary
-  (`wiki/summaries/cinderella.md` or similar). It may take a moment after the
-  source row flips to `ready`.
-- `pages >= 1` and `chunks >= 1`. Chunk count scales with length; a short tale
-  may be a handful of chunks. **Zero chunks = red flag** (extraction produced
-  empty text — see §13 troubleshooting).
-- No row stuck in `processing`, none `failed`. A `failed` row should carry a
-  human-readable `error_message`.
-
-**On disk** (independent of the DB):
-
-```bash
-ls /tmp/test-wiki/wiki/ /tmp/test-wiki/wiki/summaries/
-cat /tmp/test-wiki/wiki/summaries/*cinderella*.md
-```
-
-The summary should read like a *coherent human summary of Cinderella* — title,
-prose, maybe key-points — not a raw text dump or JSON. This is a qualitative
-judgement: would a person recognise it as a real encyclopedia entry?
-
----
-
-## 3. Ingest the rest via "Scan sources/"
-
-**Do**
-
-1. The other three PDFs are already in `/tmp/test-wiki/sources/` (from §0).
-2. In the ingest app, click **🔄 Scan sources/ for changes**.
-3. Wait for all three to process.
-
-**SQL**
-
-```sql
-SELECT source_kind, status, COUNT(*) AS n
-FROM documents GROUP BY source_kind, status;
-
--- One summary per source?
-SELECT
-  (SELECT COUNT(*) FROM documents WHERE source_kind='source') AS sources,
-  (SELECT COUNT(*) FROM documents WHERE source_kind='wiki'
-        AND relative_path LIKE 'wiki/summaries/%') AS summaries;
-```
-
-**Expect (conceptually)**
-
-- `source` count == **4**, all `status='ready'`.
-- `summaries` should be **4** (one per source) — or close; if one is missing,
-  open that summary path on disk to see whether generation silently skipped it.
-- `wiki` rows also include the structural pages: `index.md`, `overview.md`,
-  `log.md`, and possibly several `concepts/*.md`. So total `wiki` > 4.
-- **Idempotency check:** click **Scan** again immediately. Nothing should
-  re-ingest (content unchanged → `content_hash` matches). Confirm with §11.
-
----
-
-## 4. Derived-page provenance (the self-FK)
-
-Every generated summary should point back to the source it was built from via
-`documents.source_document_id`.
-
-**SQL**
-
-```sql
-SELECT w.relative_path AS wiki_page,
-       s.filename       AS built_from_source
-FROM documents w
-JOIN documents s ON s.id = w.source_document_id
-WHERE w.source_kind='wiki'
-ORDER BY w.relative_path;
-```
-
-**Expect (conceptually)**
-
-- Each summary page resolves to exactly one `source` document, and the pairing
-  is sensible (the *Cinderella* summary points at `Cinderella.pdf`, not at
-  *Snow White*).
-- Structural pages (`index.md`, `overview.md`, `log.md`) and multi-source
-  concept pages may legitimately have `source_document_id = NULL` — they aren't
-  derived from a single source. That's expected, not a bug.
-
----
-
-## 5. FTS5 index integrity
-
-The full-text index is maintained by triggers; it must stay row-aligned with
-`document_chunks`.
-
-**SQL**
-
-```sql
--- Row counts must match exactly (external-content FTS)
-SELECT (SELECT COUNT(*) FROM document_chunks) AS chunks,
-       (SELECT COUNT(*) FROM chunks_fts)      AS fts_rows;
-
--- A real keyword search returns ranked hits
-SELECT c.document_id, substr(c.content,1,80) AS snippet
-FROM chunks_fts f
-JOIN document_chunks c ON c.rowid = f.rowid
-WHERE chunks_fts MATCH 'prince'
-ORDER BY rank
-LIMIT 5;
-
--- Integrity self-check (should return no error rows)
-INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check');
-```
-
-**Expect (conceptually)**
-
-- `chunks == fts_rows`. A mismatch means a trigger didn't fire (serious — search
-  will silently miss content).
-- The `MATCH 'prince'` query returns several snippets actually containing the
-  word/stem (`prince`, `princes`, `princess` — porter stemming). Empty result
-  on a corpus full of princes ⇒ tokenizer/trigger problem.
-- The `integrity-check` pragma runs without raising. (If it errors, the FTS
-  shadow tables are corrupt.)
-
----
-
-## 6. Read app — navigation & viewer
-
-**Do**
-
-1. `uv run marimo run marimo/read_app.py --no-sandbox --port 2720`
-2. Open <http://localhost:2720>. Confirm 3-column layout: nav (left), content
-   (middle), chat (right).
-3. Click through pages in the left nav: `index`, `overview`, each summary, each
-   concept.
-
-**Expect (conceptually)**
-
-- The left nav lists the pages that exist on disk under `wiki/` (cross-check
-  against `ls -R /tmp/test-wiki/wiki`).
-- Selecting a page renders **its** markdown in the middle — headings, prose,
-  working internal links. Clicking an internal cross-link navigates to the
-  linked page (doesn't 404 or dump raw `[[...]]`).
+> Setting `WIKI_PATH` inline overrides `.env` for that process only, so your real
+> default wiki is untouched. Reset at any point by re-running Terminal 1.
+
+The corpus (`tests/fixtures/pdfs/`) is four public-domain fairy tales —
+*Cinderella*, *Little Red Riding Hood*, *The Sleeping Beauty in the Wood*, *Snow
+White and the Seven Dwarfs*. They deliberately share motifs (princes, royalty, a
+curse, a transformation) so cross-linking and the concept machinery actually
+fire.
+
+## B1. Ingest happy path & content quality
+
+**Do:** ingest `Cinderella.pdf` via the upload box (**⚙️ Ingest uploaded
+file(s)**), then **🔄 Scan sources/** to bring in the other three.
+
+**Accept (human judgment):**
+
+- On disk, the generated summary reads like a *coherent encyclopedia entry* —
+  title, prose, maybe key-points — **not** a raw text dump or JSON:
+  ```bash
+  cat /tmp/test-wiki/wiki/summaries/*cinderella*.md
+  ```
+  Would a person recognise it as a real wiki page?
 - `overview.md` reads as a *synthesis across all four tales*, not a copy of one
-  summary. `index.md` is a catalogue listing every page.
-- No Python tracebacks in the middle panel; no empty white page for a file that
-  exists on disk.
+  summary; `index.md` is a catalogue of every page.
 
----
+> The *counts* (4 sources ready, one summary each, pages/chunks > 0, no `failed`
+> rows) are Part A's job — you don't need to re-check them by hand. If a summary
+> is a dump, inspect the trace (B7).
 
-## 7. Chat — wiki-first RAG with citations
+## B2. Read app — navigation & rendering (GUI)
+
+**Do:** open <http://localhost:2720>; confirm the 3-column layout (nav · content ·
+chat); click through `index`, `overview`, each summary, each concept.
+
+**Accept:**
+
+- The left nav lists exactly the pages on disk (`ls -R /tmp/test-wiki/wiki`).
+- Selecting a page renders **its** markdown — headings, prose, working internal
+  links. Clicking an internal cross-link navigates (no 404, no raw `[[...]]`).
+- No Python tracebacks in the middle panel; no blank page for a file that exists.
+
+## B3. Chat — grounding & citations (the core non-deterministic check)
 
 The default agent is **strict by design**: it answers *only* from your wiki and
 sources, never from world knowledge, and every fact must be cited
-(`base/domain/chat/config.py:_DEFAULT_SYSTEM_PROMPT`). This section tests that
-contract.
+(`base/domain/chat/config.py:_DEFAULT_SYSTEM_PROMPT`). This is the section whose
+pass/fail rides on the model, which is why it's manual.
 
-> **Caveat on famous corpora.** These four tales are in essentially every
-> model's pretraining, so a question about the *plot* ("what happens at the
-> ball?") can't tell retrieval from recall — a model can answer correctly from
-> memory. To actually probe grounding, use a **PDF-specific detail** (a phrase,
-> name, or wording that exists only in *your* file), where a correct answer
-> *proves* a tool fired. Questions 1 and 4 below are built for that.
+> **Caveat on famous corpora.** These tales are in essentially every model's
+> pretraining, so a *plot* question ("what happens at the ball?") can't tell
+> retrieval from recall. To actually probe grounding, use a **PDF-specific
+> detail** — a phrase, name, or number that exists only in *your* file — where a
+> correct answer *proves* a tool fired.
 
-**Do** (in the read app's right column)
+**Do** (read app's right column), one at a time:
 
-Ask, one at a time:
-
-1. **Grounding probe — PDF-specific detail.** Open one summary or source on disk,
-   pick a distinctive phrase/detail that is *particular to this edition* (an
-   unusual translation, a named minor character, a specific number), and ask
-   about it. A correct, **cited** answer proves retrieval fired; a vague or wrong
-   answer means it's leaning on memory.
+1. **Grounding probe — PDF-specific detail.** Open a summary/source on disk, pick
+   a distinctive detail particular to this edition (an odd translation, a named
+   minor character, a specific number), and ask about it. A correct **cited**
+   answer proves retrieval; a vague/wrong one means it leaned on memory.
 2. *"What do these stories have in common?"* (cross-document synthesis)
 3. *"List the royal characters across all the stories."* (forces breadth)
-4. **Off-corpus refusal.** Ask something plainly outside the wiki, e.g.
-   *"What's the capital of France?"*
+4. **Off-corpus refusal.** *"What's the capital of France?"*
 
-**Expect (conceptually)**
+**Accept:**
 
-- Answers **stream** in token by token.
-- **Every factual claim is cited** — document name and, where available, page
-  (e.g. `(Cinderella.pdf, p. 3)`). With the strict default this is mandatory, not
-  best-effort: an uncited factual answer is a **failure**.
-- Content is **grounded in the corpus** — names and events match the tales, no
-  invented plot points. A character or fact that appears in no document is a
-  grounding failure.
+- Answers **stream** token by token.
+- **Every factual claim is cited** — page path `(wiki/summaries/cinderella.md)`
+  or source + page `(Cinderella.pdf, p. 3)`. With the strict default an uncited
+  factual answer is a **failure**, not a nitpick.
+- Content is **grounded** — names and events match the tales, no invented plot
+  points.
 - The agent searches the wiki first (`read_wiki_page` / `search_wiki_fts`) and
-  only falls back to `search_source_chunks` when the wiki pages lack detail.
-- **Question 4 must be declined.** The assistant should say the question is
-  outside your knowledge base and *not* answer "Paris" from world knowledge.
-  Wording varies; the behaviour (refusal-to-roam) is the check. **If it answers
-  "Paris", the grounding mandate isn't taking effect** — see below.
+  only falls back to `search_source_chunks` when wiki pages lack detail.
+- **Question 4 must be declined** — it should say the question is outside your
+  knowledge base, **not** answer "Paris". Wording varies; refusal-to-roam is the
+  check.
 
-> **If grounding/citations leak** (off-corpus questions get answered, or facts
-> arrive uncited): first check `WIKI_PATH/wiki_config.toml` isn't overriding the
-> strict default with a looser `system_prompt`; then suspect the **model**. A
-> model too weak to follow instructions will ignore the mandate and lean on
-> pretraining no matter how strict the prompt — try a stronger `WIKI_LLM_*` /
-> `LLM_*` model (see the README "Don't use too small a model" note). The prompt
-> sets the contract; the model has to be capable of honouring it.
+> **If grounding/citations leak** (off-corpus answered, or facts uncited): first
+> check `WIKI_PATH/wiki_config.toml` isn't overriding the strict default with a
+> looser `system_prompt`; then suspect the **model**. A model too weak to follow
+> instructions ignores the mandate no matter how strict the prompt — try a
+> stronger `WIKI_LLM_*` / `LLM_*` (see the README "Don't use too small a model"
+> note). The prompt sets the contract; the model must be able to honour it.
 
----
+## B4. Chat — save-to-wiki (human-in-the-loop UX)
 
-## 8. Chat — save-to-wiki (human-in-the-loop)
+Saving a chat response is **the user's action, never the agent's**. The agent has
+no write tool: it drafts and proposes a title + category, then *you* commit via
+the **"Save last response to wiki"** form (which calls `save_to_wiki`). The
+DB/disk *mechanics* are asserted in Part A — here you check the **UX and the
+draft quality**.
 
-Saving a chat response as a wiki page is **the user's action, never the
-agent's**. The agent has no write tool: it drafts the page and proposes a title
-and category, then *you* commit it via the **"Save last response to wiki"** form
-below the chat (which calls `save_to_wiki`). This keeps every page the user
-explicitly approved — see the SECURITY.md "local + reviewable" stance.
+**Do:**
 
-**Do**
+1. Ask: *"Write a new concept page comparing the villains in Cinderella and
+   Sleeping Beauty and save it to the wiki."*
+2. Read the reply: it should produce a **cited** comparison draft, propose a
+   **Title** + **Category** (*Concept*), and tell you to use the form — it must
+   **not** claim to have saved anything.
+3. In the form, type the proposed title, pick **Concept**, press **💾 Save to
+   wiki**; wait for the green ✅ callout.
+4. **Re-save guard:** send another chat message. Watch `wiki/concepts/` — it must
+   **not** grow on its own.
 
-1. In chat: *"Write a new concept page that compares the villains across these
-   stories and save it to the wiki."*
-2. Read the agent's reply. It should produce a **cited** comparison draft, then
-   propose a **Title** and a **Category** (*Concept* here) and tell you to use
-   the Save form — it must **not** claim to have saved anything itself.
-3. In the **"Save last response to wiki"** form under the chat, type the
-   proposed title, pick **Concept**, and press **💾 Save to wiki**.
-4. Wait for the green ✅ confirmation callout.
-5. **Re-save guard.** After the save, send **another** chat message (any
-   question). Watch the `wiki/concepts/` row count — it must **not** grow on its
-   own. (Before the fix, the persisted form value silently re-saved the previous
-   answer under the old title whenever the chat updated.)
+**Accept:**
 
-**SQL** (run *after* you submit the form — not before)
-
-```sql
-SELECT relative_path, source_kind, status, datetime(created_at) AS created
-FROM documents
-WHERE source_kind='wiki'
-ORDER BY created DESC
-LIMIT 5;
-```
-
-**Expect (conceptually)**
-
-- **Before** you press the button: **no** new `wiki` row, and nothing new on
-  disk under `wiki/concepts/`. The agent only drafted and proposed — confirm it
-  did *not* assert it saved/created/filed the page (that would be a regression of
-  the no-autonomous-write contract).
-- The agent's draft is a real, **cited** comparison (Cinderella's stepmother,
-  Snow White's queen, etc.), and it names a title + the *Concept* category.
-- **After** you submit the form: a **new** `wiki` row appears (a `concepts/*.md`)
-  with the newest `created_at`, the file exists on disk
-  (`ls /tmp/test-wiki/wiki/concepts/`), and re-opening/refreshing the nav lists
-  and renders it. This proves the user-driven save path updates **both** disk
-  and DB index.
-- An **empty** title in the form is rejected ("Title cannot be empty."), and
-  submitting before any chat response is rejected ("Chat with the assistant
-  first.") — the form validates, it doesn't save junk.
+- Before pressing the button: no new page on disk; the agent only drafted and
+  proposed (claiming it saved would be a regression of the no-autonomous-write
+  contract).
+- The draft is a real, **cited** comparison (every point carries its source
+  page).
+- After submitting: the new `concepts/*.md` appears in the nav and renders.
 - **After a successful save the title box clears** and the ✅ callout **persists**
-  (stays visible until your next save). The cleared box is also the re-save guard:
-  in step 5, the follow-up chat message must produce **no** new `wiki` row and
-  nothing new under `wiki/concepts/`. A page appearing without you pressing the
-  button is a regression.
+  until the next save. The cleared box is also the re-save guard — the follow-up
+  chat in step 4 must create **no** new page. A page appearing without you
+  pressing the button is a regression.
+- An empty title is rejected ("Title cannot be empty."); submitting before any
+  chat is rejected ("Chat with the assistant first.").
 
----
+## B5. Lint & repair — finding quality
 
-## 9. Lint — surface wiki health issues
+**Do:** run lint, then repair, from the ingest app's maintenance controls. Checks:
+`orphan`, `stale`, `missing_xref`, `missing_concept`, `contradiction`,
+`data_gap`, `gap_filled`.
 
-**Do**
+**Accept (judgment — Part A already proves lint *runs* and repair adds edges):**
 
-Run lint from the ingest app's maintenance controls (or however the UI exposes
-it). The checks, by name, are: `orphan`, `stale`, `missing_xref`,
-`missing_concept`, `contradiction`, `data_gap`, `gap_filled`.
+- Findings are **sensible**: `missing_xref` between two tales that mention the
+  same motif but don't link; `orphan`/`missing_concept` point at real pages you
+  can open.
+- The **LLM-gated** checks (`contradiction`, `data_gap`, `gap_filled`) are
+  judgment calls — `contradiction` may legitimately be **empty** on fairy tales
+  (empty ≠ broken).
+- Repair is visibly **non-destructive**: it adds links/pages, the page count from
+  the health query doesn't shrink, and a previously-flagged `missing_xref` is
+  gone (or reduced) on a re-run.
 
-**Expect (conceptually)**
+## B6. Multi-wiki picker (GUI)
 
-- Lint completes and returns a **structured list** of findings, each with a
-  `check` name, a `severity` (`info` / `warning` / `error`), and the page(s)
-  involved.
-- Typical fresh-corpus findings:
-  - `missing_xref` (`info`) — two summaries that mention the same motif
-    (e.g. a *prince*) but don't link to each other. Very likely to appear with
-    these overlapping tales.
-  - `orphan` (`warning`) — a concept page nothing links to.
-  - `missing_concept` (`warning`) — a concept referenced in prose with no page
-    on disk.
-- `contradiction` (`error`) is LLM-judged and may legitimately be **empty** on
-  fairy tales (they don't contradict each other factually). Empty ≠ broken.
-- The point isn't a specific count — it's that lint **runs, categorises, and
-  points at real pages** you can open and verify.
+**Do:** make a second scratch wiki (`mkdir -p /tmp/test-wiki-2/sources`, drop one
+PDF), then switch to it via the top-left picker.
 
----
+**Accept:** the picker lists discovered + recent wikis and accepts a typed path;
+switching **repoints** nav, DB, and chat to wiki-2; the two `.llmwiki/index.db`
+stay independent (ingesting one doesn't touch the other).
 
-## 10. Repair — auto-fix the safe findings
+## B7. Ingestion trace (optional, developer-facing)
 
-There is one repair action per lint check (`repair_orphan`, `repair_stale`,
-`repair_missing_xref`, `repair_missing_concept`, `repair_contradiction`,
-`repair_data_gap`, `repair_gap_filled`).
-
-**Do**
-
-1. Note a specific `missing_xref` finding from §9 (page A ↔ page B).
-2. Run repair.
-3. Re-run lint.
-
-**SQL** (confirm a reference edge was created)
-
-```sql
-SELECT s.relative_path AS from_page,
-       t.relative_path AS to_page,
-       r.reference_type
-FROM document_references r
-JOIN documents s ON s.id = r.source_document_id
-JOIN documents t ON t.id = r.target_document_id
-ORDER BY from_page;
-```
-
-**Expect (conceptually)**
-
-- The previously-flagged `missing_xref` is **gone** on the re-run (or reduced).
-- A corresponding `links_to` edge now exists in `document_references`, and the
-  markdown for page A on disk now contains a real link to page B.
-- Repair is **non-destructive**: source rows and existing content remain; counts
-  from §3's health query don't shrink. Repair adds links/pages, it doesn't
-  delete.
-
----
-
-## 11. Change detection & re-ingest
-
-**Do**
-
-1. Modify a source: append a line to one of the PDFs' content is awkward, so
-   instead **re-drop the same unchanged file** and Scan → confirm *no* re-ingest.
-2. Then **replace** one source with a genuinely different file (e.g. copy a
-   second tale over `Cinderella.pdf`'s name, or edit a `.txt` if you stage one)
-   and Scan → confirm it **does** re-ingest.
-
-**SQL**
-
-```sql
-SELECT filename, version, content_hash,
-       datetime(last_indexed_at) AS indexed,
-       datetime(stale_since)     AS stale_since
-FROM documents
-WHERE source_kind='source'
-ORDER BY filename;
-```
-
-**Expect (conceptually)**
-
-- **Unchanged re-scan:** `content_hash`, `version`, and `last_indexed_at` are
-  unchanged. The pipeline skipped it (hash match). This is the idempotency
-  guarantee.
-- **Changed file:** `content_hash` changes, `last_indexed_at` advances, and the
-  derived summary is regenerated (its content on disk differs from before).
-- `stale_since` is `NULL` for healthy, current rows. A non-NULL value flags a
-  row the system believes is out of sync — investigate if it lingers after a
-  successful scan.
-
----
-
-## 12. Deletion & cascade integrity
-
-**Do**
-
-Delete one source through the app's deletion tool (the `delete_source` path).
-Use *Little Red Riding Hood* so the others stay intact.
-
-**SQL** (run *before* and *after*)
-
-```sql
--- Capture the id first
-SELECT id, filename FROM documents
-WHERE filename LIKE 'Little Red%' AND source_kind='source';
-
--- After deletion: the source and its children should be gone…
-SELECT COUNT(*) AS source_rows FROM documents
-WHERE filename LIKE 'Little Red%' AND source_kind='source';
-
--- …pages and chunks cascade-deleted (no orphans)
-SELECT
-  (SELECT COUNT(*) FROM document_pages  p
-     LEFT JOIN documents d ON d.id=p.document_id WHERE d.id IS NULL) AS orphan_pages,
-  (SELECT COUNT(*) FROM document_chunks c
-     LEFT JOIN documents d ON d.id=c.document_id WHERE d.id IS NULL) AS orphan_chunks;
-
--- …FTS stays aligned…
-SELECT (SELECT COUNT(*) FROM document_chunks) AS chunks,
-       (SELECT COUNT(*) FROM chunks_fts)      AS fts_rows;
-
--- …and the derived summary is ORPHANED (kept), not destroyed
-SELECT relative_path, source_document_id
-FROM documents
-WHERE source_kind='wiki' AND relative_path LIKE '%little-red%';
-```
-
-**Expect (conceptually)**
-
-- `source_rows = 0` — the source document is gone.
-- `orphan_pages = 0` and `orphan_chunks = 0` — `ON DELETE CASCADE` cleaned up
-  pages and chunks.
-- `chunks == fts_rows` still holds — delete triggers fired.
-- The summary page for Little Red Riding Hood **still exists** but its
-  `source_document_id` is now `NULL` (`ON DELETE SET NULL`). This is the
-  deliberate "orphan the derived page rather than destroy it" behaviour. Confirm
-  the markdown file is still on disk too.
-- `document_references` rows touching the deleted document are gone
-  (cascade on both endpoints) — no dangling edges:
-
-```sql
-SELECT COUNT(*) AS dangling
-FROM document_references r
-LEFT JOIN documents s ON s.id=r.source_document_id
-LEFT JOIN documents t ON t.id=r.target_document_id
-WHERE s.id IS NULL OR t.id IS NULL;   -- expect 0
-```
-
----
-
-## 13. Git snapshot of the wiki (if `WIKI_AUTOCOMMIT` ≠ 0)
-
-**Do**
-
-```bash
-cd /tmp/test-wiki
-git log --oneline
-git status
-```
-
-**Expect (conceptually)**
-
-- An ingest produced **labelled commits** (e.g. `ingest: Cinderella.pdf`) in the
-  wiki's **own** repo (separate from this project's repo).
-- `git status` shows a **clean** tree after an ingest — `wiki/` and the
-  generated `.gitignore` are committed; `sources/` and `.llmwiki/` are **not**
-  tracked (the `.gitignore` excludes them). Verify `sources/` and `.llmwiki/`
-  don't appear in `git ls-files`.
-- The commit identity is the local `LLM Wiki <llmwiki@local>` — it did **not**
-  use your global git name/email.
-- With `WIKI_AUTOCOMMIT=0`: no `.git` is created in the wiki and ingestion still
-  succeeds (snapshots simply skipped). Re-test once with this flag set.
-
----
-
-## 14. Multi-wiki picker
-
-**Do**
-
-1. Create a second scratch wiki: `mkdir -p /tmp/test-wiki-2/sources` and drop one
-   PDF in it.
-2. In either app, use the top-left picker to switch to `/tmp/test-wiki-2`.
-
-**Expect (conceptually)**
-
-- The picker lists discovered wikis (siblings of `WIKI_PATH`, or under
-  `WIKI_HOME` if set) plus a recent list, and accepts a typed path.
-- Switching **repoints** the app: nav, DB, and chat now reflect wiki-2's
-  content, not wiki-1's. The two `.llmwiki/index.db` files stay independent
-  (ingesting in one doesn't touch the other).
-
----
-
-## 15. Ingestion trace (optional, developer-facing)
-
-**Do**
+**Do:**
 
 ```bash
 WIKI_TRACE=1 uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
@@ -640,59 +266,154 @@ WIKI_TRACE=1 uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
 uv run marimo run marimo/trace_report_app.py --no-sandbox --port 2722
 ```
 
-**Expect (conceptually)**
-
-- A JSONL trace is written for the run (write-only; opt-in via the env var).
-- The trace report app loads it and shows the LLM/data-flow steps for the
-  ingest — prompts, model calls, chunk flow — in a readable timeline. Useful for
-  diagnosing a bad summary in §2.
+**Accept:** a JSONL trace is written (opt-in via the env var) and the report app
+shows the LLM/data-flow steps — prompts, model calls, chunk flow — in a readable
+timeline. Useful for diagnosing a bad summary in B1.
 
 ---
 
-## Pass/fail summary checklist
+## Acceptance sign-off checklist
 
-Tick these before release. Each maps to a section above.
+**Gate (must be green before anything else):**
 
-- [ ] **§2–3** All 4 PDFs ingest to `status='ready'`; one summary each; pages &
-  chunks > 0; no `failed`/stuck rows.
-- [ ] **§2/§6** Generated pages read like real encyclopedia entries, not dumps.
-- [ ] **§4** Every summary's `source_document_id` resolves to the correct source.
-- [ ] **§5** `chunks == fts_rows`; keyword search returns relevant hits;
-  integrity-check passes.
-- [ ] **§6** Read app renders all on-disk pages; internal links navigate.
-- [ ] **§7** Chat streams; **every fact is cited**; stays grounded; **refuses
-  off-corpus questions** (doesn't answer "Paris"). A PDF-specific detail is
-  answered correctly *with* a citation (proves retrieval, not recall).
-- [ ] **§8** Agent drafts + proposes title/category but does **not** self-save;
-  pressing **💾 Save to wiki** creates a real page in both disk and DB; the form
-  validates (rejects empty title / no chat yet); after save the **title box
-  clears** + ✅ notice **persists**, and a follow-up chat message triggers **no**
-  auto re-save.
-- [ ] **§9** Lint runs, categorises by severity, points at real pages.
-- [ ] **§10** Repair clears a finding and adds a real reference edge,
-  non-destructively.
-- [ ] **§11** Unchanged file skips re-ingest; changed file re-ingests
-  (hash-based).
-- [ ] **§12** Deletion cascades pages/chunks/refs, keeps FTS aligned, orphans
-  (not destroys) the derived summary.
-- [ ] **§13** Wiki git snapshots are labelled, clean, local-identity, and never
-  track `sources/`/`.llmwiki/`.
-- [ ] **§14** Picker switches wikis cleanly; indexes stay independent.
-- [ ] **§15** (optional) Trace captured and viewable.
+- [ ] **Part A** — `uv run pytest tests/unit tests/regression -q` passes (all
+  deterministic invariants).
+
+**Manual acceptance (before release / after model/prompt/UI changes):**
+
+- [ ] **B1** Generated pages read like real entries, not dumps; overview is a
+  synthesis.
+- [ ] **B2** Read app renders all on-disk pages; internal links navigate; no
+  tracebacks.
+- [ ] **B3** Chat streams; **every fact is cited**; stays grounded; **refuses
+  off-corpus** ("capital of France"); a PDF-specific detail is answered with a
+  citation (proves retrieval, not recall).
+- [ ] **B4** Agent drafts + proposes but does **not** self-save; **💾 Save** adds
+  the page; title box **clears** + ✅ notice **persists**; a follow-up chat
+  triggers **no** auto re-save.
+- [ ] **B5** Lint findings are sensible; repair adds a real link non-destructively.
+- [ ] **B6** Picker switches wikis cleanly; indexes stay independent.
+- [ ] **B7** (optional) Trace captured and viewable.
 
 ---
 
-## Troubleshooting quick map
+## Appendix A — SQL probes (for debugging a red Part A)
+
+When a regression test fails, restore a wiki and inspect the real state. Either
+use your `/tmp/test-wiki` from Part B's quick-start, or restore the golden corpus:
+
+```bash
+python - <<'PY'
+from pathlib import Path; import tempfile
+from tests.helpers.golden import restore_golden
+db, ws = restore_golden(Path(tempfile.mkdtemp()))
+print("db:", db, "\nworkspace:", ws)
+PY
+# then: sqlite3 <db>   (.mode box  .headers on)
+```
+
+**Health dashboard** — the one-glance state used throughout:
+
+```sql
+SELECT source_kind, status, COUNT(*) AS n
+FROM documents GROUP BY source_kind, status ORDER BY source_kind, status;
+```
+
+**Ingest counts (golden `four_sources_all_ready`, unit pipeline tests):**
+
+```sql
+SELECT
+  (SELECT COUNT(*) FROM documents WHERE source_kind='source') AS sources,
+  (SELECT COUNT(*) FROM documents WHERE source_kind='wiki'
+        AND relative_path LIKE 'wiki/summaries/%') AS summaries;
+-- pages & chunks for a given file
+SELECT
+  (SELECT COUNT(*) FROM document_pages  p JOIN documents d ON d.id=p.document_id
+     WHERE d.filename LIKE 'Cinderella%') AS pages,
+  (SELECT COUNT(*) FROM document_chunks c JOIN documents d ON d.id=c.document_id
+     WHERE d.filename LIKE 'Cinderella%') AS chunks;
+```
+
+**Derived-page provenance (golden `each_summary_cites_its_source`):**
+
+```sql
+SELECT w.relative_path AS wiki_page, s.filename AS built_from_source
+FROM documents w JOIN documents s ON s.id = w.source_document_id
+WHERE w.source_kind='wiki' ORDER BY w.relative_path;
+```
+
+Each summary resolves to exactly one source; structural pages (`index`,
+`overview`, `log`) and multi-source concepts may legitimately have
+`source_document_id = NULL`.
+
+**FTS5 integrity (golden `test_fts_*`):**
+
+```sql
+SELECT (SELECT COUNT(*) FROM document_chunks) AS chunks,
+       (SELECT COUNT(*) FROM chunks_fts)      AS fts_rows;   -- must be equal
+SELECT c.document_id, substr(c.content,1,80) AS snippet
+FROM chunks_fts f JOIN document_chunks c ON c.rowid=f.rowid
+WHERE chunks_fts MATCH 'prince' ORDER BY rank LIMIT 5;       -- several hits
+INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check'); -- must not raise
+```
+
+**Change detection (unit pipeline tests):**
+
+```sql
+SELECT filename, version, content_hash,
+       datetime(last_indexed_at) AS indexed, datetime(stale_since) AS stale_since
+FROM documents WHERE source_kind='source' ORDER BY filename;
+```
+
+Unchanged re-scan: `content_hash` / `version` / `last_indexed_at` stable (hash
+skip). Changed file: `content_hash` changes, summary regenerates. `stale_since`
+is `NULL` for healthy rows.
+
+**Deletion cascade (golden `deleting_a_source_cascades…`, unit `test_delete_source`):**
+
+```sql
+-- after delete_source on, e.g., Little Red Riding Hood:
+SELECT COUNT(*) FROM documents WHERE filename LIKE 'Little Red%' AND source_kind='source'; -- 0
+SELECT
+  (SELECT COUNT(*) FROM document_pages  p LEFT JOIN documents d ON d.id=p.document_id WHERE d.id IS NULL) AS orphan_pages,
+  (SELECT COUNT(*) FROM document_chunks c LEFT JOIN documents d ON d.id=c.document_id WHERE d.id IS NULL) AS orphan_chunks; -- 0, 0
+SELECT (SELECT COUNT(*) FROM document_chunks) AS chunks, (SELECT COUNT(*) FROM chunks_fts) AS fts; -- equal
+SELECT COUNT(*) FROM document_references r
+LEFT JOIN documents s ON s.id=r.source_document_id
+LEFT JOIN documents t ON t.id=r.target_document_id
+WHERE s.id IS NULL OR t.id IS NULL;  -- 0 dangling
+```
+
+> **Correct deletion behavior:** a **1-to-1 summary page is DELETED outright**
+> (there's no source left to regenerate it from). A **multi-source concept page
+> is KEPT and marked `stale_since`** (it may draw on surviving sources). This is
+> `delete_source`'s relationship-based handling — *not* `ON DELETE SET NULL` on
+> the summary. (The FK's `SET NULL` only matters for rows that reference the
+> source but aren't themselves removed.)
+
+**Git snapshot (unit `test_git_ops`)** — in the wiki's own repo:
+
+```bash
+cd /tmp/test-wiki && git log --oneline && git status && git ls-files | grep -E 'sources/|\.llmwiki/'  # last grep: no output
+```
+
+Labelled `ingest:` commits, clean tree, identity `LLM Wiki <llmwiki@local>`,
+`sources/` + `.llmwiki/` untracked. With `WIKI_AUTOCOMMIT=0`: no `.git`, ingestion
+still succeeds.
+
+---
+
+## Appendix B — Troubleshooting quick map
 
 | Symptom | Likely cause | Where |
 |---------|--------------|-------|
-| `chunks = 0` for a PDF | scanned/image-only PDF (no OCR), or empty extraction | §2, README "Document formats" |
-| `status='failed'` | LLM endpoint unreachable or extraction error — read `error_message` | §1, §2 |
-| `chunks != fts_rows` | an FTS trigger didn't fire | §5 |
-| Empty search on obvious term | tokenizer/trigger issue, or content never chunked | §5 |
-| Chat answers off-corpus questions | grounding/system-prompt regression | §7 |
-| Summary is a raw text dump | wiki-generation prompt/model problem — inspect trace | §2, §15 |
-| Wiki git tree dirty after ingest | `.gitignore` not staging correctly, or autocommit half-ran | §13 |
-| Derived page hard-deleted on source delete | `ON DELETE SET NULL` regression | §12 |
+| `chunks = 0` for a PDF | scanned/image-only PDF (no OCR), or empty extraction | B1, README "Document formats" |
+| `status='failed'` | LLM endpoint unreachable or extraction error — read `error_message` | B1 |
+| `chunks != fts_rows` | an FTS trigger didn't fire | Part A `test_fts_*`, Appendix A |
+| Empty search on obvious term | tokenizer/trigger issue, or content never chunked | Part A `test_fts_search_returns_hits` |
+| Chat answers off-corpus questions | grounding/system-prompt regression, or too-weak model | B3 |
+| Summary is a raw text dump | wiki-generation prompt/model problem — inspect trace | B1, B7 |
+| Wiki git tree dirty after ingest | `.gitignore` not staging correctly, or autocommit half-ran | Appendix A (git) |
+| Multi-source concept page deleted on source delete | should be marked stale, not deleted — `delete_source` regression | Part A `test_delete_source_marks_multi_source_concept_stale` |
 
-> Reset between full runs: `rm -rf /tmp/test-wiki && mkdir -p /tmp/test-wiki/sources && cp tests/fixtures/pdfs/*.pdf /tmp/test-wiki/sources/`
+> Reset between full Part-B runs: `rm -rf /tmp/test-wiki && mkdir -p /tmp/test-wiki/sources && cp tests/fixtures/pdfs/*.pdf /tmp/test-wiki/sources/`
