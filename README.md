@@ -8,6 +8,40 @@ The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas 
 
 ---
 
+## Highlights
+
+**A self-contained, agentic LLM-wiki.** Most takes on Karpathy's idea point an
+*external* agent — Claude Desktop, Cursor, an MCP client — at an Obsidian vault.
+This one ships its own embedded agent: ingestion, agentic retrieval (the chat
+assistant decides when to read a page vs. search), self-maintenance, and a
+reading UI are a single app, with no external agent or plugin host to wire up.
+The trade-off is honest — it's not an Obsidian plugin, so there's no graph view
+or plugin ecosystem (see [Limitations](#limitations--non-goals)).
+
+**AI / LLM engineering**
+
+- **Wiki-first RAG** — reads a curated, interlinked encyclopedia first (`index.md` → wiki FTS5 → raw source chunks as a fallback), so knowledge is compiled once and compounds instead of being re-retrieved per query.
+- **LLM-as-judge eval packet** — one command bundles the questions, the model's own answers, the cited evidence, and source-vs-generated page pairs against a *frozen* 1–5 rubric, to score chat **and** ingestion quality (and compare models).
+- **Model-suitability check** — a one-command PASS/FAIL on whether a given model clears the bar for off-corpus refusal, citations, and cited synthesis.
+- **Evidence-based prompting** — the default system prompt embeds a worked, fully-cited example because testing proved that's what reliable cross-document citation took.
+- **Self-maintaining wiki** — six lint checks (contradictions, stale pages, orphans, missing concepts, missing cross-refs, data gaps) with auto-repair of the safe ones.
+- **Provider-agnostic, split-model** — any OpenAI-compatible endpoint; run a cheap local model for chat and a stronger one for ingestion, via `.env` alone.
+
+**Engineering quality**
+
+- **301 tests across three layers** — deterministic fake-LLM unit tests (no keys, no network), a frozen golden-corpus regression that checks the real-ingest backbone without re-calling the model, and Playwright E2E on the live apps.
+- **Security-conscious** — a path-traversal guard on the LLM-callable page reader, an explicit prompt-injection threat model, and a documented [`SECURITY.md`](SECURITY.md).
+- **Local-first & private** — runs entirely on-device; each wiki is its own local-only git repo (version history for free); source files are never modified and nothing is pushed anywhere.
+- **Scale-aware** — re-ingest skips unchanged files by content hash, lint compares only page pairs that share a source (not N²), and the overview synthesis is incremental.
+
+**Transparency & docs**
+
+- **Citation graph in SQLite** — every page→source and page→page edge is recorded and rebuilt deterministically, so provenance is queryable.
+- **Opt-in tracing** (`WIKI_TRACE=1`) — emits a JSONL trace of the full LLM + data-flow per ingest, viewable in a dedicated trace-report app.
+- **Documented end to end** — a 72 KB programmer manual, a SQLite data dictionary, a three-part UAT plan, and an honest Karpathy-alignment matrix grading what's done, partial, and deferred.
+
+---
+
 ## How is this different from RAG / NotebookLM?
 
 Classic RAG (and tools like NotebookLM or ChatGPT file uploads) re-discovers  
