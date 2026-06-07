@@ -24,7 +24,6 @@ if a result looks borderline — the model is non-deterministic.
 
 from __future__ import annotations
 
-import re
 import sys
 import tempfile
 from pathlib import Path
@@ -40,29 +39,14 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.append(str(_PROJECT_ROOT))
 sys.modules.pop("config", None)  # force base/config.py to win
 
-# A citation is "(wiki/…/something.md)" or "(Something.pdf, p. 3)".
-_CITATION = re.compile(r"\((?:wiki/[^)]*\.md|[^)]*\.pdf[^)]*)\)", re.IGNORECASE)
-
-
-# ── Pure grading helpers (no network — unit-testable) ─────────────────────────
-
-def answered_off_corpus(answer: str) -> bool:
-    """True if the model leaked a world-knowledge answer it should have refused.
-
-    The probe asks for the capital of France (not in the wiki). A grounded model
-    declines; a weak one says "Paris".
-    """
-    return "paris" in answer.lower()
-
-
-def has_citation(answer: str) -> bool:
-    """True if the answer carries at least one page/source citation."""
-    return _CITATION.search(answer) is not None
-
-
-def citation_count(answer: str) -> int:
-    """Number of distinct citations in the answer."""
-    return len({m.group(0).lower() for m in _CITATION.finditer(answer)})
+# The pure citation/leak graders now live in domain.eval.graders so the eval
+# packet builder can share them. Re-exported here so existing callers and tests
+# keep importing them from this module.
+from domain.eval.graders import (  # noqa: E402 -- after the sys.path bootstrap above
+    answered_off_corpus,
+    citation_count,
+    has_citation,
+)
 
 
 # ── The checks ────────────────────────────────────────────────────────────────

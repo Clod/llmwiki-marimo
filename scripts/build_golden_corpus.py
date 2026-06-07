@@ -38,7 +38,6 @@ import shutil
 import sqlite3
 import subprocess
 import sys
-import uuid
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -68,19 +67,9 @@ def _cb(msg: str) -> None:
 
 def _seed_workspace_row(db_path: str, name: str) -> None:
     """Insert the single workspace row the pipeline's _get_user_id requires."""
-    from domain.tools.db import open_db
+    from domain.tools.db import seed_workspace_row
 
-    conn = open_db(db_path)
-    try:
-        if conn.execute("SELECT 1 FROM workspace LIMIT 1").fetchone() is None:
-            ws_id = str(uuid.uuid4())
-            conn.execute(
-                "INSERT INTO workspace (id, name, description, user_id) VALUES (?,?,?,?)",
-                (ws_id, name, "", ws_id),
-            )
-            conn.commit()
-    finally:
-        conn.close()
+    seed_workspace_row(db_path, name)
 
 
 def _llm():

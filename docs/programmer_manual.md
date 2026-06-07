@@ -181,6 +181,11 @@ llmwiki/
 │       │   ├── tools.py                # search_source_chunks (async, sources scope)
 │       │   └── wiki_tools.py           # read_wiki_page, search_wiki_fts,
 │       │                               #   save_to_wiki (form-driven)
+│       ├── eval/                        # Half-automated UAT eval packet (§9)
+│       │   ├── graders.py              # pure regex/leak checks (shared w/ eval_chat_model)
+│       │   ├── rubric.py               # frozen judge instructions + 1–5 rubric + probes
+│       │   ├── packet.py               # dataclasses + pure markdown render
+│       │   └── reader.py               # read-only evidence gathering from a wiki DB
 │       ├── ingestion/
 │       │   ├── pipeline.py             # ingest_file, scan_and_ingest,
 │       │   │                           #   regenerate_wiki_pages
@@ -220,12 +225,14 @@ llmwiki/
 │   └── sqlite_schema.sql               # Canonical schema (applied by open_db)
 ├── scripts/
 │   ├── build_golden_corpus.py          # Build/freeze the golden-corpus snapshot (§9)
+│   ├── eval_chat_model.py              # PASS/FAIL smoke test of the chat model (§9)
+│   ├── build_eval_packet.py            # Generate the half-automated UAT eval packet (§9)
 │   └── render_trace.py                 # Render a trace.jsonl run to a timeline (§14.7)
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
-│   ├── unit/                           # 259 unit tests (no LLM, no network)
-│   ├── regression/                     # golden-corpus invariants (skips until frozen)
+│   ├── unit/                           # 276 unit tests (no LLM, no network)
+│   ├── regression/                     # golden-corpus + eval-reader invariants (skips until frozen)
 │   └── e2e/                            # 9 Playwright tests (live marimo + LLM)
 ├── docs/
 │   ├── programmer_manual.md            # THIS FILE
@@ -643,7 +650,7 @@ for an example. Absent file → defaults from `chat/config.py` are used.
 ### Run
 
 ```bash
-uv run pytest tests/unit/ -v               # 259 unit tests — fast, no LLM
+uv run pytest tests/unit/ -v               # 276 unit tests — fast, no LLM
 uv run pytest tests/e2e/ -v -s             # 9 E2E tests — live marimo + LLM (test_ingest_pdf is parametrized over 3 PDFs)
 ```
 
@@ -710,6 +717,44 @@ git add tests/fixtures/golden_corpus            # sources/ + wiki/ + index.db + 
   markdown tree on disk. The whole module **skips** until the corpus is frozen.
 - The snapshot ships both `index.db` (binary — the restore source; FTS5 doesn't
   round-trip through a `.dump`) and `index.db.sql` (the human-auditable companion).
+
+### Half-automated UAT eval packet
+
+`scripts/build_eval_packet.py` generates a single self-contained markdown file
+(an "eval packet") to a gitignored `eval_reports/`. The generation is automated;
+the **judging** is done by pasting the packet into any capable chat model and
+having it fill in the scorecard — so it scores LLM-output quality that
+deterministic assertions can't.
+
+Two sections:
+
+- **Part 1 — Chat grounding & citations.** Runs the fixed `domain.eval.rubric.CHAT_PROBES`
+  through the chat model (`LLM_MODEL`) against the chat target wiki and inlines the
+  pages each answer cited, plus the regex pre-screen from `domain.eval.graders`.
+- **Part 2 — Ingestion faithfulness & coverage.** Per source: the extracted source
+  text alongside the generated summary + concept pages (found via the `cites` edges,
+  `domain.eval.reader`).
+
+Modes and behaviour:
+
+- **Default (benchmark).** Chat runs against the frozen golden corpus; ingestion
+  **re-ingests** the four PDFs with the current `WIKI_LLM_MODEL` (real LLM calls).
+- `--wiki PATH` targets an existing wiki and reads its pages as-is (no re-ingest).
+- `--skip-chat` / `--skip-ingestion` omit a part. The packet header records both
+  models, the corpus content hash, and the rubric version, so two packets are comparable.
+
+```bash
+uv run python scripts/build_eval_packet.py                 # benchmark corpus
+uv run python scripts/build_eval_packet.py --wiki PATH      # an existing wiki
+uv run python scripts/build_eval_packet.py --skip-ingestion # chat only (cheap)
+```
+
+The pure pieces — `domain.eval.packet` (truncation, corpus hash, rendering) and
+`domain.eval.graders` — are unit-tested in `tests/unit/test_eval_packet.py` and
+`tests/unit/test_eval_graders.py`; the DB queries in `domain.eval.reader` are
+covered against the frozen corpus by `tests/regression/test_eval_reader_golden.py`.
+`domain.tools.db.seed_workspace_row` (used to create a fresh DB before re-ingest) is
+shared with `build_golden_corpus.py`.
 
 ### E2E infrastructure
 

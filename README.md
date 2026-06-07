@@ -103,6 +103,7 @@ base/                   # Ingestion pipeline + chat agent (self-contained Python
 └── domain/
     ├── ingestion/         # PDF/DOCX → text → chunks → summary + concept pages
     ├── chat/              # PydanticAI agent + wiki/source/save tools
+    ├── eval/              # Half-automated UAT: build a judge-ready eval packet
     ├── lint/              # Wiki health checks
     ├── repair/            # Auto-fixes for safe lint issues
     ├── tools/             # Native CRUD: wiki_fs, search, references, deletion, git_ops, db
@@ -121,7 +122,7 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 tests/
-├── unit/                  # 259 unit tests (FakeLLM, no network)
+├── unit/                  # 276 unit tests (FakeLLM, no network)
 ├── e2e/                   # Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + workspace
 ```
@@ -348,6 +349,31 @@ a user-acceptance test in three parts:
 Test PDFs live in `tests/fixtures/pdfs/`; the E2E workspace is gitignored and
 rebuilt on each ingest run. Use the skills `/test-ingest`, `/test-read`, and
 `/test-all` in Claude Code for self-testing.
+
+### Automating the un-testable: the eval packet
+
+Some behaviour simply can't be regression-tested — there's no deterministic "right
+answer" for *is this chat reply well-grounded?* or *is this generated page faithful
+to its source?* The output varies with the model and even run to run. The workaround
+is to **move the judgement to an LLM, but keep it cheap and bias-resistant**: generate
+a single self-contained markdown **eval packet** and paste it into one — or several —
+capable chat models (a free Gemini / ChatGPT / Claude tab) to score against a fixed
+1–5 rubric.
+
+```bash
+uv run python scripts/build_eval_packet.py                 # benchmark sample wiki
+uv run python scripts/build_eval_packet.py --wiki PATH      # an existing wiki
+uv run python scripts/build_eval_packet.py --skip-ingestion # chat only (cheap)
+```
+
+The packet bundles everything a judge needs — the questions, the model's own answers,
+the cited pages, and (per source) the original text next to the pages the engine
+generated — plus the rubric and a blank scorecard. It covers **chat quality** and
+**ingestion quality**, records the two models it measured and a corpus hash so packets
+are comparable, and is written to a gitignored `eval_reports/`. Generation is
+automated; judging stays human-in-the-loop (paste to as many judges as you like and
+average), so it doubles as a way to compare the models your wiki engine uses. Details
+in [`docs/programmer_manual.md`](docs/programmer_manual.md) §9.
 
 ---
 

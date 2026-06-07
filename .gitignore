@@ -73,6 +73,9 @@ tests/fixtures/workspace/
 # Golden-corpus staging workspace (scratch; the frozen copy lives in golden_corpus/)
 tests/fixtures/_golden_staging/
 
+# Generated eval packets (model-quality scorecards; regenerate via build_eval_packet.py)
+eval_reports/
+
 # SQLite transient sidecars — never commit (the tracked golden_corpus/index.db is the fixture)
 *.db-wal
 *.db-shm
