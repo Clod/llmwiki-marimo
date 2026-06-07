@@ -11,7 +11,7 @@ Run the E2E Playwright test for the marimo ingest app. Always run **headless**.
 
 1. Wipes `tests/fixtures/workspace/` clean
 2. Copies `tests/fixtures/wiki_config.toml` into the fresh workspace
-3. Starts `marimo_new/ingest_app.py` on port 2719 with `WIKI_PATH` injected via env
+3. Starts `marimo/ingest_app.py` on port 2719 with `WIKI_PATH` injected via env
 4. Ingests three PDFs one at a time from `tests/fixtures/pdfs/`
 5. Polls SQLite DB after each ingestion until `status='ready'`
 6. Asserts: `status='ready'`, `page_count > 0`, `content NOT NULL`, wiki page linked via `source_document_id`
@@ -20,7 +20,7 @@ Run the E2E Playwright test for the marimo ingest app. Always run **headless**.
 ## Run command
 
 ```bash
-cd /Users/claudiograsso/Documents/finanzas/llmwiki
+cd "$(git rev-parse --show-toplevel)"
 HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s
 ```
 
@@ -48,6 +48,6 @@ HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s
 | `tests/e2e/test_ingest_app.py` | The test |
 | `tests/fixtures/pdfs/` | Source PDFs (must be present) |
 | `tests/fixtures/workspace/` | Created by the test (gitignored) |
-| `marimo_new/ingest_app.py` | App under test |
-| `api_new/domain/ingestion/pipeline.py` | Ingestion pipeline |
+| `marimo/ingest_app.py` | App under test |
+| `base/domain/ingestion/pipeline.py` | Ingestion pipeline |
 | `.env` | `WIKI_PATH` (overridden by test), `LLM_*` |

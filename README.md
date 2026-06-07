@@ -1,5 +1,11 @@
 # LLM Wiki
 
+[![CI](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml/badge.svg)](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml)
+![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
+![Tests](https://img.shields.io/badge/tests-301-brightgreen.svg)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 A personal, local-first wiki that ingests your documents, builds a structured knowledge base, and lets you read and chat with it — all on your machine, no cloud required.
 
 Inspired by [Karpathy's LLM Wiki idea](https://x.com/karpathy/status/2039805659525644595).
@@ -29,10 +35,12 @@ or plugin ecosystem (see [Limitations](#limitations--non-goals)).
 
 **Engineering quality**
 
-- **301 tests across three layers** — deterministic fake-LLM unit tests (no keys, no network), a frozen golden-corpus regression that checks the real-ingest backbone without re-calling the model, and Playwright E2E on the live apps.
+- **301 tests across three layers, ≈1:1 test-to-code** (5.6k test LOC / 5.9k prod) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
+- **Framework-agnostic core** — all logic lives in `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo is only the UI at the edges, so the engine is exercised by unit tests without a browser.
 - **Security-conscious** — a path-traversal guard on the LLM-callable page reader, an explicit prompt-injection threat model, and a documented [`SECURITY.md`](SECURITY.md).
 - **Local-first & private** — runs entirely on-device; each wiki is its own local-only git repo (version history for free); source files are never modified and nothing is pushed anywhere.
 - **Scale-aware** — re-ingest skips unchanged files by content hash, lint compares only page pairs that share a source (not N²), and the overview synthesis is incremental.
+- **Reproducible & clean** — pinned `uv.lock` for deterministic installs, zero `ruff` warnings, and no `TODO`/`FIXME` debt in the codebase.
 
 **Transparency & docs**
 
@@ -157,8 +165,9 @@ docs/
 
 tests/
 ├── unit/                  # 276 unit tests (FakeLLM, no network)
-├── e2e/                   # Playwright E2E tests (ingest + read app)
-└── fixtures/              # Test PDFs + wiki config + workspace
+├── regression/            # 16 frozen golden-corpus tests (real ingest, no live model)
+├── e2e/                   # 9 Playwright E2E tests (ingest + read app)
+└── fixtures/              # Test PDFs + wiki config + golden corpus
 ```
 
 ---

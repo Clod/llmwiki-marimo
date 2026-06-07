@@ -46,7 +46,11 @@ CI runs the unit and regression suites and `ruff` on every push and PR to `maste
 
 ## Conventions
 
-- **Many small files over few large ones.** Target 200–400 lines, 800 max.
+- **Many small files over few large ones.** Target 200–400 lines, ~800 as a
+  soft ceiling for library/domain modules. The Marimo app files (`marimo/*.py`)
+  are the pragmatic exception — a notebook app is a single cohesive cell graph
+  that doesn't split cleanly across files, so `ingest_app.py` / `read_app.py`
+  run longer by design.
 - **Immutability.** Return new objects; don't mutate in place.
 - **Marimo cell granularity.** One concern per cell. Do **not** stack many UI
   elements in a single cell — marimo re-runs the whole cell on any interaction,

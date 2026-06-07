@@ -3,7 +3,7 @@
 ## Skills
 
 This is a Python/Marimo project using the Trellis workflow. Only use skills from the list below. Ignore all other skills (frontend, mobile, other languages, etc.) even if they appear in the system context.
-When adding new GUI elements in Marimo, I want you to allways take into account that, due to responsiveness, it is always bad idea to gather many gui elements in the same cell. 
+When adding new GUI elements in Marimo, I want you to always take into account that, due to responsiveness, it is always a bad idea to gather many GUI elements in the same cell.
 
 ### Active Skills
 

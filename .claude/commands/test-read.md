@@ -13,7 +13,7 @@ Run the E2E Playwright tests for the read-only wiki viewer + chat. Always run **
 
 ## What the tests do
 
-1. Starts `marimo_new/read_app.py` on port 2720 with `WIKI_PATH` pointing at `tests/fixtures/workspace/`
+1. Starts `marimo/read_app.py` on port 2720 with `WIKI_PATH` pointing at `tests/fixtures/workspace/`
 2. Verifies: pages table visible with ingested pages
 3. Verifies: clicking a row loads content in the middle panel
 4. Verifies: refresh button reloads the page list
@@ -23,7 +23,7 @@ Run the E2E Playwright tests for the read-only wiki viewer + chat. Always run **
 ## Run command
 
 ```bash
-cd /Users/claudiograsso/Documents/finanzas/llmwiki
+cd "$(git rev-parse --show-toplevel)"
 HEADLESS=1 uv run pytest tests/e2e/test_read_app.py -v -s
 ```
 
@@ -35,7 +35,7 @@ HEADLESS=1 uv run pytest tests/e2e/test_read_app.py -v -s
 
 **`marimo not reachable on port 2720 after 60s`** — port conflict (a previous test run may still hold it). Check: `lsof -i :2720`. Kill stale process, then retry.
 
-**`Expected a page title (h2)`** — page content not loading. Likely a grid JSON mismatch after adding/removing cells; check `marimo_new/layouts/read_app.grid.json` entry count.
+**`Expected a page title (h2)`** — page content not loading. Likely a grid JSON mismatch after adding/removing cells; check `marimo/layouts/read_app.grid.json` entry count.
 
 **`No prompts in marimo-chatbot data-prompts`** — `wiki_config.toml` not loaded. Check it exists in `tests/fixtures/workspace/`.
 
@@ -46,6 +46,6 @@ HEADLESS=1 uv run pytest tests/e2e/test_read_app.py -v -s
 | `tests/e2e/test_read_app.py` | The test |
 | `tests/fixtures/workspace/` | Test wiki (populated by test-ingest) |
 | `tests/fixtures/wiki_config.toml` | Chat prompts + system prompt for tests |
-| `marimo_new/read_app.py` | App under test |
-| `marimo_new/layouts/read_app.grid.json` | Grid layout (cell count must match) |
-| `api_new/domain/chat/` | PydanticAI agent used by chat panel |
+| `marimo/read_app.py` | App under test |
+| `marimo/layouts/read_app.grid.json` | Grid layout (cell count must match) |
+| `base/domain/chat/` | PydanticAI agent used by chat panel |

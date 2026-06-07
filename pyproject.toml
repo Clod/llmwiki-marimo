@@ -32,7 +32,7 @@ Repository = "https://github.com/Clod/llmwiki-marimo"
 Issues = "https://github.com/Clod/llmwiki-marimo/issues"
 
 [tool.ruff]
-exclude = [".trellis", ".venv", ".claude", ".agent", "marimo/prototypes", "rechunk_all.py"]
+exclude = [".trellis", ".venv", ".claude", ".agent", "marimo/prototypes"]
 line-length = 120
 
 [tool.ruff.lint]

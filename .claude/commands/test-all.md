@@ -13,7 +13,7 @@ Running both suites in a single pytest invocation causes a port conflict — bot
 for the session and port 2720 collides. Always use two separate commands:
 
 ```bash
-cd /Users/claudiograsso/Documents/finanzas/llmwiki
+cd "$(git rev-parse --show-toplevel)"
 
 # Step 1 — ingest (wipes workspace, ingests 3 PDFs, populates DB + wiki/)
 HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s
