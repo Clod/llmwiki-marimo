@@ -12,6 +12,10 @@ Inspired by [Karpathy's LLM Wiki idea](https://x.com/karpathy/status/20398056595
 The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas Astorian's open-source LLM Wiki](https://github.com/lucasastorian/llmwiki)
 (Apache-2.0); the rest is an independent local-first build on Marimo + SQLite. See [`NOTICE`](NOTICE).
 
+![The read app on the built-in sample wiki: page navigation on the left, a generated concept page in the middle, and the chat assistant on the right answering a cross-document question with a citation for every fact](docs/assets/read_app.png)
+
+*The read app on the built-in sample wiki — navigation, a generated concept page, and a chat answer where every fact cites its source page. Below the chat: the **Save to wiki** form, the human-in-the-loop step that turns a good answer into a permanent page.*
+
 ---
 
 ## Highlights
