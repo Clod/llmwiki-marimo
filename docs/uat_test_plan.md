@@ -7,7 +7,7 @@ human:
 - **Part A — Automated deterministic regression gate.** One `pytest` command that
   asserts the structural invariants (DB integrity, FTS alignment, deletion
   cascade, derived-page provenance, hash idempotency, save mechanics, lint logic,
-  git snapshots). No LLM, no servers, runs in seconds. **Run this on every code
+  git snapshots). No LLM, no servers, runs in about a minute. **Run this on every code
   change.**
 - **Part B — Manual acceptance (UAT).** The human-judgment checks that can't be
   regressioned because their output is non-deterministic: chat grounding and

@@ -20,6 +20,11 @@ dependencies = [
     "traitlets>=5.15.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Clod/llmwiki-marimo"
+Repository = "https://github.com/Clod/llmwiki-marimo"
+Issues = "https://github.com/Clod/llmwiki-marimo/issues"
+
 [dependency-groups]
 dev = [
     "playwright>=1.40.0",
@@ -27,11 +32,6 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "ruff>=0.9.0",
 ]
-
-[project.urls]
-Homepage = "https://github.com/Clod/llmwiki-marimo"
-Repository = "https://github.com/Clod/llmwiki-marimo"
-Issues = "https://github.com/Clod/llmwiki-marimo/issues"
 
 [tool.ruff]
 exclude = [".trellis", ".venv", ".claude", ".agent", "marimo/prototypes"]

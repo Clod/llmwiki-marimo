@@ -15,7 +15,7 @@ Each workflow below follows the same template:
 
 | #    | Workflow           | Status | Entry                                                                | Pending                                                |
 | ---- | ------------------ | ------ | -------------------------------------------------------------------- | ------------------------------------------------------ |
-| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; not auto-triggered yet (§11.11) |
+| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; auto-tail done for ingest; scan/regenerate pending (§11.11) |
 | 6.2  | Repair             | ✅      | `repair/runner.py:repair_wiki`                                                | All five deterministic repairs implemented             |
 | 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:ingest_file`                                           | Lint+repair tail opt-in today (§11.11)                 |
 | 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:batch_ingest`                                   | Lint+repair tail opt-in today (§11.11)                 |
@@ -41,11 +41,11 @@ is therefore *"lint comes back clean."*
 code does now) and **Target** (the intended end state, tracked in §11). The status
 legend (✅ implemented · 🟡 partial · ❌ missing) still applies per workflow.
 
-**Plan note (§11.11).** Today lint runs after ingest only when
-`lint_after_ingest=True` (single) / `run_lint=True` (batch) — both default to
-`False` — and repair has no UI trigger at all. The Target is for lint+repair to
-**always** close every ingest, scan, and regenerate, with explicit "Run Lint" /
-"Run Repair" buttons in `ingest_app.py`.
+**Plan note (§11.11).** The app has a wiki-wide "Run Wiki Lint & Repair" button
+(`lint_repair_widget_cell` + `lint_repair_runner`), and the ingest runner closes
+every ingest with a scoped lint+repair tail (deterministic by default, full-LLM
+via the form checkbox). The remaining Target is auto-tails for scan and regenerate,
+and separate standalone "Run Lint" / "Run Repair" buttons.
 
 **Entry duality.** Single (§6.3) and batch (§6.4) ingestion can start either from
 the GUI (upload widget) **or** by dropping files into `workspace/sources/` and
@@ -175,7 +175,7 @@ class LintReport:
   LLM) and appends a one-line summary to `wiki/log.md`. Default is `False`.
 - `batch_ingest(..., run_lint=True)` — same, once per batch. Default is `False`.
 - Manual function call from a notebook cell.
-- No "Run Lint" button in `ingest_app.py`.
+- No standalone "Run Lint" button — the combined wiki-wide "Run Wiki Lint & Repair" button covers it.
 - `data_gap_check` is intentionally shallow — it only sees titles (§11.7).
 
 **Target:** lint runs automatically at the end of every ingest, scan, and
@@ -255,9 +255,9 @@ class RepairReport:
     # Properties: .fixed, .skipped, .failed, .summary()
 ```
 
-**Today:** manual function call only; no "Run Repair" button. All five
-deterministic repair types are implemented. Already auto-runs after chat→wiki
-save (§6.8).
+**Today:** All five deterministic repair types are implemented. A wiki-wide
+"Run Wiki Lint & Repair" button covers on-demand repair; repair also auto-runs
+in the post-ingest tail (§6.3) and after chat→wiki save (§6.8).
 
 **Target:** repair runs automatically after lint at the end of every ingest,
 scan, and regenerate, with an explicit "Run Repair" button. Tracked in §11.11.
@@ -549,9 +549,8 @@ Iterates over every `documents` row with `source_kind='source'` and
 `status='ready'`, reloads the cached page text from `document_pages` (no PDF  
 re-extraction), and re-runs:
 
-1. `extract_structured()` (LLM)
-2. `build_summary_page()` (deterministic)
-3. `create_page(..., overwrite=True)` → `update_references` → `update_index`
+1. `build_wiki_page()` (LLM, legacy single-shot — see the note in §6.3)
+2. `create_page(..., overwrite=True, source_document_id=…)` — summary page only
 
 **Use cases:**
 
@@ -762,7 +761,7 @@ The save flow:
 | `structure_chat_content` (new page) | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_NEW_TEMPLATE`    | title, category, raw content      | Markdown w/ frontmatter + Definition/Characteristics/Context/Sources | 0.3         |
 | `structure_chat_content` (update)   | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_UPDATE_TEMPLATE` | title, raw content, existing page | Merged markdown, no duplication                                      | 0.3         |
 
-`**save_to_wiki` — client injection:** optional keyword-only `client=None, model=None`; builds `openai.OpenAI` from `config.settings` (`WIKI_LLM_*` falling  
+**`save_to_wiki` — client injection:** optional keyword-only `client=None, model=None`; builds `openai.OpenAI` from `config.settings` (`WIKI_LLM_*` falling  
 back to `LLM_*`) when omitted, allowing tests to inject `FakeLLMClient` directly.
 
 **Triggers:**

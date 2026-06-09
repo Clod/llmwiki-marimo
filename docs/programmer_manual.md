@@ -208,6 +208,7 @@ llmwiki/
 │       │   └── runner.py               # repair_wiki()
 │       ├── tools/
 │       │   ├── db.py                   # open_db(), get_connection()
+│       │   ├── deletion.py             # delete_source (cascade + stale marking, §6.9)
 │       │   ├── git_ops.py              # init_wiki_repo, auto_commit
 │       │   ├── references.py           # citation graph CRUD + queries
 │       │   ├── search.py               # search_chunks() scoped FTS5
@@ -392,9 +393,10 @@ citations.
 
 ### FTS5 tokenizer
 
-`chunks_fts` uses `porter unicode61`, which **splits on hyphens**. Querying  
-`"mortgage-backed"` is interpreted as `mortgage NOT backed`. Use plain terms in  
-queries — `search.search_chunks` returns `[]` silently on malformed expressions.
+`chunks_fts` uses `porter unicode61`, which **splits on hyphens**. An unquoted
+`mortgage-backed` raises a MATCH syntax error ("no such column: backed") —
+FTS5 parses the hyphen as a column filter — which `search_chunks` swallows,
+returning `[]`. Quote the term (`"mortgage-backed"`) or use plain words.
 
 ---
 
@@ -594,11 +596,11 @@ ingests or writes anything.
 
 ```bash
 # Opens on $WIKI_PATH from .env (the default) — switch wikis in-app via the picker (§7.1)
-uv run marimo run marimo/ingest_app.py --port 2718
-uv run marimo run marimo/read_app.py --port 2720
+uv run marimo run --no-sandbox marimo/ingest_app.py --port 2718
+uv run marimo run --no-sandbox marimo/read_app.py --port 2720
 
 # Start on a specific workspace (still switchable in-app afterwards)
-WIKI_PATH=/path/to/workspace uv run marimo run marimo/read_app.py --port 2720
+WIKI_PATH=/path/to/workspace uv run marimo run --no-sandbox marimo/read_app.py --port 2720
 ```
 
 ---
@@ -657,7 +659,7 @@ Slash commands: `/test-ingest`, `/test-read`, `/test-all`.
 
 ### Unit infrastructure
 
-`**FakeLLMClient**` (`tests/helpers/fake_llm.py`) duck-types the OpenAI client.  
+**`FakeLLMClient`** (`tests/helpers/fake_llm.py`) duck-types the OpenAI client.  
 Configure responses before each test:
 
 ```python
@@ -670,7 +672,7 @@ llm.responses = ["JSON extraction", "Concept page", "Overview text"]
 assert len(llm.calls) == 3
 ```
 
-`**tmp_workspace**` (`tests/helpers/workspace.py`) yields a fresh disposable  
+**`tmp_workspace`** (`tests/helpers/workspace.py`) yields a fresh disposable  
 workspace per test:
 
 ```python
@@ -786,9 +788,11 @@ assert_wiki_ok(src["id"], filename)
 
 ## 10. Known Constraints & Gotchas
 
-- **FTS5 hyphens.** The porter unicode61 tokenizer splits hyphens.  
-`"mortgage-backed"` is two tokens. Use plain terms.
-- `**status='ready'` fires early.** Set at step 6 (after chunking), before the  
+- **FTS5 hyphens.** The porter unicode61 tokenizer splits hyphens at index time.
+An unquoted `mortgage-backed` in a query raises a MATCH syntax error ("no such
+column: backed") which `search_chunks` swallows, returning `[]`. Use plain terms
+or quote the hyphenated phrase (`"mortgage-backed"`).
+- **`status='ready'` fires early.** Set at step 6 (after chunking), before the  
 LLM work in steps 7–9. Polling only for `status='ready'` misses the wiki  
 page creation. Always add a second poll for the wiki page in tests.
 - **Circular import.** `wiki_fs.py` imports `chunker.py` inside  
@@ -797,7 +801,7 @@ page creation. Always add a second poll for the wiki page in tests.
 - **Marimo reactivity.** `ingest_file()` runs synchronously inside a marimo  
 cell. Marimo re-runs dependent cells reactively *after* the cell completes,  
 not during. Cells are not async unless explicitly written as `async def`.
-- `**source_document_id` is set only for summary pages**, not concepts —  
+- **`source_document_id` is set only for summary pages**, not concepts —  
 because one concept can be derived from multiple sources.
 - **Citation parser dash.** `update_references` requires *one or more* spaces  
 before an em-dash (`\s+[-–—]`) so hyphenated filenames like `fed-paper.pdf`  
@@ -850,10 +854,12 @@ in §12.
   (`chat/config.py`). Rename the prompt sections to "Phase 1 / … / Phase 4"  
    for clearer routing. Only meaningful once §11.5 lands — deferred with it (§12).
 7. **Deepen & promote `data_gap`** (§6.1–§6.2). The `data_gap` lint check is
-  shallow — it only sees concept *titles* — and its repair is a stub. Deepen the
-  check to read page bodies, and implement the repair to suggest specific web  
-   searches or sub-questions for each gap (`repair/actions.py:254`).
-8. `**regenerate_wiki_pages` should auto-run lint+repair** afterwards
+  shallow — it only sees concept *titles*. The repair exists
+  (`repair/actions.py:repair_data_gap`) but only inserts a generic TODO note into
+  the most-related wiki page. The open work is deepening the check to read page
+  bodies and making the repair suggest specific web searches or sub-questions per
+  gap.
+8. **`regenerate_wiki_pages` should auto-run lint+repair** afterwards
   (§6.6) so a regenerate doesn't leave stale concept/overview pages. Subsumed by
    §11.11.
 9. ✅ **Grid column for wiki page title** in `read_app.py:left_panel` — the
@@ -993,9 +999,9 @@ explicitly, and mock the network in tests.
 | **Source**                  | A raw, immutable file under `workspace/sources/` (PDF, DOCX). `source_kind='source'` in `documents`.                                                                                                                                |
 | **Summary page**            | 1-to-1 LLM-generated markdown reflection of a single source. Lives under `wiki/summaries/`. Carries `source_document_id`.                                                                                                           |
 | **Concept page**            | Topic-centric, multi-source markdown page under `wiki/concepts/`. Has YAML frontmatter. Does NOT carry `source_document_id` — derives from many sources.                                                                            |
-| `**index.md**`              | Catalogue of every page in the wiki, organised by category. Deterministically updated by `index_manager.update_index`.                                                                                                              |
-| `**overview.md**`           | LLM-rewritten narrative synthesis of the wiki's evolving thesis.                                                                                                                                                                    |
-| `**log.md**`                | Append-only chronological audit trail. Prefix `## [YYYY-MM-DD]` makes it parseable with `grep "^## \["`.                                                                                                                            |
+| **`index.md`**              | Catalogue of every page in the wiki, organised by category. Deterministically updated by `index_manager.update_index`.                                                                                                              |
+| **`overview.md`**           | LLM-rewritten narrative synthesis of the wiki's evolving thesis.                                                                                                                                                                    |
+| **`log.md`**                | Append-only chronological audit trail. Prefix `## [YYYY-MM-DD]` makes it parseable with `grep "^## \["`.                                                                                                                            |
 | **Slug**                    | `make_wiki_slug(name)` — NFKD-normalise → strip combining marks → lowercase → spaces/underscores → hyphens → remove non-`[a-z0-9-]` chars. Used as the filename of every wiki page. Example: `"Política Común"` → `politica-comun`. |
 | **Filing Cabinet**          | The SQLite + FTS5 layer (`workspace/.llmwiki/index.db`).                                                                                                                                                                            |
 | **Encyclopedia**            | The human-readable markdown layer (`workspace/wiki/`).                                                                                                                                                                              |
