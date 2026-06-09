@@ -137,7 +137,7 @@ Stores key metadata, raw text content, and extraction/indexing status of files i
 | `title` | `TEXT` | None | None | A clean, human-readable title extracted from frontmatter or metadata. |
 | `path` | `TEXT` | `NOT NULL` | `'/'` | Folder path inside the workspace directory (e.g., `/wiki/concepts`). |
 | `relative_path` | `TEXT` | `NOT NULL`, `UNIQUE` | None | The unique relative path from the workspace root. Acts as the primary logical key to find the physical file on disk. |
-| `source_kind` | `TEXT` | `NOT NULL`, `CHECK(source_kind IN ('wiki', 'source', 'asset'))` | None | Categorizes the file's function: <br>• `'wiki'`: User-edited markdown notes.<br>• `'source'`: Read-only source references (like PDFs).<br>• `'asset'`: Accompanying attachments or media files. |
+| `source_kind` | `TEXT` | `NOT NULL`, `CHECK(source_kind IN ('wiki', 'source', 'asset'))` | None | Categorizes the file's function: <br>• `'wiki'`: Generated markdown pages under `wiki/` (summaries/, concepts/).<br>• `'source'`: Read-only source references (like PDFs).<br>• `'asset'`: Accompanying attachments or media files. |
 | `file_type` | `TEXT` | `NOT NULL` | None | File extension or MIME category (e.g. `md`, `pdf`, `txt`). |
 | `file_size` | `INTEGER` | None | `0` | Physical file size on disk in bytes. |
 | `document_number`| `INTEGER` | None | None | Internal sequential number assigned during import or processing passes. |

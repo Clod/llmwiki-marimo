@@ -9,20 +9,22 @@ authors = [{ name = "Claudio Grasso" }]
 keywords = ["marimo", "wiki", "rag", "llm", "knowledge-base", "sqlite", "fts5"]
 
 dependencies = [
-    # marimo apps
     "marimo>=0.23.4",
     "openai>=1.0.0",
     "python-dotenv",
     "pydantic-settings",
     "aiosqlite",
     "opendataloader-pdf",
-    # test
-    "playwright>=1.40.0",
-    "pytest>=9.0.0",
     "pydantic-ai>=1.97.0",
-    "pytest-asyncio>=1.3.0",
     "anywidget>=0.11.0",
     "traitlets>=5.15.0",
+]
+
+[dependency-groups]
+dev = [
+    "playwright>=1.40.0",
+    "pytest>=9.0.0",
+    "pytest-asyncio>=1.3.0",
     "ruff>=0.9.0",
 ]
 

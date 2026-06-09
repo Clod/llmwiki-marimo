@@ -26,10 +26,10 @@ uv run marimo run marimo/read_app.py   --no-sandbox   # read + chat
 
 ## Tests
 
-Unit tests use a `FakeLLM` and make **no network calls** — run them before every PR:
+Unit tests use a `FakeLLM` and make **no network calls**; the regression suite replays a frozen golden corpus, also offline — run both before every PR:
 
 ```bash
-uv run pytest tests/unit -v
+uv run pytest tests/unit tests/regression -v
 uv run ruff check .
 ```
 
@@ -64,7 +64,7 @@ CI runs the unit and regression suites and `ruff` on every push and PR to `maste
 
 1. Branch off `master`.
 2. Keep changes focused; describe the *why*, not just the *what*.
-3. Ensure `uv run pytest tests/unit` and `uv run ruff check .` pass.
+3. Ensure `uv run pytest tests/unit tests/regression` and `uv run ruff check .` pass.
 4. Update docs/tests alongside code.
 
 ## Commit messages

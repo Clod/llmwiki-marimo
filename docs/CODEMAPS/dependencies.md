@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-01 | Files scanned: 2 (pyproject.toml, config.py) | Token estimate: ~470 -->
+<!-- Generated: 2026-06-09 | Files scanned: 2 (pyproject.toml, config.py) | Token estimate: ~470 -->
 
 # Dependencies
 
@@ -9,8 +9,10 @@ marimo>=0.23.4         Reactive notebook UI (ingest_app, read_app)
 openai>=1.0.0          LLM client — any OpenAI-compatible endpoint
                        (configured via WIKI_LLM_* / LLM_* settings)
 pydantic-ai>=1.97.0    Chat agent framework (create_agent, tool calling, streaming)
+python-dotenv          .env loading (used alongside pydantic-settings)
 pydantic-settings      Config loading (config.settings)
 anywidget>=0.11.0      Custom JS widgets (DeleteConfirmWidget)
+traitlets>=5.15.0      anywidget runtime dependency
 aiosqlite              Async SQLite access (chat async tools)
 opendataloader-pdf     PDF text extraction (ingestion/pdf_extract.py)
 ```
