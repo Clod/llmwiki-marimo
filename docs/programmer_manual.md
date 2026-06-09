@@ -3,7 +3,7 @@
 > **Single source of truth.** This document supersedes `programmatic_dev_plan.md`,  
 > `implementation_plan.md`, `ingestion_design.md`, `diagnostic_alignment.md`, and  
 > `llmwiki_architecture_rag_roadmap.md` (now under `docs/archive/`). The conceptual  
-> reference `Karpathy_concepts.md` remains at the repo root.
+> reference is [Karpathy's LLM Wiki note](https://x.com/karpathy/status/2039805659525644595) (a local working copy, `Karpathy_concepts.md`, is kept untracked at the repo root).
 >
 > **Companion document:** **§6 Workflows** lives in its own file —
 > [`docs/manual/workflows.md`](manual/workflows.md) — because it's the largest,
@@ -39,7 +39,7 @@ Status legend used throughout: ✅ implemented · 🟡 partial · ❌ missing.
 ## 1. Philosophy & Karpathy Alignment
 
 LLMWiki is a Python implementation of the LLM-Wiki pattern described in  
-`Karpathy_concepts.md`. The idea: instead of re-discovering knowledge from raw  
+Karpathy's note. The idea: instead of re-discovering knowledge from raw  
 chunks on every query (classic RAG), an LLM **incrementally builds and maintains**  
 **a persistent encyclopedia** of markdown pages that sits between the user and the  
 raw sources.
@@ -69,7 +69,7 @@ Two operating principles flow from this:
 
 ### Karpathy coverage matrix
 
-Which ideas from `Karpathy_concepts.md` this project implements. ✅ done ·
+Which ideas from Karpathy's original note this project implements. ✅ done ·
 ✅➕ done + goes beyond the concept doc · 🟡 partial · ❌ deferred (→ §12) · N/A.
 
 | Karpathy concept | | Notes |
@@ -93,7 +93,7 @@ Which ideas from `Karpathy_concepts.md` this project implements. ✅ done ·
 ### Why the wiki search engine is partial
 
 The matrix grades "search engine over the wiki" against a specific passage in
-`Karpathy_concepts.md`: *"as the wiki grows you want proper search… **qmd** is a good
+Karpathy's note: *"as the wiki grows you want proper search… **qmd** is a good
 option: a local search engine for markdown files with **hybrid BM25/vector search and
 LLM re-ranking**, all on-device, with both a **CLI** and an **MCP server**."* That sets
 the ✅-full bar at four named properties.
@@ -239,7 +239,6 @@ llmwiki/
 │   ├── sqlite_data_dictionary.md       # Per-column DB reference
 │   ├── CODEMAPS/                       # Auto-generated code maps
 │   └── archive/                        # Superseded design docs
-├── Karpathy_concepts.md                # Foundational pattern reference
 ├── README.md                           # End-user quickstart
 └── pyproject.toml + uv.lock
 ```
@@ -897,7 +896,7 @@ None currently tracked.
 
 ## 12. Future Enhancements
 
-Aspirational features from `Karpathy_concepts.md` not yet on the roadmap:
+Aspirational features from Karpathy's note not yet on the roadmap:
 
 - **Two-step HITL ingestion.** Decouple ingestion into `extract_only(file)`  
 and `commit_to_wiki(edited_json)` so the user can review and edit the LLM's  

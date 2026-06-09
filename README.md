@@ -35,7 +35,7 @@ or plugin ecosystem (see [Limitations](#limitations--non-goals)).
 
 **Engineering quality**
 
-- **301 tests across three layers, ≈1:1 test-to-code** (5.6k test LOC / 5.9k prod) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
+- **301 tests across three layers, ≈1:1 test-to-code** (5.6k test LOC vs 5.8k LOC in the framework-agnostic core, `base/`) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
 - **Framework-agnostic core** — all logic lives in `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo is only the UI at the edges, so the engine is exercised by unit tests without a browser.
 - **Security-conscious** — a path-traversal guard on the LLM-callable page reader, an explicit prompt-injection threat model, and a documented [`SECURITY.md`](SECURITY.md).
 - **Local-first & private** — runs entirely on-device; each wiki is its own local-only git repo (version history for free); source files are never modified and nothing is pushed anywhere.
@@ -356,7 +356,7 @@ ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap
 Three layers, fastest first.
 
 **1. Fast regression gate** — deterministic, no LLM keys or running apps, finishes
-in seconds. Run it after any change:
+in about a minute. Run it after any change:
 
 ```bash
 uv run pytest tests/unit tests/regression -q

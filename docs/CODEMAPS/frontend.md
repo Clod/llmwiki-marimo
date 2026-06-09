@@ -1,4 +1,4 @@
-<!-- Generated: 2026-05-31 | Files scanned: 5 | Token estimate: ~600 -->
+<!-- Generated: 2026-06-09 | Files scanned: 5 | Token estimate: ~600 -->
 
 # Frontend (marimo)
 
@@ -13,7 +13,7 @@ marimo/ingest_app.py   (901)  Ingestion UI: wiki picker, upload/drop sources,
                                   run ingest (+ scoped lint/repair tail), scan
                                   dir, regenerate, delete source, activity log.
                                   Calls domain.ingestion pipeline/batch + deletion.
-marimo/read_app.py     (505)  Reading + RAG chat + save-to-wiki (3-col grid):
+marimo/read_app.py     (557)  Reading + RAG chat + save-to-wiki (3-col grid):
                                   - top-left: wiki picker (dropdown + add path)
                                   - left: wiki page selector / viewer
                                   - middle: page content + nav links
