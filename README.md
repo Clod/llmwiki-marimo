@@ -16,6 +16,8 @@ The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas 
 
 *The read app on the built-in sample wiki — navigation, a generated concept page, and a chat answer where every fact cites its source page. Below the chat: the **Save to wiki** form, the human-in-the-loop step that turns a good answer into a permanent page.*
 
+▶ **[Watch the 1-minute demo](https://youtu.be/qXaPycsGXHw)** — a PDF ingested into a fresh wiki (concept pages, summary, lint auto-repair), then a chat answer where every fact cites its source.
+
 ---
 
 ## Highlights
@@ -41,6 +43,7 @@ or plugin ecosystem (see [Limitations](#limitations--non-goals)).
 
 - **301 tests across three layers, ≈1:1 test-to-code** (5.6k test LOC vs 5.8k LOC in the framework-agnostic core, `base/`) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
 - **Framework-agnostic core** — all logic lives in `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo is only the UI at the edges, so the engine is exercised by unit tests without a browser.
+- **Malleable UI** — because the GUI is marimo notebooks, the read app's three-panel layout is just a grid file ([`marimo/layouts/read_app.grid.json`](marimo/layouts/read_app.grid.json)): open the app with `marimo edit` and drag, resize, or re-stack the panels to suit your workflow, taste, or monitor — no frontend code to touch.
 - **Security-conscious** — a path-traversal guard on the LLM-callable page reader, an explicit prompt-injection threat model, and a documented [`SECURITY.md`](SECURITY.md).
 - **Local-first & private** — runs entirely on-device; each wiki is its own local-only git repo (version history for free); source files are never modified and nothing is pushed anywhere.
 - **Scale-aware** — re-ingest skips unchanged files by content hash, lint compares only page pairs that share a source (not N²), and the overview synthesis is incremental.
