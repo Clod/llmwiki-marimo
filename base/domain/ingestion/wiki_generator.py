@@ -8,6 +8,7 @@ build_summary_page()    — Phase 2: ExtractionResult → summary markdown
 build_concept_page()    — Phase 2: concept → new/updated concept markdown
 update_overview()       — Phase 2: LLM rewrites the narrative overview
 make_wiki_slug()        — filename → url-safe slug
+inject_see_also()       — inject a ## See also section into generated markdown
 """
 
 import json
@@ -17,6 +18,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+
+from domain.i18n import get_locale, with_content_directive
 
 logger = logging.getLogger(__name__)
 
@@ -133,16 +136,16 @@ sources: [{filename}]
 
 # {name}
 
-## Definition
+## {h_definition}
 (1-2 sentences defining the concept)
 
-## Key Characteristics
+## {h_key_characteristics}
 (bullet list)
 
-## Context
+## {h_context}
 (how this concept relates to the broader domain)
 
-## Sources
+## {h_sources}
 - {filename}
 
 Output only the markdown."""
@@ -178,16 +181,16 @@ sources: [chat]
 
 # {name}
 
-## Definition
+## {h_definition}
 (1-2 sentences defining the concept)
 
-## Key Characteristics
+## {h_key_characteristics}
 (bullet list)
 
-## Context
+## {h_context}
 (how this concept relates to the broader domain)
 
-## Sources
+## {h_sources}
 (list each distinct source cited in the content above, one per line — \
 e.g. "- wiki/summaries/cinderella.md" or "- Cinderella.pdf, p. 3")
 
@@ -239,7 +242,7 @@ Output only the markdown (no frontmatter)."""
 @dataclass
 class ExtractedConcept:
     name: str
-    category: str   # "entity" | "instrument" | "theme"
+    category: str  # "entity" | "instrument" | "theme"
     insight: str
 
 
@@ -254,8 +257,14 @@ def extract_structured(
     page_contents: list[tuple[int, str]],
     client,
     model: str,
+    language: str = "en",
 ) -> ExtractionResult:
-    """Phase 1 of 3: call LLM to extract summary + concepts as structured JSON."""
+    """Phase 1 of 3: call LLM to extract summary + concepts as structured JSON.
+
+    The content-language directive is appended to the system prompt so LLM prose
+    values (document_summary, concept insights) come back in the wiki language.
+    JSON keys and category values (entity|instrument|theme) stay English.
+    """
     content = _prepare_content(page_contents)
     user_msg = _EXTRACT_USER_TEMPLATE.format(
         filename=doc_meta["filename"],
@@ -263,10 +272,11 @@ def extract_structured(
         page_count=doc_meta["page_count"],
         content=content,
     )
+    system = with_content_directive(_EXTRACT_SYSTEM, language)
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": _EXTRACT_SYSTEM},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_msg},
         ],
         temperature=0.2,
@@ -298,34 +308,40 @@ def _parse_extraction(raw: str, filename: str) -> ExtractionResult:
         return ExtractionResult(document_summary=raw, concepts=[])
 
 
-def build_summary_page(doc_meta: dict, extraction: ExtractionResult) -> str:
-    """Phase 2 of 3: build the summary wiki page from the extraction result."""
+def build_summary_page(
+    doc_meta: dict,
+    extraction: ExtractionResult,
+    language: str = "en",
+) -> str:
+    """Phase 2 of 3: build the summary wiki page from the extraction result.
+
+    No LLM call — pure string construction. Section headers and field labels
+    are drawn from the locale so a Spanish wiki produces fully Spanish pages.
+    """
+    loc = get_locale(language)
     ingested_at = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     title = _title_from_filename(doc_meta["filename"])
 
     concept_links = ""
     if extraction.concepts:
         slugs = [make_wiki_slug(c.name) for c in extraction.concepts]
-        items = [
-            f"- [{c.name}](../concepts/{s}.md)"
-            for c, s in zip(extraction.concepts, slugs)
-        ]
-        concept_links = "\n## Related Concepts\n\n" + "\n".join(items) + "\n"
+        items = [f"- [{c.name}](../concepts/{s}.md)" for c, s in zip(extraction.concepts, slugs)]
+        concept_links = f"\n## {loc.h_related_concepts}\n\n" + "\n".join(items) + "\n"
 
     return (
         f"# {title}\n\n"
-        f"**Source:** {doc_meta['filename']} | "
-        f"**Type:** {doc_meta['file_type']} | "
-        f"**Pages:** {doc_meta['page_count']} | "
-        f"**Ingested:** {ingested_at}\n\n"
-        f"## Summary\n\n{extraction.document_summary}\n"
+        f"**{loc.lbl_source}:** {doc_meta['filename']} | "
+        f"**{loc.lbl_type}:** {doc_meta['file_type']} | "
+        f"**{loc.lbl_pages}:** {doc_meta['page_count']} | "
+        f"**{loc.lbl_ingested}:** {ingested_at}\n\n"
+        f"## {loc.h_summary}\n\n{extraction.document_summary}\n"
         f"{concept_links}\n"
-        f"## Source Information\n\n"
-        f"- **File:** {doc_meta['filename']}\n"
-        f"- **Type:** {doc_meta['file_type']}\n"
-        f"- **Pages:** {doc_meta['page_count']}\n"
-        f"- **Ingested:** {ingested_at}\n"
-        f"- **Parser:** {doc_meta.get('parser', 'unknown')}\n\n"
+        f"## {loc.h_source_information}\n\n"
+        f"- **{loc.lbl_file}:** {doc_meta['filename']}\n"
+        f"- **{loc.lbl_type}:** {doc_meta['file_type']}\n"
+        f"- **{loc.lbl_pages}:** {doc_meta['page_count']}\n"
+        f"- **{loc.lbl_ingested}:** {ingested_at}\n"
+        f"- **{loc.lbl_parser}:** {doc_meta.get('parser', 'unknown')}\n\n"
         f"[^1]: {doc_meta['filename']}\n"
     )
 
@@ -336,8 +352,15 @@ def build_concept_page(
     existing_content: str | None,
     client,
     model: str,
+    language: str = "en",
 ) -> str:
-    """Phase 3 of 3: generate or update a concept wiki page."""
+    """Phase 3 of 3: generate or update a concept wiki page.
+
+    The content-language directive is appended to the system prompt so the LLM
+    writes the page in the wiki language. Section headers in the template are
+    filled from the locale before the call.
+    """
+    loc = get_locale(language)
     if existing_content:
         user_msg = _CONCEPT_UPDATE_TEMPLATE.format(
             name=concept.name,
@@ -351,12 +374,17 @@ def build_concept_page(
             category=concept.category,
             filename=filename,
             insight=concept.insight,
+            h_definition=loc.h_definition,
+            h_key_characteristics=loc.h_key_characteristics,
+            h_context=loc.h_context,
+            h_sources=loc.h_sources,
         )
 
+    system = with_content_directive(_CONCEPT_SYSTEM, language)
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": _CONCEPT_SYSTEM},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_msg},
         ],
         temperature=0.3,
@@ -389,12 +417,16 @@ def structure_chat_content(
     existing_content: str | None,
     client,
     model: str,
+    language: str = "en",
 ) -> str:
     """Apply an LLM structuring pass to chat-sourced content before saving to the wiki.
 
     Returns structured markdown with YAML frontmatter and standard sections.
     Raises on LLM failure — callers should catch and surface the error.
+    The content-language directive is appended to the system prompt so the page
+    is written in the wiki language.
     """
+    loc = get_locale(language)
     if existing_content:
         user_msg = _CHAT_CONCEPT_UPDATE_TEMPLATE.format(
             name=title,
@@ -406,12 +438,17 @@ def structure_chat_content(
             name=title,
             category=category,
             content=raw_content,
+            h_definition=loc.h_definition,
+            h_key_characteristics=loc.h_key_characteristics,
+            h_context=loc.h_context,
+            h_sources=loc.h_sources,
         )
 
+    system = with_content_directive(_CONCEPT_SYSTEM, language)
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": _CONCEPT_SYSTEM},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_msg},
         ],
         temperature=0.3,
@@ -425,18 +462,24 @@ def update_overview(
     all_concept_names: list[str],
     client,
     model: str,
+    language: str = "en",
 ) -> str:
-    """Rewrite the narrative overview page incorporating the new knowledge."""
+    """Rewrite the narrative overview page incorporating the new knowledge.
+
+    The content-language directive is appended to the system prompt so the
+    narrative prose is written in the wiki language.
+    """
     concept_list = ", ".join(all_concept_names) if all_concept_names else "none yet"
     user_msg = _OVERVIEW_TEMPLATE.format(
         current_overview=current_overview,
         new_summary=new_summary,
         concept_list=concept_list,
     )
+    system = with_content_directive(_OVERVIEW_SYSTEM, language)
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": _OVERVIEW_SYSTEM},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_msg},
         ],
         temperature=0.4,
@@ -445,6 +488,7 @@ def update_overview(
 
 
 # ── Legacy single-pass (kept for regenerate_wiki_pages) ──────────────────────
+
 
 def build_wiki_page(
     doc_meta: dict,
@@ -480,6 +524,7 @@ def build_wiki_page(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def make_wiki_slug(filename: str) -> str:
     """Convert a filename or concept name to a wiki page slug.
 
@@ -507,11 +552,7 @@ def _prepare_content(page_contents: list[tuple[int, str]]) -> str:
     skipped = len(page_contents) - _LONG_DOC_HEAD_PAGES - _LONG_DOC_TAIL_PAGES
     head_text = "\n\n---\n\n".join(f"[Page {n}]\n{md}" for n, md in head)
     tail_text = "\n\n---\n\n".join(f"[Page {n}]\n{md}" for n, md in tail)
-    return (
-        f"{head_text}\n\n"
-        f"--- [{skipped} pages omitted for length] ---\n\n"
-        f"{tail_text}"
-    )
+    return f"{head_text}\n\n--- [{skipped} pages omitted for length] ---\n\n{tail_text}"
 
 
 def _title_from_filename(filename: str) -> str:
@@ -519,35 +560,50 @@ def _title_from_filename(filename: str) -> str:
     return stem.replace("-", " ").replace("_", " ").strip().title()
 
 
-def inject_see_also(content: str, related_pages: list[dict]) -> str:
-    """Scan generated markdown for mentions of known wiki pages and inject a ## See also section.
+def inject_see_also(
+    content: str,
+    related_pages: list[dict],
+    language: str = "en",
+) -> str:
+    """Scan generated markdown for mentions of known wiki pages and inject a See also section.
 
     related_pages: list of {"title": str, "rel_path": str}
 
     Matching is case-insensitive: if the slug (hyphens→spaces) appears anywhere in the
     content body, the page is included. Already-linked pages are skipped.
+
+    The section header and the anchor header used to position the block are taken
+    from the locale — so an ``es`` page inserts ``## Véase también`` before
+    ``## Fuentes``, while an ``en`` page uses ``## See also`` / ``## Sources``.
+    This is the one position-sensitive spot where a localized header matters.
     """
+    loc = get_locale(language)
     content_lower = content.lower()
     matches = []
     for page in related_pages:
-        slug_text = page["rel_path"].replace(".md", "").replace("../concepts/", "").replace("../summaries/", "").replace("-", " ").lower()
+        slug_text = (
+            page["rel_path"]
+            .replace(".md", "")
+            .replace("../concepts/", "")
+            .replace("../summaries/", "")
+            .replace("-", " ")
+            .lower()
+        )
         # Word-boundary match so a short slug doesn't match inside a larger word
         # (e.g. "art" inside "started"); skip pages already linked in the content.
-        if (
-            slug_text
-            and re.search(rf"\b{re.escape(slug_text)}\b", content_lower)
-            and page["rel_path"] not in content
-        ):
+        if slug_text and re.search(rf"\b{re.escape(slug_text)}\b", content_lower) and page["rel_path"] not in content:
             matches.append(page)
 
     if not matches:
         return content
 
-    see_also_block = "\n## See also\n\n" + "\n".join(
-        f"- [{p['title']}]({p['rel_path']})" for p in matches
-    ) + "\n"
+    see_also_block = (
+        f"\n## {loc.h_see_also}\n\n" + "\n".join(f"- [{p['title']}]({p['rel_path']})" for p in matches) + "\n"
+    )
 
-    # Insert before ## Sources if present, otherwise append
-    if "\n## Sources" in content:
-        return content.replace("\n## Sources", see_also_block + "\n## Sources", 1)
+    # Insert before the localized ## Sources header if present, otherwise append.
+    # This must use the same locale as the page was generated with.
+    sources_marker = f"\n## {loc.h_sources}"
+    if sources_marker in content:
+        return content.replace(sources_marker, see_also_block + sources_marker, 1)
     return content.rstrip() + "\n" + see_also_block
