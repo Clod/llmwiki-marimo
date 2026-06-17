@@ -26,6 +26,8 @@ from .tools import search_source_chunks
 # Note: the agent has NO write tool — creating/updating wiki pages is the user's
 # explicit action via the "Save to wiki" form in read_app.py (save_to_wiki).
 from .wiki_tools import read_wiki_page, search_wiki_fts
+# Appends the wiki's chat answer-language directive to the system prompt.
+from domain.i18n import apply_chat_directive
 
 
 def create_agent(
@@ -33,6 +35,7 @@ def create_agent(
     api_key: str,
     model: str,
     system_prompt: str = _DEFAULT_SYSTEM_PROMPT,
+    language: str = "en",
 ) -> Agent[str, str]:
     """Return a configured wiki assistant agent.
 
@@ -41,6 +44,9 @@ def create_agent(
         api_key: API key to authenticate with the LLM provider.
         model: Model identifier string (e.g., "gpt-4o", "claude-3-5-sonnet").
         system_prompt: Loaded from wiki_config.toml; falls back to generic default.
+        language: ISO 639-1 code for this wiki's content language (from
+            WikiAssistantConfig.language). Appends the chat answer-language
+            directive to system_prompt; a no-op for English ("en").
 
     Returns:
         A fully-configured PydanticAI Agent instance.
@@ -67,6 +73,10 @@ def create_agent(
         provider=OpenAIProvider(base_url=base_url, api_key=api_key),
     )
 
+    # Append the wiki's chat answer-language directive (no-op for English, so the
+    # English agent's system prompt stays byte-identical to before this feature).
+    effective_prompt = apply_chat_directive(system_prompt, language)
+
     # 2. Build and return the configured Agent.
     return Agent(
         # Pass the configured language model
@@ -79,8 +89,9 @@ def create_agent(
         # Give the agent a clean name for internal logging/debugging
         name="wiki_assistant",
 
-        # Inject the behavior instructions (System Prompt)
-        system_prompt=system_prompt,
+        # Inject the behavior instructions (System Prompt), localized for chat
+        # answer language.
+        system_prompt=effective_prompt,
 
         # Register the suite of Python tool functions the agent is allowed to call.
         # PydanticAI automatically inspects these functions, parses their docstrings
