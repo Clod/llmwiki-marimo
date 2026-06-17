@@ -6,6 +6,8 @@ No LLM calls — purely text manipulation on a structured markdown file.
 import re
 from pathlib import Path
 
+from domain.i18n import get_locale
+
 
 _ENTRY_RE = re.compile(r"^- \[([^\]]+)\]\(([^)]+)\)")
 
@@ -15,19 +17,25 @@ def update_index(
     page_path: str,
     one_line_summary: str,
     category: str,
+    language: str = "en",
 ) -> None:
     """Add or update an entry in wiki/index.md under the appropriate section.
 
     category: "summaries" | "concepts"
     page_path: relative path from wiki/ e.g. "summaries/my-doc.md"
     one_line_summary: short description appended after the link
+    language: ISO 639-1 code controlling the index title/section headers
     """
+    loc = get_locale(language)
     index_file = workspace / "wiki" / "index.md"
     if not index_file.exists():
-        index_file.write_text("# Wiki Index\n\n## Summaries\n\n## Concepts\n", encoding="utf-8")
+        index_file.write_text(
+            f"# {loc.index_title}\n\n## {loc.index_section_summaries}\n\n## {loc.index_section_concepts}\n",
+            encoding="utf-8",
+        )
 
     text = index_file.read_text(encoding="utf-8")
-    section = "## Summaries" if category == "summaries" else "## Concepts"
+    section = "## " + (loc.index_section_summaries if category == "summaries" else loc.index_section_concepts)
 
     filename = Path(page_path).name
     title = Path(page_path).stem.replace("-", " ").title()
@@ -38,16 +46,17 @@ def update_index(
     index_file.write_text(text, encoding="utf-8")
 
 
-def remove_index_entry(workspace: Path, page_path: str, category: str) -> None:
+def remove_index_entry(workspace: Path, page_path: str, category: str, language: str = "en") -> None:
     """Remove the entry for page_path from wiki/index.md, if present.
 
     Inverse of update_index — used to roll back index changes when an ingest
     fails partway through. No-op if the file or entry is absent.
     """
+    loc = get_locale(language)
     index_file = workspace / "wiki" / "index.md"
     if not index_file.exists():
         return
-    section = "## Summaries" if category == "summaries" else "## Concepts"
+    section = "## " + (loc.index_section_summaries if category == "summaries" else loc.index_section_concepts)
     filename = Path(page_path).name
 
     lines = index_file.read_text(encoding="utf-8").splitlines(keepends=True)

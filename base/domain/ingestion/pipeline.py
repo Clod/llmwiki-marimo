@@ -26,6 +26,7 @@ from .wiki_generator import (
     build_wiki_page, make_wiki_slug,
     extract_structured, build_summary_page, build_concept_page, update_overview,
 )
+from domain.i18n import get_locale
 from domain.tools.db import open_db
 from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
 from domain.tools.references import update_references
@@ -64,19 +65,23 @@ def _next_doc_number(conn: sqlite3.Connection) -> int:
     return row[0]
 
 
-def _init_wiki_workspace(workspace: Path) -> None:
+def _init_wiki_workspace(workspace: Path, language: str = "en") -> None:
     """Create wiki directory structure and seed files on first run."""
+    loc = get_locale(language)
     (workspace / "wiki" / "summaries").mkdir(parents=True, exist_ok=True)
     (workspace / "wiki" / "concepts").mkdir(parents=True, exist_ok=True)
 
     index_file = workspace / "wiki" / "index.md"
     if not index_file.exists():
-        index_file.write_text("# Wiki Index\n\n## Summaries\n\n## Concepts\n", encoding="utf-8")
+        index_file.write_text(
+            f"# {loc.index_title}\n\n## {loc.index_section_summaries}\n\n## {loc.index_section_concepts}\n",
+            encoding="utf-8",
+        )
 
     overview_file = workspace / "wiki" / "overview.md"
     if not overview_file.exists():
         overview_file.write_text(
-            "# Knowledge Base Overview\n\n_No documents ingested yet._\n", encoding="utf-8"
+            f"# {loc.overview_title}\n\n{loc.overview_empty}\n", encoding="utf-8"
         )
 
     log_file = workspace / "wiki" / "log.md"
@@ -95,6 +100,7 @@ def ingest_file(
     progress_cb: Callable[[str], None] | None = None,
     lint_after_ingest: bool = False,
     _batch_mode: bool = False,
+    language: str = "en",
 ) -> IngestResult:
     """Run the full ingestion pipeline for a single file.
 
@@ -103,6 +109,9 @@ def ingest_file(
 
     _batch_mode=True suppresses steps 10-13 (overview, log, git commit, lint)
     so batch_ingest() can run them once for the whole batch.
+
+    language: ISO 639-1 code controlling the language of generated content
+    (summaries, concept pages, overview) and the index/overview scaffold.
     """
     def _cb(msg: str) -> None:
         logger.info(msg)
@@ -132,7 +141,7 @@ def ingest_file(
         msg = LibreOfficeNotInstalledError(file_path.name).args[0]
         return IngestResult(file_path, "failed", msg)
 
-    _init_wiki_workspace(workspace)
+    _init_wiki_workspace(workspace, language)
 
     conn = open_db(db_path)
     try:
@@ -249,7 +258,7 @@ def ingest_file(
             # ── Step 7: Structured extraction ─────────────────────────────────
             _cb("🤖 Extracting knowledge structure...")
             with tracer.stage("structured_extraction"):
-                extraction = extract_structured(doc_meta, page_contents, llm_client, model)
+                extraction = extract_structured(doc_meta, page_contents, llm_client, model, language=language)
             _cb(f"📋 Found {len(extraction.concepts)} concept(s)")
 
             # ── Step 8: Create/update concept pages ───────────────────────────
@@ -261,7 +270,7 @@ def ingest_file(
                     existing_content = read_page(db_path, workspace, "/wiki/concepts/", slug)
                     _cb(f"💡 {'Updating' if existing_content else 'Creating'} concept: {concept.name}")
                     concept_md = build_concept_page(
-                        concept, file_path.name, existing_content, llm_client, model
+                        concept, file_path.name, existing_content, llm_client, model, language=language
                     )
                     prior = _snapshot_wiki_page(db_path, f"wiki/concepts/{slug}.md")
                     concept_result = create_page(
@@ -281,12 +290,12 @@ def ingest_file(
                         concept_name=concept.name, category=concept.category,
                     )
                     one_liner = concept.insight[:80] if concept.insight else concept.name
-                    update_index(workspace, f"concepts/{slug}.md", one_liner, "concepts")
+                    update_index(workspace, f"concepts/{slug}.md", one_liner, "concepts", language=language)
 
             # ── Step 9: Create summary page ───────────────────────────────────
             _cb("📄 Writing summary page...")
             with tracer.stage("summary"):
-                summary_md = build_summary_page(doc_meta, extraction)
+                summary_md = build_summary_page(doc_meta, extraction, language=language)
                 wiki_slug = make_wiki_slug(file_path.name)
                 prior_summary = _snapshot_wiki_page(db_path, f"wiki/summaries/{wiki_slug}.md")
                 summary_result = create_page(
@@ -311,6 +320,7 @@ def ingest_file(
                     f"summaries/{wiki_slug}.md",
                     extraction.document_summary[:80] if extraction.document_summary else file_path.name,
                     "summaries",
+                    language=language,
                 )
 
             if not _batch_mode:
@@ -321,7 +331,7 @@ def ingest_file(
                     all_concept_names = _all_concept_names(db_path)
                     new_overview = update_overview(
                         current_overview, extraction.document_summary,
-                        all_concept_names, llm_client, model,
+                        all_concept_names, llm_client, model, language=language,
                     )
                     (workspace / "wiki" / "overview.md").write_text(new_overview, encoding="utf-8")
                     tracer.artifact(
@@ -366,7 +376,7 @@ def ingest_file(
             logger.exception("Ingestion failed for %s", file_path.name)
             # Roll back wiki pages this run created/overwrote so a failed ingest
             # leaves no orphaned or half-merged derived pages behind.
-            rolled_back = _rollback_wiki_pages(db_path, workspace, wiki_compensations)
+            rolled_back = _rollback_wiki_pages(db_path, workspace, wiki_compensations, language=language)
             if rolled_back:
                 _cb(f"↩️ Rolled back {rolled_back} partial wiki page(s)")
             if conn is None:
@@ -418,7 +428,9 @@ def _snapshot_wiki_page(db_path: str, relative_path: str) -> dict | None:
     }
 
 
-def _rollback_wiki_pages(db_path: str, workspace: Path, compensations: list[dict]) -> int:
+def _rollback_wiki_pages(
+    db_path: str, workspace: Path, compensations: list[dict], language: str = "en"
+) -> int:
     """Undo wiki pages created/overwritten during a failed ingest.
 
     Pages this run newly created are deleted (and their index entry removed);
@@ -434,7 +446,7 @@ def _rollback_wiki_pages(db_path: str, workspace: Path, compensations: list[dict
         try:
             if prior is None:
                 if delete_page(db_path, workspace, dir_path, slug):
-                    remove_index_entry(workspace, f"{category}/{slug}.md", category)
+                    remove_index_entry(workspace, f"{category}/{slug}.md", category, language=language)
                     acted += 1
             else:
                 create_page(
@@ -466,6 +478,7 @@ def scan_and_ingest(
     llm_client,
     model: str,
     progress_cb: Callable[[str], None] | None = None,
+    language: str = "en",
 ) -> list[IngestResult]:
     """Scan workspace/sources/ and ingest new or modified files."""
     def _cb(msg: str) -> None:
@@ -496,7 +509,9 @@ def scan_and_ingest(
         llm_client = tracer.wrap(llm_client)
         results: list[IngestResult] = []
         for fp in candidates:
-            results.append(ingest_file(fp, db_path, workspace, llm_client, model, progress_cb))
+            results.append(
+                ingest_file(fp, db_path, workspace, llm_client, model, progress_cb, language=language)
+            )
 
     ingested = sum(1 for r in results if r.status == "ingested")
     skipped  = sum(1 for r in results if r.status == "skipped")
@@ -511,8 +526,14 @@ def regenerate_wiki_pages(
     llm_client,
     model: str,
     progress_cb: Callable[[str], None] | None = None,
+    language: str = "en",
 ) -> list[IngestResult]:
-    """Regenerate summary pages for all ready source documents without re-extracting."""
+    """Regenerate summary pages for all ready source documents without re-extracting.
+
+    language is accepted for API consistency with the other entry points, but the
+    legacy single-pass build_wiki_page() used here is not yet localized (see
+    design §7.1/§11) — this is a documented v1 limitation, not a missed call site.
+    """
     def _cb(msg: str) -> None:
         logger.info(msg)
         if progress_cb:
