@@ -18,6 +18,11 @@ from dataclasses import dataclass, field
 # Import Path to handle cross-platform file paths cleanly.
 from pathlib import Path
 
+# Resolve the locale (headers/labels/defaults) for the wiki's content language.
+from domain.i18n import get_locale
+# Single source of truth for reading [wiki].language from wiki_config.toml.
+from domain.wiki_settings import load_wiki_language
+
 
 # ── DEFAULT SYSTEM PROMPT (THE AI'S CONSTITUTION) ─────────────────────────────
 # This long multi-line string defines the rules, priorities, and step-by-step
@@ -149,6 +154,10 @@ class WikiAssistantConfig:
     # The default_factory lambda creates a fresh separate copy of the list every time.
     suggested_prompts: list[str] = field(default_factory=lambda: list(_DEFAULT_PROMPTS))
 
+    # ISO 639-1 code for this wiki's content language (drives chat answer language
+    # and the localized default suggested_prompts above). Defaults to English.
+    language: str = "en"
+
 
 # ── CONFIG LOADER ─────────────────────────────────────────────────────────────
 
@@ -161,12 +170,19 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
     Returns:
         A WikiAssistantConfig object containing loaded or default settings.
     """
+    # 0. Resolve this wiki's content language once — the single source of truth
+    #    for both the localized default suggested_prompts below and the value
+    #    callers (e.g. read_app.py) forward to create_agent() for the chat
+    #    answer-language directive. Handles a missing file/section/key (→ "en")
+    #    and malformed TOML (→ "en" + warning) internally.
+    language = load_wiki_language(wiki_path)
+
     # 1. Look for the configuration file 'wiki_config.toml' in the wiki directory
     config_file = wiki_path / "wiki_config.toml"
 
     # 2. If it is missing, immediately return our default setup configuration
     if not config_file.exists():
-        return WikiAssistantConfig()
+        return WikiAssistantConfig(language=language)
 
     # 3. Read and parse the TOML file.
     #    We open the file in binary mode ("rb") which is required by `tomllib.load`.
@@ -180,6 +196,12 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
     #    if specific parameters are missing from the configuration file.
     return WikiAssistantConfig(
         system_prompt=assistant.get("system_prompt", _DEFAULT_SYSTEM_PROMPT).strip(),
-        # Copy so a caller mutating the result never corrupts the shared module default.
-        suggested_prompts=list(assistant.get("suggested_prompts", _DEFAULT_PROMPTS)),
+        # Copy so a caller mutating the result never corrupts the shared module
+        # default. When suggested_prompts is absent, default to this wiki's
+        # localized prompts (get_locale("en").suggested_prompts == _DEFAULT_PROMPTS,
+        # so the English path is unchanged); a user-supplied list always wins.
+        suggested_prompts=list(
+            assistant.get("suggested_prompts", get_locale(language).suggested_prompts)
+        ),
+        language=language,
     )
