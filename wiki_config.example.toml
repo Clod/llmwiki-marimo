@@ -5,9 +5,9 @@
 #   2. Rename it to  wiki_config.toml
 #   3. Edit the parts marked  # EDIT  below.
 #
-# Both keys are OPTIONAL. If this file is absent — or a key is omitted — the
-# built-in defaults are used (the template below mirrors those defaults, so you
-# can safely delete anything you don't want to change).
+# Every section and key here is OPTIONAL. If this file is absent — or a key is
+# omitted — the built-in defaults are used (the template below mirrors those
+# defaults, so you can safely delete anything you don't want to change).
 #
 # The assistant can call these tools (referenced by name in the prompt):
 #   read_wiki_page(path)        read one curated wiki page from disk
@@ -19,6 +19,18 @@
 # of this project is that the curated wiki is the primary answer source and the
 # raw chunks are only a fallback. A prompt that jumps straight to
 # search_source_chunks throws that away and turns it back into plain RAG.
+
+[wiki]
+
+# Content language for THIS wiki — controls the language of generated pages
+# (summaries, concept pages, the overview + index scaffold) and the chat
+# assistant's answers. The wiki language governs the output regardless of the
+# source documents' language, so you can run an English wiki and a Spanish wiki
+# side by side, each with its own wiki_config.toml.
+#
+# Supported values: "en" (English, default) | "es" (Spanish).
+# Omit this section entirely to default to English.
+language = "en"  # EDIT: set to "es" for a Spanish wiki
 
 [assistant]
 
