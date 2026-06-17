@@ -49,6 +49,7 @@ def batch_ingest(
     model: str,
     progress_cb: Callable[[str], None] | None = None,
     run_lint: bool = False,
+    language: str = "en",
 ) -> list[IngestResult]:
     """Ingest multiple files, deferring overview/log/git to the end of the batch.
 
@@ -64,6 +65,7 @@ def batch_ingest(
         model: Model identifier string.
         progress_cb: Optional callback function to report progress back to a UI.
         run_lint: Run deterministic lint checks at the end and append to log.
+        language: ISO 639-1 code controlling the language of generated content.
 
     Returns:
         List of IngestResult (one per file, in order).
@@ -77,7 +79,7 @@ def batch_ingest(
             progress_cb(msg)
 
     # 1. Initialize the workspace structure (ensuring /wiki/, /wiki/concepts/ etc exist)
-    _init_wiki_workspace(workspace)
+    _init_wiki_workspace(workspace, language)
     _cb(f"📦 Batch ingesting {len(files)} file(s)...")
 
     # Own a single trace run for the whole batch so every file (and the batch
@@ -101,6 +103,7 @@ def batch_ingest(
                 file_path, db_path, workspace, llm_client, model,
                 progress_cb=progress_cb,
                 _batch_mode=True,
+                language=language,
             )
             results.append(result)
 
@@ -132,6 +135,7 @@ def batch_ingest(
                 # D. Request the LLM to update and re-structure the wiki overview document
                 new_overview = update_overview(
                     current_overview, combined_summary, all_concept_names, llm_client, model,
+                    language=language,
                 )
                 # E. Save the updated overview back to disk
                 (workspace / "wiki" / "overview.md").write_text(new_overview, encoding="utf-8")
