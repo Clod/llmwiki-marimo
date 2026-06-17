@@ -1,0 +1,10 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": "docs/design_multilingual_content.md", "reason": "Executable design contract — Locale table, signatures, phases, tests"}
+{"file": "base/domain/ingestion/wiki_generator.py", "reason": "Templates + build_summary_page + inject_see_also to localize (phase 2)"}
+{"file": "base/domain/ingestion/pipeline.py", "reason": "Thread language through ingest_file/scan/regenerate + _init_wiki_workspace (phase 3)"}
+{"file": "base/domain/ingestion/index_manager.py", "reason": "Localize index section headers + seed (phase 3)"}
+{"file": "base/domain/chat/config.py", "reason": "Add language field + localized default prompts (phase 4)"}
+{"file": "base/domain/chat/agent.py", "reason": "Apply chat language directive in create_agent (phase 4)"}
+{"file": "wiki_config.example.toml", "reason": "Document the new [wiki] language block (phase 5)"}

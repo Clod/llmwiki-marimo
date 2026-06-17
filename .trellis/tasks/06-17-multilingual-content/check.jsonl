@@ -1,0 +1,8 @@
+{"file": ".claude/commands/trellis/finish-work.md", "reason": "Finish work checklist"}
+{"file": ".claude/commands/trellis/check-backend.md", "reason": "Backend check spec"}
+{"file": ".claude/commands/trellis/check-frontend.md", "reason": "Frontend check spec"}
+{"file": "docs/design_multilingual_content.md", "reason": "Acceptance criteria + validation matrix to verify against"}
+{"file": "database/sqlite_schema.sql", "reason": "Confirm FTS5 is intentionally unchanged in v1 (design §8)"}
+{"file": "tests/regression/test_golden_corpus.py", "reason": "Must still pass unchanged (English path = backward-compat guarantee)"}
+{"file": "base/domain/ingestion/wiki_generator.py", "reason": "Verify localized headers + directives + citation clause preserved"}
+{"file": "base/domain/chat/config.py", "reason": "Verify language field + localized prompt defaults"}
