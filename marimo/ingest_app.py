@@ -123,6 +123,12 @@ def wiki_context(active_wiki, logger):
     SOURCES_DIR = WORKSPACE / "sources"
     SOURCES_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Resolve this wiki's content language from wiki_config.toml ([wiki].language,
+    # → "en" when absent). Threaded into the ingest/scan/regen runners below so a
+    # Spanish wiki is generated in Spanish; re-resolved whenever the wiki changes.
+    from domain.wiki_settings import load_wiki_language as _load_wiki_language
+    WIKI_LANG = _load_wiki_language(WORKSPACE)
+
     _conn = _open_db(DB_PATH)
     _row = _conn.execute("SELECT id FROM workspace LIMIT 1").fetchone()
     if not _row:
@@ -134,8 +140,8 @@ def wiki_context(active_wiki, logger):
         _conn.commit()
         logger.info("Created workspace row: %s", _ws_id)
     _conn.close()
-    logger.info("Active wiki — WORKSPACE=%s  DB=%s", WORKSPACE, DB_PATH)
-    return WORKSPACE, DB_PATH, SOURCES_DIR
+    logger.info("Active wiki — WORKSPACE=%s  DB=%s  LANG=%s", WORKSPACE, DB_PATH, WIKI_LANG)
+    return WORKSPACE, DB_PATH, SOURCES_DIR, WIKI_LANG
 
 
 @app.cell
@@ -474,7 +480,7 @@ def activity_log(mo, log_lines, clear_btn, auto_refresh):
 @app.cell
 def ingest_runner(
     mo, ingest_trigger,
-    WORKSPACE, DB_PATH, llm_client, llm_model,
+    WORKSPACE, DB_PATH, llm_client, llm_model, WIKI_LANG,
     set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Runs ingestion when ingest_trigger changes, then a lint+repair pass.
@@ -547,7 +553,7 @@ def ingest_runner(
                     _fp = WORKSPACE / "sources" / _f.name
                     if not _fp.exists():
                         _fp.write_bytes(_f.contents)
-                    _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
+                    _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb, language=WIKI_LANG)
                     _results.append(_result)
                     logger.info("Result: %s — %s", _result.status, _result.message)
 
@@ -583,7 +589,7 @@ def ingest_runner(
 @app.cell
 def scan_runner(
     mo, scan_trigger,
-    WORKSPACE, DB_PATH, llm_client, llm_model,
+    WORKSPACE, DB_PATH, llm_client, llm_model, WIKI_LANG,
     set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Runs scan when scan_trigger changes."""
@@ -601,7 +607,7 @@ def scan_runner(
     def _run():
         set_running_op("scan")
         try:
-            _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
+            _sai(WORKSPACE, DB_PATH, llm_client, llm_model, _cb, language=WIKI_LANG)
         finally:
             _finish()
             set_running_op(None)
@@ -612,7 +618,7 @@ def scan_runner(
 @app.cell
 def regen_runner(
     mo, regen_trigger,
-    WORKSPACE, DB_PATH, llm_client, llm_model,
+    WORKSPACE, DB_PATH, llm_client, llm_model, WIKI_LANG,
     set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Runs wiki regeneration when regen_trigger changes."""
@@ -630,7 +636,7 @@ def regen_runner(
     def _run():
         set_running_op("regen")
         try:
-            _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb)
+            _rwp(WORKSPACE, DB_PATH, llm_client, llm_model, _cb, language=WIKI_LANG)
         finally:
             _finish()
             set_running_op(None)
