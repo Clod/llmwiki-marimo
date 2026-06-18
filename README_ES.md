@@ -8,6 +8,8 @@
 
 [English](README.md) · **Español**
 
+> Traducción de [`README.md`](README.md), que es la versión canónica. Ante cualquier discrepancia, prevalece el inglés.
+
 Una wiki personal y *local-first* que ingiere tus documentos, construye una base de conocimiento estructurada y te permite leerla y conversar con ella — todo en tu máquina, sin necesidad de la nube.
 
 Inspirada en [la idea de la «LLM Wiki» de Karpathy](https://x.com/karpathy/status/2039805659525644595).
