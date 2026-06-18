@@ -3,8 +3,10 @@
 [![CI](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml/badge.svg)](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Tests](https://img.shields.io/badge/tests-301-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-414-brightgreen.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
+**English** · [Español](README_ES.md)
 
 A personal, local-first wiki that ingests your documents, builds a structured knowledge base, and lets you read and chat with it — all on your machine, no cloud required.
 
@@ -172,7 +174,7 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 tests/
-├── unit/                  # 276 unit tests (FakeLLM, no network)
+├── unit/                  # 389 unit tests (FakeLLM, no network)
 ├── regression/            # 16 frozen golden-corpus tests (real ingest, no live model)
 ├── e2e/                   # 9 Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + golden corpus
