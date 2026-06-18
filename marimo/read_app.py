@@ -429,6 +429,7 @@ def save_action(
     last_response,
     set_save_tick,
     set_saved_notice,
+    wiki_chat_config,
     wiki_db_path,
 ):
     """Perform the save exactly once per submission, store the result, then bump
@@ -440,10 +441,12 @@ def save_action(
         _client = OpenAI(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY)
         _title = (form.value.get("title") or "").strip()
         _category = form.value.get("category", "concept")
+        # Save chat-sourced pages in this wiki's content language (no-op for "en").
+        _language = wiki_chat_config.language if wiki_chat_config else "en"
         try:
             _msg = save_to_wiki(
                 wiki_db_path, WIKI_PATH, _title, last_response(), _category,
-                client=_client, model=settings.LLM_MODEL,
+                client=_client, model=settings.LLM_MODEL, language=_language,
             )
             set_saved_notice(("success", _msg))
         except Exception as exc:

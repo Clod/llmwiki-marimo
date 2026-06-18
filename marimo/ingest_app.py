@@ -576,6 +576,7 @@ def ingest_runner(
                     _LintReport(issues=_fixable, checked_at=_report.checked_at),
                     DB_PATH, WORKSPACE,
                     llm_client=_client, model=llm_model, progress_cb=_cb,
+                    language=WIKI_LANG,
                 )
             else:
                 _cb("✅ Ingested pages consistent — no repairs needed.")
@@ -862,7 +863,7 @@ def delete_runner(
 def lint_repair_runner(
     mo, lint_repair_widget,
     get_last_lint_event, set_last_lint_event,
-    WORKSPACE, DB_PATH, llm_client, llm_model,
+    WORKSPACE, DB_PATH, llm_client, llm_model, WIKI_LANG,
     set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Fires when the lint & repair widget is confirmed."""
@@ -894,7 +895,7 @@ def lint_repair_runner(
                 _rw(
                     _lint_report, DB_PATH, WORKSPACE,
                     llm_client=llm_client, model=llm_model,
-                    progress_cb=_cb,
+                    progress_cb=_cb, language=WIKI_LANG,
                 )
         finally:
             _finish()

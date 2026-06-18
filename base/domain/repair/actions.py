@@ -20,6 +20,7 @@ from domain.lint.markers import (
 from domain.tools.db import get_connection
 from domain.tools.references import update_references
 from domain.ingestion.index_manager import update_index
+from domain.i18n import get_locale, with_content_directive
 from .report import RepairResult
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ def repair_stale(
     workspace: Path,
     llm_client,
     model: str,
+    language: str = "en",
 ) -> RepairResult:
     """Regenerate a summary page whose source document was updated after it."""
     from domain.tools.wiki_fs import create_page
@@ -129,8 +131,8 @@ def repair_stale(
             "page_count": src["page_count"] or len(page_contents),
             "parser": src["parser"] or "unknown",
         }
-        extraction = extract_structured(doc_meta, page_contents, llm_client, model)
-        summary_md = build_summary_page(doc_meta, extraction)
+        extraction = extract_structured(doc_meta, page_contents, llm_client, model, language=language)
+        summary_md = build_summary_page(doc_meta, extraction, language=language)
         wiki_slug = make_wiki_slug(src["filename"])
         name = src["filename"].rsplit(".", 1)[0].replace("-", " ").replace("_", " ").title()
 
@@ -160,8 +162,13 @@ def repair_missing_xref(
     issue: LintIssue,
     db_path: str,
     workspace: Path,
+    language: str = "en",
 ) -> RepairResult:
-    """Append a ## See also link from page A to page B, then rebuild references."""
+    """Append a "See also" link from page A to page B, then rebuild references.
+
+    The section header is localized to the wiki language so an es page keeps a
+    single "## Véase también" section instead of gaining a duplicate English one.
+    """
     from domain.tools.wiki_fs import read_page, append_to_page
 
     b_path = issue.related_page
@@ -201,11 +208,12 @@ def repair_missing_xref(
             message="already linked",
         )
 
-    if "## See also" in content_a:
+    see_also = f"## {get_locale(language).h_see_also}"
+    if see_also in content_a:
         bullet = f"- [{title_b}]({rel})"
         append_to_page(db_path, workspace, dir_a, slug_a, bullet)
     else:
-        block = f"## See also\n\n- [{title_b}]({rel})"
+        block = f"{see_also}\n\n- [{title_b}]({rel})"
         append_to_page(db_path, workspace, dir_a, slug_a, block)
 
     # Re-read and rebuild references so the links_to edge is recorded
@@ -232,6 +240,7 @@ def repair_missing_concept(
     workspace: Path,
     llm_client,
     model: str,
+    language: str = "en",
 ) -> RepairResult:
     """Create a missing concept page that a wiki page links to but doesn't exist."""
     from domain.tools.wiki_fs import create_page
@@ -263,6 +272,8 @@ def repair_missing_concept(
         + "Format as markdown with a # heading, a brief definition paragraph, "
         "and key points as bullet list."
     )
+    # Generate the page in the wiki's content language (no-op for English).
+    prompt = with_content_directive(prompt, language)
 
     try:
         response = llm_client.chat.completions.create(
@@ -277,7 +288,7 @@ def repair_missing_concept(
             title, content, [], overwrite=False,
         )
         update_references(db_path, result["id"], content, "/wiki/concepts/")
-        update_index(workspace, f"concepts/{slug}.md", title, "concepts")
+        update_index(workspace, f"concepts/{slug}.md", title, "concepts", language=language)
 
         return RepairResult(
             check="missing_concept", page=issue.page,
