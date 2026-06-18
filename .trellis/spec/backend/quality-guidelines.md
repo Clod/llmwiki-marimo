@@ -144,6 +144,41 @@ E2E tests are slower — run explicitly:
 HEADLESS=1 uv run pytest tests/e2e/ -v -s
 ```
 
+### Running E2E locally (live LLM)
+
+Unit and regression tests use the deterministic `FakeLLMClient` (no key, no
+network). The E2E tests drive the real marimo apps against a **live** LLM, so
+they need an API key, outbound network, and a Playwright browser. They cannot
+run in a sandboxed/offline environment — pull the branch to a machine with a key.
+
+1. **Configure the LLM** in `.env` at the repo root (`cp .env.example .env`):
+
+   ```bash
+   LLM_API_KEY=sk-or-...                       # your OpenRouter key
+   LLM_BASE_URL=https://openrouter.ai/api/v1
+   LLM_MODEL=anthropic/claude-sonnet-4.5       # ingest + chat model
+   ```
+
+   `WIKI_LLM_*` fall back to these `LLM_*` values, so the three above cover both
+   apps. `.env` is gitignored — never commit it.
+
+2. **Install the browser** (first run only):
+
+   ```bash
+   uv sync
+   uv run playwright install chromium
+   ```
+
+3. **Run ingest before read** — the read app E2E skips unless a prior ingest has
+   populated `tests/fixtures/workspace/`:
+
+   ```bash
+   HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s
+   HEADLESS=1 uv run pytest tests/e2e/test_read_app.py -v -s
+   ```
+
+   Or run the whole suite (ingest collected first): `HEADLESS=1 uv run pytest tests/e2e/ -v -s`.
+
 ---
 
 ## Code Review Checklist
