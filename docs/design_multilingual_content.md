@@ -1,9 +1,15 @@
 # Design: Per-wiki multilingual content (en/es, extensible)
 
-> **Status: PROPOSED — not yet implemented.** This document is an implementation
-> spec to be executed by an agent (Sonnet). Nothing here ships until the code and
-> tests below exist and pass. Once implemented, fold the user-facing parts into
-> `docs/programmer_manual.md` and delete this banner.
+> **Status: IMPLEMENTED** on branch `feat/multilingual-content`. The user-facing
+> summary now lives in `docs/programmer_manual.md` §8; this document is retained as
+> the design record. Two write paths not in the original §7 were found and
+> localized during implementation: the **lint/repair pass**
+> (`repair_stale` / `repair_missing_concept` / `repair_missing_xref`, threaded via
+> `repair_wiki(language=…)`) and the **chat→wiki save path** (`save_to_wiki(language=…)`).
+> Known v1 limitations (English-only by design): the marimo app UI, the `log.md`
+> ingest log, the lint/repair *diagnostic* annotations (contradiction / data-gap /
+> gap-filled), and the legacy `regenerate_wiki_pages` → `build_wiki_page` path.
+> FTS5 tokenizer unchanged (see §8).
 
 ## 1. Goal
 
