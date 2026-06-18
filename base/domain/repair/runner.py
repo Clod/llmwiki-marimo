@@ -18,6 +18,9 @@ from .report import RepairReport, RepairResult
 logger = logging.getLogger(__name__)
 
 _NEEDS_LLM = {"stale", "missing_concept"}
+# Handlers that accept a `language` kwarg to localize generated headers/content.
+# Other checks emit only diagnostic annotations and stay English in v1.
+_NEEDS_LANG = {"stale", "missing_concept", "missing_xref"}
 _DISPATCH = {
     "orphan":           repair_orphan,
     "stale":            repair_stale,
@@ -36,6 +39,7 @@ def repair_wiki(
     llm_client=None,
     model: str = "",
     progress_cb=None,
+    language: str = "en",
 ) -> RepairReport:
     """Apply automatic repairs for each issue in lint_report.
 
@@ -49,6 +53,9 @@ def repair_wiki(
         llm_client:  OpenAI-compatible client. Pass None to skip LLM repairs.
         model:       Model identifier string.
         progress_cb: Optional callable(str) for live progress messages.
+        language:    ISO 639-1 wiki content language, forwarded to the
+                     content/header-generating repairs (stale, missing_concept,
+                     missing_xref). Defaults to English (byte-identical path).
 
     Returns:
         RepairReport with one RepairResult per issue.
@@ -81,9 +88,11 @@ def repair_wiki(
                 message=f"LLM client required for '{issue.check}' repair — pass llm_client",
             )
         elif issue.check in _NEEDS_LLM:
-            result = handler(issue, db_path, workspace, llm_client, model)
+            _lang_kw = {"language": language} if issue.check in _NEEDS_LANG else {}
+            result = handler(issue, db_path, workspace, llm_client, model, **_lang_kw)
         else:
-            result = handler(issue, db_path, workspace)
+            _lang_kw = {"language": language} if issue.check in _NEEDS_LANG else {}
+            result = handler(issue, db_path, workspace, **_lang_kw)
 
         report.results.append(result)
         icon = "✅" if result.success and result.action != "skipped" else \

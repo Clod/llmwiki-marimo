@@ -171,6 +171,7 @@ def _lint_and_repair_after_save(
     page_path: str,
     client=None,
     model: str = "",
+    language: str = "en",
 ) -> str:
     """Deterministic lint+repair scoped to the just-saved page.
 
@@ -205,7 +206,7 @@ def _lint_and_repair_after_save(
 
         # 4. Execute the auto-repair engine, which uses the LLM to rewrite and fix the specific issues
         repair_report = repair_wiki(focused_report, db_path, workspace,
-                                    llm_client=client, model=model)
+                                    llm_client=client, model=model, language=language)
 
         # 5. Return a summary of what was successfully repaired, if anything
         if not repair_report.results:
@@ -228,6 +229,7 @@ def save_to_wiki(
     *,
     client=None,
     model: str | None = None,
+    language: str = "en",
 ) -> str:
     """Save content as a wiki page without requiring a PydanticAI RunContext.
 
@@ -242,6 +244,9 @@ def save_to_wiki(
         category: "concept" or "summary" (determines folder placement).
         client: Optional OpenAI-compatible client instance.
         model: Optional model identifier.
+        language: ISO 639-1 code controlling the language of the generated page
+            (structured content, See-also section, index entry). Defaults to
+            English so existing call sites stay byte-identical.
 
     Returns a confirmation string e.g. "Created wiki/concepts/my-concept.md".
     """
@@ -267,10 +272,12 @@ def save_to_wiki(
     # 3. Read any existing file content to support merging
     existing = read_page(db_path, workspace, dir_path, slug)
 
-    # 4. Use LLM to structure/merge the content beautifully
-    structured = structure_chat_content(title, category, content, existing, client, model)
+    # 4. Use LLM to structure/merge the content beautifully (in the wiki language)
+    structured = structure_chat_content(
+        title, category, content, existing, client, model, language=language
+    )
     related = _related_pages_for(workspace, slug, dir_path)
-    structured = inject_see_also(structured, related)
+    structured = inject_see_also(structured, related, language=language)
 
     # 5. Write the file to disk, determining whether this is an Update or a fresh Creation
     if existing:
@@ -298,14 +305,14 @@ def save_to_wiki(
 
     # 7. Update the main table-of-contents index file (index.md)
     summary = structured.strip().splitlines()[0].lstrip("# ").strip()[:80]
-    update_index(workspace, page_path, summary, category + "s")
+    update_index(workspace, page_path, summary, category + "s", language=language)
 
     # 8. Run automatic post-save validator checks and fixes (lint + repair)
     #    page_path already begins with "wiki/" (e.g. "wiki/concepts/foo.md"), so it
     #    is used as-is — prefixing another "wiki/" would double the segment.
     msg = f"{action} {page_path}"
     repair_summary = _lint_and_repair_after_save(db_path, workspace, page_path,
-                                                  client=client, model=model or "")
+                                                  client=client, model=model or "", language=language)
     if repair_summary:
         msg += f"\n🔧 Post-save repair: {repair_summary}"
     return msg
