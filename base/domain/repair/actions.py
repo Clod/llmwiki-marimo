@@ -281,7 +281,7 @@ def repair_missing_concept(
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
         )
-        content = response.choices[0].message.content.strip()
+        content = (response.choices[0].message.content or "").strip()
 
         result = create_page(
             db_path, workspace, "/wiki/concepts/", slug,

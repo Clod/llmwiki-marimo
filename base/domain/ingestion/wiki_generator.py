@@ -281,7 +281,7 @@ def extract_structured(
         ],
         temperature=0.2,
     )
-    raw = response.choices[0].message.content.strip()
+    raw = (response.choices[0].message.content or "").strip()
     return _parse_extraction(raw, doc_meta["filename"])
 
 
@@ -392,7 +392,7 @@ def build_concept_page(
     return _strip_wrapping_fence(response.choices[0].message.content)
 
 
-def _strip_wrapping_fence(text: str) -> str:
+def _strip_wrapping_fence(text: str | None) -> str:
     """Remove a single markdown code fence that wraps the entire output.
 
     Some models return a whole page wrapped in ```​markdown ... ```; written
@@ -400,8 +400,11 @@ def _strip_wrapping_fence(text: str) -> str:
     comparisson.md regression). Strip only an *outer* wrapper — the first line
     opens a fence and the last line is a bare closing fence — so genuine fenced
     code blocks inside the page are preserved.
+
+    `text` may be ``None`` when the model returns a tool call or an empty/
+    filtered completion; it is treated as an empty string.
     """
-    stripped = text.strip()
+    stripped = (text or "").strip()
     if not stripped.startswith("```"):
         return stripped
     lines = stripped.splitlines()

@@ -1,6 +1,10 @@
 """FTS5 full-text search over wiki and source document chunks."""
 
+import logging
+
 from domain.tools.db import get_connection
+
+logger = logging.getLogger(__name__)
 
 
 def search_chunks(
@@ -42,6 +46,7 @@ def search_chunks(
         try:
             rows = conn.execute(sql, params).fetchall()
         except Exception:
+            logger.warning("FTS5 search failed for query %r", query, exc_info=True)
             return []
 
     return [dict(row) for row in rows]

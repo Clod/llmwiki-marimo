@@ -226,7 +226,7 @@ def contradiction_check(
             ],
             temperature=0.1,
         )
-        text = response.choices[0].message.content.strip()
+        text = (response.choices[0].message.content or "").strip()
         if text.upper().startswith("CONTRADICTION"):
             detail = text[text.find(":") + 1:].strip() if ":" in text else text
             issues.append(LintIssue(
@@ -280,7 +280,7 @@ def data_gap_check(
         messages=[{"role": "user", "content": _GAP_TEMPLATE.format(concept_list=concept_list)}],
         temperature=0.3,
     )
-    text = response.choices[0].message.content.strip()
+    text = (response.choices[0].message.content or "").strip()
 
     if text.upper().startswith("NO GAPS"):
         return []
