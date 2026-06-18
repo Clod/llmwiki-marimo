@@ -96,6 +96,29 @@ logger = logging.getLogger(__name__)
 
 See `type-safety.md` for details.
 
+### Localization — thread the wiki language
+
+Each wiki carries a content language (`wiki_config.toml` `[wiki].language`; en/es,
+extensible). Any function that **generates wiki content or emits structural
+headers/labels** must:
+
+- take `language: str = "en"` as the **last, keyword-defaulted** parameter
+  (append-only — never reorder existing params);
+- resolve the language once at the entry point (config/app) via
+  `domain.wiki_settings.load_wiki_language`, then thread it down — never read the
+  TOML ad hoc;
+- fill headers/labels from `domain.i18n.get_locale(language)`; append the content
+  directive with `with_content_directive(...)` (generated prose) or
+  `apply_chat_directive(...)` (chat); forward `language` to every downstream
+  generator / index / repair / save call;
+- keep the **English path byte-identical** — `get_locale("en")` returns the prior
+  English literals and the directives are empty, so `language="en"` reproduces the
+  old output (the golden corpus guards this).
+
+Intentionally English in v1 (do not "fix"): the marimo app UI, the `log.md` ingest
+log, and the lint/repair *diagnostic* notes (contradiction / data-gap / gap-filled).
+See `docs/design_multilingual_content.md`.
+
 ---
 
 ## Testing Requirements
@@ -130,3 +153,4 @@ HEADLESS=1 uv run pytest tests/e2e/ -v -s
 - [ ] Module-level `logger = logging.getLogger(__name__)`
 - [ ] Result objects returned for expected failures, not exceptions
 - [ ] Unit tests added for new domain logic
+- [ ] Content/header-generating functions thread `language` (en byte-identical) — see Localization
