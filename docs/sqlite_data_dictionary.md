@@ -224,6 +224,14 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
    * **`unicode61`:** Standard multilingual tokenizer that strips punctuation and normalizes accents (e.g. searching `"cliché"` matches `"cliche"`).
    * **`porter`:** Applies the **Porter Stemming Algorithm**, converting words to their common base form. For instance, a search for `"investing"` will seamlessly match occurrences of `"invest"`, `"invests"`, and `"invested"`.
 
+> **Multilingual wikis:** the tokenizer is unchanged for non-English wikis in v1.
+> `unicode61` folds diacritics, so accent-insensitive search already works for
+> Spanish (`política` matches `politica`), and the English `porter` stemmer is
+> largely inert on Spanish text. Because each wiki owns its own `index.db`, a
+> per-wiki tokenizer (e.g. `unicode61 remove_diacritics 2`, dropping `porter`)
+> chosen at schema-creation time is a possible future refinement — see
+> `docs/design_multilingual_content.md` §8.
+
 ---
 
 ## 5. Active Database Triggers

@@ -398,6 +398,13 @@ citations.
 FTS5 parses the hyphen as a column filter — which `search_chunks` swallows,
 returning `[]`. Quote the term (`"mortgage-backed"`) or use plain words.
 
+The tokenizer is unchanged for non-English wikis in v1: `unicode61` folds
+diacritics (`política` matches `politica` — accent-insensitive search already
+works), and the English `porter` stemmer is largely inert on Spanish. Since each
+wiki owns its `index.db`, a per-wiki tokenizer (e.g. `unicode61 remove_diacritics
+2` without `porter`) is a possible future refinement — see the multilingual
+design doc §8.
+
 ---
 
 ## 5. Native Tool Layer
@@ -630,8 +637,24 @@ PDF extraction uses opendataloader-pdf (text-based PDFs only; no OCR backend yet
 
 ### `workspace/wiki_config.toml` (optional, per-workspace)
 
-Overrides the chat assistant's system prompt and suggested prompts. See §6.7  
-for an example. Absent file → defaults from `chat/config.py` are used.
+Two optional sections, each with built-in defaults (absent file → an English
+wiki with the default assistant). See `wiki_config.example.toml` for a template.
+
+- **`[wiki] language`** — the wiki's **content language** (`"en"` default, `"es"`
+  supported; extensible — add a `Locale` to `base/domain/i18n.py`). It is a
+  *per-wiki* property, so one person can run an English wiki and a Spanish wiki
+  side by side. The wiki language governs all generated output **regardless of
+  the source documents' language**: summaries, concept pages, the overview, the
+  index / See-also / Sources headers, the lint/repair regenerations, and the chat
+  assistant's answers and default suggested prompts. It is resolved once by
+  `domain.wiki_settings.load_wiki_language`, threaded through the ingestion
+  pipeline (and the lint/repair pass and chat→wiki save), and applied to the chat
+  agent's system prompt at creation. **Not** localized in v1: the marimo app UI,
+  the `log.md` ingest log, the lint/repair *diagnostic* notes (contradiction /
+  data-gap), and the legacy `regenerate_wiki_pages` path.
+- **`[assistant] system_prompt` / `suggested_prompts`** — override the chat
+  assistant. See §6.7 for an example. When `suggested_prompts` is omitted, the
+  localized defaults for the wiki language are used.
 
 ### Environment flags
 
