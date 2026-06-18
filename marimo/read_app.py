@@ -162,7 +162,7 @@ def left_panel(
                 _stem = _r["relative_path"].removeprefix("wiki/").removesuffix(".md")
                 _kw_map[_stem] = (_r["content"] or "")[:800]
     except Exception:
-        pass
+        logger.warning("keyword-map load failed", exc_info=True)
 
     def _page_row(p):
         parts = p.rsplit("/", 1)
@@ -260,10 +260,10 @@ def delete_runner(
         _delete_page(wiki_db_path, WIKI_PATH, dir_path, slug)
         set_page_list(scan_pages())
         set_selected_page(None)
-        mo.callout(mo.md(f"✅ Deleted `{page_stem}`"), kind="success")
+        _result = mo.callout(mo.md(f"✅ Deleted `{page_stem}`"), kind="success")
     except Exception as exc:
-        mo.callout(mo.md(f"❌ Deletion failed: {exc}"), kind="danger")
-    return
+        _result = mo.callout(mo.md(f"❌ Deletion failed: {exc}"), kind="danger")
+    _result
 
 
 @app.cell
