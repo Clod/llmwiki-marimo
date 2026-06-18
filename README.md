@@ -33,6 +33,7 @@ or plugin ecosystem (see [Limitations](#limitations--non-goals)).
 **AI / LLM engineering**
 
 - **Wiki-first RAG** — reads a curated, interlinked encyclopedia first (`index.md` → wiki FTS5 → raw source chunks as a fallback), so knowledge is compiled once and compounds instead of being re-retrieved per query.
+- **Per-wiki language (en/es, extensible)** — set `[wiki] language` in `wiki_config.toml` and the whole wiki — generated pages, section headers, *and* chat answers — is produced in that language, **regardless of the source documents' language**. Run an English wiki and a Spanish wiki side by side; adding a third language is one `Locale` entry.
 - **LLM-as-judge eval packet** — one command bundles the questions, the model's own answers, the cited evidence, and source-vs-generated page pairs against a *frozen* 1–5 rubric, to score chat **and** ingestion quality (and compare models).
 - **Model-suitability check** — a one-command PASS/FAIL on whether a given model clears the bar for off-corpus refusal, citations, and cited synthesis.
 - **Evidence-based prompting** — the default system prompt embeds a worked, fully-cited example because testing proved that's what reliable cross-document citation took.
@@ -342,6 +343,21 @@ suggested_prompts = [
 ```
 
 Copy `wiki_config.example.toml` from the project root as a starting point. If the file is absent, generic defaults are used.
+
+### Wiki content language
+
+Add a `[wiki]` section to generate the whole wiki — pages, structural headers and
+labels, and chat answers — in a given language, **regardless of the source
+documents' language**:
+
+```toml
+[wiki]
+language = "es"   # "en" (default) | "es"; extensible — add a Locale in base/domain/i18n.py
+```
+
+Language is a *per-wiki* property, so you can keep an English wiki and a Spanish
+wiki side by side. Set it **before the first ingest**; an absent or unknown value
+falls back to English. See [`docs/programmer_manual.md`](docs/programmer_manual.md) §8.
 
 ---
 
