@@ -3,7 +3,7 @@
 [![CI](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml/badge.svg)](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Tests](https://img.shields.io/badge/tests-414-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-418-brightgreen.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 **English** · [Español](README_ES.md)
@@ -44,7 +44,7 @@ or plugin ecosystem (see [Limitations](#limitations--non-goals)).
 
 **Engineering quality**
 
-- **414 tests across three layers, ≈1:1 test-to-code** (6.7k test LOC vs 6.1k LOC in the framework-agnostic core, `base/`) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
+- **418 tests across three layers, ≈1:1 test-to-code** (6.7k test LOC vs 6.1k LOC in the framework-agnostic core, `base/`) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
 - **Framework-agnostic core** — all logic lives in `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo is only the UI at the edges, so the engine is exercised by unit tests without a browser.
 - **Malleable UI** — because the GUI is marimo notebooks, the read app's three-panel layout is just a grid file ([`marimo/layouts/read_app.grid.json`](marimo/layouts/read_app.grid.json)): open the app with `marimo edit` and drag, resize, or re-stack the panels to suit your workflow, taste, or monitor — no frontend code to touch.
 - **Security-conscious** — a path-traversal guard on the LLM-callable page reader, an explicit prompt-injection threat model, and a documented [`SECURITY.md`](SECURITY.md).
@@ -174,7 +174,7 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 tests/
-├── unit/                  # 389 unit tests (FakeLLM, no network)
+├── unit/                  # 393 unit tests (FakeLLM, no network)
 ├── regression/            # 16 frozen golden-corpus tests (real ingest, no live model)
 ├── e2e/                   # 9 Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + golden corpus

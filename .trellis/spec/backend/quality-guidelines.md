@@ -94,7 +94,10 @@ logger = logging.getLogger(__name__)
 
 ### Type annotations on all public functions
 
-See `type-safety.md` for details.
+Annotate parameters and return types on every public function and method. Prefer
+modern syntax (`str | None`, `list[dict]`) over `Optional`/`List`. Keep `Any` out
+of public signatures; reserve it for genuinely dynamic boundaries (e.g. parsed
+JSON) and narrow it as soon as possible.
 
 ### Localization — thread the wiki language
 
@@ -129,10 +132,10 @@ See `docs/design_multilingual_content.md`.
 | E2E (marimo) | Critical paths | Playwright |
 | Integration | DB lifecycle | pytest |
 
-Run unit and integration tests before committing domain changes:
+Run unit and regression tests before committing domain changes:
 
 ```bash
-uv run pytest tests/unit/ tests/integration/ -v
+uv run pytest tests/unit/ tests/regression/ -v
 ```
 
 E2E tests are slower — run explicitly:

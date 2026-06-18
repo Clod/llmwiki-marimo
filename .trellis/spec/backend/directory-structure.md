@@ -70,7 +70,7 @@ tests/
 ├── helpers/
 │   ├── fake_llm.py                   # FakeLLMClient — deterministic LLM stub for tests
 │   └── workspace.py                  # tmp_workspace fixture — isolated DB + dir per test
-├── unit/                             # 137 tests — fast, no network, FakeLLM
+├── unit/                             # 393 tests — fast, no network, FakeLLM
 │   ├── test_db.py                    # open_db, get_connection
 │   ├── test_fixtures.py              # FakeLLMClient, tmp_workspace fixture
 │   ├── test_wiki_fs.py               # create_page, read_page, append_to_page, delete_page

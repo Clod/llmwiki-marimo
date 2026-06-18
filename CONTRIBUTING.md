@@ -29,7 +29,7 @@ uv run marimo run marimo/read_app.py   --no-sandbox   # read + chat
 Unit tests use a `FakeLLM` and make **no network calls**; the regression suite replays a frozen golden corpus, also offline — run both before every PR:
 
 ```bash
-uv run pytest tests/unit tests/regression -v
+uv run pytest tests/unit tests/regression -q
 uv run ruff check .
 ```
 
