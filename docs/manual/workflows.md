@@ -676,8 +676,10 @@ The defaults themselves are `_DEFAULT_SYSTEM_PROMPT` and `_DEFAULT_PROMPTS` in t
 same module (and the `WikiAssistantConfig` field defaults reference them). So a
 *partial* `wiki_config.toml` — e.g. only `suggested_prompts` — still keeps the
 default `system_prompt`. The repo ships a fully-commented template at
-`wiki_config.example.toml` (project root) — copy it into the workspace as
-`wiki_config.toml`. Both keys are optional; omit either to keep the defaults.
+`wiki_config.example.toml` (project root) — or `wiki_config_es.example.toml` for
+a Spanish wiki (`language = "es"`, Spanish prompt and suggested prompts). Copy
+either into the workspace as `wiki_config.toml`. Both keys are optional; omit
+either to keep the defaults.
 
 > ⚠️ **A custom `system_prompt` must preserve the wiki-first routing**  
 > (index → `search_wiki_fts` → `search_source_chunks` *fallback*). Because routing  

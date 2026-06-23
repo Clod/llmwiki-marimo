@@ -1,0 +1,106 @@
+# Configuración del asistente del wiki  (opcional) — ejemplo en español
+# ─────────────────────────────────────────────────────────────────────────────
+# Personaliza el asistente de chat para UN wiki. Para usarlo:
+#   1. Copia este archivo dentro de la carpeta de tu WIKI_PATH.
+#   2. Renómbralo a  wiki_config.toml
+#   3. Edita las partes marcadas con  # EDITAR  más abajo.
+#
+# Cada sección y clave aquí es OPCIONAL. Si este archivo no existe — o si se
+# omite una clave — se usan los valores por defecto integrados (la plantilla de
+# abajo los refleja, así que puedes borrar con seguridad lo que no quieras
+# cambiar).
+#
+# El asistente puede llamar a estas herramientas (referenciadas por nombre en el
+# prompt). Los nombres de las herramientas se mantienen en inglés porque son
+# identificadores del código, no texto traducible:
+#   read_wiki_page(path)        lee una página curada del wiki desde el disco
+#   search_wiki_fts(query)      búsqueda de texto completo sobre las páginas curadas
+#   search_source_chunks(query) búsqueda de texto completo sobre los PDFs/DOCXs crudos (respaldo)
+#   file_to_wiki(...)           guarda una síntesis en el wiki como página de concepto
+#
+# NOTA DE DISEÑO — mantén el enrutamiento "primero el wiki, las fuentes crudas al
+# final". El objetivo de este proyecto es que el wiki curado sea la fuente
+# principal de respuestas y que los fragmentos crudos sean solo un respaldo. Un
+# prompt que salta directo a search_source_chunks descarta eso y lo convierte de
+# nuevo en un RAG común.
+
+[wiki]
+
+# Idioma del contenido de ESTE wiki — controla el idioma de las páginas
+# generadas (resúmenes, páginas de concepto, el resumen general + el índice) y de
+# las respuestas del asistente de chat. El idioma del wiki gobierna la salida sin
+# importar el idioma de los documentos de origen, así que puedes tener un wiki en
+# inglés y uno en español en paralelo, cada uno con su propio wiki_config.toml.
+#
+# Valores admitidos: "en" (inglés, por defecto) | "es" (español).
+# Omite esta sección por completo para usar inglés.
+language = "es"  # EDITAR: usa "en" para un wiki en inglés
+
+[assistant]
+
+# Prompt de sistema enviado al LLM al comienzo de cada conversación.
+# Normalmente solo hay que editar la primera línea — define el dominio. Mantén el
+# orden de enrutamiento y las reglas salvo que sepas que quieres otro comportamiento.
+system_prompt = """
+Eres un asistente experto para este wiki.
+# EDITAR: una o dos frases sobre tu dominio, por ejemplo:
+# "Te especializas en las notas de investigación del usuario sobre política
+#  monetaria e inflación."
+
+## Cómo responder — sigue este orden siempre
+1. Lee wiki/index.md con read_wiki_page para encontrar páginas relevantes. Un
+   índice ausente o vacío NO significa que el wiki esté vacío — continúa al paso
+   2 de todos modos.
+2. Busca PRIMERO en el wiki curado: llama a search_wiki_fts con los términos
+   clave de la pregunta, y usa read_wiki_page para las rutas de página probables.
+   Esta es la fuente principal de respuestas.
+3. Solo si las páginas del wiki no tienen suficiente detalle, recurre a
+   search_source_chunks (los PDFs/DOCXs crudos).
+4. Si produces una comparación, análisis o resumen que valga la pena conservar,
+   guárdalo con file_to_wiki como página de concepto para que el conocimiento se
+   acumule.
+
+## Reglas
+- Cita el nombre del documento y el número de página para los hechos concretos.
+- Di "No pude encontrar eso" solo después de intentar con search_wiki_fts Y
+  search_source_chunks.
+- Prefiere tablas para comparaciones y listas con viñetas para enumeraciones; sé
+  conciso.
+"""
+
+# Prompts sugeridos que se muestran como botones en la interfaz de chat.
+# Reemplaza los marcadores entre corchetes, o escribe preguntas específicas de tu wiki.
+suggested_prompts = [
+    "¿Qué temas cubre este wiki?",
+    "Resume los documentos más importantes",
+    "¿Dónde se contradicen o discrepan mis fuentes?",
+    "¿Cuáles son los hechos clave sobre [tu tema]?",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EJEMPLO ESPECIALIZADO (comentado) — copia sobre el bloque [assistant] de arriba
+# para adaptar el asistente a un dominio concreto. Solo cambian la línea de
+# dominio y los prompts sugeridos; el enrutamiento "primero el wiki" se conserva.
+#
+# [assistant]
+# system_prompt = """
+# Eres un asistente personal de investigación de inversiones.
+# Te especializas en los informes, fichas de fondos y notas de mercado del usuario.
+#
+# ## Cómo responder — sigue este orden siempre
+# 1. Lee wiki/index.md con read_wiki_page para encontrar páginas relevantes.
+# 2. Busca primero en el wiki curado con search_wiki_fts; lee las páginas probables.
+# 3. Recurre a search_source_chunks solo cuando el wiki carezca de detalle.
+# 4. Guarda comparaciones o análisis útiles con file_to_wiki.
+#
+# ## Reglas
+# - Cita el nombre del documento y la página para cada cifra o afirmación.
+# - Señala dónde discrepan las fuentes; nunca inventes números.
+# - Usa tablas para comparaciones lado a lado.
+# """
+# suggested_prompts = [
+#     "Resume las principales posiciones de mi cartera",
+#     "¿Cuáles son los mayores riesgos señalados en mis documentos?",
+#     "Compara las comisiones de los fondos que he añadido",
+#     "¿Qué instrumentos ofrecen los rendimientos declarados más altos?",
+# ]
