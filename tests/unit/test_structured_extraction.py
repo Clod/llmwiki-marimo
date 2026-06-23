@@ -241,6 +241,42 @@ def test_strip_wrapping_fence_noop_on_plain_markdown() -> None:
     assert _strip_wrapping_fence(page) == page
 
 
+def test_strip_wrapping_fence_tolerates_none() -> None:
+    """A None completion (tool call / empty / filtered response) is treated as ''."""
+    from domain.ingestion.wiki_generator import _strip_wrapping_fence
+    assert _strip_wrapping_fence(None) == ""
+
+
+def test_extract_structured_handles_none_content() -> None:
+    """LLM returning message.content=None must not raise (graceful fallback)."""
+    llm = FakeLLMClient(response_content=None)
+    result = extract_structured(_DOC_META, _PAGE_CONTENTS, llm, "fake")
+    assert isinstance(result, ExtractionResult)
+    assert result.concepts == []
+    assert result.document_summary == ""
+
+
+def test_build_concept_page_handles_none_content() -> None:
+    """build_concept_page must not crash when the model returns content=None."""
+    concept = ExtractedConcept("Federal Reserve", "entity", "insight")
+    llm = FakeLLMClient(response_content=None)
+    page = build_concept_page(concept, "qe-study.pdf", None, llm, "fake")
+    assert page == ""
+
+
+def test_update_overview_handles_none_content() -> None:
+    """update_overview must not crash when the model returns content=None."""
+    llm = FakeLLMClient(response_content=None)
+    result = update_overview(
+        current_overview="# Overview\n\nOld text.\n",
+        new_summary="New doc.",
+        all_concept_names=["Federal Reserve"],
+        client=llm,
+        model="fake",
+    )
+    assert result == ""
+
+
 def test_concept_structuring_prompts_preserve_citations() -> None:
     """Contract: the save-time structuring pass must NOT strip inline citations.
 

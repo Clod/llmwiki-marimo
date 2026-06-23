@@ -301,7 +301,8 @@ def timing_helper():
             try:
                 self._emit_line(record.getMessage())
             except Exception:
-                pass
+                # Standard logging-handler error path; avoids recursive logging.
+                self.handleError(record)
 
     def make_timed_logger(set_log_lines, logger, tag):
         msgs: list[str] = []

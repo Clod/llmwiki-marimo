@@ -300,8 +300,9 @@ def save_to_wiki(
         if row:
             update_references(db_path, row["id"], structured, dir_path)
     except Exception:
-        # Ignore DB sync errors so the critical file-saving step is not disrupted
-        pass
+        # Ignore DB sync errors so the critical file-saving step is not disrupted,
+        # but log them so a broken references table is diagnosable.
+        logger.warning("reference sync failed for %s", page_path, exc_info=True)
 
     # 7. Update the main table-of-contents index file (index.md)
     summary = structured.strip().splitlines()[0].lstrip("# ").strip()[:80]

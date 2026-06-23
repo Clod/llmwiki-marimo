@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     WIKI_LLM_API_KEY: str = ""
     WIKI_LLM_MODEL: str = ""
 
+    # Note: a few runtime toggles documented in .env.example — WIKI_HOME,
+    # WIKI_AUTOCOMMIT, WIKI_DEBUG, WIKI_TRACE — are intentionally NOT modelled
+    # here. The marimo apps read them ad hoc via os.environ.get() (workspace
+    # discovery, autocommit, debug logging, trace capture) rather than through
+    # pydantic-settings, so they live outside this Settings class by design.
+
 
 settings = Settings()
 

@@ -28,5 +28,3 @@ When adding new GUI elements in Marimo, I want you to always take into account t
 | `test-read` | Run read-app tests |
 | `tdd-workflow` | Test-driven development cycle |
 | `code-review` | General code review |
-| `before-backend-dev` | Pre-implementation checklist |
-| `check-backend` | Backend verification |
