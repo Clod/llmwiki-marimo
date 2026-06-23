@@ -638,7 +638,8 @@ PDF extraction uses opendataloader-pdf (text-based PDFs only; no OCR backend yet
 ### `workspace/wiki_config.toml` (optional, per-workspace)
 
 Two optional sections, each with built-in defaults (absent file → an English
-wiki with the default assistant). See `wiki_config.example.toml` for a template.
+wiki with the default assistant). See `wiki_config.example.toml` (English) or
+`wiki_config_es.example.toml` (Spanish, `language = "es"`) for a template.
 
 - **`[wiki] language`** — the wiki's **content language** (`"en"` default, `"es"`
   supported; extensible — add a `Locale` to `base/domain/i18n.py`). It is a

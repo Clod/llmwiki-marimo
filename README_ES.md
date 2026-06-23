@@ -350,7 +350,7 @@ suggested_prompts = [
 ]
 ```
 
-Copia `wiki_config.example.toml` desde la raíz del proyecto como punto de partida. Si el archivo está ausente, se usan valores por defecto genéricos.
+Copia `wiki_config.example.toml` desde la raíz del proyecto como punto de partida (o `wiki_config_es.example.toml` para un wiki en español — la misma estructura con `language = "es"` y prompts en español). Si el archivo está ausente, se usan valores por defecto genéricos.
 
 ### Idioma de contenido de la wiki
 
