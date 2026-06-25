@@ -42,7 +42,7 @@ categorias:
     concept:  { attributes: [disponibilidad, moneda] }
   acciones:                       # non-deterministic
     dataset:  { metricas: [precio] }
-    concept:  { attributes: [disponibilidad, moneda, metodo_calculo] }
+    concept:  { attributes: [disponibilidad, moneda, metodo_calculo, depende_de] }
 ---
 # Finance requirements
 (Per-category prose: what each metric/attribute means and where to source it.)
@@ -77,6 +77,7 @@ Read from concept‑page front‑matter (`attributes:` block).
 | `moneda` | enum | currency | ARS \| USD \| … | eligibility + display | ✓ |
 | `metodo_calculo` | enum | gain formula, or `no_deterministico` | `interes_simple_vencimiento` \| `capitalizacion_diaria` \| `no_deterministico` | gain | ✓ |
 | `metrica_tasa` | str | which dataset metric is the rate | e.g. `TNA`, `rendimiento` | gain (links to dataset) | ✓ unless `no_deterministico` |
+| `depende_de` | list[enum] | for `no_deterministico`: what drives the variability (factual, not risk) | `inflacion` \| `tipo_cambio` \| `precio_mercado` \| … | advisory display | ✓ if `no_deterministico` |
 
 Concept→dataset link: implicit by slug (`categoria` == concept slug);
 `metrica_tasa` names the rate metric.
@@ -124,8 +125,9 @@ The advisory tool (conditionally registered when the module is active).
    ranked by gain across categories** — the user picks. Keep `clave`/entity, term,
    `as_of`, `fuente` per row.
 4. **Non‑deterministic** options (`no_deterministico`): **no gain**; collect
-   separately, flagged *"rendimiento variable — no estimable"*, eligibility by
-   liquidity still applies.
+   separately, flagged *"rendimiento variable — no estimable; depende de:
+   &lt;factores&gt;"* from `depende_de` (inflación / tipo de cambio / precio de
+   mercado). Eligibility by liquidity still applies.
 5. Attach **cited risk caveats** pulled from each concept's prose.
 6. Return a two‑section, cited comparison (below).
 
@@ -143,9 +145,11 @@ Alternativas con ganancia estimada (ordenadas por ganancia)
 | …              |                |       |       |               |            |        |
 
 Renta variable (no estimable)
-| opción  | nota                                   | riesgo (fuente)        |
-|---------|----------------------------------------|------------------------|
-| Acciones| rendimiento variable — no estimable    | alta volatilidad [doc] |
+| opción       | depende de        | riesgo (fuente)        |
+|--------------|-------------------|------------------------|
+| Acciones     | precio de mercado | alta volatilidad [doc] |
+| Bono CER     | inflación         | riesgo soberano [doc]  |
+| Dólar Linked | tipo de cambio    | riesgo de TC [doc]     |
 ```
 
 ---
@@ -187,3 +191,58 @@ Deterministic unit tests (in‑memory manifest + concept + dataset; no LLM/netwo
 - **Tax treatment**, fees, rollover modeling beyond constant‑rate projection.
 - **List capping/grouping** for very long lists — v1 lists **all** eligible
   options ranked; an optional top‑N cap ("y N más") can come later.
+
+---
+
+## 10. Corpus validation — `tests/fixtures/mercado_argentino/`
+
+12 conceptual docs (one per instrument family) used to stress‑test the design.
+**Verdict: the architecture closes up** — generic datasets + concept attributes +
+deterministic overlay + honest non‑deterministic handling map cleanly. Three
+findings refine scope:
+
+**F1 — The deterministic set is narrow (and that's honest).**
+v1 estimates a gain only for **nominal peso‑rate** instruments via the TEA model:
+**plazo fijo tradicional, FCI money market, caución** (peso). *Plazo fijo en
+dólares* is also deterministic but compared **within USD** (cross‑currency
+deferred). Everything else is `no_deterministico` in v1, tagged with its
+`depende_de` driver:
+- inflation‑linked (bonos CER/UVA, plazo fijo UVA, LECER) → `inflacion`;
+- FX‑linked (dólar linked, duales, hard dollar) → `tipo_cambio`;
+- market‑priced **incl. LECAP, bonos, ON, letras, acciones, CEDEARs, FCI renta
+  fija/mixtos** → `precio_mercado`.
+Refusing to estimate these is the honesty guarantee, not a gap.
+
+> **Future development — scenario / assumption‑based estimation.** Several
+> currently‑`no_deterministico` instruments *could* be estimated **under an
+> explicit, stated assumption** (never a hidden forecast). All deferred:
+> - **"held to maturity"** → `tir_al_vencimiento` for fixed income (LECAP, bonos,
+>   ON) when maturity ≤ horizon (needs TIR + maturity date in the dataset);
+> - **"if inflation stays at X%"** → projected gain for CER/UVA/LECER;
+> - **"if the exchange rate moves to Y"** → projected gain for dólar‑linked/duales.
+> Each would surface its assumption explicitly in the answer.
+
+**F2 — Concept granularity ≠ advisory‑category granularity.** Some concept pages
+bundle variants with different method/currency: "Plazos Fijos" = tradicional /
+UVA / dólares; "Letras" = LECAP / LECER / LELINK. One educational concept page
+may map to **several advisory categories** (each homogeneous: one
+`metodo_calculo` + `moneda`). Decision (GRAN, lean): **keep the educational
+concept doc whole**; the **manifest** declares the per‑variant advisory
+categories (`plazo_fijo_tradicional`, `plazo_fijo_uva`, …), each mapping to its
+own dataset + method/currency and pointing back to the concept doc for caveats.
+Avoids fragmenting good docs.
+
+**F3 — Multi‑currency is real (confirmed deferred).** Hard‑dollar bonos, USD ONs,
+USD plazo fijo, CEDEARs (ARS/MEP). v1 compares **within a currency**; cross‑currency
+via FX stays deferred.
+
+**Regression use:** these 12 → ~12 concept pages = a finance E2E/golden fixture
+(parallels the fairy‑tale corpus). Confirm DOCX ingestion before wiring an E2E.
+Content is educational (non‑sensitive); committing publishes it (public repo).
+
+| # | Decision | Lean | Status |
+|---|----------|------|--------|
+| DET‑scope | Deterministic = nominal‑peso‑rate only (plazo fijo tradicional, money market, caución; USD plazo fijo within USD); rest `no_deterministico` + `depende_de` | yes | **CONFIRMED** |
+| DET‑scenario | Assumption‑based estimation (held‑to‑maturity TIR; "if inflation stays at X"; "if FX = Y") | future | **deferred** |
+| GRAN | 1 concept doc : N advisory categories — manifest declares variants; docs stay whole | yes | proposed |
+| FX | Cross‑currency comparison | later | deferred |
