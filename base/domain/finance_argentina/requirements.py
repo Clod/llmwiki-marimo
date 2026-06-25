@@ -84,6 +84,16 @@ def load_requirements_file(path: Path) -> FinanceRequirements:
     return parse_requirements_markdown(text)
 
 
+def default_manifest_path() -> Path:
+    """Path to the manifest shipped with this module (`requirements.md`)."""
+    return Path(__file__).parent / "requirements.md"
+
+
+def load_default_requirements() -> FinanceRequirements:
+    """Load the manifest shipped with the module (the v1 seed categories)."""
+    return load_requirements_file(default_manifest_path())
+
+
 def _parse_category(slug: str, raw_spec: object) -> CategoryRequirements | None:
     if not isinstance(raw_spec, dict):
         logger.warning("Finance requirements: category %r is not a mapping — skipped", slug)

@@ -63,6 +63,8 @@ def create_agent(
     system_prompt: str = _DEFAULT_SYSTEM_PROMPT,
     language: str = "en",
     workspace: Path | None = None,
+    extra_tools: list | None = None,
+    extra_prompt: str | None = None,
 ) -> Agent[str, str]:
     """Return a configured wiki assistant agent.
 
@@ -82,6 +84,13 @@ def create_agent(
             system prompt gains dataset-routing lines. Otherwise this is a
             complete no-op — byte-identical tools and prompt to before this
             parameter existed (datasets-format.md §4).
+        extra_tools: Optional domain-overlay tool functions to register in
+            addition to the built-in ones. Injected by the composition root so
+            the engine stays domain-agnostic (it never imports an overlay).
+            Defaults to None — no-op.
+        extra_prompt: Optional text appended to the system prompt when overlay
+            tools are active (e.g. the finance_argentina routing lines, in
+            Spanish). Defaults to None — no-op.
 
     Returns:
         A fully-configured PydanticAI Agent instance.
@@ -121,6 +130,15 @@ def create_agent(
     if workspace is not None and has_active_datasets(workspace):
         tools.append(query_dataset)
         effective_prompt = f"{effective_prompt}{_DATASET_PROMPT_ADDENDUM}"
+
+    # Domain-overlay tools (e.g. finance_argentina) are injected by the caller
+    # (the composition root / read_app), keeping this engine module
+    # domain-agnostic — it never imports any overlay. Both default to None, so a
+    # caller that passes neither gets byte-identical tools and prompt.
+    if extra_tools:
+        tools.extend(extra_tools)
+    if extra_prompt:
+        effective_prompt = f"{effective_prompt}{extra_prompt}"
 
     # 2. Build and return the configured Agent.
     return Agent(

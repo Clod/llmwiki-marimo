@@ -7,6 +7,8 @@ today. A `datasets/` directory with at least one valid dataset file ->
 query_dataset is additionally registered and the prompt gains routing lines.
 """
 
+from pydantic_ai import RunContext
+
 from domain.chat.agent import create_agent
 
 _DEFAULT_TOOLS = {"read_wiki_page", "search_wiki_fts", "search_source_chunks"}
@@ -135,3 +137,42 @@ def test_datasets_dir_with_valid_file_extends_prompt(tmp_path) -> None:
     assert effective_prompt != base_prompt
     assert base_prompt in effective_prompt
     assert "query_dataset" in effective_prompt
+
+
+# ── Generic overlay seam (extra_tools / extra_prompt) ────────────────────────────
+
+
+def _dummy_tool(ctx: RunContext[str], x: str) -> str:
+    """A dummy domain-overlay tool for seam testing."""
+    return x
+
+
+def test_extra_tools_are_registered() -> None:
+    """extra_tools are added on top of the built-in tools (no workspace needed)."""
+    agent = create_agent(
+        base_url="http://localhost:1234/v1", api_key="fake-key", model="fake-model",
+        system_prompt="Base.", extra_tools=[_dummy_tool],
+    )
+    assert _agent_tool_names(agent) == _DEFAULT_TOOLS | {"_dummy_tool"}
+
+
+def test_extra_prompt_is_appended() -> None:
+    """extra_prompt is appended to the system prompt verbatim."""
+    agent = create_agent(
+        base_url="http://localhost:1234/v1", api_key="fake-key", model="fake-model",
+        system_prompt="Base.", extra_prompt="\n\nOVERLAY ROUTING.",
+    )
+    (prompt,) = agent._system_prompts
+    assert prompt == "Base.\n\nOVERLAY ROUTING."
+
+
+def test_no_extra_is_byte_identical() -> None:
+    """extra_tools/extra_prompt default None -> exactly default tools + base prompt."""
+    base = "Base."
+    agent = create_agent(
+        base_url="http://localhost:1234/v1", api_key="fake-key", model="fake-model",
+        system_prompt=base,
+    )
+    assert _agent_tool_names(agent) == _DEFAULT_TOOLS
+    (prompt,) = agent._system_prompts
+    assert prompt == base

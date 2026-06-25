@@ -491,11 +491,19 @@ def wiki_context(active_wiki):
         )
         wiki_db_path = str(WIKI_PATH / ".llmwiki" / "index.db")
         wiki_chat_config = load_config(WIKI_PATH)
+        # Optional Argentine-finance overlay: registers the `estimar_alternativas`
+        # tool only when this workspace's data satisfies the finance manifest.
+        # The engine stays finance-agnostic; activation is decided here (the
+        # composition root) and injected via extra_tools/extra_prompt.
+        from domain.finance_argentina.agent_tool import activate as _activate_finance
+        _fin_tools, _fin_prompt = _activate_finance(WIKI_PATH)
         wiki_agent = create_agent(
             settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
             system_prompt=wiki_chat_config.system_prompt,
             language=wiki_chat_config.language,
             workspace=WIKI_PATH,
+            extra_tools=_fin_tools,
+            extra_prompt=_fin_prompt,
         )
     else:
         wiki_db_path = None
