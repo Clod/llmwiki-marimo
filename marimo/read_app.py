@@ -495,6 +495,7 @@ def wiki_context(active_wiki):
             settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
             system_prompt=wiki_chat_config.system_prompt,
             language=wiki_chat_config.language,
+            workspace=WIKI_PATH,
         )
     else:
         wiki_db_path = None
