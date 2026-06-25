@@ -1,8 +1,15 @@
-# Finance Module — Concrete Design (working doc)
+# `finance_argentina` Module — Concrete Design (working doc)
 
-> **Status:** DRAFT — collaborative. The concrete spec of the finance domain
-> module. Architecture/seams live in `docs/design_datasets.md`; the generic
-> dataset format in `.trellis/spec/backend/datasets-format.md`.
+> **Status:** DRAFT — collaborative. The concrete spec of the **`finance_argentina`**
+> domain module (`base/domain/finance_argentina/`). Architecture/seams live in
+> `docs/design_datasets.md`; the generic dataset format in
+> `.trellis/spec/backend/datasets-format.md`.
+>
+> **Domain-specific by design.** This module is **Argentine** finance — plazo
+> fijo, FCI, MEP, CER/UVA, caución. It is **not** general, and we don't pretend
+> otherwise: it is named `finance_argentina`, and **all LLM/user-facing text
+> (advisory output, validator messages, the agent tool description + prompt
+> addendum) is in Spanish.** (Dev-facing logs/docstrings stay English.)
 >
 > **Principle (inherited):** generic about data shapes (engine), concrete about
 > domain logic (this module). Formulae are **code**, not a rules language.
@@ -23,7 +30,7 @@
 
 ---
 
-## 2. Requirements manifest (`finance/requirements.md`)
+## 2. Requirements manifest (`finance_argentina/requirements.md`)
 
 Front‑matter = machine‑readable requirements; body = human documentation. One
 file, three readers (author / validator / future producer).
