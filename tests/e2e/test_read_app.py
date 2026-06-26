@@ -178,7 +178,10 @@ async def test_no_edit_controls_present(page: Page) -> None:
 
 async def test_chat_panel_renders(page: Page) -> None:
     """Chat panel heading visible; prompts loaded from wiki_config.toml."""
-    heading = page.get_by_text("Chat with your Wiki", exact=False)
+    # Target the heading specifically: in the column layout marimo also renders a
+    # heading-navigation entry with the same text, so a plain get_by_text matches
+    # two elements (strict-mode violation).
+    heading = page.get_by_role("heading", name="Chat with your Wiki")
     await heading.wait_for(state="visible", timeout=5_000)
 
     chatbot = page.locator("marimo-chatbot").first
