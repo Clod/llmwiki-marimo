@@ -365,10 +365,13 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
     last_response, set_last_response = mo.state("")
 
     async def respond(messages, config):
-        # Grounding guardrail (domain/chat/guardrail.py) requires the full run +
-        # its tool history, so we run to completion (no token streaming) and then
-        # gate the answer: if no tool produced substantive evidence, the answer
-        # can't be grounded and is replaced with an honest refusal.
+        # The "Modo estricto" toggle (grounding_flag["strict"], read live at
+        # call-time) controls two coupled behaviors:
+        #   ON  -> strict: run to completion so the guardrail can inspect the
+        #          tool history, then gate the answer (refuse if ungrounded).
+        #          Cannot stream — you can't retract text already shown.
+        #   OFF -> normal: stream token-by-token (original UX), no gating.
+        # Strict+streaming is incoherent, so the two move together by necessity.
         from domain.chat.guardrail import enforce_grounding, refusal_for
 
         history = []
@@ -378,21 +381,25 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
             elif msg.role == "assistant":
                 history.append(ModelResponse(parts=[TextPart(content=msg.content)]))
 
-        result = await wiki_agent.run(
-            messages[-1].content, deps=wiki_db_path, message_history=history
-        )
-        # Pluggable: apply the guardrail only when the GUI toggle is on.
-        # grounding_flag["strict"] is a plain dict the toggle mutates in place, so
-        # this read is always live and toggling never rebuilds the chat.
         if grounding_flag["strict"]:
+            result = await wiki_agent.run(
+                messages[-1].content, deps=wiki_db_path, message_history=history
+            )
             _lang = wiki_chat_config.language if wiki_chat_config else None
             answer = enforce_grounding(
                 result.output, result.all_messages(), refusal=refusal_for(_lang)
             )
+            set_last_response(answer)
+            yield answer
         else:
-            answer = result.output
-        set_last_response(answer)
-        yield answer
+            full_text = ""
+            async with wiki_agent.run_stream(
+                messages[-1].content, deps=wiki_db_path, message_history=history
+            ) as result:
+                async for chunk in result.stream_text(delta=True):
+                    full_text += chunk
+                    yield chunk
+            set_last_response(full_text)
 
     if wiki_agent is None:
         _body = mo.md("*Select a wiki (top-left) to start chatting.*")
