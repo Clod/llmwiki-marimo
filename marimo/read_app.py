@@ -264,6 +264,7 @@ def delete_runner(
     except Exception as exc:
         _result = mo.callout(mo.md(f"❌ Deletion failed: {exc}"), kind="danger")
     _result
+    return
 
 
 @app.cell
@@ -345,14 +346,31 @@ def middle_panel(current_content, nav_widget, selected_stem):
     return
 
 
+@app.cell
+def guardrail_flag():
+    """Shared mutable flag for the grounding guardrail. A plain dict (NOT
+    mo.state): the chat handler reads it live without making chat_panel reactive,
+    so flipping the toggle never rebuilds the chat. The toggle cell mutates it in
+    place. (A mo.state getter is not reliably live inside the async chat closure,
+    which is why this is a plain dict rather than mo.state.)"""
+    grounding_flag = {"strict": True}
+    return (grounding_flag,)
+
+
 @app.cell(column=2)
-def chat_panel(wiki_agent, wiki_chat_config, wiki_db_path):
+def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
     """AI chat assistant with FTS5 retrieval — column 2."""
     from pydantic_ai.messages import ModelRequest, UserPromptPart, ModelResponse, TextPart
 
     last_response, set_last_response = mo.state("")
 
     async def respond(messages, config):
+        # Grounding guardrail (domain/chat/guardrail.py) requires the full run +
+        # its tool history, so we run to completion (no token streaming) and then
+        # gate the answer: if no tool produced substantive evidence, the answer
+        # can't be grounded and is replaced with an honest refusal.
+        from domain.chat.guardrail import enforce_grounding, refusal_for
+
         history = []
         for msg in messages[:-1]:
             if msg.role == "user":
@@ -360,15 +378,21 @@ def chat_panel(wiki_agent, wiki_chat_config, wiki_db_path):
             elif msg.role == "assistant":
                 history.append(ModelResponse(parts=[TextPart(content=msg.content)]))
 
-        full_text = ""
-        async with wiki_agent.run_stream(
+        result = await wiki_agent.run(
             messages[-1].content, deps=wiki_db_path, message_history=history
-        ) as result:
-            async for chunk in result.stream_text(delta=True):
-                full_text += chunk
-                yield chunk
-
-        set_last_response(full_text)
+        )
+        # Pluggable: apply the guardrail only when the GUI toggle is on.
+        # grounding_flag["strict"] is a plain dict the toggle mutates in place, so
+        # this read is always live and toggling never rebuilds the chat.
+        if grounding_flag["strict"]:
+            _lang = wiki_chat_config.language if wiki_chat_config else None
+            answer = enforce_grounding(
+                result.output, result.all_messages(), refusal=refusal_for(_lang)
+            )
+        else:
+            answer = result.output
+        set_last_response(answer)
+        yield answer
 
     if wiki_agent is None:
         _body = mo.md("*Select a wiki (top-left) to start chatting.*")
@@ -380,6 +404,23 @@ def chat_panel(wiki_agent, wiki_chat_config, wiki_db_path):
         )
     mo.vstack([mo.md("### Chat with your Wiki"), _body], gap=2)
     return (last_response,)
+
+
+@app.cell
+def guardrail_toggle(grounding_flag):
+    """Pluggable grounding guardrail toggle — own cell (one concern), so toggling
+    never re-runs chat_panel (which depends only on the stable grounding_flag
+    dict). on_change mutates that shared dict, which the chat handler reads live."""
+    def _on_change(checked):
+        grounding_flag["strict"] = checked
+
+    _strict = mo.ui.checkbox(
+        value=grounding_flag["strict"],
+        on_change=_on_change,
+        label="Modo estricto: responder solo con fuentes del wiki",
+    )
+    mo.vstack([_strict])
+    return
 
 
 @app.cell

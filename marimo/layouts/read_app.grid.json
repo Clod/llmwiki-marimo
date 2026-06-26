@@ -3,7 +3,7 @@
   "data": {
     "columns": 24,
     "rowHeight": 20,
-    "maxWidth": 1900,
+    "maxWidth": 1400,
     "bordered": true,
     "cells": [
       {
@@ -20,18 +20,10 @@
       },
       {
         "position": [
-          0,
-          3,
+          2,
+          10,
           6,
-          31
-        ]
-      },
-      {
-        "position": [
-          0,
-          40,
-          6,
-          9
+          25
         ]
       },
       {
@@ -47,31 +39,16 @@
         "position": null
       },
       {
-        "position": [
-          6,
-          0,
-          12,
-          59
-        ]
-      },
-      {
-        "position": [
-          18,
-          0,
-          6,
-          38
-        ]
+        "position": null
       },
       {
         "position": null
       },
       {
-        "position": [
-          18,
-          41,
-          6,
-          14
-        ]
+        "position": null
+      },
+      {
+        "position": null
       },
       {
         "position": null
@@ -86,12 +63,16 @@
         "position": null
       },
       {
-        "position": [
-          0,
-          0,
-          6,
-          2
-        ]
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
       },
       {
         "position": null
