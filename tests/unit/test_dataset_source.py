@@ -137,3 +137,20 @@ def test_parse_on_read_reflects_file_changes(tmp_path) -> None:
     )
     rows_after = source.query("dolar", clave="MEP", metrica="compra")
     assert rows_after[0].valor == 1300
+
+
+def test_query_rejects_path_traversal(tmp_path) -> None:
+    """categoria is LLM-supplied (via query_dataset); it must not escape datasets/.
+
+    A *valid* dataset placed outside datasets/ would leak its rows if a `..`
+    categoria reached it — the traversal guard must reject it.
+    """
+    datasets_dir = _make_datasets_dir(tmp_path)
+    (tmp_path / "secret.md").write_text(
+        _DOLAR.replace("categoria: dolar", "categoria: secret"), encoding="utf-8"
+    )
+    source = LocalMarkdownSource(datasets_dir)
+
+    assert source.query("../secret") == []        # parent-dir escape
+    assert source.query("/etc/passwd") == []       # absolute path
+    assert source.query("plazo_fijo")              # legitimate categoria still works

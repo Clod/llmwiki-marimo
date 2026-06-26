@@ -48,8 +48,18 @@ class LocalMarkdownSource:
         metrica: str | None = None,
         dims: dict[str, str] | None = None,
     ) -> list[DatasetRow]:
-        """Return rows for `categoria`, optionally filtered. Unknown -> []."""
-        path = self._datasets_dir / f"{categoria}.md"
+        """Return rows for `categoria`, optionally filtered. Unknown -> [].
+
+        `categoria` may be LLM-supplied (via the query_dataset tool), so it is
+        confined to the datasets directory: a value with path separators or `..`
+        that would escape `datasets/` is rejected and returns [] — the same
+        traversal guard read_wiki_page uses.
+        """
+        base = self._datasets_dir.resolve()
+        path = (base / f"{categoria}.md").resolve()
+        if not path.is_relative_to(base):
+            logger.warning("query rejected out-of-bounds categoria: %r", categoria)
+            return []
         rows = self._rows_for_file(path)
         if clave is not None:
             rows = [r for r in rows if r.clave == clave]
