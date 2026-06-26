@@ -3,7 +3,7 @@
 [![CI](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml/badge.svg)](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Tests](https://img.shields.io/badge/tests-414-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-497-brightgreen.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 [English](README.md) · **Español**
@@ -35,8 +35,32 @@ ningún agente externo ni *host* de plugins que cablear. El compromiso es honest
 — no es un plugin de Obsidian, así que no hay vista de grafo ni ecosistema de
 plugins (ver [Limitaciones](#limitaciones-y-objetivos-excluidos)).
 
+**Conocimiento que además sabe los números — más que una enciclopedia.** La
+mayoría de las herramientas de "conversá con tus documentos" — RAG clásico,
+NotebookLM, incluso la LLM-wiki original — manejan solo *prosa duradera*:
+responden "qué **es** X?" pero quedan desactualizadas y no pueden decirte los
+números actuales, mucho menos calcular sobre ellos. Esto agrega un **segundo
+tipo de conocimiento de primera clase**: junto a las páginas de concepto
+destiladas, una wiki puede llevar **datos estructurados y vivos** (tasas,
+precios, estadísticas) que se refrescan, se consultan con exactitud y se
+**calculan de forma determinista** — y el mismo agente con fundamento razona
+sobre *ambos*, citando fuente **y fecha** para cada cifra y negándose a inventar
+o estimar lo que no se puede. El ejemplo incluido es un **asesor de finanzas
+personales argentino** (`finance_argentina`): preguntá *"tengo $X que no voy a
+necesitar por Y meses — ¿qué alternativas tengo y cuánto ganaría?"* y ordena
+alternativas reales con cifras citadas y fechadas, calcula las ganancias en
+**código determinista (nunca el LLM)** y marca los instrumentos de renta
+variable (acciones, ligados a inflación o tipo de cambio) como *no estimables*
+en vez de adivinar. El motor de datos es **agnóstico del dominio** (`datasets`,
+no "tasas") — finanzas es solo el primer overlay. *Una síntesis original: una
+wiki de conocimiento local-first, totalmente citada, que además mantiene datos
+vivos y calcula asesoramiento con fundamento sobre ellos.*
+
 **Ingeniería de IA / LLM**
 
+- **Datos dinámicos, no solo prosa** — un motor `datasets` agnóstico del dominio ingiere tablas estructuradas que se refrescan periódicamente (tasas/precios/estadísticas) como un carril separado de las páginas de concepto duraderas, expuesto al agente como una herramienta `query_dataset`; los valores se citan textualmente con su fecha `as_of`, nunca de memoria.
+- **Asesoría determinista y con fundamento** — el overlay de ejemplo `finance_argentina` calcula "cuánto ganaría" sobre esos datasets en Python puro (matemática de tasa efectiva, elegibilidad), lista cada opción ordenada y citada, y se niega a estimar lo no determinista (acciones, inflación, tipo de cambio) en lugar de fabricar un número.
+- **Fundamento exigible (citar o no responder)** — una verificación determinista posterior: si una respuesta no está respaldada por el resultado de una herramienta, se reemplaza por un rechazo honesto, así el modelo no recurre en silencio al conocimiento general. Un interruptor en la GUI alterna estricto (con buffer + filtrado) vs. normal (en streaming).
 - **RAG con prioridad a la wiki** — lee primero una enciclopedia curada e interconectada (`index.md` → FTS5 de la wiki → fragmentos de las fuentes en bruto como último recurso), de modo que el conocimiento se compila una vez y se acumula, en lugar de re-recuperarse en cada consulta.
 - **Idioma por wiki (en/es, extensible)** — define `[wiki] language` en `wiki_config.toml` y toda la wiki — páginas generadas, encabezados de sección *y* respuestas del chat — se produce en ese idioma, **sin importar el idioma de los documentos de origen**. Ejecuta una wiki en inglés y otra en español en paralelo; agregar un tercer idioma es una sola entrada `Locale`.
 - **Paquete de evaluación con LLM-como-juez** — un comando reúne las preguntas, las propias respuestas del modelo, la evidencia citada y los pares página-fuente vs. página-generada contra una rúbrica *congelada* de 1–5, para puntuar la calidad del chat **y** de la ingesta (y comparar modelos).
@@ -47,9 +71,9 @@ plugins (ver [Limitaciones](#limitaciones-y-objetivos-excluidos)).
 
 **Calidad de ingeniería**
 
-- **414 pruebas en tres capas, ≈1:1 prueba-a-código** (6.7k LOC de pruebas vs. 6.1k LOC en el núcleo agnóstico del framework, `base/`) — pruebas unitarias deterministas con LLM falso (sin claves, sin red); una regresión de *caracterización* sobre un corpus dorado congelado que vuelve a comprobar la columna vertebral de la ingesta real sin volver a llamar al modelo; y E2E con Playwright sobre las apps en vivo.
+- **497 pruebas en tres capas, ≈1:1 prueba-a-código** (núcleo agnóstico del framework en `base/`, ejercitado sin navegador) — pruebas unitarias deterministas con LLM falso (sin claves, sin red); una regresión de *caracterización* sobre un corpus dorado congelado que vuelve a comprobar la columna vertebral de la ingesta real sin volver a llamar al modelo; y E2E con Playwright sobre las apps en vivo.
 - **Núcleo agnóstico del framework** — toda la lógica vive en `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo es solo la UI en los bordes, así que el motor se ejercita con pruebas unitarias sin navegador.
-- **UI maleable** — como la interfaz son notebooks de marimo, el diseño de tres paneles de la app de lectura es simplemente un archivo de grilla ([`marimo/layouts/read_app.grid.json`](marimo/layouts/read_app.grid.json)): abre la app con `marimo edit` y arrastra, redimensiona o reorganiza los paneles según tu flujo, gusto o monitor — sin tocar código de frontend.
+- **UI maleable** — como la interfaz son notebooks de marimo, las tres columnas de la app de lectura son simples anotaciones `@app.cell(column=N)`: abre la app con `marimo edit` y reorganiza o re-columna las celdas según tu flujo, gusto o monitor — sin tocar código de frontend.
 - **Consciente de la seguridad** — un guardia contra *path-traversal* en el lector de páginas invocable por el LLM, un modelo de amenazas explícito de inyección de prompts y un [`SECURITY.md`](SECURITY.md) documentado.
 - **Local-first y privada** — corre íntegramente en el dispositivo; cada wiki es su propio repositorio git solo-local (historial de versiones gratis); los archivos de origen nunca se modifican y nada se sube a ningún lado.
 - **Consciente de la escala** — la re-ingesta omite archivos sin cambios por hash de contenido, el lint compara solo pares de páginas que comparten una fuente (no N²), y la síntesis del *overview* es incremental.
@@ -86,7 +110,7 @@ solo recurre a los fragmentos en bruto cuando hace falta.
 
 1. **Ingerir** — suelta PDFs o DOCXs en la app de ingesta (esto solo los guarda en `sources/`), luego haz clic en **Ingest** para ejecutar el pipeline. Extrae el texto página por página, lo fragmenta con solapamiento, ejecuta extracción estructurada de conceptos y crea / actualiza páginas de resumen + concepto más el catálogo, el *overview* y la cronología — luego toma una instantánea del resultado en el propio repositorio git de la wiki (opcional; ver [Qué queda en disco](#qué-queda-en-disco)).
 2. **Leer** — navega las páginas generadas de la wiki en una interfaz limpia de 3 columnas. Navegación, visor de contenido y chat de IA, todo en uno.
-3. **Conversar** — haz preguntas sobre tus documentos. Un agente PydanticAI lee primero las páginas curadas de la wiki y recurre al FTS5 de las fuentes en bruto solo cuando hace falta. Transmite respuestas con citas.
+3. **Conversar** — haz preguntas sobre tus documentos. Un agente PydanticAI lee primero las páginas curadas de la wiki, consulta datasets vivos cuando pedís cifras actuales, y recurre al FTS5 de las fuentes en bruto solo cuando hace falta — citando cada hecho. Un guardia de fundamento opcional exige citar-o-no-responder (interruptor en la UI: estricto/con buffer vs. normal/en streaming).
 4. **Mantener** — ejecuta el lint para detectar huérfanas, páginas obsoletas, referencias cruzadas faltantes y conceptos faltantes; ejecuta la reparación para arreglar automáticamente las seguras.
 
 > **Para desarrolladores:** la referencia canónica es  
@@ -159,7 +183,9 @@ base/                   # Pipeline de ingesta + agente de chat (Python autoconte
 ├── config.py              # pydantic-settings — lee .env
 └── domain/
     ├── ingestion/         # PDF/DOCX → texto → fragmentos → páginas de resumen + concepto
-    ├── chat/              # Agente PydanticAI + herramientas de wiki/fuente/guardado
+    ├── datasets/          # Motor genérico para datos vivos y estructurados (tasas/precios/estadísticas)
+    ├── finance_argentina/ # Overlay de dominio de ejemplo: asesoría de inversión determinista y citada
+    ├── chat/              # Agente PydanticAI + herramientas de wiki/fuente/guardado/dataset + guardia de fundamento
     ├── eval/              # UAT semi-automatizado: arma un paquete de evaluación listo para el juez
     ├── lint/              # Comprobaciones de salud de la wiki
     ├── repair/            # Auto-arreglos para problemas de lint seguros
@@ -179,9 +205,9 @@ docs/
 └── archive/               # Documentos de diseño superados (históricos)
 
 tests/
-├── unit/                  # 389 pruebas unitarias (FakeLLM, sin red)
+├── unit/                  # 470 pruebas unitarias (FakeLLM, sin red)
 ├── regression/            # 16 pruebas congeladas de corpus dorado (ingesta real, sin modelo en vivo)
-├── e2e/                   # 9 pruebas E2E con Playwright (app de ingesta + lectura)
+├── e2e/                   # 11 pruebas E2E con Playwright (app de ingesta + lectura)
 └── fixtures/              # PDFs de prueba + config de wiki + corpus dorado
 ```
 

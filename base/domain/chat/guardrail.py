@@ -31,12 +31,13 @@ REFUSAL_EN = "That isn't in my knowledge base."
 
 # Lowercased substrings that mark a tool return as "nothing found / failed".
 # Sourced from the chat tools' own empty/error messages (wiki_tools.py,
-# dataset_tools.py, tools/search.py).
+# dataset_tools.py, chat/tools.py).
 NEGATIVE_MARKERS = (
     "page not found",
     "invalid path",
     "error reading",
     "no wiki pages found",
+    "no results found",       # chat/tools.py search_source_chunks: "No results found for '{query}'."
     "no source chunks found",
     "no chunks found",
     "no dataset rows found",
