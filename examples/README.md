@@ -1,0 +1,31 @@
+# Example wikis
+
+Pre-ingested, ready-to-browse demo workspaces used by [`quickstart.py`](../quickstart.py).
+Each folder is a complete wiki workspace — drop it in as your `WIKI_PATH` and the
+read app shows real content immediately, **no ingestion or LLM required just to
+browse** (chat needs an LLM; browsing the generated pages does not).
+
+| Demo | Language | Contents |
+|------|----------|----------|
+| `fairy-tales/` | English | Three public-domain fairy tales (Cinderella, Snow White, Little Red Riding Hood) ingested into concept + summary pages, with a prebuilt FTS index. |
+
+## What's inside a demo
+
+```
+fairy-tales/
+├── wiki/              # generated concept/summary/overview/index pages (markdown)
+├── sources/           # the original PDFs the wiki was built from
+├── .llmwiki/index.db  # prebuilt SQLite + FTS5 index (so search/chat work offline)
+├── wiki_config.toml   # per-wiki assistant config (language, system prompt, prompts)
+└── .gitignore         # a realistic per-wiki ignore (note: it ignores .llmwiki/)
+```
+
+> The `.llmwiki/index.db` is **force-added** in this repo so the demo ships
+> search-ready. The demo's own `.gitignore` still excludes `.llmwiki/`, so when
+> the installer copies this folder into your `wikis/` and you later ingest your
+> own documents there, your index churn won't be tracked.
+
+## Adding a demo
+
+Drop another pre-ingested workspace folder here; `quickstart.py` auto-discovers
+any subfolder that contains a `wiki/` directory.
