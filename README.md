@@ -173,11 +173,17 @@ docs/
 ├── programmer_manual.md   # Canonical developer reference
 └── archive/               # Superseded design docs (historical)
 
+examples/               # Pre-ingested demo wikis (used by quickstart.py)
+└── fairy-tales/           # Browsable with no LLM; chat needs a model
+
 tests/
 ├── unit/                  # 393 unit tests (FakeLLM, no network)
 ├── regression/            # 16 frozen golden-corpus tests (real ingest, no live model)
 ├── e2e/                   # 9 Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + golden corpus
+
+quickstart.py           # One-command console installer (Python-only; see Quick start)
+requirements.txt        # Hash-pinned deps exported from uv.lock (for the installer's pip path)
 ```
 
 ---
@@ -196,7 +202,34 @@ tests/
 
 ## Quick start
 
-### 1. Clone and install
+The fastest way to see it running — **only Python 3.12+ required** (no `uv`, no
+manual `.env`):
+
+```bash
+git clone --depth 1 https://github.com/Clod/llmwiki-marimo.git
+cd llmwiki-marimo
+python3 quickstart.py
+```
+
+`quickstart.py` is a dependency-free console installer. It checks your Python
+version, drops in a **pre-ingested demo wiki** (browsable instantly — no LLM
+needed just to read), runs a short provider wizard (local Ollama, or any
+OpenAI-compatible cloud), builds an isolated virtualenv from a lock-pinned
+`requirements.txt`, and launches the read app. It won't overwrite an existing
+`.env` or demo without asking, and flags make it scriptable:
+
+```bash
+python3 quickstart.py --demo fairy-tales --provider ollama --yes --no-launch
+```
+
+> The demo lives in [`examples/`](examples/); browsing its generated pages needs
+> no model configured — only the chat assistant calls the LLM.
+
+Prefer to wire it up yourself? The manual `uv` setup is below.
+
+### Manual setup (uv)
+
+#### 1. Clone and install
 
 ```bash
 git clone https://github.com/Clod/llmwiki-marimo.git
@@ -204,7 +237,7 @@ cd llmwiki-marimo
 uv sync
 ```
 
-### 2. Configure
+#### 2. Configure
 
 Copy `.env.example` to `.env` and fill in:
 
@@ -225,7 +258,7 @@ specific folder instead of the parent of `WIKI_PATH`.
 
 See [LLM providers](#llm-providers) for Ollama and LM Studio config.
 
-### 3. Ingest documents
+#### 3. Ingest documents
 
 ```bash
 uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
@@ -233,7 +266,7 @@ uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
 
 Open [http://localhost:2718](http://localhost:2718), drop in your PDFs or DOCXs, click **Ingest**.
 
-### 4. Read and chat
+#### 4. Read and chat
 
 ```bash
 uv run marimo run marimo/read_app.py --no-sandbox --port 2720

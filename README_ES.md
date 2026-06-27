@@ -178,11 +178,17 @@ docs/
 ├── programmer_manual.md   # Referencia canónica para desarrolladores
 └── archive/               # Documentos de diseño superados (históricos)
 
+examples/               # Wikis de demostración pre-ingeridas (usadas por quickstart.py)
+└── fairy-tales/           # Navegable sin LLM; el chat necesita un modelo
+
 tests/
 ├── unit/                  # 389 pruebas unitarias (FakeLLM, sin red)
 ├── regression/            # 16 pruebas congeladas de corpus dorado (ingesta real, sin modelo en vivo)
 ├── e2e/                   # 9 pruebas E2E con Playwright (app de ingesta + lectura)
 └── fixtures/              # PDFs de prueba + config de wiki + corpus dorado
+
+quickstart.py           # Instalador de consola de un comando (solo Python; ver Inicio rápido)
+requirements.txt        # Dependencias fijadas por hash exportadas de uv.lock (para el pip del instalador)
 ```
 
 ---
@@ -201,7 +207,35 @@ tests/
 
 ## Inicio rápido
 
-### 1. Clonar e instalar
+La forma más rápida de verlo funcionar — **solo requiere Python 3.12+** (sin
+`uv`, sin `.env` manual):
+
+```bash
+git clone --depth 1 https://github.com/Clod/llmwiki-marimo.git
+cd llmwiki-marimo
+python3 quickstart.py
+```
+
+`quickstart.py` es un instalador de consola sin dependencias. Verifica tu
+versión de Python, instala una **wiki de demostración pre-ingerida** (navegable
+al instante — no hace falta un LLM solo para leer), corre un breve asistente de
+proveedor (Ollama local, o cualquier nube compatible con OpenAI), crea un
+entorno virtual aislado a partir de un `requirements.txt` fijado por lock, y
+lanza la app de lectura. No sobrescribe un `.env` ni una demo existentes sin
+preguntar, y los flags lo hacen automatizable:
+
+```bash
+python3 quickstart.py --demo fairy-tales --provider ollama --yes --no-launch
+```
+
+> La demo vive en [`examples/`](examples/); navegar sus páginas generadas no
+> requiere ningún modelo configurado — solo el asistente de chat llama al LLM.
+
+¿Preferís configurarlo a mano? La instalación manual con `uv` está debajo.
+
+### Instalación manual (uv)
+
+#### 1. Clonar e instalar
 
 ```bash
 git clone https://github.com/Clod/llmwiki-marimo.git
@@ -209,7 +243,7 @@ cd llmwiki-marimo
 uv sync
 ```
 
-### 2. Configurar
+#### 2. Configurar
 
 Copia `.env.example` a `.env` y complétalo:
 
@@ -231,7 +265,7 @@ lugar del directorio padre de `WIKI_PATH`.
 
 Ver [Proveedores de LLM](#proveedores-de-llm) para la configuración de Ollama y LM Studio.
 
-### 3. Ingerir documentos
+#### 3. Ingerir documentos
 
 ```bash
 uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
@@ -239,7 +273,7 @@ uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
 
 Abre [http://localhost:2718](http://localhost:2718), suelta tus PDFs o DOCXs, haz clic en **Ingest**.
 
-### 4. Leer y conversar
+#### 4. Leer y conversar
 
 ```bash
 uv run marimo run marimo/read_app.py --no-sandbox --port 2720
