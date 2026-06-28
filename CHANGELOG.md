@@ -46,5 +46,5 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.1.0...master
 [0.1.0]: https://github.com/Clod/llmwiki-marimo/releases/tag/v0.1.0
