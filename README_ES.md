@@ -5,6 +5,8 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
 ![Tests](https://img.shields.io/badge/tests-414-brightgreen.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Version](https://img.shields.io/github/v/tag/Clod/llmwiki-marimo?label=version&sort=semver&color=blue)](https://github.com/Clod/llmwiki-marimo/releases)
+[![Changelog](https://img.shields.io/badge/changelog-md-orange)](CHANGELOG.md)
 
 [English](README.md) · **Español**
 
