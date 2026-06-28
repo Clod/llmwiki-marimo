@@ -12,6 +12,12 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 ## [Unreleased]
 
 ### Added
+- **One-command quick-start installer (`quickstart.py`).** A stdlib-only console
+  installer — the only prerequisite is Python 3.12+. It builds an isolated venv
+  from a lock-pinned `requirements.txt`, drops in a pre-ingested demo wiki
+  (`examples/fairy-tales/`, browsable with no LLM), runs a provider wizard
+  (local Ollama / any OpenAI-compatible endpoint), writes `.env`, and launches
+  the read app.
 - **Per-wiki multilingual content (en/es, extensible).** `[wiki] language` in
   `wiki_config.toml` now governs the language of generated pages, section
   headers, *and* chat answers — independent of the source documents' language.
