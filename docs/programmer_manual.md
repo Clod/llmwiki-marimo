@@ -616,7 +616,8 @@ by default**, or any OpenAI-compatible endpoint such as LM Studio / OpenRouter;
 `getpass` for keys) → writes `.env` (never
 clobbering an existing one without consent) → `python -m venv .venv` +
 `pip install -r requirements.txt` → optional `/models` reachability check →
-launches the read app.
+advisory grounding check of the configured model(s)
+(`scripts/eval_chat_model.py --brief`; `--no-eval` skips) → launches the read app.
 
 ```bash
 python3 quickstart.py                                            # interactive

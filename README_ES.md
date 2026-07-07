@@ -223,7 +223,8 @@ versión de Python, instala una **wiki de demostración pre-ingerida** (navegabl
 al instante — no hace falta un LLM solo para leer), corre un breve asistente de
 proveedor (**Ollama local por defecto**, o cualquier endpoint compatible con
 OpenAI como LM Studio u OpenRouter), crea un
-entorno virtual aislado a partir de un `requirements.txt` fijado por lock, y
+entorno virtual aislado a partir de un `requirements.txt` fijado por lock, corre
+un **chequeo de grounding** advisory sobre tu modelo (`--no-eval` lo salta), y
 lanza la app de lectura. No sobrescribe un `.env` ni una demo existentes sin
 preguntar, y los flags lo hacen automatizable:
 

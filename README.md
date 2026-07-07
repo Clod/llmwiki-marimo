@@ -218,7 +218,8 @@ version, drops in a **pre-ingested demo wiki** (browsable instantly — no LLM
 needed just to read), runs a short provider wizard (**local Ollama by default**,
 or any OpenAI-compatible endpoint such as LM Studio or OpenRouter), builds an
 isolated virtualenv from a lock-pinned
-`requirements.txt`, and launches the read app. It won't overwrite an existing
+`requirements.txt`, runs an advisory **grounding check** on your model
+(`--no-eval` skips it), and launches the read app. It won't overwrite an existing
 `.env` or demo without asking, and flags make it scriptable:
 
 ```bash

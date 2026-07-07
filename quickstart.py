@@ -290,6 +290,37 @@ def check_provider(provider: tuple[str, str, str]) -> None:
         "still need to start Ollama / pull a model. Chat will work once it's up.")
 
 
+# ── Model validation (advisory) ───────────────────────────────────────────────
+
+def validate_model(venv_dir: Path) -> None:
+    """Advisory grounding smoke-test of the configured model(s).
+
+    Shells into scripts/eval_chat_model.py inside the freshly built venv. Purely
+    advisory: a weak or not-yet-reachable model prints guidance but never blocks
+    the install — the check is non-deterministic and a local server may not be up
+    yet. Skip it entirely with --no-eval.
+    """
+    py = str(venv_python(venv_dir))
+    say("  A quick grounding check on your model — a few chat calls against a "
+        "built-in sample wiki.")
+    say("  (Advisory only; it won't block. Skip next time with --no-eval.)\n")
+    try:
+        result = subprocess.run([py, "scripts/eval_chat_model.py", "--brief"], cwd=REPO_ROOT)
+    except OSError as exc:
+        say(f"\n  ⚠ Could not run the model check ({exc}). Skipping — not fatal.")
+        return
+    if result.returncode == 0:
+        say("\n  ✓ Model looks grounded and traceable.")
+    elif result.returncode == 1:
+        say("\n  ⚠ The model failed one or more grounding checks — it may be too "
+            "weak (it can hallucinate or skip citations). Consider a stronger "
+            "LLM_MODEL in .env. Continuing anyway.")
+    else:  # 2 or anything unexpected
+        say("\n  ⚠ Couldn't validate the model yet (provider not reachable or not "
+            "configured). Start it / fix .env, then run "
+            "scripts/eval_chat_model.py. Continuing.")
+
+
 # ── Launch ────────────────────────────────────────────────────────────────────
 
 def launch_command(venv_dir: Path, port: int) -> list[str]:
@@ -324,12 +355,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--port", type=int, default=DEFAULT_PORT, help="port for the read app")
     p.add_argument("--yes", action="store_true", help="assume yes for all confirmations")
     p.add_argument("--no-launch", action="store_true", help="don't offer to launch at the end")
+    p.add_argument("--no-eval", action="store_true",
+                   help="skip the post-install model grounding check")
     return p.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    total = 6
+    total = 7
 
     say("\033[1mLLM Wiki — quick start\033[0m")
     check_python()
@@ -358,7 +391,13 @@ def main(argv: list[str]) -> int:
     install_deps(venv_dir)
     check_provider(provider)
 
-    step(6, total, "Launch")
+    step(6, total, "Validate the chat model")
+    if args.no_eval:
+        say("  Skipped (--no-eval).")
+    else:
+        validate_model(venv_dir)
+
+    step(7, total, "Launch")
     maybe_launch(venv_dir, args.port, do_launch=not args.no_launch, assume_yes=args.yes)
     return 0
 
