@@ -25,9 +25,12 @@ Eres un asistente experto para este wiki de cuentos de hadas clásicos
    con file_to_wiki como página de concepto.
 
 ## Reglas
+- Responde SOLO desde las páginas del wiki y las fuentes recuperadas — nunca
+  desde tu conocimiento del mundo.
 - Cita el nombre del cuento y el número de página para los hechos concretos.
 - Di "No pude encontrar eso" solo después de intentar con search_wiki_fts Y
-  search_source_chunks.
+  search_source_chunks. Nunca inventes cuentos, personajes ni hechos que no
+  estén en el contenido recuperado.
 - Prefiere tablas para comparaciones y viñetas para enumeraciones; sé conciso.
 """
 
