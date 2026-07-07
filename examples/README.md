@@ -8,6 +8,7 @@ browse** (chat needs an LLM; browsing the generated pages does not).
 | Demo | Language | Contents |
 |------|----------|----------|
 | `fairy-tales/` | English | Three public-domain fairy tales (Cinderella, Snow White, Little Red Riding Hood) ingested into concept + summary pages, with a prebuilt FTS index. |
+| `cuentos-de-hadas/` | Spanish (`es`) | Three public-domain tales (La Cenicienta, Blancanieves, Caperucita Roja — Perrault & the Grimms) ingested into Spanish concept + summary pages, with a prebuilt FTS index. Mirrors `fairy-tales/` to show the `language = "es"` path. |
 
 ## What's inside a demo
 
