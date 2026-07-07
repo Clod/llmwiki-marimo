@@ -215,8 +215,9 @@ python3 quickstart.py
 
 `quickstart.py` is a dependency-free console installer. It checks your Python
 version, drops in a **pre-ingested demo wiki** (browsable instantly — no LLM
-needed just to read), runs a short provider wizard (local Ollama, or any
-OpenAI-compatible cloud), builds an isolated virtualenv from a lock-pinned
+needed just to read), runs a short provider wizard (**local Ollama by default**,
+or any OpenAI-compatible endpoint such as LM Studio or OpenRouter), builds an
+isolated virtualenv from a lock-pinned
 `requirements.txt`, and launches the read app. It won't overwrite an existing
 `.env` or demo without asking, and flags make it scriptable:
 

@@ -157,9 +157,9 @@ def choose_provider(preselected: str | None) -> tuple[str, str, str]:
     provider = preselected
     if not provider:
         say("Which LLM provider should the chat use?")
-        say("  1) Local Ollama  (free, on-device, nothing leaves your machine)")
-        say("  2) Cloud / any OpenAI-compatible endpoint  (OpenRouter, LM Studio, …)")
-        provider = "ollama" if ask("Choice", "1") != "2" else "cloud"
+        say("  1) Local Ollama  (default; free, on-device, nothing leaves your machine)")
+        say("  2) Cloud / any OpenAI-compatible endpoint  (LM Studio, OpenRouter, …)")
+        provider = "cloud" if ask("Choice — 1 = Ollama, 2 = cloud", "1") == "2" else "ollama"
 
     if provider == "ollama":
         return _ollama_wizard()

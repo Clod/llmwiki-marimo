@@ -611,8 +611,9 @@ prerequisite on the user's machine is **Python 3.12+** (no `uv`). It must run
 to `python -m venv`, `pip`, and (optionally) `ollama`.
 
 What it does, in order: gates the Python version → copies a pre-ingested demo
-from `examples/` into `wikis/<demo>/` → runs a provider wizard (local Ollama or
-any OpenAI-compatible endpoint; `getpass` for keys) → writes `.env` (never
+from `examples/` into `wikis/<demo>/` → runs a provider wizard (**local Ollama
+by default**, or any OpenAI-compatible endpoint such as LM Studio / OpenRouter;
+`getpass` for keys) → writes `.env` (never
 clobbering an existing one without consent) → `python -m venv .venv` +
 `pip install -r requirements.txt` → optional `/models` reachability check →
 launches the read app.
