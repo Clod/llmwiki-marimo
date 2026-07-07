@@ -2,11 +2,17 @@
 """Smoke-test whether your chosen *chat* model is good enough for this wiki.
 
 Plain English: this asks the assistant a few fixed questions about a ready-made
-sample wiki (four fairy tales) and checks the answers for the two failures a weak
+sample wiki (four fairy tales) and checks the answers for the failures a weak
 model makes:
 
-  1. It answers questions that aren't in the wiki at all (it should refuse).
+  1. It answers questions that aren't in the wiki at all — it should search,
+     find nothing, and refuse (a refusal reached without searching is a guess,
+     not grounding).
   2. It states facts without showing where they came from (it should cite a page).
+  3. It "cites" a page without ever calling a retrieval tool — a citation
+     fabricated from memory (often copied from the prompt's own example paths).
+     Every question requires a real tool call, checked against the run's message
+     history — not just that the answer text looks cited.
 
 By default it validates every model configured in your .env — the chat model
 (LLM_MODEL) and, when set to a different client, the wiki-generation model
@@ -78,13 +84,19 @@ def _check_synthesis_cited(answer: str) -> tuple[bool, str]:
     return True, f"cited {n} sources across the comparison"
 
 
+# (label, question, grader, requires_retrieval)
+# Every question requires a retrieval tool call: per the grounding mandate the
+# model must search *before* answering — even to refuse. A refusal reached
+# without searching is a guess ("I just know it's not here"), not grounding, so
+# it fails too.
 _QUESTIONS = [
-    ("Refuses off-topic questions", "What is the capital of France?", _check_refusal),
-    ("Shows its sources", "Who is Cinderella?", _check_cited),
+    ("Refuses off-topic questions", "What is the capital of France?", _check_refusal, True),
+    ("Shows its sources", "Who is Cinderella?", _check_cited, True),
     (
         "Cites when comparing",
         "What do Cinderella and Snow White have in common?",
         _check_synthesis_cited,
+        True,
     ),
 ]
 
@@ -122,6 +134,31 @@ def _resolve_targets(settings, explicit_models: list[str]) -> list[tuple[str, st
     return targets
 
 
+def _count_tool_calls(result) -> int:
+    """How many retrieval tool calls the agent actually made during the run.
+
+    A "cited" answer with zero tool calls never retrieved anything — the citation
+    is fabricated from memory (models often copy the example page paths straight
+    out of the system prompt). We trust the run's message history, not the answer
+    text. Kept defensive about pydantic-ai versions by matching `part_kind`.
+    """
+    try:
+        messages = result.all_messages()
+    except Exception:  # noqa: BLE001 — never let introspection crash the eval
+        return 0
+    return sum(
+        1
+        for message in messages
+        for part in getattr(message, "parts", [])
+        if getattr(part, "part_kind", None) == "tool-call"
+    )
+
+
+def _made_tool_call(result) -> bool:
+    """True if the agent made at least one retrieval tool call."""
+    return _count_tool_calls(result) > 0
+
+
 def _evaluate_one(
     label: str, base_url: str, api_key: str, model: str, db_path: str, *, brief: bool
 ) -> tuple[int, bool]:
@@ -138,23 +175,31 @@ def _evaluate_one(
 
     failures = 0
     answered_any = False
-    for q_label, question, grader in _QUESTIONS:
+    for q_label, question, grader, requires_retrieval in _QUESTIONS:
         try:
-            answer = agent.run_sync(question, deps=db_path).output
+            result = agent.run_sync(question, deps=db_path)
         except Exception as exc:  # noqa: BLE001
             print(f"  ✗ {q_label}: could not get an answer: {exc}")
             failures += 1
             continue
+        answer = result.output
         answered_any = True
+        n_tools = _count_tool_calls(result)
         passed, detail = grader(answer)
+        # A citation (or a refusal) only counts if the model actually retrieved.
+        # Zero tool calls => it answered from memory; any citation is fabricated.
+        if requires_retrieval and n_tools == 0:
+            passed = False
+            detail = "answered without calling any retrieval tool — no grounding happened (any citation is fabricated)"
         mark = "✓" if passed else "✗"
         if not passed:
             failures += 1
+        tag = f"[{n_tools} tool call{'' if n_tools == 1 else 's'}]"
         if brief:
-            print(f"  {mark} {q_label}: {detail}")
+            print(f"  {mark} {q_label} {tag}: {detail}")
         else:
             snippet = " ".join(answer.split())[:160]
-            print(f"  {mark} {q_label}")
+            print(f"  {mark} {q_label} {tag}")
             print(f'      asked: "{question}"')
             print(f"      result: {detail}")
             print(f"      answer: {snippet}…")
