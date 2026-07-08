@@ -11,6 +11,20 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Fixed
+- **Demo wikis now cite every fact in the read app.** Both bundled demos
+  (`fairy-tales`, `cuentos-de-hadas`) shipped a `wiki_config.toml` system prompt
+  with only a single soft citation line ("cite the tale name... for concrete
+  facts") — much weaker than the tuned default the model-validation eval runs
+  under. In the read app (which uses each wiki's own prompt), a synthesis/
+  comparison answer came back grounded but **uncited**, breaking the project's
+  core "every fact carries a citation" promise. Both demo prompts were brought up
+  to the default's rigor — an explicit grounding mandate, a mandatory-citation
+  section with format examples, the "synthesis and comparisons must cite each
+  point/row" rule, and a worked cited-comparison example — in each demo's own
+  language. Verified end-to-end: the exact comparison that failed now cites every
+  point in both English and Spanish.
+
 ## [0.2.2] - 2026-07-08
 
 ### Fixed
