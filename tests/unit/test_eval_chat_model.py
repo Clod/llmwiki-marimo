@@ -104,3 +104,43 @@ def test_count_tool_calls_counts_across_messages() -> None:
     result = _Result(_Msg("tool-call", "text"), _Msg("text"), _Msg("tool-call"))
     assert _eval._count_tool_calls(result) == 2
     assert _eval._count_tool_calls(_Result(_Msg("text"))) == 0
+
+
+# ── Per-check system prompts: the off-topic check runs domain-blind ────────────
+
+def test_offtopic_check_uses_strict_search_prompt() -> None:
+    label, _q, _grader, requires, prompt = _eval._QUESTIONS[0]
+    assert label == "Refuses off-topic questions"
+    assert prompt is _eval._STRICT_SEARCH_PROMPT
+    assert requires is True
+
+
+def test_citation_checks_use_the_production_default_prompt() -> None:
+    # system_prompt=None makes create_agent fall back to _DEFAULT_SYSTEM_PROMPT,
+    # whose worked example is what makes cross-document citation reliable.
+    for label, _q, _grader, _req, prompt in _eval._QUESTIONS[1:]:
+        assert prompt is None, f"{label} should use the production default prompt"
+
+
+def test_strict_search_prompt_is_domain_blind() -> None:
+    # It must not name the wiki's subject — that leak is the whole reason a strong
+    # model can refuse "capital of France" without ever searching.
+    p = _eval._STRICT_SEARCH_PROMPT.lower()
+    for leak in ("cinderella", "snow white", "sleeping beauty", "fairy"):
+        assert leak not in p, f"strict prompt leaks the domain: {leak!r}"
+
+
+def test_strict_search_prompt_mandates_retrieval_before_declining() -> None:
+    # The differentiator from the production prompt: no "decline obvious trivia
+    # without searching" shortcut — a search is required even before a refusal.
+    p = _eval._STRICT_SEARCH_PROMPT.lower()
+    assert "before you decline" in p
+    assert "must retrieve" in p
+
+
+def test_production_prompt_by_contrast_names_the_domain() -> None:
+    # Documents *why* the off-topic check needs its own prompt: the shipped prompt
+    # reveals the subject (fairy tales), so it can't test search-before-refuse.
+    from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
+
+    assert "cinderella" in _DEFAULT_SYSTEM_PROMPT.lower()

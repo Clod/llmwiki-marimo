@@ -84,19 +84,53 @@ def _check_synthesis_cited(answer: str) -> tuple[bool, str]:
     return True, f"cited {n} sources across the comparison"
 
 
-# (label, question, grader, requires_retrieval)
-# Every question requires a retrieval tool call: per the grounding mandate the
-# model must search *before* answering — even to refuse. A refusal reached
-# without searching is a guess ("I just know it's not here"), not grounding, so
-# it fails too.
+# Domain-blind, strict-search prompt used *only* for the off-topic check.
+#
+# The production prompt can't fairly test "does the model search before it
+# refuses" for two reasons: (a) its worked example names the wiki's subject
+# (Cinderella, Snow White…), so the model can tell "capital of France" is
+# off-topic without searching; and (b) it explicitly permits declining "clearly
+# outside" trivia *without* a search. So a strong model refuses "capital of
+# France" with zero tool calls — and is right to, per that prompt. This variant
+# names no subject and grants no such shortcut: the model cannot know the wiki's
+# domain, so it must retrieve before it may decline. That turns the off-topic
+# question into a real test of the discipline the production prompt relaxes for
+# efficiency — resist parametric knowledge, retrieve first — instead of a flaky
+# artifact of the prompt happening to mention fairy tales.
+_STRICT_SEARCH_PROMPT = """\
+You are a personal knowledge-base assistant. You answer **only** from the user's own \
+wiki and source documents — never from your own background knowledge.
+
+## Grounding mandate — non-negotiable
+- **Never answer from memory or world knowledge.** Even if you are certain you know \
+the answer, you must retrieve it from the knowledge base first.
+- **Always call a retrieval tool before you respond — including before you decline.** \
+You do not know what subjects this wiki covers, so you may not assume a question is \
+off-topic; you must search to find out. A response (an answer *or* a refusal) that is \
+not preceded by a tool call is not allowed.
+- After searching, if nothing relevant comes back, say plainly that you couldn't find \
+it in the wiki. Do not fall back to general knowledge to fill the gap.
+"""
+
+
+# (label, question, grader, requires_retrieval, system_prompt)
+# Each check runs under the system prompt that lets it test what it means to:
+#   - the off-topic check uses _STRICT_SEARCH_PROMPT (domain-blind, no
+#     decline-without-searching shortcut) so a zero-tool-call refusal is a real
+#     failure, not an artifact of the production prompt naming the wiki's subject;
+#   - the citation checks use the production default (system_prompt=None), whose
+#     worked example is what makes cross-document citation reliable.
+# requires_retrieval stays True for all three: every check must be preceded by a
+# real tool call, or any citation/refusal is ungrounded.
 _QUESTIONS = [
-    ("Refuses off-topic questions", "What is the capital of France?", _check_refusal, True),
-    ("Shows its sources", "Who is Cinderella?", _check_cited, True),
+    ("Refuses off-topic questions", "What is the capital of France?", _check_refusal, True, _STRICT_SEARCH_PROMPT),
+    ("Shows its sources", "Who is Cinderella?", _check_cited, True, None),
     (
         "Cites when comparing",
         "What do Cinderella and Snow White have in common?",
         _check_synthesis_cited,
         True,
+        None,
     ),
 ]
 
@@ -171,11 +205,25 @@ def _evaluate_one(
     from domain.chat.agent import create_agent
 
     print(f"── {label}: {model}")
-    agent = create_agent(base_url, api_key, model)
+
+    # Build one agent per distinct system prompt (cheap; no network happens until
+    # .run_sync). The citation checks share the production default; the off-topic
+    # check uses the strict-search prompt. Cache by prompt so we build at most two.
+    _agents: dict[str | None, object] = {}
+
+    def _agent_for(prompt: str | None):
+        if prompt not in _agents:
+            _agents[prompt] = (
+                create_agent(base_url, api_key, model)
+                if prompt is None
+                else create_agent(base_url, api_key, model, system_prompt=prompt)
+            )
+        return _agents[prompt]
 
     failures = 0
     answered_any = False
-    for q_label, question, grader, requires_retrieval in _QUESTIONS:
+    for q_label, question, grader, requires_retrieval, system_prompt in _QUESTIONS:
+        agent = _agent_for(system_prompt)
         try:
             result = agent.run_sync(question, deps=db_path)
         except Exception as exc:  # noqa: BLE001
