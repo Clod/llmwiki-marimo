@@ -11,6 +11,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Fixed
+- **Model-validation eval: the off-topic check no longer false-fails strong
+  models.** The "refuses off-topic questions" check requires a retrieval tool
+  call, but the production system prompt both names the wiki's subject (through its
+  worked example) and explicitly permits declining obvious trivia *without*
+  searching — so a capable model (e.g. `gpt-4o`) correctly refused "what is the
+  capital of France?" with zero tool calls and was intermittently marked as
+  failing. The off-topic check now runs under a **domain-blind, strict-search
+  prompt**: with the subject hidden and the decline-without-searching shortcut
+  removed, the model must retrieve before it may decline, so the tool-call
+  requirement is meaningful and non-flaky. The two citation checks still run under
+  the real production prompt (whose worked example is what makes citation reliable).
+
 ## [0.2.1] - 2026-07-08
 
 ### Fixed
