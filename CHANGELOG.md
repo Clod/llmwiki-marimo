@@ -12,6 +12,22 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 ## [Unreleased]
 
 ### Added
+- **One-command quick-start installer (`quickstart.py`).** A stdlib-only console
+  installer — the only prerequisite is Python 3.12+. It builds an isolated venv
+  from a lock-pinned `requirements.txt`, drops in a pre-ingested demo wiki
+  (`examples/fairy-tales/`, browsable with no LLM), runs a provider wizard
+  (local Ollama / any OpenAI-compatible endpoint), writes `.env`, validates the
+  configured model, and launches the read app. Interactive with sensible
+  defaults; scriptable via `--demo / --provider / --yes / --no-launch / --no-eval`.
+- **Advisory model-validation step in the installer.** `scripts/eval_chat_model.py`
+  now runs as a non-blocking install step (skip with `--no-eval`) that validates
+  **every** configured model (chat `LLM_*` + ingest `WIKI_LLM_*` when distinct).
+  It verifies the model **actually called a retrieval tool** — not merely that the
+  answer looks cited — so a model that fabricates a citation from memory (zero
+  tool calls) fails. Every check requires real retrieval, including the refusal.
+- **Spanish demo wiki (`examples/cuentos-de-hadas/`).** A pre-ingested
+  `language = "es"` demo (three public-domain tales) mirroring `fairy-tales/` to
+  exercise the multilingual path end-to-end.
 - **Per-wiki multilingual content (en/es, extensible).** `[wiki] language` in
   `wiki_config.toml` now governs the language of generated pages, section
   headers, *and* chat answers — independent of the source documents' language.
@@ -19,7 +35,18 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   a Spanish `README_ES.md` (English remains canonical), and
   `wiki_config_es.example.toml`.
 
+### Changed
+- **Provider-wizard default is now explicit** in the installer prompt and in both
+  READMEs — "Ollama by default" was too easy to select blindly and silently
+  misconfigure chat.
+- **Chat agent pins `ModelSettings(temperature=0.0)`** for deterministic,
+  reproducible grounding (higher temperatures made models intermittently skip
+  tools or drop citations).
+
 ### Fixed
+- **Demo wikis now ship a real grounding system prompt.** The `fairy-tales`
+  config shipped a permissive *test* prompt that could hallucinate on a new
+  user's first question; both demos now carry an explicit cite-or-refuse prompt.
 - Guard `None` LLM message content and log previously-swallowed backend errors.
 - Render delete feedback in the marimo apps and surface notebook errors in logs.
 
