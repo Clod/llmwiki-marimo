@@ -591,7 +591,13 @@ subdirectory pages appear in the left-panel table. `read_page(rel_path)` reads
 
 The agent is created once per session via `create_agent(base_url, api_key, model)`
 and reused across messages; the `db_path` is passed as the agent's `deps` on each
-`run_stream(...)` call, not to the factory.
+`run_stream(...)` call, not to the factory. The agent pins
+`ModelSettings(temperature=0.0)`: a grounding/traceability agent wants the single
+most-likely, corpus-grounded continuation, and higher temperatures make it
+intermittently skip the retrieval tools or drop citations. Temperature 0 makes the
+retrieve-then-cite behaviour deterministic and reproducible — so a model's
+`eval_chat_model.py` verdict (§9) is a property of the model, not sampling luck.
+See the README "LLM providers" note for the empirical model-size floor (~12B local).
 
 ### `trace_report_app.py`
 

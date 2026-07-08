@@ -17,6 +17,8 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 # Import the OpenAI provider class, which manages credentials and endpoint URLs
 from pydantic_ai.providers.openai import OpenAIProvider
+# Import ModelSettings to pin a deterministic sampling temperature.
+from pydantic_ai.settings import ModelSettings
 
 # Import the default system prompt instructions that guide the AI's behavior
 from .config import _DEFAULT_SYSTEM_PROMPT
@@ -97,4 +99,12 @@ def create_agent(
         # PydanticAI automatically inspects these functions, parses their docstrings
         # and arguments, and explains them to the LLM so it knows exactly when to call them!
         tools=[read_wiki_page, search_wiki_fts, search_source_chunks],
+
+        # Pin temperature=0 (greedy decoding). A grounding/traceability agent
+        # wants the single most-likely, corpus-grounded continuation — not
+        # sampled variation. At higher temperatures the model intermittently
+        # skips the retrieval tools or omits citations; temperature 0 makes the
+        # retrieve-then-cite behavior deterministic and reproducible (and stops
+        # reliability from depending on the provider's default sampling).
+        model_settings=ModelSettings(temperature=0.0),
     )

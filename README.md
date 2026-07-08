@@ -356,8 +356,27 @@ If `WIKI_LLM_*` are blank, ingestion falls back to `LLM_*`.
 >
 > **Not sure if a model clears the bar?** Run `uv run python scripts/eval_chat_model.py`
 > — it asks the built-in sample wiki a few fixed questions and gives a PASS/FAIL on
-> exactly these behaviours (off-corpus refusal, citations, cited synthesis). See
-> [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Part C.
+> exactly these behaviours (off-corpus refusal, citations, cited synthesis). It
+> verifies the model **actually called a retrieval tool**, not just that the answer
+> *looks* cited — so a model that fabricates a citation from memory (zero tool
+> calls) fails. See [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Part C.
+>
+> **A data point from local testing** (LM Studio on an M2 Pro, Q4_K_M quants, chat
+> agent pinned at `temperature=0`). The strict retrieve-then-cite protocol is
+> demanding, and local models under ~12B each broke it in a different way:
+>
+> | Model (local) | `eval_chat_model.py` | How it failed |
+> | --- | --- | --- |
+> | `Qwen2.5-7B-Instruct` | 2/3 | skipped retrieval when it "knew" the answer; retrieved but then didn't cite |
+> | `Meta-Llama-3.1-8B-Instruct` | 2/3 | followed the protocol, but *gave up* on the synthesis question — wrongly claimed the content wasn't in the wiki when it was |
+> | `gemma-4-12b-it-qat` (QAT) | ✗ inconsistent | fabricated citations with **zero tool calls**; leaked a reasoning channel into the answer |
+> | `gemma-4-12b` (non-QAT) | **3/3** | — |
+>
+> Takeaway: **choose a model that passes 3/3**, and for local models expect that to
+> mean roughly **12B or larger**. Smaller models each break the grounding contract
+> in their own way — the eval is how you catch it *before* you trust the wiki's
+> answers. (Temperature is pinned to 0 in the chat agent, so grounding is
+> deterministic and a PASS is reproducible, not luck.)
 
 ---
 

@@ -363,8 +363,27 @@ Si `WIKI_LLM_*` están vacíos, la ingesta recurre a `LLM_*`.
 >
 > **¿No estás seguro de si un modelo supera el umbral?** Ejecuta `uv run python scripts/eval_chat_model.py`
 > — le hace a la wiki de ejemplo incluida unas preguntas fijas y da un PASS/FAIL sobre
-> exactamente estos comportamientos (rechazo fuera del corpus, citas, síntesis citada). Ver
-> [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Parte C.
+> exactamente estos comportamientos (rechazo fuera del corpus, citas, síntesis citada).
+> Verifica que el modelo **realmente llamó a una herramienta de recuperación**, no solo
+> que la respuesta *parezca* citada — así, un modelo que fabrica una cita de memoria (cero
+> tool calls) falla. Ver [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Parte C.
+>
+> **Un dato de las pruebas locales** (LM Studio en un M2 Pro, quants Q4_K_M, agente de chat
+> fijado en `temperature=0`). El protocolo estricto de recuperar-y-citar es exigente, y los
+> modelos locales por debajo de ~12B lo rompieron cada uno a su manera:
+>
+> | Modelo (local) | `eval_chat_model.py` | Cómo falló |
+> | --- | --- | --- |
+> | `Qwen2.5-7B-Instruct` | 2/3 | salteó la recuperación cuando «sabía» la respuesta; recuperó pero no citó |
+> | `Meta-Llama-3.1-8B-Instruct` | 2/3 | siguió el protocolo, pero *se rindió* en la síntesis — afirmó en falso que el contenido no estaba en la wiki cuando sí estaba |
+> | `gemma-4-12b-it-qat` (QAT) | ✗ inconsistente | fabricó citas con **cero tool calls**; filtró un canal de razonamiento en la respuesta |
+> | `gemma-4-12b` (no-QAT) | **3/3** | — |
+>
+> Conclusión: **elige un modelo que pase 3/3**, y para modelos locales esperá que eso
+> signifique aproximadamente **12B o más**. Los modelos más chicos rompen el contrato de
+> grounding cada uno a su modo — el eval es cómo lo detectás *antes* de confiar en las
+> respuestas de la wiki. (La temperatura está fijada en 0 en el agente de chat, así que el
+> grounding es determinístico y un PASS es reproducible, no suerte.)
 
 ---
 
