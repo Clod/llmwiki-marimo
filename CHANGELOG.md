@@ -11,6 +11,8 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-07-08
+
 ### Fixed
 - **Demo wikis now cite every fact in the read app.** Both bundled demos
   (`fairy-tales`, `cuentos-de-hadas`) shipped a `wiki_config.toml` system prompt
@@ -125,7 +127,8 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.2...master
+[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.3...master
+[0.2.3]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.1.0...v0.2.0
