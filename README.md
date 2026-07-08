@@ -198,14 +198,14 @@ requirements.txt        # Hash-pinned deps exported from uv.lock (for the instal
     - macOS: `brew install --cask libreoffice`
     - Debian/Ubuntu: `sudo apt install libreoffice` (Fedora: `sudo dnf install libreoffice`)
     - Windows: `winget install TheDocumentFoundation.LibreOffice`
-- **git** — *optional*; powers the wiki's version-history auto-commit. Most systems already have it; if it's missing, snapshots are skipped (with a warning) and ingestion still works — or set `WIKI_AUTOCOMMIT=0` to opt out.
+- **git** — needed to clone the repo (the Quick start's first step; most systems already have it). It also powers the wiki's version-history auto-commit, which *is* optional: if git is missing at runtime, snapshots are skipped (with a warning) and ingestion still works — or set `WIKI_AUTOCOMMIT=0` to opt out.
 
 ---
 
 ## Quick start
 
-The fastest way to see it running — **only Python 3.12+ required** (no `uv`, no
-manual `.env`):
+The fastest way to see it running — all you need is **Python 3.12+ and git**
+(no `uv`, no manual `.env`):
 
 ```bash
 git clone --depth 1 https://github.com/Clod/llmwiki-marimo.git

@@ -11,6 +11,8 @@ It configures the AI model, loads the instructions (system prompt), registers th
 tools the AI can use, and returns the fully-prepared Agent instance.
 """
 
+from urllib.parse import urlparse
+
 # Import the core Agent class from PydanticAI
 from pydantic_ai import Agent
 # Import the OpenAI chat model wrapper from PydanticAI
@@ -30,6 +32,26 @@ from .tools import search_source_chunks
 from .wiki_tools import read_wiki_page, search_wiki_fts
 # Appends the wiki's chat answer-language directive to the system prompt.
 from domain.i18n import apply_chat_directive
+
+
+def _make_provider(base_url: str, api_key: str):
+    """Pick the provider that profiles the model name correctly.
+
+    OpenRouter namespaces models as ``vendor/model`` (e.g. ``openai/gpt-4o``).
+    The generic ``OpenAIProvider`` mis-profiles the ``openai/*`` namespace as a
+    *reasoning* model and then silently drops sampling parameters — including our
+    ``temperature=0`` — which makes grounding non-deterministic (the eval flaps).
+    OpenRouter's dedicated provider resolves vendor-prefixed profiles correctly,
+    so route OpenRouter endpoints through it; everything else (OpenAI proper,
+    LM Studio, Ollama, any OpenAI-compatible URL) keeps the generic provider.
+    """
+    host = (urlparse(base_url).hostname or "").lower()
+    if host == "openrouter.ai" or host.endswith(".openrouter.ai"):
+        # Imported lazily so the dependency is only touched on the OpenRouter path.
+        from pydantic_ai.providers.openrouter import OpenRouterProvider
+
+        return OpenRouterProvider(api_key=api_key)
+    return OpenAIProvider(base_url=base_url, api_key=api_key)
 
 
 def create_agent(
@@ -72,7 +94,7 @@ def create_agent(
     #    endpoint (like OpenRouter, DeepSeek, or local models) by passing custom URLs.
     llm = OpenAIChatModel(
         model,
-        provider=OpenAIProvider(base_url=base_url, api_key=api_key),
+        provider=_make_provider(base_url, api_key),
     )
 
     # Append the wiki's chat answer-language directive (no-op for English, so the
