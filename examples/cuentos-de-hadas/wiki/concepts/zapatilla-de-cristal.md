@@ -3,17 +3,23 @@ tags: [instrument]
 sources: [La Cenicienta.pdf]
 ---
 
-# Zapatilla de cristal
+# Zapatilla de Cristal
 
 ## Definición
-La zapatilla de cristal es un objeto simbólico que aparece en el relato de la Cenicienta y actúa como un elemento central en la narrativa.
+La zapatilla de cristal es un elemento crucial en el cuento de "La Cenicienta". Su pérdida y posterior recuperación por el príncipe permite identificar a Cenicienta como la misteriosa dama del baile (La Cenicienta.pdf).
 
 ## Características clave
-* Funciona como una prueba física de identidad (La Cenicienta.pdf).
-* Sirve de enlace entre la vida oculta de la protagonista y su destino real (La Cenicienta.pdf).
+- Hecha de cristal, un material inusual para calzado.
+- Funciona como un medio de identificación único.
+- Es un símbolo de la conexión entre Cenicienta y el príncipe.
 
 ## Contexto
-En el marco del cuento, este objeto funciona como el mecanismo que permite identificar a la protagonista y marcar la transición entre su realidad cotidiana y su destino final.
+En el cuento de "La Cenicienta", la zapatilla de cristal no solo es un objeto físico, sino que también representa la transformación y el destino. Su papel en la historia es fundamental, ya que actúa como el catalizador que permite al príncipe encontrar a Cenicienta después del baile, asegurando así el desenlace feliz del cuento.
+
+## Véase también
+
+- [Cenicienta](cenicienta.md)
+- [La Cenicienta](../summaries/la-cenicienta.md)
 
 ## Fuentes
 - La Cenicienta.pdf

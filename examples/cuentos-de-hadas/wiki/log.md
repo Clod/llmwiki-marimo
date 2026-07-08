@@ -1,19 +1,19 @@
 # Ingest Log
 
-## [2026-07-07 00:31] Ingested | Caperucita Roja.pdf
+## [2026-07-08 13:33] Ingested | Blancanieves.pdf
 
-El relato narra la historia de una niña llamada Caperucita Roja que, mientras lleva comida a su abuela enferma, es engañada por un lobo astuto en el bosque. El cuento funciona como una advertencia mor
+Blancanieves es un cuento de los Hermanos Grimm sobre una princesa cuya belleza provoca la envidia de su madrastra, la reina. La madrastra intenta asesinarla varias veces, pero Blancanieves es protegi
 
-Concepts: Caperucita Roja, Charles Perrault, Advertencia moral
+Concepts: Blancanieves, Hermanos Grimm, Espejo mágico, Enanos, Manzana envenenada
 
-## [2026-07-07 00:38] Ingested | Blancanieves.pdf
+## [2026-07-08 13:33] Ingested | Caperucita Roja.pdf
 
-La historia narra la persecución de Blancanieves por parte de su madrastra, una reina envidiosa que intenta eliminarla tras descubrir que es más bella que ella según el veredicto de un espejo mágico. 
+Caperucita Roja es un cuento clásico de Charles Perrault sobre una niña que lleva una torta y mantequilla a su abuela enferma, pero es engañada por un lobo que se hace pasar por su abuela. El lobo fin
 
-Concepts: Blancanieves, Hermanos Grimm, Espejo Mágico, Vanidad y Envidia
+Concepts: Caperucita Roja, Charles Perrault, El lobo en Caperucita Roja, Moraleja de Caperucita Roja
 
-## [2026-07-07 00:45] Ingested | La Cenicienta.pdf
+## [2026-07-08 13:34] Ingested | La Cenicienta.pdf
 
-La historia de Cenicienta narra la transformación de una joven humilde y bondadosa que, tras ser maltratada por su madrastra y hermanastras, recibe ayuda mágica de un hada para asistir a un baile real
+La Cenicienta es un cuento de hadas escrito por Charles Perrault que narra la historia de una joven maltratada por su madrastra y hermanastras, quien gracias a la ayuda de su hada madrina asiste a un 
 
-Concepts: Cenicienta, Hada Madrina, Zapatilla de cristal, Bondad y Gentileza
+Concepts: Charles Perrault, Cenicienta, Hada Madrina, Zapatilla de Cristal, Moral del Cuento

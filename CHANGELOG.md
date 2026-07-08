@@ -11,6 +11,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Fixed
+- **Ingestion now cross-links generated pages.** A final `crosslink_wiki_pages`
+  pass injects a localized "See also" section into every concept/summary page
+  after all documents are ingested, so a page written early can still link to a
+  concept extracted from a later document. Previously `inject_see_also` was wired
+  only into the chat "Save to wiki" path, so pipeline-generated concept pages
+  never linked to one another. Deterministic and idempotent; runs from both
+  `scan_and_ingest` and the ingest app. Both demo wikis were regenerated so their
+  concept pages now interlink.
+
 ## [0.2.0] - 2026-07-07
 
 ### Added

@@ -1,16 +1,16 @@
 # Snow White And The Seven Dwarfs
 
-**Source:** Snow White and the Seven Dwarfs.pdf | **Type:** pdf | **Pages:** 6 | **Ingested:** 2026-06-26
+**Source:** Snow White and the Seven Dwarfs.pdf | **Type:** pdf | **Pages:** 6 | **Ingested:** 2026-07-08
 
 ## Summary
 
-Snow White and the Seven Dwarfs is a fairy tale about a princess named Snow White who is targeted by her wicked stepmother, the Queen, due to her beauty. After escaping an assassination attempt, Snow White finds refuge with seven dwarfs, but is later poisoned by the Queen. Ultimately, she is revived by a prince's kiss, leading to a happy ending where the Queen meets her demise.
+The story of 'Snow White and the Seven Dwarfs' follows a young princess named Snow White, whose beauty incites the jealousy of her wicked stepmother, the Queen. After the Queen's attempts to kill her fail, Snow White finds refuge with seven dwarfs until the Queen tricks her into eating a poisoned apple. Ultimately, a prince revives Snow White with a kiss, and they live happily ever after, while the Queen meets her demise.
 
 ## Related Concepts
 
 - [Snow White](../concepts/snow-white.md)
 - [Magic Mirror](../concepts/magic-mirror.md)
-- [Seven Dwarfs](../concepts/seven-dwarfs.md)
+- [The Seven Dwarfs](../concepts/the-seven-dwarfs.md)
 - [Poisoned Apple](../concepts/poisoned-apple.md)
 - [The Wicked Queen](../concepts/the-wicked-queen.md)
 
@@ -19,7 +19,7 @@ Snow White and the Seven Dwarfs is a fairy tale about a princess named Snow Whit
 - **File:** Snow White and the Seven Dwarfs.pdf
 - **Type:** pdf
 - **Pages:** 6
-- **Ingested:** 2026-06-26
+- **Ingested:** 2026-07-08
 - **Parser:** opendataloader
 
 [^1]: Snow White and the Seven Dwarfs.pdf
