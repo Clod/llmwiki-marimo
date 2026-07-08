@@ -20,6 +20,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   never linked to one another. Deterministic and idempotent; runs from both
   `scan_and_ingest` and the ingest app. Both demo wikis were regenerated so their
   concept pages now interlink.
+- **OpenRouter `openai/*` models silently ran at the provider's default
+  temperature.** pydantic-ai mis-profiled the OpenRouter-namespaced OpenAI models
+  (e.g. `openai/gpt-4o`) as *reasoning* models and dropped the pinned
+  `temperature=0`, making grounding non-deterministic (the model-validation eval
+  flapped between pass and fail on the same model). The chat agent now routes
+  OpenRouter endpoints through pydantic-ai's dedicated `OpenRouterProvider`, which
+  resolves vendor-prefixed model profiles correctly; other OpenAI-compatible
+  endpoints (OpenAI, LM Studio, Ollama) are unchanged. Ingestion was unaffected
+  (it calls the raw OpenAI SDK, which passes `temperature` through directly).
 
 ## [0.2.0] - 2026-07-07
 

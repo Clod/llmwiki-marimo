@@ -1,7 +1,9 @@
 """Tests for domain/chat/agent.py — chat answer-language directive wiring."""
 
-from domain.chat.agent import create_agent
+from domain.chat.agent import _make_provider, create_agent
 from domain.i18n import apply_chat_directive, get_locale
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.openrouter import OpenRouterProvider
 
 
 def test_apply_chat_directive_spanish_appends_directive() -> None:
@@ -73,3 +75,31 @@ def test_create_agent_calls_apply_chat_directive_with_given_language(monkeypatch
     assert calls == [(base_prompt, "es")]
     (effective_prompt,) = agent._system_prompts
     assert effective_prompt == "SPIED_PROMPT"
+
+
+# --- Provider selection (regression: OpenRouter's openai/* namespace must not
+# be mis-profiled as a reasoning model, which silently drops temperature=0) ---
+
+def test_make_provider_openrouter_uses_openrouter_provider() -> None:
+    p = _make_provider("https://openrouter.ai/api/v1", "fake-key")
+    assert isinstance(p, OpenRouterProvider)
+
+
+def test_make_provider_non_openrouter_uses_openai_provider() -> None:
+    for base_url in ("http://localhost:1234/v1", "https://api.openai.com/v1"):
+        assert isinstance(_make_provider(base_url, "fake-key"), OpenAIProvider)
+
+
+def test_openrouter_openai_model_not_profiled_as_reasoning() -> None:
+    """The bug: via the generic OpenAIProvider, 'openai/gpt-4o' profiles as a
+    reasoning model, so pydantic-ai drops sampling params — our temperature=0
+    never reaches the API and grounding goes non-deterministic. Routing
+    OpenRouter through its own provider keeps the profile correct so the pin
+    is honored."""
+    agent = create_agent(
+        base_url="https://openrouter.ai/api/v1",
+        api_key="fake-key",
+        model="openai/gpt-4o",
+    )
+    assert agent.model.profile.openai_supports_reasoning is False
+    assert agent.model_settings == {"temperature": 0.0}
