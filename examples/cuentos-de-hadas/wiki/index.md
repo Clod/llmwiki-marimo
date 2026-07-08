@@ -2,21 +2,23 @@
 
 ## Resúmenes
 
-- [Caperucita Roja](summaries/caperucita-roja.md) — El relato narra la historia de una niña llamada Caperucita Roja que, mientras ll
+- [Blancanieves](summaries/blancanieves.md) — Blancanieves es un cuento de los Hermanos Grimm sobre una princesa cuya belleza 
 
-- [Blancanieves](summaries/blancanieves.md) — La historia narra la persecución de Blancanieves por parte de su madrastra, una 
+- [Caperucita Roja](summaries/caperucita-roja.md) — Caperucita Roja es un cuento clásico de Charles Perrault sobre una niña que llev
 
-- [La Cenicienta](summaries/la-cenicienta.md) — La historia de Cenicienta narra la transformación de una joven humilde y bondado
+- [La Cenicienta](summaries/la-cenicienta.md) — La Cenicienta es un cuento de hadas escrito por Charles Perrault que narra la hi
 
 ## Conceptos
-- [Caperucita Roja](concepts/caperucita-roja.md) — Personaje clásico del folclore francés que simboliza la inocencia infantil y sir
-- [Charles Perrault](concepts/charles-perrault.md) — Escritor y recopilador francés del siglo XVII que popularizó versiones clásicas 
-- [Advertencia Moral](concepts/advertencia-moral.md) — El uso de fábulas para enseñar lecciones sociales y precauciones personales, ide
-- [Blancanieves](concepts/blancanieves.md) — Personaje icónico cuya belleza física y pureza actúan como el foco de conflicto 
-- [Hermanos Grimm](concepts/hermanos-grimm.md) — Recopiladores fundamentales del folclore alemán que popularizaron esta versión d
-- [Espejo Magico](concepts/espejo-magico.md) — Objeto sobrenatural que funciona como un juez de la verdad y catalizador de la t
-- [Vanidad Y Envidia](concepts/vanidad-y-envidia.md) — Temas centrales que impulsan el antagonismo y las acciones destructivas de la ma
-- [Cenicienta](concepts/cenicienta.md) — Representa el arquetipo de la joven humilde cuya virtud interior y paciencia ant
-- [Hada Madrina](concepts/hada-madrina.md) — Actúa como una figura de intervención mágica que transforma elementos cotidianos
-- [Zapatilla De Cristal](concepts/zapatilla-de-cristal.md) — Funciona como un objeto simbólico que sirve de prueba física de identidad y enla
-- [Bondad Y Gentileza](concepts/bondad-y-gentileza.md) — Son los valores morales centrales del texto, presentados como las cualidades que
+- [Blancanieves](concepts/blancanieves.md) — Blancanieves es una princesa cuya belleza excepcional provoca la envidia de su m
+- [Hermanos Grimm](concepts/hermanos-grimm.md) — Jacob y Wilhelm Grimm son conocidos por recopilar cuentos de hadas populares, en
+- [Espejo Magico](concepts/espejo-magico.md) — El espejo mágico es un objeto encantado que siempre dice la verdad sobre quién e
+- [Enanos](concepts/enanos.md) — Los siete enanos son personajes que ayudan a Blancanieves, proporcionándole refu
+- [Manzana Envenenada](concepts/manzana-envenenada.md) — La manzana envenenada es el último intento de la reina para matar a Blancanieves
+- [Caperucita Roja](concepts/caperucita-roja.md) — Caperucita Roja es un personaje icónico de la literatura infantil que simboliza 
+- [Charles Perrault](concepts/charles-perrault.md) — Charles Perrault es el autor del cuento 'La Cenicienta', conocido por sus contri
+- [El Lobo En Caperucita Roja](concepts/el-lobo-en-caperucita-roja.md) — El lobo en 'Caperucita Roja' representa el peligro y la amenaza que acechan a lo
+- [Moraleja De Caperucita Roja](concepts/moraleja-de-caperucita-roja.md) — La moraleja de 'Caperucita Roja' advierte sobre los riesgos de confiar ciegament
+- [Cenicienta](concepts/cenicienta.md) — Cenicienta es la protagonista del cuento, una joven de gran bondad y dulzura que
+- [Hada Madrina](concepts/hada-madrina.md) — El hada madrina es un personaje mágico que ayuda a Cenicienta a asistir al baile
+- [Zapatilla De Cristal](concepts/zapatilla-de-cristal.md) — La zapatilla de cristal es un elemento crucial en el cuento, ya que su pérdida y
+- [Moral Del Cuento](concepts/moral-del-cuento.md) — El cuento de 'La Cenicienta' transmite la moraleja de que la bondad y la gentile

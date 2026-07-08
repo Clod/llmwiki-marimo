@@ -6,14 +6,19 @@ sources: [Caperucita Roja.pdf]
 # Caperucita Roja
 
 ## Definición
-Caperucita Roja es un personaje clásico del folclore francés (Caperucita Roja.pdf).
+Caperucita Roja es un personaje icónico de la literatura infantil que simboliza la inocencia y la vulnerabilidad ante los peligros del mundo, especialmente en el contexto de confiar en extraños (Caperucita Roja.pdf).
 
 ## Características clave
-* Simboliza la inocencia infantil (Caperucita Roja.pdf).
-* Sirve como una advertencia pedagógica sobre los peligros de interactuar con desconocidos (Caperucita Roja.pdf).
+- Representa la inocencia infantil.
+- Simboliza la vulnerabilidad ante los peligros externos.
+- Es una figura central en cuentos que advierten sobre los riesgos de confiar en extraños.
 
 ## Contexto
-Este personaje se sitúa dentro del folclore tradicional y funciona como una herramienta educativa para transmitir lecciones morales a los niños.
+Caperucita Roja es un personaje central en cuentos populares que se utilizan para enseñar lecciones morales a los niños. Su historia es frecuentemente utilizada para ilustrar la importancia de la precaución y la desconfianza hacia los desconocidos, reflejando preocupaciones universales sobre la seguridad infantil y la protección en un mundo lleno de peligros potenciales.
+
+## Véase también
+
+- [Caperucita Roja](../summaries/caperucita-roja.md)
 
 ## Fuentes
 - Caperucita Roja.pdf

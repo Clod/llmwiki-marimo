@@ -25,6 +25,7 @@ from .index_manager import update_index, remove_index_entry
 from .wiki_generator import (
     build_wiki_page, make_wiki_slug,
     extract_structured, build_summary_page, build_concept_page, update_overview,
+    inject_see_also,
 )
 from domain.i18n import get_locale
 from domain.tools.db import open_db
@@ -517,7 +518,77 @@ def scan_and_ingest(
     skipped  = sum(1 for r in results if r.status == "skipped")
     failed   = sum(1 for r in results if r.status == "failed")
     _cb(f"🏁 Scan complete — ingested: {ingested}, skipped: {skipped}, failed: {failed}")
+
+    # Final pass: now that every page exists, inject "See also" cross-links so a
+    # page created early can still link to concepts extracted from a later
+    # document. Deterministic; runs only when something was actually ingested.
+    if ingested:
+        n_linked = crosslink_wiki_pages(workspace, db_path, language=language, progress_cb=_cb)
+        if n_linked:
+            _cb(f"🔗 Cross-linked {n_linked} page(s)")
+
     return results
+
+
+def crosslink_wiki_pages(
+    workspace: Path,
+    db_path: str,
+    language: str = "en",
+    progress_cb: Callable[[str], None] | None = None,
+) -> int:
+    """Inject a localized "See also" section into every concept/summary page.
+
+    Runs as a final ingestion pass, after all documents are ingested, so
+    cross-links are complete regardless of ingest order (a page written early
+    can still link to a concept extracted from a later document). Deterministic —
+    no LLM. Idempotent: ``inject_see_also`` skips pages already linked, so
+    re-running adds nothing. Returns the number of pages whose content changed.
+
+    This is the ingestion counterpart of the chat "Save to wiki" cross-linking
+    (``wiki_tools.save_to_wiki`` → ``inject_see_also``); without it, pipeline-
+    generated concept pages never link to one another.
+    """
+    def _rel_path(cur_in_concepts: bool, other_rel: str) -> str:
+        stem = Path(other_rel).stem
+        other_in_concepts = "/concepts/" in other_rel
+        if cur_in_concepts == other_in_concepts:
+            return f"{stem}.md"
+        return f"../summaries/{stem}.md" if cur_in_concepts else f"../concepts/{stem}.md"
+
+    conn = open_db(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT relative_path, title, tags, content FROM documents "
+            "WHERE source_kind='wiki' AND status='ready' "
+            "AND (relative_path LIKE 'wiki/concepts/%' "
+            "     OR relative_path LIKE 'wiki/summaries/%')"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    pages = [dict(r) for r in rows]
+    updated = 0
+    for page in pages:
+        cur_in_concepts = "/concepts/" in page["relative_path"]
+        related = [
+            {"title": o["title"], "rel_path": _rel_path(cur_in_concepts, o["relative_path"])}
+            for o in pages
+            if o["relative_path"] != page["relative_path"]
+        ]
+        new_content = inject_see_also(page["content"], related, language=language)
+        if new_content == page["content"]:
+            continue
+        slug = Path(page["relative_path"]).stem
+        dir_path = "/wiki/concepts/" if cur_in_concepts else "/wiki/summaries/"
+        tags = json.loads(page["tags"]) if page["tags"] else []
+        create_page(
+            db_path, workspace, dir_path, slug, page["title"], new_content, tags,
+            overwrite=True,
+        )
+        updated += 1
+        if progress_cb:
+            progress_cb(f"🔗 cross-linked {page['relative_path']}")
+    return updated
 
 
 def regenerate_wiki_pages(

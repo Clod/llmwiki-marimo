@@ -6,15 +6,21 @@ sources: [Snow White and the Seven Dwarfs.pdf]
 # Snow White
 
 ## Definition
-Snow White is a fictional princess renowned for her extraordinary beauty, which provokes the envy of her wicked stepmother, resulting in several attempts on her life (Snow White and the Seven Dwarfs.pdf).
+Snow White is a princess renowned for her beauty, which provokes jealousy in her stepmother, the Queen, leading to attempts on her life (Snow White and the Seven Dwarfs.pdf).
 
 ## Key Characteristics
-- Princess of exceptional beauty (Snow White and the Seven Dwarfs.pdf)
-- Target of jealousy from her stepmother (Snow White and the Seven Dwarfs.pdf)
-- Subject to multiple life-threatening plots (Snow White and the Seven Dwarfs.pdf)
+- Royal lineage as a princess (Snow White and the Seven Dwarfs.pdf)
+- Known for her exceptional beauty (Snow White and the Seven Dwarfs.pdf)
+- Target of her stepmother's envy and malice (Snow White and the Seven Dwarfs.pdf)
 
 ## Context
-Snow White is a central character in the fairy tale "Snow White and the Seven Dwarfs," which is part of the broader genre of folklore and fairy tales. Her story explores themes of jealousy, beauty, and innocence, and it has been adapted into numerous films, books, and other media, reflecting its enduring popularity and cultural significance.
+Snow White is a central figure in the fairy tale "Snow White and the Seven Dwarfs," which explores themes of jealousy, beauty, and innocence. Her story is a classic example of the struggle between good and evil, often depicted in literature and film. The tale is part of a broader tradition of fairy tales that use fantastical elements to convey moral lessons and cultural values.
+
+## See also
+
+- [Fairy Tale](fairy-tale.md)
+- [The Seven Dwarfs](the-seven-dwarfs.md)
+- [Snow White And The Seven Dwarfs](../summaries/snow-white-and-the-seven-dwarfs.md)
 
 ## Sources
 - Snow White and the Seven Dwarfs.pdf

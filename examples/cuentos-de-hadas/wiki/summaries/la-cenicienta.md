@@ -1,24 +1,25 @@
 # La Cenicienta
 
-**Fuente:** La Cenicienta.pdf | **Tipo:** pdf | **Páginas:** 7 | **Ingerido:** 2026-07-07
+**Fuente:** La Cenicienta.pdf | **Tipo:** pdf | **Páginas:** 7 | **Ingerido:** 2026-07-08
 
 ## Resumen
 
-La historia de Cenicienta narra la transformación de una joven humilde y bondadosa que, tras ser maltratada por su madrastra y hermanastras, recibe ayuda mágica de un hada para asistir a un baile real. El relato culmina con el reconocimiento de su identidad a través de una zapatilla de cristal, resaltando que la bondad y la gentileza son virtudes superiores a la belleza física.
+La Cenicienta es un cuento de hadas escrito por Charles Perrault que narra la historia de una joven maltratada por su madrastra y hermanastras, quien gracias a la ayuda de su hada madrina asiste a un baile real y conquista al príncipe. A pesar de perder una zapatilla de cristal en su huida antes de medianoche, el príncipe la encuentra y se casan, demostrando que la bondad y la gentileza son más valiosas que la belleza superficial.
 
 ## Conceptos relacionados
 
+- [Charles Perrault](../concepts/charles-perrault.md)
 - [Cenicienta](../concepts/cenicienta.md)
 - [Hada Madrina](../concepts/hada-madrina.md)
-- [Zapatilla de cristal](../concepts/zapatilla-de-cristal.md)
-- [Bondad y Gentileza](../concepts/bondad-y-gentileza.md)
+- [Zapatilla de Cristal](../concepts/zapatilla-de-cristal.md)
+- [Moral del Cuento](../concepts/moral-del-cuento.md)
 
 ## Información de la fuente
 
 - **Archivo:** La Cenicienta.pdf
 - **Tipo:** pdf
 - **Páginas:** 7
-- **Ingerido:** 2026-07-07
+- **Ingerido:** 2026-07-08
 - **Analizador:** opendataloader
 
 [^1]: La Cenicienta.pdf

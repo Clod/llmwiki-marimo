@@ -6,16 +6,21 @@ sources: [La Cenicienta.pdf]
 # Cenicienta
 
 ## Definición
-Cenicienta representa el arquetipo de la joven humilde cuya virtud interior y paciencia ante la adversidad son recompensadas con un cambio de estatus social (La Cenicienta.pdf).
+Cenicienta es la protagonista del cuento homónimo, una joven conocida por su gran bondad y dulzura. A pesar de ser maltratada por su familia, logra cambiar su destino con la ayuda de su hada madrina (La Cenicienta.pdf).
 
 ## Características clave
-* Humildad (La Cenicienta.pdf)
-* Virtud interior (La Cenicienta.pdf)
-* Paciencia ante la adversidad (La Cenicienta.pdf)
-* Cambio de estatus social como recompensa (La Cenicienta.pdf)
+- Protagonista del cuento "La Cenicienta".
+- Conocida por su bondad y dulzura.
+- Sufre maltratos por parte de su familia.
+- Su destino cambia gracias a la intervención de su hada madrina.
 
 ## Contexto
-El concepto se sitúa dentro del marco de los arquetipos, donde las cualidades morales internas y la resistencia ante las dificultades permiten a un individuo alcanzar una mejora en su posición social (La Cenicienta.pdf).
+Cenicienta es un personaje icónico en la literatura infantil y los cuentos de hadas. Su historia resalta temas como la injusticia, la resiliencia y la transformación personal. La figura del hada madrina es crucial en el desarrollo de su narrativa, simbolizando la esperanza y la intervención mágica que permite a Cenicienta superar sus adversidades y alcanzar un final feliz.
+
+## Véase también
+
+- [Hada Madrina](hada-madrina.md)
+- [La Cenicienta](../summaries/la-cenicienta.md)
 
 ## Fuentes
 - La Cenicienta.pdf

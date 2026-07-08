@@ -6,14 +6,20 @@ sources: [Blancanieves.pdf]
 # Blancanieves
 
 ## Definición
-Blancanieves es un personaje icónico cuya belleza física y pureza actúan como el foco de conflicto frente a la envidia de la reina (Blancanieves.pdf).
+Blancanieves es una princesa de belleza excepcional cuya historia es un clásico cuento de hadas que representa la lucha entre el bien y el mal. Su belleza provoca la envidia de su madrastra, lo que desencadena una serie de eventos dramáticos. (Blancanieves.pdf)
 
 ## Características clave
-*   Belleza física y pureza (Blancanieves.pdf).
-*   Punto central del conflicto derivado de la envidia de la reina (Blancanieves.pdf).
+- Princesa de belleza excepcional. (Blancanieves.pdf)
+- Su historia es un cuento de hadas clásico. (Blancanieves.pdf)
+- La envidia de su madrastra es un elemento central. (Blancanieves.pdf)
+- Representa la lucha entre el bien y el mal. (Blancanieves.pdf)
 
 ## Contexto
-El personaje funciona como el eje narrativo principal, donde sus atributos físicos y morales contrastan directamente con las acciones de la antagonista.
+Blancanieves es parte de la rica tradición de cuentos de hadas que exploran temas universales como la belleza, la envidia y el triunfo del bien sobre el mal. Estos cuentos son fundamentales en la literatura infantil y han sido adaptados en diversas formas, incluyendo películas, obras de teatro y literatura. Blancanieves, en particular, ha sido objeto de numerosas adaptaciones y sigue siendo una figura icónica en la cultura popular.
+
+## Véase también
+
+- [Blancanieves](../summaries/blancanieves.md)
 
 ## Fuentes
 - Blancanieves.pdf

@@ -6,14 +6,21 @@ sources: [La Cenicienta.pdf]
 # Hada Madrina
 
 ## Definición
-El Hada Madrina es una figura de intervención mágica que transforma elementos cotidianos en objetos de lujo (La Cenicienta.pdf).
+El hada madrina es un personaje mágico que interviene en la vida de Cenicienta para ayudarla a asistir al baile real. Utiliza su magia para transformar objetos comunes en un carruaje y un vestido de gala, simbolizando la intervención mágica en el destino (La Cenicienta.pdf).
 
 ## Características clave
-* Actúa como un agente de transformación para convertir objetos comunes, tales como calabazas y ratas, en artículos lujosos (La Cenicienta.pdf).
-* Simboliza la oportunidad y el cambio dentro del relato (La Cenicienta.pdf).
+- Personaje mágico con poderes sobrenaturales.
+- Capaz de transformar objetos cotidianos en elementos extraordinarios.
+- Representa la intervención mágica y el cambio de fortuna.
+- Actúa como una guía y benefactora para la protagonista.
 
 ## Contexto
-En el marco de la narrativa, esta entidad funciona como un catalizador mágico que permite la transición de lo cotidiano hacia lo extraordinario, representando la posibilidad de cambio para el protagonista (La Cenicienta.pdf).
+El concepto del hada madrina se encuentra en el cuento de "La Cenicienta", donde su intervención es crucial para el desarrollo de la historia. Este personaje simboliza la esperanza y la posibilidad de un cambio positivo en situaciones difíciles, y es un elemento recurrente en los cuentos de hadas, donde la magia juega un papel central en la narrativa.
+
+## Véase también
+
+- [Cenicienta](cenicienta.md)
+- [La Cenicienta](../summaries/la-cenicienta.md)
 
 ## Fuentes
 - La Cenicienta.pdf
