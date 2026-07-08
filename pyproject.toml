@@ -1,6 +1,6 @@
 [project]
 name = "llmwiki"
-version = "0.1.0"
+version = "0.2.0"
 description = "A local-first wiki that ingests your documents, builds a structured knowledge base, and lets you read and chat with it — Marimo apps over SQLite/FTS5, no cloud required."
 readme = "README.md"
 requires-python = ">=3.12"
