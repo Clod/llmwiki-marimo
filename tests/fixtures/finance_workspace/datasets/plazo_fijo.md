@@ -8,6 +8,12 @@ metrica: TNA
 unidad: "%"
 as_of: 2026-06-25
 fuente: bcra.gob.ar
+disponibilidad: a_plazo
+plazos_dias: [30, 60, 90, 180, 365]
+monto_minimo: 1000
+moneda: ARS
+metodo_calculo: interes_simple_vencimiento
+metrica_tasa: TNA
 ---
 
 | entidad         | 30d   | 60d   | 90d   | 180d  |

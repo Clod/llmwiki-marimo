@@ -6,6 +6,8 @@ clave: tipo
 metricas: { compra: "ARS", venta: "ARS" }
 as_of: 2026-06-25
 fuente: ambito.com
+disponibilidad: inmediata
+moneda: ARS
 ---
 
 | tipo    | compra | venta |

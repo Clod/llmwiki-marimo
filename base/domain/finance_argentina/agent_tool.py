@@ -72,7 +72,7 @@ def estimar_alternativas(
     requirements = load_default_requirements()
     try:
         result = estimate_alternatives(
-            monto, horizonte_meses, requirements, source, workspace, moneda
+            monto, horizonte_meses, requirements, source, moneda
         )
     except Exception as exc:
         logger.warning("estimar_alternativas failed: %s", exc)
@@ -90,7 +90,7 @@ def activate(workspace: Path) -> tuple[list | None, str | None]:
     """
     source = LocalMarkdownSource(workspace / "datasets")
     requirements = load_default_requirements()
-    report = validate_workspace(requirements, source, workspace)
+    report = validate_workspace(requirements, source)
     if report.passing:
         return [estimar_alternativas], FINANCE_PROMPT_ADDENDUM
     return None, None

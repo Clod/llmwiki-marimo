@@ -1,11 +1,12 @@
-"""Finance validator — domain lint check (design_finance_module.md §3).
+"""Finance validator — domain lint check (design_finance_argentina.md §3).
 
 PURPOSE FOR BEGINNERS:
 Before the advisory tool (`estimate_alternatives`) trusts a category, this
-validator checks two things against the requirements manifest:
-1. the dataset has every required `metricas` present (via `DatasetSource`);
-2. the concept page exists and declares every required `attributes`, with
-   well-typed values.
+validator checks two things against the requirements manifest, both via the
+backend-agnostic `DatasetSource` (never reading disk directly):
+1. the dataset has every required `metricas` present (`source.query`);
+2. the category declares every required `attributes`, well-typed
+   (`source.attributes` — the dataset file's front-matter).
 
 Validates **structured md only** — never PDFs or concept prose — per
 docs/design_datasets.md §4.3. A category that fails is reported with a
@@ -16,10 +17,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from domain.datasets.models import DatasetSource
-from domain.finance_argentina.concept_attrs import ConceptAttributes, parse_concept_attributes
+from domain.finance_argentina.instrument_attrs import InstrumentAttributes, attributes_from_meta
 from domain.finance_argentina.requirements import FinanceRequirements
 
 logger = logging.getLogger("wiki.domain.finance_argentina.validator")
@@ -58,18 +58,15 @@ class ValidationReport:
 def validate_workspace(
     requirements: FinanceRequirements,
     dataset_source: DatasetSource,
-    workspace: Path,
 ) -> ValidationReport:
-    """Validate every category in `requirements` against the workspace.
+    """Validate every category in `requirements` against the dataset source.
 
     Args:
         requirements: The parsed finance requirements manifest.
-        dataset_source: Engine `DatasetSource` (e.g. `LocalMarkdownSource`)
-            used to check dataset metric presence — never read from disk
-            directly here, keeping the validator backend-agnostic.
-        workspace: Workspace root; concept pages are read from
-            `workspace/wiki/concepts/<categoria>.md` (concept slug ==
-            categoria, per design_finance_module.md §4).
+        dataset_source: Engine `DatasetSource` (e.g. `LocalMarkdownSource`),
+            queried for both dataset rows (`query`) and each category's
+            advisory attributes (`attributes`) — never read from disk directly
+            here, keeping the validator backend-agnostic.
 
     Returns:
         A `ValidationReport` with one `CategoryValidation` per manifest
@@ -79,7 +76,7 @@ def validate_workspace(
     for categoria, spec in requirements.categorias.items():
         reasons = []
         reasons.extend(_check_dataset(categoria, spec.metricas, dataset_source))
-        reasons.extend(_check_concept(categoria, spec.attributes, workspace))
+        reasons.extend(_check_attributes(categoria, spec.attributes, dataset_source))
 
         ok = not reasons
         if not ok:
@@ -101,23 +98,15 @@ def _check_dataset(categoria: str, required_metricas: tuple[str, ...], source: D
     return []
 
 
-def _check_concept(categoria: str, required_attributes: tuple[str, ...], workspace: Path) -> list[str]:
-    concept_path = workspace / "wiki" / "concepts" / f"{categoria}.md"
-    if not concept_path.is_file():
-        return [f"datos incompletos para '{categoria}': falta la página de concepto"]
-
-    try:
-        text = concept_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        logger.error("Finance validator: could not read concept page %s: %s", concept_path, exc)
-        return [f"datos incompletos para '{categoria}': no se pudo leer la página de concepto"]
-
-    attrs = parse_concept_attributes(text, page_slug=categoria)
+def _check_attributes(
+    categoria: str, required_attributes: tuple[str, ...], source: DatasetSource
+) -> list[str]:
+    attrs = attributes_from_meta(source.attributes(categoria), categoria=categoria)
     return _missing_or_invalid_attributes(categoria, required_attributes, attrs)
 
 
 def _missing_or_invalid_attributes(
-    categoria: str, required_attributes: tuple[str, ...], attrs: ConceptAttributes
+    categoria: str, required_attributes: tuple[str, ...], attrs: InstrumentAttributes
 ) -> list[str]:
     reasons = []
     for attribute in required_attributes:

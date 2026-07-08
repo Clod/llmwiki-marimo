@@ -21,7 +21,7 @@ logger = logging.getLogger("wiki.domain.finance_argentina.requirements")
 
 @dataclass(frozen=True)
 class CategoryRequirements:
-    """What one advisory category needs from its dataset + concept page."""
+    """What one advisory category's dataset must provide: rows + attributes."""
 
     categoria: str
     metricas: tuple[str, ...]
@@ -41,10 +41,9 @@ class FinanceRequirements:
 def parse_requirements_markdown(text: str) -> FinanceRequirements:
     """Parse a `requirements.md`-shaped string into a `FinanceRequirements`.
 
-    Malformed entries (a category missing `dataset.metricas` or
-    `concept.attributes`) are skipped with a logged warning rather than
-    raising — a single bad category should not block the rest of the
-    manifest from loading.
+    Malformed entries (a category missing `metricas` or `attributes`) are
+    skipped with a logged warning rather than raising — a single bad category
+    should not block the rest of the manifest from loading.
     """
     frontmatter_block, _body = split_frontmatter(text)
     if frontmatter_block is None:
@@ -99,14 +98,8 @@ def _parse_category(slug: str, raw_spec: object) -> CategoryRequirements | None:
         logger.warning("Finance requirements: category %r is not a mapping — skipped", slug)
         return None
 
-    dataset_spec = raw_spec.get("dataset")
-    concept_spec = raw_spec.get("concept")
-    if not isinstance(dataset_spec, dict) or not isinstance(concept_spec, dict):
-        logger.warning("Finance requirements: category %r missing dataset/concept block — skipped", slug)
-        return None
-
-    metricas = dataset_spec.get("metricas")
-    attributes = concept_spec.get("attributes")
+    metricas = raw_spec.get("metricas")
+    attributes = raw_spec.get("attributes")
     if not isinstance(metricas, list) or not isinstance(attributes, list):
         logger.warning(
             "Finance requirements: category %r missing metricas/attributes list — skipped", slug

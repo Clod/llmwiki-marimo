@@ -14,8 +14,8 @@
 > **Principle (inherited):** generic about data shapes (engine), concrete about
 > domain logic (this module). Formulae are **code**, not a rules language.
 >
-> **Separable:** this module reads the engine's `DatasetSource` + concept
-> front‑matter and registers one agent tool. It can live private/optional; the
+> **Separable:** this module reads the engine's `DatasetSource` (rows +
+> attributes) and registers one agent tool. It can live private/optional; the
 > engine never learns the word "plazo fijo".
 
 ---
@@ -24,7 +24,7 @@
 
 1. **Requirements manifest** (§2) — markdown, what each category needs.
 2. **Validator** (§3) — checks the workspace vs. the manifest (a domain lint check).
-3. **Concept‑attribute vocabulary** (§4) — the documented front‑matter keys it reads.
+3. **Instrument‑attribute vocabulary** (§4) — the documented dataset front‑matter keys it reads.
 4. **Gain formulae** (§5) — deterministic, keyed by `metodo_calculo`.
 5. **`estimate_alternatives`** (§6) — the advisory tool (the UC‑A north star).
 
@@ -39,32 +39,39 @@ file, three readers (author / validator / future producer).
 ---
 categorias:
   plazo_fijo:
-    dataset:  { metricas: [TNA] }
-    concept:  { attributes: [disponibilidad, plazos_dias, moneda, metodo_calculo, metrica_tasa] }
+    metricas:   [TNA]
+    attributes: [disponibilidad, plazos_dias, moneda, metodo_calculo, metrica_tasa]
   fci_money_market:
-    dataset:  { metricas: [rendimiento] }
-    concept:  { attributes: [disponibilidad, moneda, metodo_calculo, metrica_tasa] }
+    metricas:   [rendimiento]
+    attributes: [disponibilidad, moneda, metodo_calculo, metrica_tasa]
   dolar:
-    dataset:  { metricas: [compra, venta] }
-    concept:  { attributes: [disponibilidad, moneda] }
+    metricas:   [compra, venta]
+    attributes: [disponibilidad, moneda]
   acciones:                       # non-deterministic
-    dataset:  { metricas: [precio] }
-    concept:  { attributes: [disponibilidad, moneda, metodo_calculo, depende_de] }
+    metricas:   [precio]
+    attributes: [disponibilidad, moneda, metodo_calculo, depende_de]
 ---
 # Finance requirements
 (Per-category prose: what each metric/attribute means and where to source it.)
 ```
 
+Both `metricas` (table columns) and `attributes` (front-matter contract) are
+supplied by the same human-owned `datasets/<categoria>.md` file — the manifest
+just lists what each must contain. The LLM-generated concept prose is never
+read for these values.
+
 ---
 
 ## 3. Validator (domain lint check)
 
-Validates **structured md only** — never PDFs/prose. For each `categoria` in the
-manifest:
-- **dataset**: `datasets/<categoria>.md` exists? each required `metricas`
-  present as a numeric column/metric?
-- **concept**: concept page exists? each required `attributes` present in
-  front‑matter and well‑typed (enum/list/number per §4)?
+Validates **structured md only** — never PDFs/prose. Both checks go through the
+backend-agnostic `DatasetSource` (never reading disk directly). For each
+`categoria` in the manifest:
+- **rows**: `source.query(categoria)` returns rows, and each required `metricas`
+  is present as a numeric column/metric?
+- **attributes**: `source.attributes(categoria)` (the dataset file's
+  front‑matter) declares each required `attributes`, well‑typed (enum/list/number
+  per §4)?
 
 **Report**: list of `(categoria, missing|invalid, detail)`. **Advisory gate**: a
 category that fails is **excluded** from `estimate_alternatives` with an honest
@@ -72,9 +79,14 @@ note ("datos incompletos para `plazo_fijo`: falta métrica `TNA`") — never a g
 
 ---
 
-## 4. Concept‑attribute vocabulary (documented)
+## 4. Instrument‑attribute vocabulary (documented)
 
-Read from concept‑page front‑matter (`attributes:` block).
+Read from the **dataset file's** front‑matter (`datasets/<categoria>.md`), via
+`DatasetSource.attributes(categoria)` — the same human‑owned file that carries
+the rows. These are a machine‑readable contract (instrument → math), so they
+live in the structured data layer, never in the LLM‑generated concept prose.
+The finance overlay (`instrument_attrs.py`) is the only reader that interprets
+these keys; the engine returns the front‑matter generically.
 
 | Attribute | Type | Meaning | Allowed / unit | Used by | Req |
 |-----------|------|---------|----------------|---------|-----|
@@ -86,8 +98,8 @@ Read from concept‑page front‑matter (`attributes:` block).
 | `metrica_tasa` | str | which dataset metric is the rate | e.g. `TNA`, `rendimiento` | gain (links to dataset) | ✓ unless `no_deterministico` |
 | `depende_de` | list[enum] | for `no_deterministico`: what drives the variability (factual, not risk) | `inflacion` \| `tipo_cambio` \| `precio_mercado` \| … | advisory display | ✓ if `no_deterministico` |
 
-Concept→dataset link: implicit by slug (`categoria` == concept slug);
-`metrica_tasa` names the rate metric.
+Attribute→row link: both live in the same `datasets/<categoria>.md` file;
+`metrica_tasa` names which of that file's metrics is the rate.
 
 ---
 
@@ -120,7 +132,7 @@ The advisory tool (conditionally registered when the module is active).
 **Algorithm:**
 1. Load active categories (manifest ∩ workspace); run the validator — exclude
    failing categories with a noted reason.
-2. **Eligibility** per category (read concept attributes):
+2. **Eligibility** per category (read instrument attributes):
    - `moneda` matches the requested currency,
    - `monto_minimo` ≤ `amount`,
    - horizon fit: `inmediata` → always; `a_plazo` → eligible iff
@@ -158,6 +170,16 @@ Renta variable (no estimable)
 | Bono CER     | inflación         | riesgo soberano [doc]  |
 | Dólar Linked | tipo de cambio    | riesgo de TC [doc]     |
 ```
+
+**Nominal‑vs‑real disclaimer (required).** The ranked gains are **nominal** —
+the TEA model holds the current rate constant and does **not** deflate by
+inflation. When the ranked section is non‑empty, `render_markdown` appends an
+explicit caveat: the *real* (purchasing‑power) gain depends on period inflation,
+and a nominal gain can be a real loss if inflation exceeds the TEA. This keeps
+the deterministic numbers honest without estimating inflation (which stays
+`no_deterministico`): we state the limitation rather than guess a real return.
+Inflation‑linked comparison lives in the CER/UVA instruments already flagged in
+the variable section.
 
 ---
 
@@ -204,7 +226,7 @@ Deterministic unit tests (in‑memory manifest + concept + dataset; no LLM/netwo
 ## 10. Corpus validation — `tests/fixtures/mercado_argentino/`
 
 12 conceptual docs (one per instrument family) used to stress‑test the design.
-**Verdict: the architecture closes up** — generic datasets + concept attributes +
+**Verdict: the architecture closes up** — generic datasets + instrument attributes +
 deterministic overlay + honest non‑deterministic handling map cleanly. Three
 findings refine scope:
 
@@ -250,6 +272,7 @@ Content is educational (non‑sensitive); committing publishes it (public repo).
 | # | Decision | Lean | Status |
 |---|----------|------|--------|
 | DET‑scope | Deterministic = nominal‑peso‑rate only (plazo fijo tradicional, money market, caución; USD plazo fijo within USD); rest `no_deterministico` + `depende_de` | yes | **CONFIRMED** |
+| NOM‑disclaimer | Ranked gains are nominal; `render_markdown` states real‑return depends on inflation rather than estimating it (§6) | yes | **CONFIRMED** |
 | DET‑scenario | Assumption‑based estimation (held‑to‑maturity TIR; "if inflation stays at X"; "if FX = Y") | future | **deferred** |
 | GRAN | 1 concept doc : N advisory categories — manifest declares variants; docs stay whole | yes | proposed |
 | FX | Cross‑currency comparison | later | deferred |

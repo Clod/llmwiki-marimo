@@ -1,6 +1,6 @@
 from .advisory import AdvisoryResult, RankedOption, VariableOption, estimate_alternatives, render_markdown
-from .concept_attrs import ConceptAttributes, parse_concept_attributes
 from .formulae import projected_gain, tea
+from .instrument_attrs import InstrumentAttributes, attributes_from_meta
 from .requirements import (
     CategoryRequirements,
     FinanceRequirements,
@@ -15,8 +15,8 @@ __all__ = [
     "VariableOption",
     "estimate_alternatives",
     "render_markdown",
-    "ConceptAttributes",
-    "parse_concept_attributes",
+    "InstrumentAttributes",
+    "attributes_from_meta",
     "projected_gain",
     "tea",
     "CategoryRequirements",

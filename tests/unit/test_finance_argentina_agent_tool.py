@@ -11,6 +11,9 @@ from domain.finance_argentina.agent_tool import (
     estimar_alternativas,
 )
 
+# The advisory attributes (disponibilidad, plazos_dias, …) live in the dataset
+# file's own front-matter, alongside the structural keys — read via
+# DatasetSource.attributes(). No concept page is involved.
 _DATASET_PLAZO_FIJO = """\
 ---
 type: dataset
@@ -22,6 +25,11 @@ metrica: TNA
 unidad: "%"
 as_of: 2026-06-25
 fuente: bna.com.ar
+disponibilidad: a_plazo
+plazos_dias: [30, 60, 90]
+moneda: ARS
+metodo_calculo: interes_simple_vencimiento
+metrica_tasa: TNA
 ---
 
 | entidad      | 30d   | 90d   |
@@ -29,25 +37,11 @@ fuente: bna.com.ar
 | Banco Nación | 35.00 | 37.00 |
 """
 
-_CONCEPT_PLAZO_FIJO = """\
----
-disponibilidad: a_plazo
-plazos_dias: [30, 60, 90]
-moneda: ARS
-metodo_calculo: interes_simple_vencimiento
-metrica_tasa: TNA
----
-# Plazo Fijo
-"""
-
 
 def _seed_plazo_fijo(workspace) -> None:
     datasets = workspace / "datasets"
     datasets.mkdir(parents=True)
     (datasets / "plazo_fijo.md").write_text(_DATASET_PLAZO_FIJO, encoding="utf-8")
-    concepts = workspace / "wiki" / "concepts"
-    concepts.mkdir(parents=True)
-    (concepts / "plazo_fijo.md").write_text(_CONCEPT_PLAZO_FIJO, encoding="utf-8")
 
 
 def test_activate_none_for_empty_workspace(tmp_path) -> None:

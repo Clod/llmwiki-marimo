@@ -1,9 +1,3 @@
----
-disponibilidad: inmediata
-moneda: ARS
-metodo_calculo: capitalizacion_diaria
-metrica_tasa: rendimiento
----
 # FCI Money Market (T+0)
 
 Fondo de liquidez inmediata (plazos fijos mayoristas, cauciones, cuentas

@@ -1,23 +1,26 @@
-"""Concept-page attribute reading — finance vocabulary (design_finance_module.md §4).
+"""Instrument attribute reading — finance vocabulary (design_finance_argentina.md §4).
 
 PURPOSE FOR BEGINNERS:
-Concept pages already carry free-form YAML front-matter (e.g. `tags:`,
-`sources:`). The finance module documents and reads its own keys from that
-same front-matter block — `disponibilidad`, `plazos_dias`, `monto_minimo`,
-`moneda`, `metodo_calculo`, `metrica_tasa`, `depende_de` — without adding any
-generic "attributes mechanism" to the engine. This module reuses
-`domain/datasets/frontmatter.py` (PyYAML-based) for the actual YAML parsing;
-it only adds the finance-specific typing/validation on top.
+Each advisory category's dataset file (`datasets/<categoria>.md`) carries
+self-describing YAML front-matter. Beyond the engine's structural keys
+(`type`, `formato`, `metrica`, …) the finance overlay reads its own keys from
+that same block — `disponibilidad`, `plazos_dias`, `monto_minimo`, `moneda`,
+`metodo_calculo`, `metrica_tasa`, `depende_de`. The engine stays domain-neutral:
+a `DatasetSource` returns the raw front-matter mapping via `attributes()`; this
+module is the *only* place that knows what those finance keys mean.
+
+The advisory attributes are a machine-readable contract (instrument → math),
+so they live in the human-owned dataset layer next to the rows — never in the
+LLM-generated concept prose (which stays untouched).
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
-
-logger = logging.getLogger("wiki.domain.finance_argentina.concept_attrs")
+logger = logging.getLogger("wiki.domain.finance_argentina.instrument_attrs")
 
 _DISPONIBILIDAD_VALUES = {"inmediata", "a_plazo"}
 _METODO_CALCULO_VALUES = {
@@ -28,11 +31,11 @@ _METODO_CALCULO_VALUES = {
 
 
 @dataclass(frozen=True)
-class ConceptAttributes:
-    """Typed view over the finance attributes block of one concept page.
+class InstrumentAttributes:
+    """Typed view over the finance attributes of one advisory category.
 
     All fields default to "absent" sentinels (`None` / empty tuple) — a
-    concept page that does not declare a given key simply leaves that field
+    dataset that does not declare a given key simply leaves that field
     unset; the validator (§3) is what decides whether that is acceptable for
     a given category's required attribute list.
     """
@@ -46,7 +49,7 @@ class ConceptAttributes:
     depende_de: tuple[str, ...] = field(default_factory=tuple)
 
     def has(self, attribute: str) -> bool:
-        """True when `attribute` is present (declared, non-empty) on this page."""
+        """True when `attribute` is present (declared, non-empty)."""
         value = getattr(self, attribute, None)
         if value is None:
             return False
@@ -71,33 +74,25 @@ class ConceptAttributes:
         return True
 
 
-def parse_concept_attributes(text: str, *, page_slug: str = "") -> ConceptAttributes:
-    """Read the finance attribute vocabulary from a concept page's front-matter.
+def attributes_from_meta(meta: Mapping[str, object], *, categoria: str = "") -> InstrumentAttributes:
+    """Interpret a dataset's raw front-matter mapping as finance attributes.
 
     Args:
-        text: Full concept page markdown (front-matter + body).
-        page_slug: Used only for log context.
+        meta: The category's self-describing front-matter (as returned by
+            `DatasetSource.attributes(categoria)`) — an already-parsed mapping,
+            not raw text. YAML parsing is the datasets layer's job.
+        categoria: Used only for log context.
 
     Returns:
-        A `ConceptAttributes` with whatever finance keys are present. A page
-        with no front-matter, or front-matter that fails to parse, returns an
-        all-absent `ConceptAttributes()` (never raises) — the validator turns
+        An `InstrumentAttributes` with whatever finance keys are present. An
+        empty mapping (no dataset, or none of the finance keys declared)
+        yields an all-absent `InstrumentAttributes()` — the validator turns
         that into an honest "missing attribute" report rather than a crash.
     """
-    frontmatter_block, _body = split_frontmatter(text)
-    if frontmatter_block is None:
-        return ConceptAttributes()
-
-    try:
-        meta = parse_frontmatter(frontmatter_block)
-    except ValueError as exc:
-        logger.warning("Concept page %s: unparseable front-matter: %s", page_slug, exc)
-        return ConceptAttributes()
-
-    return ConceptAttributes(
+    return InstrumentAttributes(
         disponibilidad=_as_optional_str(meta.get("disponibilidad")),
-        plazos_dias=_as_int_tuple(meta.get("plazos_dias"), page_slug),
-        monto_minimo=_as_float(meta.get("monto_minimo"), page_slug),
+        plazos_dias=_as_int_tuple(meta.get("plazos_dias"), categoria),
+        monto_minimo=_as_float(meta.get("monto_minimo"), categoria),
         moneda=_as_optional_str(meta.get("moneda")),
         metodo_calculo=_as_optional_str(meta.get("metodo_calculo")),
         metrica_tasa=_as_optional_str(meta.get("metrica_tasa")),
@@ -111,18 +106,18 @@ def _as_optional_str(value: object) -> str | None:
     return str(value)
 
 
-def _as_int_tuple(value: object, page_slug: str) -> tuple[int, ...]:
+def _as_int_tuple(value: object, categoria: str) -> tuple[int, ...]:
     if value is None:
         return ()
     if not isinstance(value, list):
-        logger.warning("Concept page %s: plazos_dias is not a list — ignored", page_slug)
+        logger.warning("Dataset %s: plazos_dias is not a list — ignored", categoria)
         return ()
     result = []
     for item in value:
         try:
             result.append(int(item))
         except (TypeError, ValueError):
-            logger.warning("Concept page %s: non-integer plazos_dias entry %r — skipped", page_slug, item)
+            logger.warning("Dataset %s: non-integer plazos_dias entry %r — skipped", categoria, item)
     return tuple(result)
 
 
@@ -134,11 +129,11 @@ def _as_str_tuple(value: object) -> tuple[str, ...]:
     return tuple(str(item) for item in value)
 
 
-def _as_float(value: object, page_slug: str) -> float:
+def _as_float(value: object, categoria: str) -> float:
     if value is None:
         return 0.0
     try:
-        return float(value)
+        return float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
-        logger.warning("Concept page %s: monto_minimo %r is not numeric — defaulting to 0", page_slug, value)
+        logger.warning("Dataset %s: monto_minimo %r is not numeric — defaulting to 0", categoria, value)
         return 0.0

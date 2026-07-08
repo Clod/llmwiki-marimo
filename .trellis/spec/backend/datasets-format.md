@@ -110,6 +110,17 @@ is a **domain‑overlay concern**, out of core scope — see
 [Domain example](#domain-example-personal-finance). This keeps the core engine
 domain‑neutral and matrix cells single‑valued and numeric.
 
+### 3.6 Domain‑overlay front‑matter keys (surfaced via `attributes()`)
+
+A file's front‑matter MAY carry **extra keys beyond the structural ones** above
+(e.g. a finance overlay's `disponibilidad`, `metodo_calculo`). The generic
+parser **ignores** them for row parsing. A `DatasetSource` exposes the whole
+front‑matter mapping via `attributes(categoria) -> Mapping[str, object]`
+(unknown categoria → `{}`, never raises), so a domain overlay can read its own
+keys **without the engine knowing what they mean**. This is what lets a domain
+keep a machine‑readable per‑instrument contract next to its rows, in the same
+human‑owned file — never in the LLM‑generated concept prose.
+
 ---
 
 ## 4. Activation / Optionality

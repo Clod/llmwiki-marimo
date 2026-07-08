@@ -11,8 +11,10 @@ Protocol against a remote API instead.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 
+from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
 from domain.datasets.models import DatasetRow
 from domain.datasets.parser import parse_dataset_markdown
 
@@ -55,10 +57,8 @@ class LocalMarkdownSource:
         that would escape `datasets/` is rejected and returns [] — the same
         traversal guard read_wiki_page uses.
         """
-        base = self._datasets_dir.resolve()
-        path = (base / f"{categoria}.md").resolve()
-        if not path.is_relative_to(base):
-            logger.warning("query rejected out-of-bounds categoria: %r", categoria)
+        path = self._path_for(categoria)
+        if path is None:
             return []
         rows = self._rows_for_file(path)
         if clave is not None:
@@ -68,6 +68,45 @@ class LocalMarkdownSource:
         if dims is not None:
             rows = [r for r in rows if r.dims == dims]
         return rows
+
+    def attributes(self, categoria: str) -> Mapping[str, object]:
+        """Return the category file's raw front-matter mapping. Unknown -> {}.
+
+        A domain overlay (e.g. finance) reads its own keys from this mapping;
+        this source stays domain-neutral and just surfaces the front-matter
+        the same `datasets/<categoria>.md` file already carries for its rows.
+        Same path-traversal guard as `query`.
+        """
+        path = self._path_for(categoria)
+        if path is None or not path.is_file():
+            return {}
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            logger.warning("Could not read dataset file %s: %s", path, exc)
+            return {}
+        block, _body = split_frontmatter(text)
+        if block is None:
+            return {}
+        try:
+            return parse_frontmatter(block)
+        except ValueError as exc:
+            logger.warning("Dataset file %s: unparseable front-matter: %s", path, exc)
+            return {}
+
+    def _path_for(self, categoria: str) -> Path | None:
+        """Resolve `datasets/<categoria>.md`, guarding against path traversal.
+
+        `categoria` may be LLM-supplied (via the query_dataset tool), so a
+        value with separators or `..` that would escape `datasets/` is
+        rejected (returns None) — the same guard read_wiki_page uses.
+        """
+        base = self._datasets_dir.resolve()
+        path = (base / f"{categoria}.md").resolve()
+        if not path.is_relative_to(base):
+            logger.warning("rejected out-of-bounds categoria: %r", categoria)
+            return None
+        return path
 
     def _rows_for_file(self, path: Path) -> list[DatasetRow]:
         if not path.is_file():

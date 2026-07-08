@@ -6,6 +6,10 @@ clave: fondo
 metricas: { rendimiento: "%" }
 as_of: 2026-06-25
 fuente: cafci.org.ar
+disponibilidad: inmediata
+moneda: ARS
+metodo_calculo: capitalizacion_diaria
+metrica_tasa: rendimiento
 ---
 
 | fondo               | rendimiento |

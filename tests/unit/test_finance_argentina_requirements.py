@@ -9,11 +9,11 @@ _MANIFEST = """\
 ---
 categorias:
   plazo_fijo:
-    dataset:  { metricas: [TNA] }
-    concept:  { attributes: [disponibilidad, plazos_dias, moneda, metodo_calculo, metrica_tasa] }
+    metricas: [TNA]
+    attributes: [disponibilidad, plazos_dias, moneda, metodo_calculo, metrica_tasa]
   acciones:
-    dataset:  { metricas: [precio] }
-    concept:  { attributes: [disponibilidad, moneda, metodo_calculo, depende_de] }
+    metricas: [precio]
+    attributes: [disponibilidad, moneda, metodo_calculo, depende_de]
 ---
 # Finance requirements
 Prose documentation, not machine-read.
@@ -50,11 +50,11 @@ def test_parse_requirements_markdown_skips_malformed_category() -> None:
 ---
 categorias:
   plazo_fijo:
-    dataset:  { metricas: [TNA] }
-    concept:  { attributes: [disponibilidad] }
+    metricas: [TNA]
+    attributes: [disponibilidad]
   broken_category:
-    dataset:  { metricas: [TNA] }
-    # missing concept block entirely
+    metricas: [TNA]
+    # missing attributes list entirely
 ---
 """
     reqs = parse_requirements_markdown(text)

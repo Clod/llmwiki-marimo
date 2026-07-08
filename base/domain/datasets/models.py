@@ -15,6 +15,7 @@ docs/design_datasets.md §3.1.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Protocol
@@ -65,5 +66,16 @@ class DatasetSource(Protocol):
 
         An unknown categoria returns an empty list (never raises) — the
         engine stays honest about absent data rather than erroring.
+        """
+        ...
+
+    def attributes(self, categoria: str) -> Mapping[str, object]:
+        """Return the category's self-describing front-matter as a raw mapping.
+
+        Domain-neutral: the engine returns whatever front-matter keys the
+        category's source declares (beyond the structural ones like `type` /
+        `formato`). A domain overlay (e.g. finance) interprets its own keys;
+        the engine never does. An unknown categoria returns an empty mapping
+        (never raises), mirroring `query`.
         """
         ...

@@ -13,11 +13,10 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from domain.datasets.models import DatasetRow, DatasetSource
-from domain.finance_argentina.concept_attrs import ConceptAttributes, parse_concept_attributes
 from domain.finance_argentina.formulae import projected_gain, tea
+from domain.finance_argentina.instrument_attrs import InstrumentAttributes, attributes_from_meta
 from domain.finance_argentina.requirements import FinanceRequirements
 from domain.finance_argentina.validator import validate_workspace
 
@@ -69,18 +68,17 @@ def estimate_alternatives(
     horizon_months: float,
     requirements: FinanceRequirements,
     dataset_source: DatasetSource,
-    workspace: Path,
     moneda: str = "ARS",
 ) -> AdvisoryResult:
-    """Run the full advisory algorithm (design_finance_module.md §6).
+    """Run the full advisory algorithm (design_finance_argentina.md §6).
 
     Args:
         amount: Principal to invest, in `moneda`.
         horizon_months: How long the funds can stay invested, in months
             (converted to days as `horizon_months * 30`).
         requirements: The parsed finance requirements manifest.
-        dataset_source: Engine `DatasetSource` for current rate/price rows.
-        workspace: Workspace root (concept pages live under `wiki/concepts/`).
+        dataset_source: Engine `DatasetSource` for current rate/price rows and
+            each category's advisory attributes (front-matter).
         moneda: Requested currency; only same-currency instruments are
             eligible (cross-currency comparison is deferred, §9).
 
@@ -91,7 +89,7 @@ def estimate_alternatives(
     """
     horizon_days = round(horizon_months * 30)
 
-    validation = validate_workspace(requirements, dataset_source, workspace)
+    validation = validate_workspace(requirements, dataset_source)
     excluded_reasons = tuple(
         f"{r.categoria}: {'; '.join(r.reasons)}" for r in validation.failing
     )
@@ -100,7 +98,7 @@ def estimate_alternatives(
     variable: list[VariableOption] = []
 
     for categoria in validation.passing:
-        attrs = _read_concept_attrs(workspace, categoria)
+        attrs = _read_attrs(dataset_source, categoria)
         if not _is_eligible(attrs, amount, horizon_days, moneda):
             continue
 
@@ -135,17 +133,11 @@ def estimate_alternatives(
     )
 
 
-def _read_concept_attrs(workspace: Path, categoria: str) -> ConceptAttributes:
-    concept_path = workspace / "wiki" / "concepts" / f"{categoria}.md"
-    try:
-        text = concept_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        logger.warning("estimate_alternatives: could not read concept page for %s: %s", categoria, exc)
-        return ConceptAttributes()
-    return parse_concept_attributes(text, page_slug=categoria)
+def _read_attrs(source: DatasetSource, categoria: str) -> InstrumentAttributes:
+    return attributes_from_meta(source.attributes(categoria), categoria=categoria)
 
 
-def _is_eligible(attrs: ConceptAttributes, amount: float, horizon_days: int, moneda: str) -> bool:
+def _is_eligible(attrs: InstrumentAttributes, amount: float, horizon_days: int, moneda: str) -> bool:
     if attrs.moneda != moneda:
         return False
     if amount < attrs.monto_minimo:
@@ -161,7 +153,7 @@ def _is_eligible(attrs: ConceptAttributes, amount: float, horizon_days: int, mon
 
 def _ranked_options_for(
     categoria: str,
-    attrs: ConceptAttributes,
+    attrs: InstrumentAttributes,
     dataset_source: DatasetSource,
     amount: float,
     horizon_days: int,
@@ -184,7 +176,7 @@ def _ranked_options_for(
 
 def _option_from_row(
     categoria: str,
-    attrs: ConceptAttributes,
+    attrs: InstrumentAttributes,
     row: DatasetRow,
     amount: float,
     horizon_days: int,
@@ -282,6 +274,14 @@ def render_markdown(result: AdvisoryResult) -> str:
                 f"| {opt.categoria} | {opt.clave} | {opt.term_label} | "
                 f"{opt.tea * 100:.2f}% | ${opt.gain:,.0f} | {opt.as_of} | {opt.fuente} |"
             )
+        lines.append("")
+        lines.append(
+            "> ⚠️ Ganancias **nominales**: asumen la tasa actual constante y no "
+            "ajustan por inflación. La ganancia **real** (en poder de compra) "
+            "depende de la inflación del período — si la inflación supera la TEA, "
+            "el saldo en pesos sube pero el poder de compra cae. Para comparar "
+            'contra inflación, ver los instrumentos CER/UVA en "Renta variable".'
+        )
     else:
         lines.append("_No hay alternativas con ganancia estimable para este monto y plazo._")
     lines.append("")
