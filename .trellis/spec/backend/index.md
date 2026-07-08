@@ -19,6 +19,7 @@ This directory contains guidelines for backend development. Fill in each file wi
 | [Error Handling](./error-handling.md) | IngestResult, custom exceptions, marimo cell patterns | Done |
 | [Quality Guidelines](./quality-guidelines.md) | Forbidden patterns, required conventions, test commands | Done |
 | [Logging Guidelines](./logging-guidelines.md) | wiki logger hierarchy, debug mode, progress callbacks | Done |
+| [Multilingual Content](./multilingual-content.md) | wiki-content language vs. chat-answer language contract; the "not-a-bug" language mix | Done |
 
 ---
 
