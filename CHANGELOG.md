@@ -11,6 +11,8 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-08
+
 ### Fixed
 - **Ingestion now cross-links generated pages.** A final `crosslink_wiki_pages`
   pass injects a localized "See also" section into every concept/summary page
@@ -94,6 +96,7 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.0...master
+[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.1...master
+[0.2.1]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Clod/llmwiki-marimo/releases/tag/v0.1.0
