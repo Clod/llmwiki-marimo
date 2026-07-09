@@ -372,7 +372,12 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
         #          Cannot stream — you can't retract text already shown.
         #   OFF -> normal: stream token-by-token (original UX), no gating.
         # Strict+streaming is incoherent, so the two move together by necessity.
-        from domain.chat.guardrail import enforce_grounding, refusal_for
+        from domain.chat.guardrail import enforce_grounding, has_grounding, refusal_for
+        from domain.chat.trace import (
+            build_turn_record,
+            chat_trace_enabled,
+            record_turn,
+        )
 
         history = []
         for msg in messages[:-1]:
@@ -381,24 +386,54 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
             elif msg.role == "assistant":
                 history.append(ModelResponse(parts=[TextPart(content=msg.content)]))
 
+        _lang = wiki_chat_config.language if wiki_chat_config else None
+        _question = messages[-1].content
+
+        def _trace(*, raw_output, final_answer, result, refusal_substituted):
+            # Opt-in (WIKI_CHAT_TRACE=1): one JSONL row per turn so a session can
+            # be diagnosed offline — history, tool calls + retrieved content, the
+            # raw output vs the guardrail's final answer. See domain/chat/trace.py.
+            # Fully defensive: a trace failure must never break the chat turn.
+            if not chat_trace_enabled():
+                return
+            try:
+                msgs = result.all_messages()
+                workspace = Path(wiki_db_path).parent.parent if wiki_db_path else None
+                hist = [
+                    {"role": getattr(m, "role", None), "content": getattr(m, "content", None)}
+                    for m in messages[:-1]
+                ]
+                record_turn(workspace, build_turn_record(
+                    question=_question, language=_lang,
+                    strict_mode=grounding_flag["strict"], history=hist, messages=msgs,
+                    raw_output=raw_output, final_answer=final_answer,
+                    grounded=has_grounding(msgs), refusal_substituted=refusal_substituted,
+                ))
+            except Exception:  # noqa: BLE001 — tracing is best-effort
+                pass
+
         if grounding_flag["strict"]:
             result = await wiki_agent.run(
-                messages[-1].content, deps=wiki_db_path, message_history=history
+                _question, deps=wiki_db_path, message_history=history
             )
-            _lang = wiki_chat_config.language if wiki_chat_config else None
+            raw = result.output
             answer = enforce_grounding(
-                result.output, result.all_messages(), refusal=refusal_for(_lang)
+                raw, result.all_messages(), refusal=refusal_for(_lang)
             )
+            _trace(raw_output=raw, final_answer=answer, result=result,
+                   refusal_substituted=(answer != raw))
             set_last_response(answer)
             yield answer
         else:
             full_text = ""
             async with wiki_agent.run_stream(
-                messages[-1].content, deps=wiki_db_path, message_history=history
+                _question, deps=wiki_db_path, message_history=history
             ) as result:
                 async for chunk in result.stream_text(delta=True):
                     full_text += chunk
                     yield chunk
+            _trace(raw_output=full_text, final_answer=full_text, result=result,
+                   refusal_substituted=False)
             set_last_response(full_text)
 
     if wiki_agent is None:
