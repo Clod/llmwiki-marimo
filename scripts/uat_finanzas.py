@@ -158,15 +158,18 @@ def _check_offtopic(answer: str) -> tuple[bool, str]:
 
 
 # ── The nine questions (label, question, grader, requires_retrieval) ──────────
-# requires_retrieval mirrors the guide: A/B/C/D/F/G/H are answered from the
-# wiki/datasets/advisory, so a zero-tool-call answer is a fabrication. E (equities
-# are non-estimable by definition) and I (off-topic; the demo prompt permits
-# declining without searching) legitimately need no tool call.
+# requires_retrieval mirrors the guide: A/B/C/F/G/H quote or rank corpus facts
+# (a wiki page, a dataset value, an advisory figure), so a zero-tool-call answer
+# there is a fabrication. D/E/I are *conceptual* and legitimately need no tool
+# call: D is the nominal-vs-real caveat (a principle the system prompt supplies —
+# the ideal answer explains it without quoting a specific rate); E states equities
+# are non-estimable by definition; I declines an off-topic question (the demo
+# prompt permits declining without searching). Their text graders carry the signal.
 _QUESTIONS = [
     ("A concepto+cita", "¿Qué es una caución bursátil y por qué se la considera de bajo riesgo?", _check_concept_cited, True),
     ("B asesor", "Tengo $1.000.000 que no necesito por 3 meses. ¿Qué alternativas tengo y cuánto ganaría?", _check_advisory_top, True),
     ("C dato+fecha", "¿A cuánto está el dólar MEP?", _check_dolar_dato, True),
-    ("D nominal/real", "Si hago un plazo fijo, ¿le estoy ganando a la inflación?", _check_nominal_real, True),
+    ("D nominal/real", "Si hago un plazo fijo, ¿le estoy ganando a la inflación?", _check_nominal_real, False),
     ("E no estimable", "¿Cuánto voy a ganar si compro acciones de YPF (YPFD) en 3 meses?", _check_non_estimable, False),
     ("F comparación", "Para $1.000.000, ¿me conviene un plazo fijo o un FCI money market para 60 días?", _check_comparison, True),
     ("G no en wiki", "¿Qué son los CEDEARs y conviene comprarlos?", _check_not_in_wiki, True),
