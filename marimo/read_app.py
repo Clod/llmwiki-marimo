@@ -24,7 +24,7 @@ The active wiki is chosen at runtime via the picker (top-left): discovered wikis
 import marimo
 
 __generated_with = "0.23.6"
-app = marimo.App(width="full")
+app = marimo.App(width="full", layout_file="layouts/read_app.grid.json")
 
 with app.setup:
     """Initialize environment, imports, and wiki-picker defaults."""
