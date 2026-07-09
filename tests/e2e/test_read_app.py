@@ -40,10 +40,25 @@ from domain.chat.guardrail import REFUSAL_EN
 PROJECT_ROOT  = Path(__file__).resolve().parent.parent.parent
 FIXTURES_DIR  = PROJECT_ROOT / "tests" / "fixtures"
 WORKSPACE     = FIXTURES_DIR / "workspace"
-TEST_PORT     = 2720
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _free_port() -> int:
+    """Reserve an ephemeral free port for this run's read-app server.
+
+    The read app's documented default port (2720) used to be hard-coded here,
+    which collided with reality: any leftover `marimo run` on 2720 — e.g. a
+    quickstart install that launches the read app and is never stopped, or a
+    dev instance — is picked up by `_wait_for_port`, so the suite silently
+    tests that *foreign* (often stale, wrong-version) app instead of the one it
+    launched. Binding port 0 hands us an OS-chosen free port per run, which
+    makes that collision effectively impossible.
+    """
+    with socket.socket() as s:
+        s.bind(("localhost", 0))
+        return s.getsockname()[1]
+
 
 def _wait_for_port(host: str, port: int, timeout: float = 60) -> bool:
     deadline = time.time() + timeout
@@ -73,12 +88,13 @@ def read_app_server() -> str:
     if config_src.exists() and not config_dst.exists():
         shutil.copy(config_src, config_dst)
 
+    port = _free_port()
     marimo_bin = Path(sys.executable).parent / "marimo"
     proc = subprocess.Popen(
         [
             str(marimo_bin), "run",
             "marimo/read_app.py",
-            "--port", str(TEST_PORT),
+            "--port", str(port),
             "--headless",
             "--no-token",
             "--no-sandbox",
@@ -98,13 +114,13 @@ def read_app_server() -> str:
 
     threading.Thread(target=_reader, daemon=True).start()
 
-    if not _wait_for_port("localhost", TEST_PORT, timeout=60):
+    if not _wait_for_port("localhost", port, timeout=60):
         if proc.poll() is not None:
             pytest.fail("read_app server process died; check output above")
-        pytest.fail(f"read_app not reachable on port {TEST_PORT} after 60s")
+        pytest.fail(f"read_app not reachable on port {port} after 60s")
 
     time.sleep(1.5)
-    url = f"http://localhost:{TEST_PORT}"
+    url = f"http://localhost:{port}"
     print(f"\n[read_app] Server ready at {url}\n")
     yield url
 
