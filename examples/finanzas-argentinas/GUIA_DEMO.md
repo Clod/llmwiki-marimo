@@ -285,3 +285,241 @@ market para 60 días?"*
 Si las nueve pasan, la extensión de finanzas está funcionando de punta a punta:
 consulta citada, cálculo determinista, honestidad sobre datos e inflación, y
 límites claros.
+
+---
+
+## 4. Apéndice técnico — por qué cada pregunta y cómo se resuelve
+
+Esta wiki de finanzas es la demo que ejercita **todas** las particularidades del
+motor a la vez: recuperación curada con citas, un motor de datos vivos, un asesor
+determinista y una capa de honestidad forzada. Las nueve preguntas de arriba no
+son azarosas: cada una está diseñada para poner a prueba una de esas capas (o el
+límite entre ellas). Este apéndice hace explícito, para quien lea el código,
+**qué desafío plantea cada pregunta** y **con qué se resuelve** — con código, con
+_prompting_, o con ambos.
+
+Las referencias apuntan a **archivo y función**, sin número de línea (los nombres
+sobreviven a los refactors; las líneas no). Todas las rutas de código son
+relativas a la raíz del repositorio.
+
+### 4.1 Primer de arquitectura (las capas compartidas)
+
+Antes de ir pregunta por pregunta, conviene entender las cuatro capas que varias
+preguntas comparten. Este es el recorrido de una consulta cualquiera:
+
+```
+Usuario
+  │  pregunta en lenguaje natural
+  ▼
+Agente PydanticAI      (create_agent — base/domain/chat/agent.py)
+  │  system prompt: wiki-first, citar-o-abstenerse, temperature=0
+  │  el LLM decide QUÉ herramienta llamar; no calcula ni recuerda datos
+  ▼
+Herramientas (solo lectura)
+  ├─ read_wiki_page / search_wiki_fts ···· páginas curadas (FTS5)   chat/wiki_tools.py
+  ├─ search_source_chunks ··············· documentos crudos         chat/tools.py
+  ├─ query_dataset ······················ datos vivos (tablas)      chat/dataset_tools.py
+  └─ estimar_alternativas ··············· asesor determinista       finance_argentina/agent_tool.py
+  ▼
+Respuesta redactada por el LLM (cita cada hecho)
+  ▼
+Guardrail opcional     (enforce_grounding — chat/guardrail.py)
+  │  ¿se apoya en un resultado de herramienta? sí → pasa · no → abstención
+  ▼
+Usuario
+```
+
+**Capa 1 — Recuperación curada (wiki-first).** El agente es un
+[agente PydanticAI](https://ai.pydantic.dev): un LLM al que se le registran
+_herramientas_ (funciones Python) y que decide cuándo llamarlas. Sus herramientas
+de lectura buscan **primero** en el wiki curado y solo caen a los documentos
+crudos como respaldo. `search_wiki_fts` usa **FTS5** (el índice de texto completo
+de SQLite) acotado a páginas de wiki; `read_wiki_page` trae el markdown real.
+El orden lo fija el system prompt (en `wiki_config.toml`).
+→ `base/domain/chat/wiki_tools.py`, `base/domain/chat/tools.py`.
+
+**Capa 2 — Motor de datos vivos (`datasets`).** Los números que cambian (tasas,
+precios) **no** viven en la prosa generada, sino en tablas versionadas bajo
+`datasets/*.md` (front-matter YAML + una tabla; ver §1.2). El parser las lee
+_al vuelo_ y `LocalMarkdownSource` las expone detrás de un `Protocol`
+(`DatasetSource`) — una interfaz por _duck typing_ que hace el resto del sistema
+agnóstico del almacenamiento. La herramienta `query_dataset` es **opt-in**: solo
+aparece si el workspace tiene un `datasets/` activo.
+→ `base/domain/datasets/{parser.py,source.py,models.py}`,
+`base/domain/chat/dataset_tools.py`.
+
+**Capa 3 — Asesor determinista (`finance_argentina`).** El diferenciador. Cuando
+el usuario pregunta "cuánto ganaría", el LLM solo **decide llamar** a la
+herramienta; el número lo produce Python puro:
+
+```
+estimar_alternativas(monto, horizonte)      ← única decisión del LLM
+        │  (finance_argentina/agent_tool.py)
+        ▼
+estimate_alternatives(...)                   ← de acá en más, todo es código
+        │  (finance_argentina/advisory.py)
+        ├─ source.attributes(cat) → attributes_from_meta → InstrumentAttributes
+        │                            (front-matter del dataset; instrument_attrs.py)
+        ├─ _is_eligible(attrs, monto, horizonte, moneda)   ¿entra por monto/plazo/moneda?
+        ├─ por cada fila elegible:
+        │     tea(metodo_calculo, TNA)  →  projected_gain(monto, TEA, días)
+        │                              (finance_argentina/formulae.py — matemática pura)
+        ├─ no_deterministico / depende_de  →  VariableOption (NO se calcula ganancia)
+        └─ ranking por ganancia
+        ▼
+render_markdown(result)                      ← tabla citada + ⚠️ disclaimer nominal
+```
+
+La matemática convierte la **TNA** (tasa nominal anual, como la publica el banco)
+en **TEA** (tasa efectiva anual, que sí capitaliza) según el `metodo_calculo`
+declarado en el dataset, y proyecta la ganancia sobre el horizonte. Un validador
+(`validate_workspace`) chequea, antes de asesorar, que cada categoría traiga las
+métricas y atributos que necesita — leyendo siempre a través del `DatasetSource`,
+nunca del disco directamente.
+→ `base/domain/finance_argentina/{agent_tool.py,advisory.py,formulae.py,
+instrument_attrs.py,validator.py,requirements.py}`.
+
+**Capa 4 — Honestidad forzada (prompt + guardrail).** Dos mecanismos
+complementarios evitan que el modelo invente. El **system prompt** impone
+citar-o-abstenerse, no completar con conocimiento general, y mantenerse en el
+dominio. Como red de seguridad determinista, el **guardrail** `enforce_grounding`
+reemplaza por una abstención cualquier respuesta que **no** se apoye en un
+resultado de herramienta — así una cita fabricada de memoria no pasa. El guardrail
+es un toggle en la interfaz (estricto/_buffered_ vs. normal/_streamed_).
+→ `base/domain/chat/guardrail.py` (cableado en `marimo/read_app.py`),
+prompt en `examples/finanzas-argentinas/wiki_config.toml`.
+
+### 4.2 Las nueve preguntas, una por una
+
+Cada entrada indica **el desafío**, **cómo se resuelve** (código · _prompt_ ·
+ambas) y **las referencias** de código.
+
+#### A — Consultar un concepto y citar la fuente
+- **Desafío:** responder "qué es X" desde el conocimiento **curado**, no desde la
+  memoria del LLM, y citar de dónde salió cada afirmación.
+- **Cómo se resuelve — _prompt_ + recuperación.** El prompt ordena buscar primero
+  en el wiki (`search_wiki_fts`, sobre FTS5) y leer la página (`read_wiki_page`);
+  el LLM sintetiza a partir del texto real y cita documento + página. Nada de
+  esto toca el asesor ni los datasets.
+- **Referencias:** `chat/wiki_tools.py::search_wiki_fts`,
+  `chat/wiki_tools.py::read_wiki_page`, `chat/tools.py::search_source_chunks`.
+
+#### B — Asesoramiento con números *(la función estrella)*
+- **Desafío:** dar una ganancia en pesos **sin que el LLM la calcule ni la
+  invente** — el problema central de un asesor con IA.
+- **Cómo se resuelve — ambas, el código lidera.** El LLM solo decide _llamar_ a
+  `estimar_alternativas` con monto y horizonte. De ahí en más es Python:
+  `estimate_alternatives` filtra los instrumentos elegibles, calcula la TEA desde
+  la TNA del dataset (`formulae.tea`) y la ganancia (`formulae.projected_gain`),
+  ordena por rendimiento y `render_markdown` arma la tabla con su cita
+  (tasa/fecha/fuente). El prompt refuerza: **"pegá la tabla tal cual, nunca
+  reescribas los números"** — así se evita hasta un error de transcripción.
+- **Referencias:** `finance_argentina/agent_tool.py::estimar_alternativas` →
+  `advisory.py::estimate_alternatives` / `render_markdown` →
+  `formulae.py::tea` / `projected_gain`. Ver el diagrama en §4.1.
+
+#### C — Un dato puntual, siempre con su fecha
+- **Desafío:** devolver un valor **vivo** (una cotización) citado textualmente y
+  con su fecha `as_of`, no recordado de memoria (se desactualiza).
+- **Cómo se resuelve — ambas.** El LLM llama a
+  `query_dataset(categoria="dolar", clave="MEP")`; `LocalMarkdownSource.query`
+  parsea el `.md` y devuelve las filas con `valor`, `as_of` y `fuente`. El prompt
+  exige mostrar **siempre** la fecha del dato.
+- **Referencias:** `chat/dataset_tools.py::query_dataset` →
+  `datasets/source.py::LocalMarkdownSource.query` →
+  `datasets/parser.py::parse_dataset_markdown`.
+
+#### D — Nominal vs. real (la inflación)
+- **Desafío:** dar el _caveat_ honesto —la ganancia es **nominal**, la real
+  depende de la inflación— **sin estimar** la inflación, que es no determinista.
+- **Cómo se resuelve — _prompt_ + diseño de datos.** Es una respuesta
+  **conceptual**: el prompt tiene la regla nominal y el _nudge_ hacia los
+  instrumentos ajustados (UVA/CER). La inflación **no** existe como serie
+  proyectable por diseño (no hay dataset que la estime → queda `no_deterministico`),
+  así que el sistema no puede adivinarla ni por accidente. Además,
+  `render_markdown` **incrusta el disclaimer nominal** en toda salida del asesor
+  (B y F), de modo que el punto aparece aunque no se pregunte.
+- **Nota:** esta pregunta **no requiere** llamar a una herramienta — el _caveat_
+  correcto es razonamiento sobre la regla del prompt (igual que E e I). El UAT
+  automatizado lo trata como pregunta conceptual por eso mismo.
+- **Referencias:** reglas en `wiki_config.toml`;
+  disclaimer en `finance_argentina/advisory.py::render_markdown`.
+
+#### E — El límite honesto: lo que **no** es estimable
+- **Desafío:** negarse a estimar renta variable (acciones) en lugar de inventar un
+  número.
+- **Cómo se resuelve — ambas, el código lidera.** En los datos, `acciones`
+  declara `metodo_calculo: no_deterministico` y `depende_de: [precio_mercado]`.
+  El asesor las clasifica como `VariableOption` (no `RankedOption`) y
+  `render_markdown` las lista en una sección aparte, "no estimable". La salvaguarda
+  final es matemática: `formulae.tea` **lanza una excepción** si se lo invoca con
+  `no_deterministico`, por lo que es imposible calcular una ganancia por descuido.
+  El prompt lo refuerza en prosa.
+- **Referencias:** `advisory.py::estimate_alternatives` (separación
+  `VariableOption`), `formulae.py::tea` (guardia `no_deterministico`), front-matter
+  de `datasets/acciones.md`.
+
+#### F — Comparar dos instrumentos
+- **Desafío:** comparar dos instrumentos con la **misma vara determinista** (plazo
+  fijo vs. FCI money market) y explicar el _trade-off_ de liquidez.
+- **Cómo se resuelve — ambas.** Misma maquinaria que B: una sola llamada al asesor
+  rankea **todas** las opciones elegibles por ganancia; el LLM narra la comparación
+  y la diferencia de liquidez (el plazo fijo **inmoviliza** hasta el vencimiento;
+  el money market es **T+0**). El número ($58.356 para $1.000.000 a 60 días) sale
+  de `projected_gain`, no del modelo.
+- **Referencias:** idénticas a B; ver el primer del asesor en §4.1.
+
+#### G — Del tema, pero **no incluido** en la wiki
+- **Desafío:** admitir que los CEDEARs no están cargados, sin explicarlos como si
+  lo estuvieran.
+- **Cómo se resuelve — _prompt_ + guardrail.** El prompt manda citar-o-abstenerse
+  y "no completes con conocimiento general". Como red de seguridad determinista,
+  el guardrail `enforce_grounding` reemplaza por una abstención toda respuesta que
+  no se apoye en un resultado de herramienta (evita que una cita fabricada pase).
+  En la práctica el modelo busca, no encuentra, y lo admite; si agrega una
+  explicación general, debe etiquetarla como tal.
+- **Referencias:** reglas en `wiki_config.toml`;
+  `chat/guardrail.py::enforce_grounding` / `has_grounding` (cableado en
+  `marimo/read_app.py`).
+
+#### H — Un número que **no está** en los datos
+- **Desafío:** admitir que falta un dato puntual (la tasa del Banco Comafi) que
+  **sí es del tipo** que la wiki maneja — el caso más engañoso, porque la
+  categoría existe pero la fila no.
+- **Cómo se resuelve — ambas.** `query_dataset` con una `clave` inexistente
+  devuelve un mensaje honesto ("No dataset rows found…") en vez de una fila
+  inventada; el prompt convierte esa ausencia en una abstención clara.
+- **Referencias:** `chat/dataset_tools.py::query_dataset` (rama `if not rows`),
+  prompt en `wiki_config.toml`.
+
+#### I — Fuera de tema
+- **Desafío:** abstenerse ante algo fuera del dominio (trivia general).
+- **Cómo se resuelve — _prompt_.** Una regla de alcance explícita: "respondé solo
+  sobre finanzas argentinas… si te preguntan algo ajeno, abstenete". No necesita
+  herramientas. (Esta es la regla que se afinó durante el propio UAT.)
+- **Referencias:** `wiki_config.toml`. Nota: la _eval_ del proyecto corre una
+  prueba de _off-topic_ más estricta bajo un prompt distinto —ver
+  `scripts/eval_chat_model.py`—; en la demo, la abstención la da el prompt de
+  dominio.
+
+### 4.3 Matriz pregunta × capa
+
+Qué capa ejercita principalmente cada pregunta (● principal · ○ secundaria):
+
+| Preg. | Recuperación curada | Datasets (datos vivos) | Asesor determinista | Honestidad (prompt/guardrail) |
+|-------|:---:|:---:|:---:|:---:|
+| A | ● | | | ○ |
+| B | | ○ | ● | ○ |
+| C | | ● | | ○ |
+| D | | | ○ | ● |
+| E | | ○ | ● | ○ |
+| F | | ○ | ● | ○ |
+| G | ○ | | | ● |
+| H | | ● | | ● |
+| I | | | | ● |
+
+Las cuatro columnas son, exactamente, las cuatro capas del §4.1. Que las nueve
+preguntas juntas **cubran las cuatro** es la razón por la que esta demo funciona
+como banco de pruebas del motor completo. El script `scripts/uat_finanzas.py`
+automatiza estas nueve comprobaciones (los números deterministas se afirman
+exactos; los comportamientos honestos se detectan por su forma).
