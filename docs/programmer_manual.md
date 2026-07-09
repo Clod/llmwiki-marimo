@@ -242,6 +242,7 @@ llmwiki/
 │   ├── build_golden_corpus.py          # Build/freeze the golden-corpus snapshot (§9)
 │   ├── eval_chat_model.py              # PASS/FAIL smoke test of the chat model (§9)
 │   ├── build_eval_packet.py            # Generate the half-automated UAT eval packet (§9)
+│   ├── uat_finanzas.py                 # Run the finanzas-argentinas demo UAT (9 GUIA_DEMO.md questions)
 │   └── render_trace.py                 # Render a trace.jsonl run to a timeline (§14.7)
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
