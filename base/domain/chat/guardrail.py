@@ -82,3 +82,31 @@ def enforce_grounding(output: str, messages: list[ModelMessage], *, refusal: str
 def refusal_for(language: str | None) -> str:
     """The refusal phrase for a wiki's content language."""
     return REFUSAL_ES if (language or "en").lower().startswith("es") else REFUSAL_EN
+
+
+def strip_refused_exchanges(messages: list) -> list:
+    """Drop each guardrail refusal from the chat history, with the user turn
+    that triggered it.
+
+    A terse, citation-less refusal ("Eso no está en mi base de conocimiento.")
+    left in the conversation primes the model to answer the *next* question
+    without a citation either — verified: two off-corpus refusals followed by a
+    real question come back grounded-but-uncited, whereas the same question as
+    the first turn cites correctly. Refusals carry nothing forward, so they are
+    removed from the context (both the refusal response and its question).
+
+    Operates on chat messages duck-typed as having `.role` ("user"/"assistant")
+    and `.content`; unknown shapes pass through untouched.
+    """
+    msgs = list(messages)
+    drop: set[int] = set()
+    for i, m in enumerate(msgs):
+        is_refusal = (
+            getattr(m, "role", None) == "assistant"
+            and (getattr(m, "content", "") or "").strip() in (REFUSAL_ES, REFUSAL_EN)
+        )
+        if is_refusal:
+            drop.add(i)
+            if i - 1 >= 0 and getattr(msgs[i - 1], "role", None) == "user":
+                drop.add(i - 1)  # the question that got refused
+    return [m for i, m in enumerate(msgs) if i not in drop]

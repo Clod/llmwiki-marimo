@@ -372,15 +372,23 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
         #          Cannot stream — you can't retract text already shown.
         #   OFF -> normal: stream token-by-token (original UX), no gating.
         # Strict+streaming is incoherent, so the two move together by necessity.
-        from domain.chat.guardrail import enforce_grounding, has_grounding, refusal_for
+        from domain.chat.guardrail import (
+            enforce_grounding,
+            has_grounding,
+            refusal_for,
+            strip_refused_exchanges,
+        )
         from domain.chat.trace import (
             build_turn_record,
             chat_trace_enabled,
             record_turn,
         )
 
+        # Drop prior refusals from the context: a citation-less "not in my
+        # knowledge base" turn primes the model to answer the next question
+        # without a citation too (verified). They carry nothing forward.
         history = []
-        for msg in messages[:-1]:
+        for msg in strip_refused_exchanges(messages[:-1]):
             if msg.role == "user":
                 history.append(ModelRequest(parts=[UserPromptPart(content=msg.content)]))
             elif msg.role == "assistant":
