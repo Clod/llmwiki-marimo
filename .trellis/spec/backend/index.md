@@ -20,6 +20,7 @@ This directory contains guidelines for backend development. Fill in each file wi
 | [Quality Guidelines](./quality-guidelines.md) | Forbidden patterns, required conventions, test commands | Done |
 | [Logging Guidelines](./logging-guidelines.md) | wiki logger hierarchy, debug mode, progress callbacks | Done |
 | [Dataset Source Format](./datasets-format.md) | domain-neutral structured/transient source format (per-category markdown, self-describing front-matter, normalized rows; opt-in per workspace); contract only — producer/storage/agent deferred | Done |
+| [Multilingual Content](./multilingual-content.md) | wiki-content language vs. chat-answer language contract; the "not-a-bug" language mix | Done |
 
 ---
 

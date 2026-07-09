@@ -508,6 +508,7 @@ def ingest_runner(
 
     try:
         from domain.ingestion import ingest_file as _if
+        from domain.ingestion import crosslink_wiki_pages as _crosslink
         from domain.ingestion.trace import run_scope as _run_scope
         from domain.lint.runner import lint_wiki as _lw
         from domain.lint.report import LintReport as _LintReport
@@ -581,6 +582,13 @@ def ingest_runner(
                 )
             else:
                 _cb("✅ Ingested pages consistent — no repairs needed.")
+
+            # Refresh "See also" cross-links across all pages now that this batch
+            # is ingested — an older page may now reference a freshly-added concept.
+            if _src_ids:
+                _n_linked = _crosslink(WORKSPACE, DB_PATH, language=WIKI_LANG, progress_cb=_cb)
+                if _n_linked:
+                    _cb(f"🔗 Cross-linked {_n_linked} page(s)")
         finally:
             _finish()
             set_running_op(None)

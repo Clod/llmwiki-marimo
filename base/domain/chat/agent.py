@@ -13,6 +13,8 @@ tools the AI can use, and returns the fully-prepared Agent instance.
 
 # Standard library import for typing the optional workspace path parameter.
 from pathlib import Path
+# Used to detect OpenRouter endpoints so temperature=0 is honored (see _make_provider).
+from urllib.parse import urlparse
 
 # Import the core Agent class from PydanticAI
 from pydantic_ai import Agent
@@ -20,6 +22,8 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 # Import the OpenAI provider class, which manages credentials and endpoint URLs
 from pydantic_ai.providers.openai import OpenAIProvider
+# Import ModelSettings to pin a deterministic sampling temperature.
+from pydantic_ai.settings import ModelSettings
 
 # Import the default system prompt instructions that guide the AI's behavior
 from .config import _DEFAULT_SYSTEM_PROMPT
@@ -54,6 +58,26 @@ from a wiki page or from memory: dataset values change over time and must \
 always be quoted verbatim with their as_of date and fuente, exactly like any \
 other citation. If query_dataset returns no rows, say so plainly — never \
 estimate or recall a dataset value from memory."""
+
+
+def _make_provider(base_url: str, api_key: str):
+    """Pick the provider that profiles the model name correctly.
+
+    OpenRouter namespaces models as ``vendor/model`` (e.g. ``openai/gpt-4o``).
+    The generic ``OpenAIProvider`` mis-profiles the ``openai/*`` namespace as a
+    *reasoning* model and then silently drops sampling parameters — including our
+    ``temperature=0`` — which makes grounding non-deterministic (the eval flaps).
+    OpenRouter's dedicated provider resolves vendor-prefixed profiles correctly,
+    so route OpenRouter endpoints through it; everything else (OpenAI proper,
+    LM Studio, Ollama, any OpenAI-compatible URL) keeps the generic provider.
+    """
+    host = (urlparse(base_url).hostname or "").lower()
+    if host == "openrouter.ai" or host.endswith(".openrouter.ai"):
+        # Imported lazily so the dependency is only touched on the OpenRouter path.
+        from pydantic_ai.providers.openrouter import OpenRouterProvider
+
+        return OpenRouterProvider(api_key=api_key)
+    return OpenAIProvider(base_url=base_url, api_key=api_key)
 
 
 def create_agent(
@@ -115,7 +139,7 @@ def create_agent(
     #    endpoint (like OpenRouter, DeepSeek, or local models) by passing custom URLs.
     llm = OpenAIChatModel(
         model,
-        provider=OpenAIProvider(base_url=base_url, api_key=api_key),
+        provider=_make_provider(base_url, api_key),
     )
 
     # Append the wiki's chat answer-language directive (no-op for English, so the
@@ -159,5 +183,15 @@ def create_agent(
         # Register the suite of Python tool functions the agent is allowed to call.
         # PydanticAI automatically inspects these functions, parses their docstrings
         # and arguments, and explains them to the LLM so it knows exactly when to call them!
+        # The dynamically-built tool list: the three base retrieval tools plus,
+        # when active, query_dataset and any caller-injected overlay tools.
         tools=tools,
+
+        # Pin temperature=0 (greedy decoding). A grounding/traceability agent
+        # wants the single most-likely, corpus-grounded continuation — not
+        # sampled variation. At higher temperatures the model intermittently
+        # skips the retrieval tools or omits citations; temperature 0 makes the
+        # retrieve-then-cite behavior deterministic and reproducible (and stops
+        # reliability from depending on the provider's default sampling).
+        model_settings=ModelSettings(temperature=0.0),
     )

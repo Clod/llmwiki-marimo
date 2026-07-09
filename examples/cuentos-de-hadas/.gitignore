@@ -1,0 +1,3 @@
+.llmwiki/
+*.pyc
+__pycache__/

@@ -5,6 +5,8 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
 ![Tests](https://img.shields.io/badge/tests-497-brightgreen.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Version](https://img.shields.io/github/v/tag/Clod/llmwiki-marimo?label=version&sort=semver&color=blue)](https://github.com/Clod/llmwiki-marimo/releases)
+[![Changelog](https://img.shields.io/badge/changelog-md-orange)](CHANGELOG.md)
 
 **English** · [Español](README_ES.md)
 
@@ -196,11 +198,17 @@ docs/
 ├── programmer_manual.md   # Canonical developer reference
 └── archive/               # Superseded design docs (historical)
 
+examples/               # Pre-ingested demo wikis (used by quickstart.py)
+└── fairy-tales/           # Browsable with no LLM; chat needs a model
+
 tests/
 ├── unit/                  # 470 unit tests (FakeLLM, no network)
 ├── regression/            # 16 frozen golden-corpus tests (real ingest, no live model)
 ├── e2e/                   # 11 Playwright E2E tests (ingest + read app)
 └── fixtures/              # Test PDFs + wiki config + golden corpus
+
+quickstart.py           # One-command console installer (Python-only; see Quick start)
+requirements.txt        # Hash-pinned deps exported from uv.lock (for the installer's pip path)
 ```
 
 ---
@@ -213,13 +221,42 @@ tests/
     - macOS: `brew install --cask libreoffice`
     - Debian/Ubuntu: `sudo apt install libreoffice` (Fedora: `sudo dnf install libreoffice`)
     - Windows: `winget install TheDocumentFoundation.LibreOffice`
-- **git** — *optional*; powers the wiki's version-history auto-commit. Most systems already have it; if it's missing, snapshots are skipped (with a warning) and ingestion still works — or set `WIKI_AUTOCOMMIT=0` to opt out.
+- **git** — needed to clone the repo (the Quick start's first step; most systems already have it). It also powers the wiki's version-history auto-commit, which *is* optional: if git is missing at runtime, snapshots are skipped (with a warning) and ingestion still works — or set `WIKI_AUTOCOMMIT=0` to opt out.
 
 ---
 
 ## Quick start
 
-### 1. Clone and install
+The fastest way to see it running — all you need is **Python 3.12+ and git**
+(no `uv`, no manual `.env`):
+
+```bash
+git clone --depth 1 https://github.com/Clod/llmwiki-marimo.git
+cd llmwiki-marimo
+python3 quickstart.py
+```
+
+`quickstart.py` is a dependency-free console installer. It checks your Python
+version, drops in a **pre-ingested demo wiki** (browsable instantly — no LLM
+needed just to read), runs a short provider wizard (**local Ollama by default**,
+or any OpenAI-compatible endpoint such as LM Studio or OpenRouter), builds an
+isolated virtualenv from a lock-pinned
+`requirements.txt`, runs an advisory **grounding check** on your model
+(`--no-eval` skips it), and launches the read app. It won't overwrite an existing
+`.env` or demo without asking, and flags make it scriptable:
+
+```bash
+python3 quickstart.py --demo fairy-tales --provider ollama --yes --no-launch
+```
+
+> The demo lives in [`examples/`](examples/); browsing its generated pages needs
+> no model configured — only the chat assistant calls the LLM.
+
+Prefer to wire it up yourself? The manual `uv` setup is below.
+
+### Manual setup (uv)
+
+#### 1. Clone and install
 
 ```bash
 git clone https://github.com/Clod/llmwiki-marimo.git
@@ -227,7 +264,7 @@ cd llmwiki-marimo
 uv sync
 ```
 
-### 2. Configure
+#### 2. Configure
 
 Copy `.env.example` to `.env` and fill in:
 
@@ -248,7 +285,7 @@ specific folder instead of the parent of `WIKI_PATH`.
 
 See [LLM providers](#llm-providers) for Ollama and LM Studio config.
 
-### 3. Ingest documents
+#### 3. Ingest documents
 
 ```bash
 uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
@@ -256,7 +293,7 @@ uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
 
 Open [http://localhost:2718](http://localhost:2718), drop in your PDFs or DOCXs, click **Ingest**.
 
-### 4. Read and chat
+#### 4. Read and chat
 
 ```bash
 uv run marimo run marimo/read_app.py --no-sandbox --port 2720
@@ -342,8 +379,27 @@ If `WIKI_LLM_*` are blank, ingestion falls back to `LLM_*`.
 >
 > **Not sure if a model clears the bar?** Run `uv run python scripts/eval_chat_model.py`
 > — it asks the built-in sample wiki a few fixed questions and gives a PASS/FAIL on
-> exactly these behaviours (off-corpus refusal, citations, cited synthesis). See
-> [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Part C.
+> exactly these behaviours (off-corpus refusal, citations, cited synthesis). It
+> verifies the model **actually called a retrieval tool**, not just that the answer
+> *looks* cited — so a model that fabricates a citation from memory (zero tool
+> calls) fails. See [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Part C.
+>
+> **A data point from local testing** (LM Studio on an M2 Pro, Q4_K_M quants, chat
+> agent pinned at `temperature=0`). The strict retrieve-then-cite protocol is
+> demanding, and local models under ~12B each broke it in a different way:
+>
+> | Model (local) | `eval_chat_model.py` | How it failed |
+> | --- | --- | --- |
+> | `Qwen2.5-7B-Instruct` | 2/3 | skipped retrieval when it "knew" the answer; retrieved but then didn't cite |
+> | `Meta-Llama-3.1-8B-Instruct` | 2/3 | followed the protocol, but *gave up* on the synthesis question — wrongly claimed the content wasn't in the wiki when it was |
+> | `gemma-4-12b-it-qat` (QAT) | ✗ inconsistent | fabricated citations with **zero tool calls**; leaked a reasoning channel into the answer |
+> | `gemma-4-12b` (non-QAT) | **3/3** | — |
+>
+> Takeaway: **choose a model that passes 3/3**, and for local models expect that to
+> mean roughly **12B or larger**. Smaller models each break the grounding contract
+> in their own way — the eval is how you catch it *before* you trust the wiki's
+> answers. (Temperature is pinned to 0 in the chat agent, so grounding is
+> deterministic and a PASS is reproducible, not luck.)
 
 ---
 

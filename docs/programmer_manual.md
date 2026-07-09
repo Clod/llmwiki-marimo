@@ -246,15 +246,21 @@ llmwiki/
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
-│   ├── unit/                           # 470 unit tests (no LLM, no network)
+│   ├── unit/                           # 487 unit tests (no LLM, no network)
 │   ├── regression/                     # golden-corpus + eval-reader invariants (skips until frozen)
 │   └── e2e/                            # 11 Playwright tests (live marimo + LLM)
+├── examples/                          # Pre-ingested demo wikis for quickstart.py (§7)
+│   ├── fairy-tales/                   # Complete workspace; browsable with no LLM
+│   ├── cuentos-de-hadas/             # Spanish (es) mirror of fairy-tales
+│   └── finanzas-argentinas/          # Spanish advisor demo: datasets/ + GUIA_DEMO.md
 ├── docs/
 │   ├── programmer_manual.md            # THIS FILE
 │   ├── sqlite_data_dictionary.md       # Per-column DB reference
 │   ├── CODEMAPS/                       # Auto-generated code maps
 │   └── archive/                        # Superseded design docs
 ├── README.md                           # End-user quickstart
+├── quickstart.py                       # Stdlib-only console installer (§7)
+├── requirements.txt                    # Hash-pinned export of uv.lock (installer pip path, §7)
 └── pyproject.toml + uv.lock
 ```
 
@@ -604,7 +610,13 @@ subdirectory pages appear in the left-panel table. `read_page(rel_path)` reads
 
 The agent is created once per session via `create_agent(base_url, api_key, model)`
 and reused across messages; the `db_path` is passed as the agent's `deps` on each
-`run_stream(...)` call, not to the factory.
+`run_stream(...)` call, not to the factory. The agent pins
+`ModelSettings(temperature=0.0)`: a grounding/traceability agent wants the single
+most-likely, corpus-grounded continuation, and higher temperatures make it
+intermittently skip the retrieval tools or drop citations. Temperature 0 makes the
+retrieve-then-cite behaviour deterministic and reproducible — so a model's
+`eval_chat_model.py` verdict (§9) is a property of the model, not sampling luck.
+See the README "LLM providers" note for the empirical model-size floor (~12B local).
 
 ### `trace_report_app.py`
 
@@ -615,6 +627,42 @@ and an `mo.tree` of the raw events grouped by document. Payload channels
 (`prompts`, `responses`, `extracted_text`, `chunks`, `markdown`) can be inlined
 on demand. It only reads traces produced by `WIKI_TRACE=1` runs — it never
 ingests or writes anything.
+
+### Quick-start installer (`quickstart.py`)
+
+`quickstart.py` (repo root) is a **stdlib-only** onboarding script — the only
+prerequisite on the user's machine is **Python 3.12+** (no `uv`). It must run
+*before* any dependency exists, so it imports nothing third-party and shells out
+to `python -m venv`, `pip`, and (optionally) `ollama`.
+
+What it does, in order: gates the Python version → copies a pre-ingested demo
+from `examples/` into `wikis/<demo>/` → runs a provider wizard (**local Ollama
+by default**, or any OpenAI-compatible endpoint such as LM Studio / OpenRouter;
+`getpass` for keys) → writes `.env` (never
+clobbering an existing one without consent) → `python -m venv .venv` +
+`pip install -r requirements.txt` → optional `/models` reachability check →
+advisory grounding check of the configured model(s)
+(`scripts/eval_chat_model.py --brief`; `--no-eval` skips) → launches the read app.
+
+```bash
+python3 quickstart.py                                            # interactive
+python3 quickstart.py --demo fairy-tales --provider ollama \
+        --yes --no-launch                                        # unattended
+```
+
+- **`requirements.txt`** is hash-pinned, regenerated from `uv.lock` with
+  `uv export --no-dev --no-emit-project` — so the installer's plain-`pip` path
+  reproduces the exact tested versions without uv, and `--no-emit-project`
+  keeps the local package out (the marimo apps self-add `base/` to `sys.path`,
+  so nothing needs installing as a package). Regenerate it whenever `uv.lock`
+  changes.
+- **`examples/<name>/`** demos are auto-discovered (any subfolder with a
+  `wiki/` dir). Each is a complete pre-ingested workspace, so browsing works
+  with no LLM; only chat calls the model. `examples/fairy-tales/.llmwiki/index.db`
+  is force-added past the demo's own `.gitignore` (which excludes `.llmwiki/`).
+- The step functions are factored to be importable, so a planned **tkinter**
+  front-end can wrap them and fall back to the console wizard when `import
+  tkinter` fails.
 
 ### Running locally
 

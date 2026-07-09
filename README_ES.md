@@ -5,6 +5,8 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
 ![Tests](https://img.shields.io/badge/tests-497-brightgreen.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Version](https://img.shields.io/github/v/tag/Clod/llmwiki-marimo?label=version&sort=semver&color=blue)](https://github.com/Clod/llmwiki-marimo/releases)
+[![Changelog](https://img.shields.io/badge/changelog-md-orange)](CHANGELOG.md)
 
 [English](README.md) · **Español**
 
@@ -204,11 +206,17 @@ docs/
 ├── programmer_manual.md   # Referencia canónica para desarrolladores
 └── archive/               # Documentos de diseño superados (históricos)
 
+examples/               # Wikis de demostración pre-ingeridas (usadas por quickstart.py)
+└── fairy-tales/           # Navegable sin LLM; el chat necesita un modelo
+
 tests/
 ├── unit/                  # 470 pruebas unitarias (FakeLLM, sin red)
 ├── regression/            # 16 pruebas congeladas de corpus dorado (ingesta real, sin modelo en vivo)
 ├── e2e/                   # 11 pruebas E2E con Playwright (app de ingesta + lectura)
 └── fixtures/              # PDFs de prueba + config de wiki + corpus dorado
+
+quickstart.py           # Instalador de consola de un comando (solo Python; ver Inicio rápido)
+requirements.txt        # Dependencias fijadas por hash exportadas de uv.lock (para el pip del instalador)
 ```
 
 ---
@@ -221,13 +229,43 @@ tests/
     - macOS: `brew install --cask libreoffice`
     - Debian/Ubuntu: `sudo apt install libreoffice` (Fedora: `sudo dnf install libreoffice`)
     - Windows: `winget install TheDocumentFoundation.LibreOffice`
-- **git** — *opcional*; impulsa el auto-commit del historial de versiones de la wiki. La mayoría de los sistemas ya lo tienen; si falta, las instantáneas se omiten (con una advertencia) y la ingesta sigue funcionando — o define `WIKI_AUTOCOMMIT=0` para no usarlo.
+- **git** — necesario para clonar el repo (el primer paso del Inicio rápido; la mayoría de los sistemas ya lo tienen). También impulsa el auto-commit del historial de versiones de la wiki, y *esa* parte sí es opcional: si git falta en tiempo de ejecución, las instantáneas se omiten (con una advertencia) y la ingesta sigue funcionando — o define `WIKI_AUTOCOMMIT=0` para no usarlo.
 
 ---
 
 ## Inicio rápido
 
-### 1. Clonar e instalar
+La forma más rápida de verlo funcionar — todo lo que necesitás es **Python 3.12+
+y git** (sin `uv`, sin `.env` manual):
+
+```bash
+git clone --depth 1 https://github.com/Clod/llmwiki-marimo.git
+cd llmwiki-marimo
+python3 quickstart.py
+```
+
+`quickstart.py` es un instalador de consola sin dependencias. Verifica tu
+versión de Python, instala una **wiki de demostración pre-ingerida** (navegable
+al instante — no hace falta un LLM solo para leer), corre un breve asistente de
+proveedor (**Ollama local por defecto**, o cualquier endpoint compatible con
+OpenAI como LM Studio u OpenRouter), crea un
+entorno virtual aislado a partir de un `requirements.txt` fijado por lock, corre
+un **chequeo de grounding** advisory sobre tu modelo (`--no-eval` lo salta), y
+lanza la app de lectura. No sobrescribe un `.env` ni una demo existentes sin
+preguntar, y los flags lo hacen automatizable:
+
+```bash
+python3 quickstart.py --demo fairy-tales --provider ollama --yes --no-launch
+```
+
+> La demo vive en [`examples/`](examples/); navegar sus páginas generadas no
+> requiere ningún modelo configurado — solo el asistente de chat llama al LLM.
+
+¿Preferís configurarlo a mano? La instalación manual con `uv` está debajo.
+
+### Instalación manual (uv)
+
+#### 1. Clonar e instalar
 
 ```bash
 git clone https://github.com/Clod/llmwiki-marimo.git
@@ -235,7 +273,7 @@ cd llmwiki-marimo
 uv sync
 ```
 
-### 2. Configurar
+#### 2. Configurar
 
 Copia `.env.example` a `.env` y complétalo:
 
@@ -257,7 +295,7 @@ lugar del directorio padre de `WIKI_PATH`.
 
 Ver [Proveedores de LLM](#proveedores-de-llm) para la configuración de Ollama y LM Studio.
 
-### 3. Ingerir documentos
+#### 3. Ingerir documentos
 
 ```bash
 uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
@@ -265,7 +303,7 @@ uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
 
 Abre [http://localhost:2718](http://localhost:2718), suelta tus PDFs o DOCXs, haz clic en **Ingest**.
 
-### 4. Leer y conversar
+#### 4. Leer y conversar
 
 ```bash
 uv run marimo run marimo/read_app.py --no-sandbox --port 2720
@@ -351,8 +389,27 @@ Si `WIKI_LLM_*` están vacíos, la ingesta recurre a `LLM_*`.
 >
 > **¿No estás seguro de si un modelo supera el umbral?** Ejecuta `uv run python scripts/eval_chat_model.py`
 > — le hace a la wiki de ejemplo incluida unas preguntas fijas y da un PASS/FAIL sobre
-> exactamente estos comportamientos (rechazo fuera del corpus, citas, síntesis citada). Ver
-> [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Parte C.
+> exactamente estos comportamientos (rechazo fuera del corpus, citas, síntesis citada).
+> Verifica que el modelo **realmente llamó a una herramienta de recuperación**, no solo
+> que la respuesta *parezca* citada — así, un modelo que fabrica una cita de memoria (cero
+> tool calls) falla. Ver [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Parte C.
+>
+> **Un dato de las pruebas locales** (LM Studio en un M2 Pro, quants Q4_K_M, agente de chat
+> fijado en `temperature=0`). El protocolo estricto de recuperar-y-citar es exigente, y los
+> modelos locales por debajo de ~12B lo rompieron cada uno a su manera:
+>
+> | Modelo (local) | `eval_chat_model.py` | Cómo falló |
+> | --- | --- | --- |
+> | `Qwen2.5-7B-Instruct` | 2/3 | salteó la recuperación cuando «sabía» la respuesta; recuperó pero no citó |
+> | `Meta-Llama-3.1-8B-Instruct` | 2/3 | siguió el protocolo, pero *se rindió* en la síntesis — afirmó en falso que el contenido no estaba en la wiki cuando sí estaba |
+> | `gemma-4-12b-it-qat` (QAT) | ✗ inconsistente | fabricó citas con **cero tool calls**; filtró un canal de razonamiento en la respuesta |
+> | `gemma-4-12b` (no-QAT) | **3/3** | — |
+>
+> Conclusión: **elige un modelo que pase 3/3**, y para modelos locales esperá que eso
+> signifique aproximadamente **12B o más**. Los modelos más chicos rompen el contrato de
+> grounding cada uno a su modo — el eval es cómo lo detectás *antes* de confiar en las
+> respuestas de la wiki. (La temperatura está fijada en 0 en el agente de chat, así que el
+> grounding es determinístico y un PASS es reproducible, no suerte.)
 
 ---
 

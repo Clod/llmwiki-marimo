@@ -58,3 +58,89 @@ def test_synthesis_grader_requires_at_least_one_citation() -> None:
         "(wiki/summaries/snow-white.md)."
     )
     assert passed_two is True
+
+
+# ── Retrieval check: a citation only counts if a tool was actually called ──────
+
+class _Part:
+    def __init__(self, kind: str) -> None:
+        self.part_kind = kind
+
+
+class _Msg:
+    def __init__(self, *kinds: str) -> None:
+        self.parts = [_Part(k) for k in kinds]
+
+
+class _Result:
+    def __init__(self, *messages: _Msg) -> None:
+        self._messages = messages
+
+    def all_messages(self) -> tuple[_Msg, ...]:
+        return self._messages
+
+
+def test_made_tool_call_true_when_a_tool_call_part_is_present() -> None:
+    result = _Result(_Msg("text"), _Msg("tool-call", "text"))
+    assert _eval._made_tool_call(result) is True
+
+
+def test_made_tool_call_false_when_only_text_parts() -> None:
+    # A model that answers (even with citation-shaped text) without any tool call
+    # never retrieved — the fabricated-citation case this whole check exists for.
+    result = _Result(_Msg("text"), _Msg("text"))
+    assert _eval._made_tool_call(result) is False
+
+
+def test_made_tool_call_defensive_when_introspection_raises() -> None:
+    class _Broken:
+        def all_messages(self):  # noqa: ANN202
+            raise RuntimeError("unexpected pydantic-ai shape")
+
+    assert _eval._made_tool_call(_Broken()) is False
+
+
+def test_count_tool_calls_counts_across_messages() -> None:
+    result = _Result(_Msg("tool-call", "text"), _Msg("text"), _Msg("tool-call"))
+    assert _eval._count_tool_calls(result) == 2
+    assert _eval._count_tool_calls(_Result(_Msg("text"))) == 0
+
+
+# ── Per-check system prompts: the off-topic check runs domain-blind ────────────
+
+def test_offtopic_check_uses_strict_search_prompt() -> None:
+    label, _q, _grader, requires, prompt = _eval._QUESTIONS[0]
+    assert label == "Refuses off-topic questions"
+    assert prompt is _eval._STRICT_SEARCH_PROMPT
+    assert requires is True
+
+
+def test_citation_checks_use_the_production_default_prompt() -> None:
+    # system_prompt=None makes create_agent fall back to _DEFAULT_SYSTEM_PROMPT,
+    # whose worked example is what makes cross-document citation reliable.
+    for label, _q, _grader, _req, prompt in _eval._QUESTIONS[1:]:
+        assert prompt is None, f"{label} should use the production default prompt"
+
+
+def test_strict_search_prompt_is_domain_blind() -> None:
+    # It must not name the wiki's subject — that leak is the whole reason a strong
+    # model can refuse "capital of France" without ever searching.
+    p = _eval._STRICT_SEARCH_PROMPT.lower()
+    for leak in ("cinderella", "snow white", "sleeping beauty", "fairy"):
+        assert leak not in p, f"strict prompt leaks the domain: {leak!r}"
+
+
+def test_strict_search_prompt_mandates_retrieval_before_declining() -> None:
+    # The differentiator from the production prompt: no "decline obvious trivia
+    # without searching" shortcut — a search is required even before a refusal.
+    p = _eval._STRICT_SEARCH_PROMPT.lower()
+    assert "before you decline" in p
+    assert "must retrieve" in p
+
+
+def test_production_prompt_by_contrast_names_the_domain() -> None:
+    # Documents *why* the off-topic check needs its own prompt: the shipped prompt
+    # reveals the subject (fairy tales), so it can't test search-before-refuse.
+    from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
+
+    assert "cinderella" in _DEFAULT_SYSTEM_PROMPT.lower()

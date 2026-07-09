@@ -3,6 +3,9 @@ node_modules/
 .venv/
 venv/
 
+# Demo wikis materialized by quickstart.py (the tracked sources live in examples/)
+/wikis/
+
 # MCP config (contains user IDs)
 .mcp.json
 
