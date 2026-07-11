@@ -523,3 +523,102 @@ preguntas juntas **cubran las cuatro** es la razón por la que esta demo funcion
 como banco de pruebas del motor completo. El script `scripts/uat_finanzas.py`
 automatiza estas nueve comprobaciones (los números deterministas se afirman
 exactos; los comportamientos honestos se detectan por su forma).
+
+### 4.4 Qué se rompió en el UAT y cómo se cerró
+
+Correr esta guía como UAT **real** —las nueve preguntas seguidas, en una misma
+sesión— no fue un trámite: destapó fallas concretas que no se ven pregunta por
+pregunta aislada. Un **trace opt-in** (`WIKI_CHAT_TRACE=1`,
+`base/domain/chat/trace.py`) que registra cada turno —herramientas llamadas,
+contenido recuperado, respuesta cruda vs. final— permitió diagnosticar cada caso
+**con datos, no con suposiciones**. Aparecieron dos problemas transversales, los
+dos por la **acumulación de contexto** turno a turno:
+
+- **Contagio del historial (_priming_):** una respuesta previa en prosa —o un
+  rechazo que quedaba en el contexto— arrastraba a las siguientes a imitar ese
+  formato (perder la tabla, dejar de citar).
+- **Exceso de contexto → degradación:** pasados ~3 turnos, con el historial ya
+  pesado, el modelo **dejaba de llamar herramientas** y respondía de memoria (o
+  rechazaba de más). Y una **autocrítica honesta**: nuestro propio post-procesado
+  lo agravó — al pegar la tabla del asesor (40+ filas) en lo que ve el usuario, y
+  eso mismo vuelve al historial del turno siguiente, **inflábamos el contexto** y
+  acelerábamos la degradación. Por eso `chat/history.py::trim_history` no solo
+  recorta turnos: **compacta esas tablas** fuera del historial que se le manda al
+  modelo (el usuario las sigue viendo enteras).
+
+Un hilo conceptual atraviesa varias preguntas: el guardrail garantiza que
+*alguna herramienta trajo algo*, pero **no** que la respuesta **cite** esa fuente
+(→ lo cierra `ensure_citation`, casos A y C) ni que la fuente **respalde** la
+respuesta (→ lo cierra la verificación "salió de la fuente", caso G). Esas dos
+ausencias son, respectivamente, por qué existen el post-procesado de citas y la
+verificación del _leak_.
+
+Ninguno se arregla tocando el _prompt_ (frágil ante el _priming_): se cerraron
+moviendo las garantías a **código determinista**. Caso por caso:
+
+- **A (cita):** en sesión larga el modelo **dejaba de citar** aunque hubiera
+  leído la página. Cierre — se **eliminan los rechazos del historial** que se le
+  manda al modelo (`chat/guardrail.py::strip_refused_exchanges`) y, si la
+  respuesta no trae cita, el **código la agrega** apuntando a la página que
+  efectivamente se leyó, distinguiendo *Referencia* (archivo/página) de *Fuente*
+  (origen externo) → `chat/postprocess.py::ensure_citation`.
+- **B (tabla del asesor):** con el historial cargado, el modelo **reescribía la
+  tabla determinista en prosa**, perdiendo la tabla y sus fuentes (el trace lo
+  confirmó: sesión fresca = tabla; sesión avanzada = prosa). Cierre — el **código
+  pega la tabla verbatim** de la herramienta debajo de la respuesta (agrega, no
+  reemplaza; idempotente) → `chat/postprocess.py::answer_with_table`.
+- **C (dólar):** el modelo **filtraba la cotización a un solo lado**
+  (`metrica="compra"`, sin venta) y no citaba el archivo del dato. Cierre — un
+  _nudge_ en el prompt (para cotizaciones, mostrar compra **y** venta) + el
+  post-procesado, que agrega **Fuente** (el origen, ámbito) **y Referencia** (el
+  dataset `dolar.md`) → `wiki_config.toml`, `chat/postprocess.py::ensure_citation`.
+- **D (inflación):** el modelo **inventaba tasas e inflación de memoria**
+  (~40-45% y >50%) **sin recuperar nada**; el guardrail lo rechazaba, pero el
+  usuario perdía la respuesta correcta. La causa: _elegía no buscar_. Cierre — el
+  **pre-retrieval híbrido** _(en construcción en este PR)_: el **código** busca e
+  inyecta las páginas de inflación (plazo fijo tradicional/UVA, bonos CER/UVA,
+  riesgo de rezago inflacionario, TIR real) antes de responder, de modo que el
+  modelo **no pueda saltear** la recuperación. (El UAT automatizado la trata como
+  conceptual —§4.2—; pero en el chat en **modo estricto**, sin recuperación no hay
+  fundamento y se rechaza, así que darle las páginas es lo que la habilita a
+  contestar bien en vez de inventar.)
+- **E (acciones):** daba la respuesta correcta ("no es estimable") **sin llamar
+  herramienta**, y el guardrail la tapaba con el rechazo genérico; en sesión larga
+  además dejaba de recuperar. Cierre — igual que D, el pre-retrieval inyecta
+  `acciones-locales.md` (la respuesta queda fundada) _(en construcción en este
+  PR)_, más el _nudge_ de rutear "cuánto gano" por el asesor, que ya lista las
+  acciones como "no estimable".
+- **F (comparación):** en sesión larga F **dejaba de llamar al asesor**
+  (`NINGUNA` herramienta → rechazo) y, cuando respondía, reescribía la tabla.
+  Cierre — **gestión de historial** (`chat/history.py::trim_history`: contexto
+  magro que compacta las tablas viejas y recorta a los últimos turnos)
+  **recuperó** la llamada a la herramienta; `answer_with_table` garantiza la tabla.
+- **G (CEDEARs — el _leak_):** al no haber página de CEDEARs, el modelo caía a los
+  documentos crudos, agarraba un **fragmento tangencial** (un doc de bonos que
+  menciona "CEDEARs" al pasar) y con esa excusa **filtraba conocimiento general**;
+  el guardrail lo daba por "fundado". Cierre _(en construcción en este PR)_ —
+  (1) una **lista de términos fuera de alcance** revisada al principio (CEDEARs →
+  abstención inmediata, antes de tocar los documentos) y una **lista de falsos
+  sinónimos** (CEDEAR ≠ acciones) para que el paso de sinónimos no los cruce;
+  (2) para lo no anticipado, **verificación "la respuesta salió de la fuente"**
+  (solapamiento léxico) sobre los documentos crudos. Ambas listas son config
+  editable a mano, por wiki.
+- **H (Comafi):** **ningún problema** — anduvo desde el principio. Es el **espejo
+  de G**: como `query_dataset` con una clave inexistente devuelve solo un marcador
+  negativo ("no rows"), no hay nada "sustantivo" que el modelo pueda usar y la
+  abstención sale limpia. Confirma que el guardrail acierta cuando la única
+  evidencia es negativa (y que el _leak_ de G no era del guardrail, sino de un
+  fragmento crudo tangencial).
+- **I (fuera de tema):** **ningún problema** — la regla de dominio del prompt
+  abstiene bien. Con el pre-retrieval se vuelve además **más barato**: al no haber
+  coincidencia ni en el wiki ni en la "lista de datos", se abstiene **sin siquiera
+  invocar al modelo** _(en construcción en este PR)_.
+
+**Las capas que salieron de esto.** Dos ya son código en este PR — el
+**post-procesado determinista** (`chat/postprocess.py`: pega la tabla, garantiza
+la cita) y la **gestión de historial** (`chat/history.py`) — y una está en
+construcción: el **pre-retrieval híbrido** (el código recupera antes que el
+modelo; niveles de confianza curado/crudo con aviso y verificación; y un portón
+de "no lo tengo" barato para lo que está fuera de alcance). La lección de fondo,
+repetida en A/B/C/F: **lo que tiene que ser garantizado no puede depender de que
+el modelo obedezca el _prompt_ turno a turno — se pone en código.**
