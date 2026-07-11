@@ -383,12 +383,14 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
             chat_trace_enabled,
             record_turn,
         )
+        from domain.chat.postprocess import answer_with_table, ensure_citation
+        from domain.chat.history import trim_history
 
         # Drop prior refusals from the context: a citation-less "not in my
         # knowledge base" turn primes the model to answer the next question
         # without a citation too (verified). They carry nothing forward.
         history = []
-        for msg in strip_refused_exchanges(messages[:-1]):
+        for msg in trim_history(strip_refused_exchanges(messages[:-1])):
             if msg.role == "user":
                 history.append(ModelRequest(parts=[UserPromptPart(content=msg.content)]))
             elif msg.role == "assistant":
@@ -425,11 +427,16 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
                 _question, deps=wiki_db_path, message_history=history
             )
             raw = result.output
-            answer = enforce_grounding(
-                raw, result.all_messages(), refusal=refusal_for(_lang)
-            )
+            _msgs = result.all_messages()
+            answer = enforce_grounding(raw, _msgs, refusal=refusal_for(_lang))
+            refusal_substituted = answer != raw
+            # Deterministic post-processing (domain/chat/postprocess.py): guarantee
+            # the advisory table and a source citation regardless of whether the
+            # model reproduced them under history priming. Both no-op on a refusal.
+            answer = answer_with_table(answer, _msgs)
+            answer = ensure_citation(answer, _msgs)
             _trace(raw_output=raw, final_answer=answer, result=result,
-                   refusal_substituted=(answer != raw))
+                   refusal_substituted=refusal_substituted)
             set_last_response(answer)
             yield answer
         else:
