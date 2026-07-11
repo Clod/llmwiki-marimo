@@ -41,6 +41,49 @@ def test_extract_structured_parses_valid_json() -> None:
     assert result.concepts[1].name == "Quantitative Easing"
 
 
+_JSON_WITH_ALIASES = json.dumps({
+    "document_summary": "This document explains CEDEARs.",
+    "concepts": [
+        {
+            "name": "CEDEAR",
+            "category": "instrument",
+            "insight": "A certificate representing a foreign share",
+            "aliases": ["Certificado de Depósito Argentino", "CEDEARs"],
+        },
+    ],
+})
+
+
+def test_extract_structured_parses_aliases() -> None:
+    """Phase-1 of the ingest-time vocabulary: concepts carry their alt-names."""
+    llm = FakeLLMClient(response_content=_JSON_WITH_ALIASES)
+    result = extract_structured(_DOC_META, _PAGE_CONTENTS, llm, "fake")
+    assert result.concepts[0].name == "CEDEAR"
+    assert result.concepts[0].aliases == ["Certificado de Depósito Argentino", "CEDEARs"]
+
+
+def test_extract_structured_aliases_default_empty_when_absent() -> None:
+    """Back-compat: JSON without an 'aliases' key yields an empty list, not an error."""
+    llm = FakeLLMClient(response_content=_VALID_JSON)  # _VALID_JSON has no aliases
+    result = extract_structured(_DOC_META, _PAGE_CONTENTS, llm, "fake")
+    assert result.concepts[0].aliases == []
+    assert result.concepts[1].aliases == []
+
+
+def test_extract_structured_drops_blank_and_nonstring_aliases() -> None:
+    """The parser keeps only non-empty string aliases (defensive against LLM noise)."""
+    noisy = json.dumps({
+        "document_summary": "s",
+        "concepts": [
+            {"name": "Dólar", "category": "instrument", "insight": "i",
+             "aliases": ["blue", "", "  ", None, 42, "billete verde"]},
+        ],
+    })
+    llm = FakeLLMClient(response_content=noisy)
+    result = extract_structured(_DOC_META, _PAGE_CONTENTS, llm, "fake")
+    assert result.concepts[0].aliases == ["blue", "billete verde"]
+
+
 def test_extract_structured_strips_markdown_fences() -> None:
     fenced = f"```json\n{_VALID_JSON}\n```"
     llm = FakeLLMClient(response_content=fenced)

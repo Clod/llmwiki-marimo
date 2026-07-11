@@ -27,6 +27,7 @@ from .wiki_generator import (
     extract_structured, build_summary_page, build_concept_page, update_overview,
     inject_see_also,
 )
+from .alias_generation import update_generated_aliases
 from domain.i18n import get_locale
 from domain.tools.db import open_db
 from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
@@ -292,6 +293,21 @@ def ingest_file(
                     )
                     one_liner = concept.insight[:80] if concept.insight else concept.name
                     update_index(workspace, f"concepts/{slug}.md", one_liner, "concepts", language=language)
+
+            # ── Step 8b: Update the generated alias artifact (best-effort) ────
+            # Concepts contribute their name + aliases to .llmwiki/aliases.generated.toml,
+            # validated against the wiki's coverage. Never abort ingest on failure —
+            # the pages are the deliverable; an alias is secondary.
+            try:
+                _alias_result = update_generated_aliases(
+                    workspace,
+                    _all_concept_names(db_path),
+                    [(c.name, c.aliases) for c in extraction.concepts],
+                )
+                if _alias_result.collisions:
+                    _cb(f"⚠️ {len(_alias_result.collisions)} alias collision(s) dropped")
+            except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail ingest
+                logger.warning("alias generation failed for %s: %s", file_path.name, exc)
 
             # ── Step 9: Create summary page ───────────────────────────────────
             _cb("📄 Writing summary page...")

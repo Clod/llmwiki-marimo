@@ -82,7 +82,11 @@ Output only the markdown. Do not add any preamble or explanation outside the pag
 _EXTRACT_SYSTEM = """\
 You are a knowledge extraction assistant. Given a document, extract:
 1. A concise summary (2-3 sentences)
-2. Key concepts: entities, instruments, or themes worth a standalone wiki page
+2. Key concepts: entities, instruments, or themes worth a standalone wiki page.
+   For each concept give a short, clean canonical name (a noun phrase — no
+   parenthetical glosses, no "X vs Y") plus any aliases: other names for exactly
+   the SAME thing (abbreviations, synonyms, an acronym's expansion). Never list a
+   related-but-different concept as an alias.
 
 Respond with valid JSON only — no markdown fences, no commentary."""
 
@@ -101,14 +105,16 @@ Return JSON with this exact structure:
   "document_summary": "2-3 sentence summary of the document",
   "concepts": [
     {{
-      "name": "Concept Name",
+      "name": "Short canonical name — a noun phrase, no parentheses or vs-comparisons",
       "category": "entity|instrument|theme",
-      "insight": "The specific new insight this document adds about this concept"
+      "insight": "The specific new insight this document adds about this concept",
+      "aliases": ["other names for the exact same thing", "abbreviations, synonyms"]
     }}
   ]
 }}
 
-Extract 2-5 concepts. Only include concepts worth a dedicated wiki page."""
+Extract 2-5 concepts. Only include concepts worth a dedicated wiki page. Use an
+empty list for "aliases" when the concept has no common alternate names."""
 
 _CONCEPT_SYSTEM = """\
 You are a wiki page author. Write clear, factual concept pages in markdown.
@@ -244,6 +250,7 @@ class ExtractedConcept:
     name: str
     category: str  # "entity" | "instrument" | "theme"
     insight: str
+    aliases: list[str] = field(default_factory=list)  # other names for the SAME thing
 
 
 @dataclass
@@ -285,6 +292,13 @@ def extract_structured(
     return _parse_extraction(raw, doc_meta["filename"])
 
 
+def _clean_aliases(raw) -> list[str]:
+    """Keep only non-empty string aliases; tolerate a missing or malformed field."""
+    if not isinstance(raw, list):
+        return []
+    return [a.strip() for a in raw if isinstance(a, str) and a.strip()]
+
+
 def _parse_extraction(raw: str, filename: str) -> ExtractionResult:
     """Parse JSON response into ExtractionResult; fall back gracefully on error."""
     # Strip optional markdown fences
@@ -298,6 +312,7 @@ def _parse_extraction(raw: str, filename: str) -> ExtractionResult:
                 name=c.get("name", ""),
                 category=c.get("category", "theme"),
                 insight=c.get("insight", ""),
+                aliases=_clean_aliases(c.get("aliases")),
             )
             for c in data.get("concepts", [])
             if c.get("name")

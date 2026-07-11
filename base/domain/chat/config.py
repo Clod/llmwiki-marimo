@@ -22,6 +22,8 @@ from pathlib import Path
 from domain.i18n import get_locale
 # Single source of truth for reading [wiki].language from wiki_config.toml.
 from domain.wiki_settings import load_wiki_language
+# Merge the ingest-generated alias artifact under the hand-written overrides.
+from domain.chat.vocabulary import merge_aliases, read_generated_aliases
 
 
 # ── DEFAULT SYSTEM PROMPT (THE AI'S CONSTITUTION) ─────────────────────────────
@@ -216,6 +218,10 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
         str(term): list(bad)
         for term, bad in data.get("falsos_sinonimos", {}).items()
     }
+    # Fold the ingest-generated aliases (base) under the hand-written overrides
+    # (win), minus the false-synonym delete filter. Absent artifact → {} → the
+    # hand config behaves exactly as before.
+    data_aliases = merge_aliases(read_generated_aliases(wiki_path), data_aliases, false_synonyms)
     pre_retrieval = bool(data.get("pre_retrieval", {}).get("enabled", False))
 
     # 5. Populate and return a WikiAssistantConfig object, safely defaulting
