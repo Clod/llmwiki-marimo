@@ -89,6 +89,7 @@ def create_agent(
     workspace: Path | None = None,
     extra_tools: list | None = None,
     extra_prompt: str | None = None,
+    include_wiki_tools: bool = True,
 ) -> Agent[str, str]:
     """Return a configured wiki assistant agent.
 
@@ -150,7 +151,11 @@ def create_agent(
     # unless workspace/datasets/ exists and has >=1 valid dataset file. When
     # workspace is None (existing call sites) this is always False, so default
     # behavior is unaffected.
-    tools = [read_wiki_page, search_wiki_fts, search_source_chunks]
+    # include_wiki_tools=False powers the hybrid pre-retrieval: the CODE retrieves
+    # and injects wiki/source context, so the model no longer needs (and must not
+    # have) the search/read tools — dropping them is what stops it from skipping
+    # retrieval. query_dataset and overlay tools (e.g. the advisory) stay.
+    tools = [read_wiki_page, search_wiki_fts, search_source_chunks] if include_wiki_tools else []
     if workspace is not None and has_active_datasets(workspace):
         tools.append(query_dataset)
         effective_prompt = f"{effective_prompt}{_DATASET_PROMPT_ADDENDUM}"

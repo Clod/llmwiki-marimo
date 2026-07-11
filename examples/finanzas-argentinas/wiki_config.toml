@@ -78,3 +78,23 @@ suggested_prompts = [
     "¿Conviene plazo fijo o FCI money market para 60 días?",
     "¿A cuánto está el dólar MEP?",
 ]
+
+# ── Pre-retrieval híbrido (opt-in) ────────────────────────────────────────────
+# Con esto activo, el CÓDIGO recupera del wiki y le inyecta el contexto al modelo
+# (que ya no tiene herramientas de búsqueda), en vez de dejar que el modelo
+# decida buscar. Ver base/domain/chat/preretrieval.py.
+[pre_retrieval]
+enabled = true
+
+# Lista NEGRA: términos que sabemos que NO cubrimos -> abstención inmediata,
+# antes de tocar los documentos. (Una línea por caso; agregá los que surjan.)
+[fuera_de_alcance]
+terminos = ["cedear", "cedears", "cripto", "bitcoin"]
+
+# Lista BLANCA: otros nombres de datos que SÍ tenemos (canónico -> alias).
+[alias_datos]
+dolar = ["billete verde", "blue", "divisa"]
+
+# FALSOS sinónimos: pares que NO son lo mismo -> no cruzar en el paso de sinónimos.
+[falsos_sinonimos]
+cedear = ["accion", "acciones"]

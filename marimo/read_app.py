@@ -422,6 +422,29 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
             except Exception:  # noqa: BLE001 — tracing is best-effort
                 pass
 
+        if wiki_chat_config and wiki_chat_config.pre_retrieval:
+            # Hybrid pre-retrieval (opt-in per wiki): the CODE retrieves + gates;
+            # the model (built without wiki search tools) answers only from the
+            # injected context. See domain/chat/preretrieval.py.
+            from domain.chat.preretrieval import pre_retrieval_answer
+            _ws = Path(wiki_db_path).parent.parent
+
+            async def _run_agent(_prompt, _hist):
+                return await wiki_agent.run(_prompt, deps=wiki_db_path, message_history=_hist)
+
+            def _pre_trace(*, raw, final, result, refusal_substituted):
+                _trace(raw_output=raw, final_answer=final, result=result,
+                       refusal_substituted=refusal_substituted)
+
+            answer = await pre_retrieval_answer(
+                _question, config=wiki_chat_config, db_path=wiki_db_path,
+                workspace=_ws, history=history, language=_lang,
+                run_agent=_run_agent, on_trace=_pre_trace,
+            )
+            set_last_response(answer)
+            yield answer
+            return
+
         if grounding_flag["strict"]:
             result = await wiki_agent.run(
                 _question, deps=wiki_db_path, message_history=history
@@ -602,6 +625,7 @@ def wiki_context(active_wiki):
             workspace=WIKI_PATH,
             extra_tools=_fin_tools,
             extra_prompt=_fin_prompt,
+            include_wiki_tools=not wiki_chat_config.pre_retrieval,
         )
     else:
         wiki_db_path = None

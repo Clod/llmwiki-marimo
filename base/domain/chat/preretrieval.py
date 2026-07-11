@@ -14,8 +14,23 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from domain.chat.scope import is_off_limits
+from domain.chat.guardrail import enforce_grounding, refusal_for
+from domain.chat.overlap import is_supported
+from domain.chat.postprocess import answer_with_table, ensure_citation
+from domain.chat.scope import is_off_limits, mentions_known_data
 from domain.datasets.models import DatasetSource
+from domain.datasets.source import LocalMarkdownSource
+from domain.tools.search import search_chunks
+
+_INJECT_TEMPLATE = (
+    "Respondé la pregunta usando EXCLUSIVAMENTE el siguiente contexto recuperado "
+    "del wiki, citando la fuente. Si el contexto no alcanza para responder, decilo.\n\n"
+    "{context}\n\n---\nPregunta: {question}"
+)
+_TIER2_WARNING = (
+    "> ⚠️ Esta respuesta proviene de un documento fuente sin página curada del "
+    "wiki; verificá."
+)
 
 
 def build_vocabulary(source: DatasetSource) -> set[str]:
@@ -29,6 +44,28 @@ def build_vocabulary(source: DatasetSource) -> set[str]:
         for row in source.query(categoria):
             vocabulary.add(row.clave)
     return vocabulary
+
+
+def _format_hits(rows: list[dict]) -> list[str]:
+    """Turn search_chunks rows into injectable, attributed text blocks."""
+    blocks: list[str] = []
+    for row in rows:
+        content = (row.get("content") or "").strip()
+        if not content:
+            continue
+        label = row.get("path") or row.get("filename") or ""
+        blocks.append(f"[{label}]\n{content}" if label else content)
+    return blocks
+
+
+def retrieve_wiki(db_path: str, query: str, *, limit: int = 6) -> list[str]:
+    """Top curated-wiki chunks for `query` (Tier 1). Empty list if none."""
+    return _format_hits(search_chunks(db_path, query, limit=limit, scope="wiki"))
+
+
+def retrieve_source_chunks(db_path: str, query: str, *, limit: int = 4) -> list[str]:
+    """Top raw source-document chunks for `query` (Tier 2). Empty if none."""
+    return _format_hits(search_chunks(db_path, query, limit=limit, scope="sources"))
 
 
 @dataclass(frozen=True)
@@ -76,3 +113,76 @@ def plan_retrieval(
     if has_data:
         return RetrievalPlan("invoke", None, None, False)
     return _REFUSE
+
+
+async def pre_retrieval_answer(
+    question: str,
+    *,
+    config,
+    db_path: str,
+    workspace,
+    history: list,
+    language: str | None,
+    run_agent,
+    on_trace=None,
+) -> str:
+    """Run one turn through the hybrid pre-retrieval flow and return the answer.
+
+    The CODE retrieves (curated wiki, then raw docs) and decides the plan; the
+    model is invoked (via the injected async `run_agent(prompt, history)`) only
+    when there's grounding to give it, with the retrieved context prepended.
+    Tier-2 (raw-doc) answers are verified with lexical overlap and warned; the
+    off-limits / nothing-found cases refuse WITHOUT invoking the model.
+
+    `run_agent` is injected so this is testable without an LLM; it must return an
+    object with `.output` (str) and `.all_messages()`. `on_trace`, if given, is
+    called with (raw, final, result, refusal_substituted) for the chat trace.
+    """
+    refusal = refusal_for(language)
+    aliases = [alias for names in config.data_aliases.values() for alias in names]
+    vocabulary = build_vocabulary(LocalMarkdownSource(workspace / "datasets"))
+    has_data = mentions_known_data(question, vocabulary, aliases)
+
+    if is_off_limits(question, config.off_limits):
+        wiki_hits, doc_hits = [], []
+    else:
+        wiki_hits = retrieve_wiki(db_path, question)
+        doc_hits = retrieve_source_chunks(db_path, question) if not wiki_hits else []
+
+    plan = plan_retrieval(
+        question, off_limits=config.off_limits,
+        wiki_hits=wiki_hits, doc_hits=doc_hits, has_data=has_data,
+    )
+
+    if plan.action == "refuse":
+        if on_trace:
+            on_trace(raw="", final=refusal, result=None, refusal_substituted=True)
+        return refusal
+
+    prompt = (
+        _INJECT_TEMPLATE.format(context=plan.context, question=question)
+        if plan.context else question
+    )
+    result = await run_agent(prompt, history)
+    raw = result.output
+    messages = result.all_messages()
+
+    # Tier 2 (raw doc): verify the answer actually draws on the retrieved chunk.
+    if plan.verify and not is_supported(raw, plan.context or ""):
+        if on_trace:
+            on_trace(raw=raw, final=refusal, result=result, refusal_substituted=True)
+        return refusal
+
+    # Grounding: injected context IS the grounding for Tier 1/2 (skip the
+    # tool-based guardrail, which would wrongly refuse a context-only answer);
+    # for a data/advisory question (no injected context) keep the guardrail.
+    gated = enforce_grounding(raw, messages, refusal=refusal) if plan.context is None else raw
+    refusal_substituted = gated == refusal and raw != refusal
+
+    answer = ensure_citation(answer_with_table(gated, messages), messages)
+    if plan.tier == "crudo" and answer != refusal:
+        answer = f"{answer}\n\n{_TIER2_WARNING}"
+
+    if on_trace:
+        on_trace(raw=raw, final=answer, result=result, refusal_substituted=refusal_substituted)
+    return answer
