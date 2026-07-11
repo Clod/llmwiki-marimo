@@ -158,6 +158,14 @@ class WikiAssistantConfig:
     # and the localized default suggested_prompts above). Defaults to English.
     language: str = "en"
 
+    # ── Hybrid pre-retrieval scope lists (hand-editable, per wiki) ────────────
+    # Blacklist: terms we know we never cover -> refuse immediately (top of flow).
+    off_limits: list[str] = field(default_factory=list)
+    # Whitelist: canonical data term -> alternate names ("dolar" -> "billete verde").
+    data_aliases: dict[str, list[str]] = field(default_factory=dict)
+    # Pairs that are NOT synonyms -> filter the synonym-rescue step ("cedear" -> "accion").
+    false_synonyms: dict[str, list[str]] = field(default_factory=dict)
+
 
 # ── CONFIG LOADER ─────────────────────────────────────────────────────────────
 
@@ -192,6 +200,18 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
     # 4. Extract parameters from the [assistant] section (e.g. key:value settings)
     assistant = data.get("assistant", {})
 
+    # 4b. Extract the hybrid pre-retrieval scope lists (own top-level sections so
+    #     they read as plain, hand-editable config — one line per case).
+    off_limits = list(data.get("fuera_de_alcance", {}).get("terminos", []))
+    data_aliases = {
+        str(canonical): list(aliases)
+        for canonical, aliases in data.get("alias_datos", {}).items()
+    }
+    false_synonyms = {
+        str(term): list(bad)
+        for term, bad in data.get("falsos_sinonimos", {}).items()
+    }
+
     # 5. Populate and return a WikiAssistantConfig object, safely defaulting
     #    if specific parameters are missing from the configuration file.
     return WikiAssistantConfig(
@@ -204,4 +224,7 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
             assistant.get("suggested_prompts", get_locale(language).suggested_prompts)
         ),
         language=language,
+        off_limits=off_limits,
+        data_aliases=data_aliases,
+        false_synonyms=false_synonyms,
     )
