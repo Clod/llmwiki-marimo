@@ -166,6 +166,11 @@ class WikiAssistantConfig:
     # Pairs that are NOT synonyms -> filter the synonym-rescue step ("cedear" -> "accion").
     false_synonyms: dict[str, list[str]] = field(default_factory=dict)
 
+    # Opt-in: when true, the read app pre-retrieves (code-driven) instead of
+    # letting the model search, and applies the tiered gate. Off by default so
+    # other wikis' chat behavior is unchanged.
+    pre_retrieval: bool = False
+
 
 # ── CONFIG LOADER ─────────────────────────────────────────────────────────────
 
@@ -211,6 +216,7 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
         str(term): list(bad)
         for term, bad in data.get("falsos_sinonimos", {}).items()
     }
+    pre_retrieval = bool(data.get("pre_retrieval", {}).get("enabled", False))
 
     # 5. Populate and return a WikiAssistantConfig object, safely defaulting
     #    if specific parameters are missing from the configuration file.
@@ -227,4 +233,5 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
         off_limits=off_limits,
         data_aliases=data_aliases,
         false_synonyms=false_synonyms,
+        pre_retrieval=pre_retrieval,
     )

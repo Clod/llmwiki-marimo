@@ -41,3 +41,17 @@ def test_scope_lists_default_empty_when_no_config_file(tmp_path):
     assert cfg.off_limits == []
     assert cfg.data_aliases == {}
     assert cfg.false_synonyms == {}
+
+
+def test_pre_retrieval_is_opt_in_and_off_by_default(tmp_path):
+    (tmp_path / "wiki_config.toml").write_text(
+        '[assistant]\nsystem_prompt = "x"\n', encoding="utf-8"
+    )
+    assert load_config(tmp_path).pre_retrieval is False
+
+
+def test_pre_retrieval_enabled_when_opted_in(tmp_path):
+    (tmp_path / "wiki_config.toml").write_text(
+        "[pre_retrieval]\nenabled = true\n", encoding="utf-8"
+    )
+    assert load_config(tmp_path).pre_retrieval is True
