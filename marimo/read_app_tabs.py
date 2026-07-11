@@ -369,12 +369,12 @@ def guardrail_flag():
     so flipping the toggle never rebuilds the chat. The toggle cell mutates it in
     place. (A mo.state getter is not reliably live inside the async chat closure,
     which is why this is a plain dict rather than mo.state.)"""
-    grounding_flag = {"strict": True}
+    grounding_flag = {"strict": True, "pre_retrieval": False}
     return (grounding_flag,)
 
 
 @app.cell
-def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
+def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, wiki_db_path):
     """AI chat assistant with FTS5 retrieval. Produces `chat_view` (a stable
     layout wrapping mo.ui.chat) for the Diálogo tab; streaming updates happen
     inside that element, so this view object never churns per token."""
@@ -440,15 +440,16 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
             except Exception:  # noqa: BLE001 — tracing is best-effort
                 pass
 
-        if wiki_chat_config and wiki_chat_config.pre_retrieval:
-            # Hybrid pre-retrieval (opt-in per wiki): the CODE retrieves + gates;
-            # the model (built without wiki search tools) answers only from the
-            # injected context. See domain/chat/preretrieval.py.
+        if grounding_flag.get("pre_retrieval") and wiki_agent_preret is not None:
+            # Hybrid pre-retrieval (live toggle): the CODE retrieves + gates; the
+            # tool-less agent answers only from the injected context. Read live
+            # from grounding_flag so flipping the checkbox mid-chat takes effect on
+            # the next message. See domain/chat/preretrieval.py.
             from domain.chat.preretrieval import pre_retrieval_answer
             _ws = Path(wiki_db_path).parent.parent
 
             async def _run_agent(_prompt, _hist):
-                return await wiki_agent.run(_prompt, deps=wiki_db_path, message_history=_hist)
+                return await wiki_agent_preret.run(_prompt, deps=wiki_db_path, message_history=_hist)
 
             def _pre_trace(*, raw, final, result, refusal_substituted):
                 _trace(raw_output=raw, final_answer=final, result=result,
@@ -519,6 +520,28 @@ def guardrail_toggle(grounding_flag):
     )
     strict_view = mo.vstack([_strict])
     return (strict_view,)
+
+
+@app.cell
+def pre_retrieval_toggle(grounding_flag, wiki_chat_config):
+    """Live toggle for hybrid pre-retrieval. Own cell + plain-dict mutation (like
+    the strict toggle) so flipping it never rebuilds the chat: respond() reads the
+    flag live and picks the matching PRE-BUILT agent. Seeds from the wiki's config
+    default (re-seeds on wiki switch). Takes effect on the NEXT message. NOTE: when
+    ON, pre-retrieval supersedes 'Modo estricto' (its flow is already gated)."""
+    _default = bool(wiki_chat_config.pre_retrieval) if wiki_chat_config else False
+    grounding_flag["pre_retrieval"] = _default
+
+    def _on_change(checked):
+        grounding_flag["pre_retrieval"] = checked
+
+    _pre = mo.ui.checkbox(
+        value=_default,
+        on_change=_on_change,
+        label="Pre-retrieval: el código recupera el wiki (sustituye al modo estricto)",
+    )
+    pre_retrieval_view = mo.vstack([_pre])
+    return (pre_retrieval_view,)
 
 
 @app.cell
@@ -634,20 +657,41 @@ def wiki_context(active_wiki):
         # composition root) and injected via extra_tools/extra_prompt.
         from domain.finance_argentina.agent_tool import activate as _activate_finance
         _fin_tools, _fin_prompt = _activate_finance(WIKI_PATH)
-        wiki_agent = create_agent(
-            settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
+        # Retrieval-mode block for the pre-retrieval agent: it has NO wiki-search
+        # tools, so its prompt must say so (otherwise the shared system prompt's
+        # search steps name tools it can't call). The data/advisory tools stay.
+        _PRERET_PROMPT = (
+            "\n\n## Modo pre-retrieval\n"
+            "NO tenés herramientas de búsqueda de wiki (search_wiki_fts, "
+            "read_wiki_page, search_source_chunks): ignorá cualquier paso que las "
+            "mencione. Las páginas relevantes del wiki ya te vienen inyectadas en el "
+            "CONTEXTO de cada pregunta — respondé exclusivamente desde ese contexto, "
+            "citando la fuente; si no alcanza, decilo. Las herramientas de datos "
+            "(query_dataset) y de cálculo (estimar_alternativas) sí siguen disponibles."
+        )
+        _common = dict(
             system_prompt=wiki_chat_config.system_prompt,
             language=wiki_chat_config.language,
             workspace=WIKI_PATH,
             extra_tools=_fin_tools,
-            extra_prompt=_fin_prompt,
-            include_wiki_tools=not wiki_chat_config.pre_retrieval,
+        )
+        # Two pre-built agents so the pre-retrieval toggle switches instantly
+        # (just picks one) without rebuilding — a rebuild would re-parent the chat.
+        wiki_agent = create_agent(
+            settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
+            extra_prompt=_fin_prompt, include_wiki_tools=True, **_common,
+        )
+        wiki_agent_preret = create_agent(
+            settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
+            extra_prompt=(_fin_prompt or "") + _PRERET_PROMPT,
+            include_wiki_tools=False, **_common,
         )
     else:
         wiki_db_path = None
         wiki_chat_config = None
         wiki_agent = None
-    return WIKI_PATH, wiki_agent, wiki_chat_config, wiki_db_path
+        wiki_agent_preret = None
+    return WIKI_PATH, wiki_agent, wiki_agent_preret, wiki_chat_config, wiki_db_path
 
 
 @app.cell
@@ -730,6 +774,7 @@ def tab_body(
     delete_result,
     middle_view,
     strict_view,
+    pre_retrieval_view,
     chat_view,
 ):
     """Render ONLY the active tab.
@@ -741,7 +786,10 @@ def tab_body(
     on a tab switch or a wiki switch — each a fresh render the frontend adopts
     cleanly. Streaming happens inside the stable mo.ui.chat element regardless."""
     if tab_choice.value == "💬 Diálogo":
-        _body = mo.vstack([strict_view, chat_view], gap=2)
+        _body = mo.vstack(
+            [mo.hstack([strict_view, pre_retrieval_view], justify="start", gap=2), chat_view],
+            gap=2,
+        )
     else:
         _sidebar = mo.vstack(
             [picker_view, add_view, add_result, left_view, delete_widget, delete_result],

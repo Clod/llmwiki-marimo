@@ -353,12 +353,12 @@ def guardrail_flag():
     so flipping the toggle never rebuilds the chat. The toggle cell mutates it in
     place. (A mo.state getter is not reliably live inside the async chat closure,
     which is why this is a plain dict rather than mo.state.)"""
-    grounding_flag = {"strict": True}
+    grounding_flag = {"strict": True, "pre_retrieval": False}
     return (grounding_flag,)
 
 
 @app.cell(column=2)
-def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
+def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, wiki_db_path):
     """AI chat assistant with FTS5 retrieval — column 2."""
     from pydantic_ai.messages import ModelRequest, UserPromptPart, ModelResponse, TextPart
 
@@ -422,15 +422,16 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
             except Exception:  # noqa: BLE001 — tracing is best-effort
                 pass
 
-        if wiki_chat_config and wiki_chat_config.pre_retrieval:
-            # Hybrid pre-retrieval (opt-in per wiki): the CODE retrieves + gates;
-            # the model (built without wiki search tools) answers only from the
-            # injected context. See domain/chat/preretrieval.py.
+        if grounding_flag.get("pre_retrieval") and wiki_agent_preret is not None:
+            # Hybrid pre-retrieval (live toggle): the CODE retrieves + gates; the
+            # tool-less agent answers only from the injected context. Read live
+            # from grounding_flag so flipping the checkbox mid-chat takes effect on
+            # the next message. See domain/chat/preretrieval.py.
             from domain.chat.preretrieval import pre_retrieval_answer
             _ws = Path(wiki_db_path).parent.parent
 
             async def _run_agent(_prompt, _hist):
-                return await wiki_agent.run(_prompt, deps=wiki_db_path, message_history=_hist)
+                return await wiki_agent_preret.run(_prompt, deps=wiki_db_path, message_history=_hist)
 
             def _pre_trace(*, raw, final, result, refusal_substituted):
                 _trace(raw_output=raw, final_answer=final, result=result,
@@ -487,19 +488,34 @@ def chat_panel(grounding_flag, wiki_agent, wiki_chat_config, wiki_db_path):
 
 
 @app.cell
-def guardrail_toggle(grounding_flag):
-    """Pluggable grounding guardrail toggle — own cell (one concern), so toggling
-    never re-runs chat_panel (which depends only on the stable grounding_flag
-    dict). on_change mutates that shared dict, which the chat handler reads live."""
-    def _on_change(checked):
+def guardrail_toggle(grounding_flag, wiki_chat_config):
+    """The two chat toggles — strict + pre-retrieval — in ONE cell (the grid app
+    can't gain a cell without desyncing its positional layout). Both mutate the
+    shared grounding_flag dict via on_change and never read `.value`, so clicking
+    them doesn't re-run this cell (state persists) nor rebuild the chat. The chat
+    handler reads the flag live. Pre-retrieval seeds from the wiki's config
+    default and, when ON, supersedes 'Modo estricto' (its flow is already gated)."""
+    def _on_strict(checked):
         grounding_flag["strict"] = checked
 
     _strict = mo.ui.checkbox(
         value=grounding_flag["strict"],
-        on_change=_on_change,
+        on_change=_on_strict,
         label="Modo estricto: responder solo con fuentes del wiki",
     )
-    mo.vstack([_strict])
+
+    _pre_default = bool(wiki_chat_config.pre_retrieval) if wiki_chat_config else False
+    grounding_flag["pre_retrieval"] = _pre_default
+
+    def _on_pre(checked):
+        grounding_flag["pre_retrieval"] = checked
+
+    _pre = mo.ui.checkbox(
+        value=_pre_default,
+        on_change=_on_pre,
+        label="Pre-retrieval: el código recupera el wiki (sustituye al modo estricto)",
+    )
+    mo.hstack([_strict, _pre], justify="start", gap=2)
     return
 
 
@@ -618,20 +634,41 @@ def wiki_context(active_wiki):
         # composition root) and injected via extra_tools/extra_prompt.
         from domain.finance_argentina.agent_tool import activate as _activate_finance
         _fin_tools, _fin_prompt = _activate_finance(WIKI_PATH)
-        wiki_agent = create_agent(
-            settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
+        # Retrieval-mode block for the pre-retrieval agent: it has NO wiki-search
+        # tools, so its prompt must say so (otherwise the shared system prompt's
+        # search steps name tools it can't call). The data/advisory tools stay.
+        _PRERET_PROMPT = (
+            "\n\n## Modo pre-retrieval\n"
+            "NO tenés herramientas de búsqueda de wiki (search_wiki_fts, "
+            "read_wiki_page, search_source_chunks): ignorá cualquier paso que las "
+            "mencione. Las páginas relevantes del wiki ya te vienen inyectadas en el "
+            "CONTEXTO de cada pregunta — respondé exclusivamente desde ese contexto, "
+            "citando la fuente; si no alcanza, decilo. Las herramientas de datos "
+            "(query_dataset) y de cálculo (estimar_alternativas) sí siguen disponibles."
+        )
+        _common = dict(
             system_prompt=wiki_chat_config.system_prompt,
             language=wiki_chat_config.language,
             workspace=WIKI_PATH,
             extra_tools=_fin_tools,
-            extra_prompt=_fin_prompt,
-            include_wiki_tools=not wiki_chat_config.pre_retrieval,
+        )
+        # Two pre-built agents so the pre-retrieval toggle switches instantly
+        # (just picks one) without rebuilding — a rebuild would re-parent the chat.
+        wiki_agent = create_agent(
+            settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
+            extra_prompt=_fin_prompt, include_wiki_tools=True, **_common,
+        )
+        wiki_agent_preret = create_agent(
+            settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
+            extra_prompt=(_fin_prompt or "") + _PRERET_PROMPT,
+            include_wiki_tools=False, **_common,
         )
     else:
         wiki_db_path = None
         wiki_chat_config = None
         wiki_agent = None
-    return WIKI_PATH, wiki_agent, wiki_chat_config, wiki_db_path
+        wiki_agent_preret = None
+    return WIKI_PATH, wiki_agent, wiki_agent_preret, wiki_chat_config, wiki_db_path
 
 
 @app.cell
