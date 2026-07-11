@@ -560,8 +560,8 @@ does nothing on its own. Open the ingest app and either (a) drag the file into
 the upload box and click **⚙️ Ingest uploaded file(s)**, or (b) put it in  
 `WIKI_PATH/sources/` and click **🔄 Scan sources/ for changes**, which detects  
 and ingests anything new or modified. Treat a document from an untrusted origin  
-the way you'd treat untrusted code: its text reaches the chat agent, which can  
-write wiki pages — see [`SECURITY.md`](SECURITY.md).
+the way you'd treat untrusted code: at ingestion its text is turned into wiki  
+pages automatically — see [`SECURITY.md`](SECURITY.md).
 - **No image / vision handling.** Text-only ingestion — images embedded in a  
 document are skipped, not described or summarised.
 - **Text-based PDFs only.** No OCR yet, so a scanned / image-only PDF ingests as  

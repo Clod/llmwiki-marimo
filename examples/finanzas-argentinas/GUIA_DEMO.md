@@ -622,3 +622,105 @@ modelo; niveles de confianza curado/crudo con aviso y verificación; y un portó
 de "no lo tengo" barato para lo que está fuera de alcance). La lección de fondo,
 repetida en A/B/C/F: **lo que tiene que ser garantizado no puede depender de que
 el modelo obedezca el _prompt_ turno a turno — se pone en código.**
+
+### 4.5 La ingesta como palanca — vocabulario y completitud en origen
+
+> **Estado: diseño acordado, todavía sin código.** A diferencia de §4.4 (donde
+> hay piezas construidas y otras "en construcción"), esta sección es el próximo
+> capítulo de arquitectura tal como quedó de la discusión de diseño. Se documenta
+> acá para que la decisión no se pierda; nada de esto está implementado aún.
+
+§4.4 cerró las fallas moviendo garantías a código determinista **en tiempo de
+pregunta**. Pero hay una asimetría que no estábamos aprovechando: **la ingesta
+también es nuestra**. Varias cosas que hoy se parchean —o se mantienen a mano— al
+responder se pueden generar **una sola vez, al ingerir**, donde el LLM ya lee cada
+documento entero. Este es el diseño de esa mudanza aguas arriba.
+
+**Pieza 1 — El vocabulario se genera en la ingesta, no a mano.** Hoy las listas de
+alias (`[alias_datos]`: dólar ↔ blue/billete verde/divisa) se escriben a mano. En
+cambio, el paso de extracción (`ingestion/wiki_generator.py::extract_structured`)
+ya lee cada PDF; se lo extiende para que devuelva, por concepto, **su nombre corto
+y limpio** (canónico) **y sus apodos** — directamente, sin que haya que destripar
+un título prosudo después. Dos alimentadores vuelcan a **un** mapa de alias: los
+apodos de concepto (piggyback de la extracción, que sirven para que la búsqueda
+del wiki pegue la página correcta) y los apodos de dato (un pase chico dedicado
+sobre el vocabulario de datos, `chat/preretrieval.py::build_vocabulary`). El
+**código re-valida cada propuesta**: normaliza, deduplica y **descarta toda
+colisión** (un apodo que ya es el nombre oficial de OTRA cosa → se tira y queda
+como candidato a falso-sinónimo; así se auto-siembra la clase de bug CEDEAR↛
+acciones). La lista a mano de `wiki_config.toml` deja de ser la fuente primaria y
+pasa a ser **override**: `data_aliases = generado ⊕ overrides-a-mano (ganan) −
+falsos_sinónimos (filtro de borrado)`.
+
+**Pieza 2 — El linter cuida el vocabulario.** El mapa generado es un artefacto
+nuevo y hay que vigilarlo. Se agrega a `lint/checks.py` un chequeo **puro**
+(`vocabulary_check`, tanda barata, sin LLM) que cruza el mapa contra el estado
+vivo del wiki y emite: `vocab_collision` (**error** — un apodo que es el nombre
+oficial de otra cosa, la clase del _leak_; entró por override o por un dataset
+nuevo), `vocab_stale` (el apodo apunta a un canónico borrado/renombrado),
+`vocab_ambiguous` (un mismo apodo mapea a dos canónicos), `vocab_override` (typo
+en la edición a mano), `vocab_covered` (un término de `fuera_de_alcance` que **ya
+tiene página** → sacalo). Reparto de trabajo: el **generador hace cumplir al
+escribir** (descarte suave, silencioso — la colisión es rutina); el **linter caza
+la deriva** con el tiempo (grito fuerte, porque ahí ya es raro y significativo).
+No suma interfaz: el hallazgo viaja en el reporte de lint que ya se muestra en el
+ingest app, y el arreglo (tirar el apodo que choca) es una **reparación automática
+más** (`repair/actions.py`), determinista, sin humano.
+
+**Pieza 3 — El "padrón de nombres reales" vuelve principista a Tier-2.** El mismo
+padrón que arma el linter —categorías y claves de datasets (vivo) + nombres
+canónicos de las páginas de concepto (vivo)— es exactamente lo que hace falta para
+decidir qué hacer con cada pregunta. Toda consulta cae en tres casos:
+
+1. **En el padrón y la página alcanza** → se responde con la página curada (el 90%).
+2. **No está en el padrón** → se abstiene, **sin tocar los documentos crudos**.
+   Este es el caso del _leak_ de G (§4.4): CEDEARs no estaba en el padrón y aun así
+   Tier-2 iba a buscar un fragmento tangencial. Con el padrón como portón, eso no
+   pasa. **Y reemplaza a la lista negra `fuera_de_alcance` a mano**: "no está en el
+   padrón" ES estar fuera de alcance, derivado solo.
+3. **En el padrón pero la página quedó floja** → el **único** caso legítimo de
+   Tier-2. Las dos hipótesis de "cuándo hace falta el documento crudo" (página
+   incompleta / subtema sin página propia) colapsan acá.
+
+El **medio camino** elegido: mantener Tier-2 pero **solo para temas del padrón**
+(nunca se dispara en un tema no cubierto → adiós _leaks_), y **a la vez** curar la
+completitud en la ingesta (Pieza 4). Los extremos se descartan: "Tier-2 siempre"
+deja leakear el caso 2; "Tier-2 nunca" no puede contestar una pregunta legítima
+sobre un tema cubierto pero con página floja hasta que alguien la regenere.
+
+**Pieza 4 — Detector de "página más floja que su fuente".** La pata de ingesta del
+caso 3. **La vara NO es el tamaño** (un buen resumen es más corto que su fuente a
+propósito; medir por largo daría falsa alarma en cada resumen bien hecho). La vara
+correcta: **¿quedaron pedazos del documento afuera de toda página?** Se reusa el
+**mismo solapamiento léxico** (`chat/overlap.py::coverage`) que verifica las
+respuestas de Tier-2: por cada documento fuente, se toman sus chunks y se busca si
+cada uno aparece en alguna página que lo cite; muchos chunks huérfanos → página
+floja. Dos niveles, como el linter ya trabaja: **barato/determinista** (conteo de
+huérfanos → marca la página) y **con LLM opcional** (solo sobre las marcadas → dice
+_qué_ falta, para regenerar bien). Ciclo de vida reusando el andamiaje de
+`DATA_GAP` (`lint/markers.py`): se marca → la reparación **regenera la página** con
+lo que faltaba → cuando el solapamiento sube, la marca **se borra sola** (como
+`gap_filled_check`). Honestidad: algunos chunks quedan afuera con razón (membretes,
+disclaimers) → por eso es **aviso**, no error, y por eso existe el nivel con LLM que
+confirma. **Cada página que se engorda es un Tier-2 menos** en tiempo de pregunta:
+la red de seguridad se usa cada vez menos hasta volverse casi innecesaria.
+
+**Módulos y orden de construcción.**
+
+| # | Pieza | Módulo(s) | Depende de |
+|---|-------|-----------|------------|
+| 1 | Extracción emite nombre canónico + apodos | `ingestion/wiki_generator.py` | — |
+| 2 | Mapa de alias + validación compartida (normaliza/deduplica/colisión) + padrón | `chat/vocabulary.py` *(nuevo)* | 1 |
+| 3 | Merge generado ⊕ overrides − falsos-sinónimos | `chat/config.py` | 2 |
+| 4 | Pase de apodos de dato | `chat/vocabulary.py`, `chat/preretrieval.py` | 2 |
+| 5 | `vocabulary_check` + reparación de colisión | `lint/checks.py`, `repair/actions.py` | 2 |
+| 6 | Portón por padrón (cubierto/no/flojo); Tier-2 restringido al padrón | `chat/preretrieval.py` | 2 |
+| 7 | Detector "página más floja que su fuente" (2 niveles + ciclo de vida) | `lint/checks.py`, `repair/actions.py`, reusa `chat/overlap.py` | 6 |
+
+**La lección, extendida.** §4.4 dice "lo que tiene que ser garantizado va en
+código, no en el _prompt_". §4.5 agrega la otra mitad: **lo que se puede resolver
+una vez en origen no se parchea en cada consulta**. La misma lógica de código sirve
+a dos amos (la validación de colisión: generador + linter; el solapamiento:
+verificación de Tier-2 + detector de página floja), y el padrón de cobertura
+—armado para el linter— termina siendo también el portón que mata el _leak_ y poda
+la lista negra a mano.
