@@ -49,6 +49,7 @@ def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(), monkeyp
     monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda db, q, **k: list(wiki))
     monkeypatch.setattr(preretrieval, "retrieve_source_chunks", lambda db, q, **k: list(docs))
     monkeypatch.setattr(preretrieval, "LocalMarkdownSource", lambda p: object())
+    monkeypatch.setattr(preretrieval, "concept_page_names", lambda db: [])
     return _run(pre_retrieval_answer(
         question, config=CFG, db_path="db", workspace=Path("/tmp/wp"),
         history=[], language="es", run_agent=run_agent,
@@ -72,9 +73,9 @@ def test_tier1_curated_injects_context_and_returns_answer(monkeypatch):
 
 
 def test_tier2_unsupported_answer_is_refused(monkeypatch):
-    # Raw-doc context is about bonds; the answer is off-source -> refuse.
+    # Covered topic (mentions dólar) so Tier 2 fires; the answer is off-source -> refuse.
     agent = _fake_agent("Los CEDEARs permiten invertir en Apple, Google y Amazon.")
-    out = _answer("contame de algo", agent,
+    out = _answer("¿qué pasa con el dólar oficial?", agent, vocab={"dolar"},
                   wiki=[], docs=["[05 Bonos.docx]\nExposición al dólar oficial mayorista."],
                   monkeypatch=monkeypatch)
     assert out == REFUSAL_ES
@@ -83,9 +84,20 @@ def test_tier2_unsupported_answer_is_refused(monkeypatch):
 def test_tier2_supported_answer_gets_warning(monkeypatch):
     src = "[05 Bonos.docx]\nLos bonos dólar linked ajustan por el tipo de cambio oficial mayorista."
     agent = _fake_agent("Los bonos dólar linked ajustan por el tipo de cambio oficial.")
-    out = _answer("¿qué son los bonos dólar linked?", agent, wiki=[], docs=[src],
-                  monkeypatch=monkeypatch)
+    out = _answer("¿qué son los bonos dólar linked?", agent, vocab={"dolar"},
+                  wiki=[], docs=[src], monkeypatch=monkeypatch)
     assert "documento fuente" in out.lower()  # the Tier-2 warning
+
+
+def test_uncovered_topic_with_docs_refuses_before_model(monkeypatch):
+    # Not in the padrón: even though a raw-doc chunk matches, Tier 2 must not fire
+    # and the model is never called (the CEDEARs-leak class, stopped at the gate).
+    agent = _fake_agent("no debería llamarse")
+    out = _answer("¿qué es la fotosíntesis?", agent, vocab={"dolar"},
+                  wiki=[], docs=["[bio.pdf]\nla clorofila capta la luz"],
+                  monkeypatch=monkeypatch)
+    assert out == REFUSAL_ES
+    assert agent.calls == []
 
 
 def test_nothing_found_refuses(monkeypatch):

@@ -4,6 +4,7 @@ import json
 import uuid
 
 
+from domain.chat.vocabulary import read_generated_aliases, write_generated_aliases
 from domain.lint.report import LintIssue
 from domain.repair.actions import (
     repair_contradiction,
@@ -12,6 +13,7 @@ from domain.repair.actions import (
     repair_missing_xref,
     repair_orphan,
     repair_stale,
+    repair_vocab_collision,
 )
 from domain.repair.runner import repair_wiki
 from domain.lint.report import LintReport
@@ -294,3 +296,57 @@ def test_repair_wiki_skips_llm_repairs_without_client(tmp_workspace: WorkspaceFi
     ])
     report = repair_wiki(lint, tmp_workspace.db_path, tmp_workspace.workspace)
     assert all(r.action == "skipped" for r in report.results)
+
+
+# ── repair_vocab_collision (Piece 5 auto-repair) ──────────────────────────────
+
+def _collision_issue(alias: str) -> LintIssue:
+    return LintIssue(
+        check="vocab_collision", severity="error",
+        page=".llmwiki/aliases.generated.toml",
+        description=f"Alias '{alias}' is really the name of something else",
+        suggestion="Remove it",
+        alias=alias,
+    )
+
+
+def test_repair_vocab_collision_drops_alias_from_artifact(tmp_workspace: WorkspaceFixture) -> None:
+    write_generated_aliases(tmp_workspace.workspace, {"CEDEAR": ["acciones", "Certificado"]})
+    result = repair_vocab_collision(
+        _collision_issue("acciones"), tmp_workspace.db_path, tmp_workspace.workspace
+    )
+    assert result.success
+    assert result.action == "deleted"
+    assert read_generated_aliases(tmp_workspace.workspace) == {"CEDEAR": ["Certificado"]}
+
+
+def test_repair_vocab_collision_removes_now_empty_canonical(tmp_workspace: WorkspaceFixture) -> None:
+    write_generated_aliases(tmp_workspace.workspace, {"CEDEAR": ["acciones"]})
+    result = repair_vocab_collision(
+        _collision_issue("acciones"), tmp_workspace.db_path, tmp_workspace.workspace
+    )
+    assert result.success
+    assert result.action == "deleted"
+    assert read_generated_aliases(tmp_workspace.workspace) == {}
+
+
+def test_repair_vocab_collision_skips_hand_override(tmp_workspace: WorkspaceFixture) -> None:
+    # The collision lives in wiki_config.toml (hand override), NOT the generated
+    # artifact → the repair must not touch the human's file; it surfaces and skips.
+    write_generated_aliases(tmp_workspace.workspace, {"Dólar": ["billete verde"]})
+    result = repair_vocab_collision(
+        _collision_issue("acciones"), tmp_workspace.db_path, tmp_workspace.workspace
+    )
+    assert result.success
+    assert result.action == "skipped"
+    assert "wiki_config" in result.message
+    # untouched
+    assert read_generated_aliases(tmp_workspace.workspace) == {"Dólar": ["billete verde"]}
+
+
+def test_repair_vocab_collision_via_dispatch(tmp_workspace: WorkspaceFixture) -> None:
+    write_generated_aliases(tmp_workspace.workspace, {"CEDEAR": ["acciones", "Certificado"]})
+    lint = LintReport(issues=[_collision_issue("acciones")])
+    report = repair_wiki(lint, tmp_workspace.db_path, tmp_workspace.workspace)  # no LLM needed
+    assert len(report.fixed) == 1
+    assert read_generated_aliases(tmp_workspace.workspace) == {"CEDEAR": ["Certificado"]}

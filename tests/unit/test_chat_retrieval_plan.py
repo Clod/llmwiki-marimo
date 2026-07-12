@@ -9,13 +9,15 @@ no injected context (a data/advisory question, tools only).
 from domain.chat.preretrieval import plan_retrieval
 
 
-def _plan(question="q", off_limits=(), wiki_hits=(), doc_hits=(), has_data=False):
+def _plan(question="q", off_limits=(), wiki_hits=(), doc_hits=(), has_data=False,
+          in_roster=True):
     return plan_retrieval(
         question,
         off_limits=off_limits,
         wiki_hits=list(wiki_hits),
         doc_hits=list(doc_hits),
         has_data=has_data,
+        in_roster=in_roster,
     )
 
 
@@ -35,11 +37,18 @@ def test_curated_wiki_hit_is_tier1_no_verify():
 
 
 def test_raw_doc_hit_is_tier2_with_verify():
-    plan = _plan(wiki_hits=[], doc_hits=["chunk crudo"])
+    # Covered topic (in_roster) with no curated page -> Tier 2 with verification.
+    plan = _plan(wiki_hits=[], doc_hits=["chunk crudo"], in_roster=True)
     assert plan.action == "invoke"
     assert plan.tier == "crudo"
     assert plan.context == "chunk crudo"
     assert plan.verify is True
+
+
+def test_raw_doc_hit_not_in_roster_refuses():
+    # Uncovered topic: a tangential raw-doc chunk must NOT trigger Tier 2 (leak fix).
+    plan = _plan(wiki_hits=[], doc_hits=["chunk crudo"], in_roster=False)
+    assert plan.action == "refuse"
 
 
 def test_curated_wins_over_raw_docs():

@@ -339,3 +339,75 @@ def gap_filled_check(db_path: str) -> list[LintIssue]:
                     topic=slug,
                 ))
     return issues
+
+
+# ── 3.7: Vocabulary check (alias map vs live coverage) ────────────────────────
+
+def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
+    """Cross the effective alias vocabulary against the wiki's live coverage.
+
+    Pure (no LLM). The ingest-time generator drops collisions when it writes, so
+    this catches the drift it can't: a collision introduced by a hand override or
+    a newly-added dataset; an alias entry for a canonical the wiki no longer
+    covers; an alias mapping to two canonicals; and an off-limits term now covered.
+    """
+    from domain.chat.config import load_config
+    from domain.chat.vocabulary import build_roster, normalize, validate_aliases
+    from domain.ingestion.alias_generation import dataset_vocabulary
+    from domain.tools.wiki_fs import concept_page_names
+
+    config = load_config(Path(workspace))
+    aliases = config.data_aliases
+    if not aliases and not config.off_limits:
+        return []
+
+    roster = set(build_roster(dataset_vocabulary(Path(workspace)), concept_page_names(db_path)))
+    issues: list[LintIssue] = []
+    artifact = ".llmwiki/aliases.generated.toml"
+
+    # 1. Collisions — an alias that is really another covered canonical's name.
+    for c in validate_aliases(aliases, roster).collisions:
+        issues.append(LintIssue(
+            check="vocab_collision", severity="error", page=artifact,
+            description=(
+                f"Alias '{c.alias}' of '{c.canonical}' is really the name of '{c.collides_with}'"
+            ),
+            suggestion=f"List '{c.alias}' under '{c.canonical}' in [falsos_sinonimos], or remove it",
+            alias=c.alias,
+        ))
+
+    # 2. Stale — an alias entry for a canonical the wiki no longer covers.
+    for canonical in aliases:
+        if normalize(canonical) not in roster:
+            issues.append(LintIssue(
+                check="vocab_stale", severity="warning", page=artifact,
+                description=f"Aliases for '{canonical}', which has no page or dataset",
+                suggestion="Remove the entry, or restore the page/dataset it names",
+            ))
+
+    # 3. Ambiguous — one alias mapping to two different canonicals.
+    owners: dict[str, list[str]] = {}
+    for canonical, alias_list in aliases.items():
+        for alias in alias_list:
+            owners.setdefault(normalize(alias), []).append(canonical)
+    for alias_norm, canonicals in owners.items():
+        if len({normalize(c) for c in canonicals}) > 1:
+            issues.append(LintIssue(
+                check="vocab_ambiguous", severity="warning", page=artifact,
+                description=(
+                    f"Alias '{alias_norm}' maps to several canonicals: "
+                    f"{', '.join(sorted(set(canonicals)))}"
+                ),
+                suggestion="Keep the alias under a single canonical",
+            ))
+
+    # 4. Covered — an off-limits term the wiki now actually covers.
+    for term in config.off_limits:
+        if normalize(term) in roster:
+            issues.append(LintIssue(
+                check="vocab_covered", severity="info", page="wiki_config.toml",
+                description=f"'{term}' is in [fuera_de_alcance] but now has a page or dataset",
+                suggestion="Remove it from the blacklist — it's covered now",
+            ))
+
+    return issues

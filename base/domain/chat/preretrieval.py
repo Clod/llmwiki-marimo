@@ -21,6 +21,7 @@ from domain.chat.scope import is_off_limits, mentions_known_data
 from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
 from domain.tools.search import search_chunks
+from domain.tools.wiki_fs import concept_page_names
 
 _INJECT_TEMPLATE = (
     "Respondé la pregunta usando EXCLUSIVAMENTE el siguiente contexto recuperado "
@@ -95,20 +96,22 @@ def plan_retrieval(
     wiki_hits: list[str],
     doc_hits: list[str],
     has_data: bool,
+    in_roster: bool,
 ) -> RetrievalPlan:
     """Decide the plan. Order: blacklist first (refuse), then curated wiki
-    (Tier 1), then raw docs (Tier 2, verify), then a data/advisory question
-    (tools only), else refuse without invoking the model.
+    (Tier 1), then — only for a covered topic — raw docs (Tier 2, verify), then a
+    data/advisory question (tools only), else refuse without invoking the model.
 
-    `has_data` is computed by the caller (`scope.mentions_known_data`, possibly
-    after a synonym-rescue step). `wiki_hits`/`doc_hits` are the retrieved page
-    and chunk texts.
+    `has_data` and `in_roster` are computed by the caller (`mentions_known_data`
+    against the dataset vocab, and against the full coverage padrón). Tier-2 is
+    gated on `in_roster`: an UNcovered topic never reaches the raw docs, so a
+    tangential chunk can't be used to leak general knowledge (the CEDEARs leak).
     """
     if is_off_limits(question, off_limits):
         return _REFUSE
     if wiki_hits:
         return RetrievalPlan("invoke", "curado", "\n\n".join(wiki_hits), False)
-    if doc_hits:
+    if doc_hits and in_roster:
         return RetrievalPlan("invoke", "crudo", "\n\n".join(doc_hits), True)
     if has_data:
         return RetrievalPlan("invoke", None, None, False)
@@ -142,16 +145,25 @@ async def pre_retrieval_answer(
     aliases = [alias for names in config.data_aliases.values() for alias in names]
     vocabulary = build_vocabulary(LocalMarkdownSource(workspace / "datasets"))
     has_data = mentions_known_data(question, vocabulary, aliases)
+    # "In the padrón" = the question names something the wiki actually covers
+    # (a dataset term OR a concept page name OR a known alias). Tier-2 (raw docs)
+    # is allowed ONLY for a covered topic, so an uncovered question can't pull a
+    # tangential chunk as a fig leaf — that was the CEDEARs leak.
+    coverage = set(vocabulary) | set(concept_page_names(db_path))
+    in_roster = mentions_known_data(question, coverage, aliases)
 
     if is_off_limits(question, config.off_limits):
         wiki_hits, doc_hits = [], []
     else:
         wiki_hits = retrieve_wiki(db_path, question)
-        doc_hits = retrieve_source_chunks(db_path, question) if not wiki_hits else []
+        doc_hits = (
+            retrieve_source_chunks(db_path, question)
+            if (not wiki_hits and in_roster) else []
+        )
 
     plan = plan_retrieval(
         question, off_limits=config.off_limits,
-        wiki_hits=wiki_hits, doc_hits=doc_hits, has_data=has_data,
+        wiki_hits=wiki_hits, doc_hits=doc_hits, has_data=has_data, in_roster=in_roster,
     )
 
     if plan.action == "refuse":

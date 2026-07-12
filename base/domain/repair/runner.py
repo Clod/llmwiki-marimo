@@ -12,6 +12,7 @@ from .actions import (
     repair_missing_xref,
     repair_orphan,
     repair_stale,
+    repair_vocab_collision,
 )
 from .report import RepairReport, RepairResult
 
@@ -29,6 +30,7 @@ _DISPATCH = {
     "contradiction":    repair_contradiction,
     "data_gap":         repair_data_gap,
     "gap_filled":       repair_gap_filled,
+    "vocab_collision":  repair_vocab_collision,
 }
 
 

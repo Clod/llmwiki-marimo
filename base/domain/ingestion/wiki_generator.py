@@ -323,6 +323,75 @@ def _parse_extraction(raw: str, filename: str) -> ExtractionResult:
         return ExtractionResult(document_summary=raw, concepts=[])
 
 
+_DATASET_ALIAS_SYSTEM = """\
+You map each KNOWN DATA TERM to the common alternative names or nicknames a user \
+would type for the SAME thing. Return ONLY JSON, no prose:
+
+{"aliases": {"<term>": ["<other name>", ...], ...}}
+
+Rules:
+- An alias must mean EXACTLY the same thing as the term — a nickname, an \
+abbreviation, or a true synonym. NEVER list a related-but-different instrument as \
+an alias (for example, "acciones" is NOT an alias of "CEDEAR").
+- Only use the terms you are given as keys. Omit a term entirely if it has no \
+common alias — do not invent one.
+- Keep it short: a handful of real aliases per term at most."""
+
+_DATASET_ALIAS_USER_TEMPLATE = """\
+Known data terms:
+{terms}
+
+Return the JSON aliases map."""
+
+
+def extract_dataset_aliases(terms, client, model, language: str = "en") -> dict[str, list[str]]:
+    """Phase-4 LLM pass: propose aliases for the closed set of known data terms.
+
+    Mirrors ``extract_structured``'s shape — one JSON call, tolerant parse. Returns
+    a ``{term: [alias, ...]}`` map with only non-empty string aliases; ``{}`` on
+    empty input or a malformed response. The caller validates this against the
+    wiki's coverage (dropping collisions) before persisting it, so this function
+    only has to fetch and clean, never trust. The content-language directive makes
+    the aliases come back in the wiki language.
+    """
+    terms = [t for t in terms if isinstance(t, str) and t.strip()]
+    if not terms:
+        return {}
+    user_msg = _DATASET_ALIAS_USER_TEMPLATE.format(
+        terms=json.dumps(sorted(terms), ensure_ascii=False)
+    )
+    system = with_content_directive(_DATASET_ALIAS_SYSTEM, language)
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ],
+        temperature=0.2,
+    )
+    raw = (response.choices[0].message.content or "").strip()
+    return _parse_dataset_aliases(raw)
+
+
+def _parse_dataset_aliases(raw: str) -> dict[str, list[str]]:
+    """Parse the ``{"aliases": {term: [...]}}`` JSON; ``{}`` on any malformation."""
+    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
+    raw = re.sub(r"```\s*$", "", raw, flags=re.MULTILINE).strip()
+    try:
+        data = json.loads(raw)
+        aliases = data.get("aliases", {})
+        if not isinstance(aliases, dict):
+            return {}
+        return {
+            str(term): _clean_aliases(al)
+            for term, al in aliases.items()
+            if isinstance(term, str) and term.strip()
+        }
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        logger.warning("extract_dataset_aliases: JSON parse failed, using empty map")
+        return {}
+
+
 def build_summary_page(
     doc_meta: dict,
     extraction: ExtractionResult,
