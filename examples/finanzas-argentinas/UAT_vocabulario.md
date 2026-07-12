@@ -174,6 +174,28 @@ archivo suelto) sobre el wiki de finanzas. Mirá después
 
 ---
 
+### I. El detector de "página más flaca que su fuente"
+
+**Acción:** corré «lint & repair» y mirá los hallazgos `thin_page`.
+
+- **Qué prueba:** que la wiki detecta, del lado de la carga, cuándo una página
+  **deja afuera** buena parte de su documento fuente — la señal de que una pregunta
+  legítima sobre lo que falta tendría que caer a Tier-2. La regla **no es el
+  tamaño** (un buen resumen es corto a propósito), sino los *chunks huérfanos*: los
+  que casi no aparecen en ninguna página que cite esa fuente.
+- **Cómo lo resuelve:** `thin_page_check` reusa el mismo `overlap.coverage` que
+  verifica las respuestas de Tier-2; marca `thin_page` (**warning**, no error)
+  cuando al menos la mitad de los *chunks* de una fuente quedan huérfanos, apuntando
+  a la página de resumen a expandir.
+- **Criterio de aceptación:** el lint corre el chequeo **sin error**; cada hallazgo
+  es un *warning* que nombra la página y cuántos *chunks* de la fuente quedaron sin
+  reflejar. En un demo bien cubierto puede dar **cero** hallazgos — eso es correcto,
+  no un fallo. *(El auto-arreglo que regenera la página cubriendo los huérfanos es
+  una sub-parte LLM diferida a propósito: re-correr la misma generación no enriquece
+  de verdad; hoy la señal se surfacea para expandir a mano.)*
+
+---
+
 ## Checklist de aceptación (resumen)
 
 | # | Capacidad probada | Pasa si… |
@@ -186,10 +208,11 @@ archivo suelto) sobre el wiki de finanzas. Mirá después
 | F | Apodo → dato | «billete verde» llega al **dólar con valor y fecha** |
 | G | Asesor intacto | La **tabla determinista** sale igual (sin regresión) |
 | H | Apodos de datos generados | El *scan* llena apodos de datos + *sidecar*; no re-corre si `datasets/` no cambió |
+| I | Detector de página flaca | El lint corre `thin_page` sin error; cada hallazgo (warning) nombra página + *chunks* huérfanos (cero es válido) |
 
-Si las ocho pasan, el vocabulario se genera —conceptos **y** datos— y se vigila en
-la carga, y el portón funda lo cubierto y se abstiene de lo que no —sin tocar los
-documentos crudos.
+Si las nueve pasan, el vocabulario se genera —conceptos **y** datos— y se vigila en
+la carga, el portón funda lo cubierto y se abstiene de lo que no —sin tocar los
+documentos crudos— y la carga avisa cuándo una página quedó más flaca que su fuente.
 
 ---
 
@@ -207,9 +230,11 @@ Ver el diseño completo en §4.5 de [GUIA_DEMO.md](GUIA_DEMO.md).
 | F | Fusión generado ⊕ overrides − falsos-sinónimos | `chat/vocabulary.py::merge_aliases`; `chat/config.py::load_config` |
 | G | Asesor determinista (regresión) | `finance_argentina/` — sin cambios; sólo se verifica que el portón no lo desvía |
 | H | Pasada de apodos de datos + compuerta | `ingestion/wiki_generator.py::extract_dataset_aliases`; `ingestion/alias_generation.py::regenerate_dataset_aliases` (fingerprint sidecar); enganchada en `ingestion/pipeline.py::scan_and_ingest` |
+| I | Detector de página flaca (huérfanos) | `lint/checks.py::thin_page_check` (reusa `chat/overlap.py::coverage`), en la tanda barata de `lint/runner.py::lint_wiki` |
 
 **Cobertura automática.** Todo lo determinista de arriba está cubierto por tests
 unitarios sin modelo ni navegador: `test_structured_extraction.py`,
 `test_chat_vocabulary.py`, `test_alias_generation.py`, `test_lint_vocabulary.py`,
-`test_chat_retrieval_plan.py`, `test_chat_pre_retrieval_answer.py`. Este UAT valida
-lo que esos tests no pueden: el comportamiento **en vivo** de punta a punta.
+`test_repair.py`, `test_lint_thin_page.py`, `test_chat_retrieval_plan.py`,
+`test_chat_pre_retrieval_answer.py`. Este UAT valida lo que esos tests no pueden:
+el comportamiento **en vivo** de punta a punta.

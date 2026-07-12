@@ -411,3 +411,81 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
             ))
 
     return issues
+
+
+# ── 3.8: Thin-page detector (source chunks left uncovered by the wiki) ─────────
+
+_THIN_MIN_CHUNKS = 3         # too few chunks → a ratio is meaningless; skip tiny docs
+_THIN_ORPHAN_COVERAGE = 0.2  # a chunk is "covered" if ≥20% of its words appear in the pages
+_THIN_ORPHAN_RATIO = 0.5     # flag only when at least half the chunks are orphaned
+
+
+def thin_page_check(db_path: str) -> list[LintIssue]:
+    """Source docs whose wiki page(s) leave many of their chunks uncovered.
+
+    Pure, no LLM — the ingest-side pata of the coverage story. NOT measured by
+    size (a good summary is deliberately short; size would false-alarm on every
+    good summary). The ruler is orphan chunks: per source doc, a page-chunk whose
+    content words barely appear in ANY wiki page citing that source. When most of
+    a source's chunks are orphaned, the wiki under-covers it, so a legit question
+    about the missing part would have to fall to Tier-2 — flag it (warning) so the
+    page can be expanded. Reuses the same lexical `coverage` that verifies Tier-2.
+    """
+    from domain.chat.overlap import is_supported
+
+    issues: list[LintIssue] = []
+    with get_connection(db_path) as conn:
+        sources = conn.execute(
+            "SELECT id, filename FROM documents "
+            "WHERE source_kind = 'source' AND status != 'failed'"
+        ).fetchall()
+        for src in sources:
+            chunks = [
+                r["content"] for r in conn.execute(
+                    "SELECT content FROM document_pages WHERE document_id = ? ORDER BY page",
+                    (src["id"],),
+                ).fetchall()
+                if (r["content"] or "").strip()
+            ]
+            if len(chunks) < _THIN_MIN_CHUNKS:
+                continue
+
+            citing = conn.execute(
+                "SELECT d.path || d.filename AS page_path, d.content AS content, "
+                "       d.source_document_id AS sdid, d.path AS dir "
+                "FROM document_references dr "
+                "JOIN documents d ON dr.source_document_id = d.id AND d.source_kind = 'wiki' "
+                "WHERE dr.target_document_id = ? AND dr.reference_type = 'cites'",
+                (src["id"],),
+            ).fetchall()
+            if not citing:
+                continue
+
+            pages_text = " ".join(c["content"] or "" for c in citing)
+            orphans = sum(
+                1 for ch in chunks
+                if not is_supported(ch, pages_text, min_coverage=_THIN_ORPHAN_COVERAGE)
+            )
+            if orphans / len(chunks) < _THIN_ORPHAN_RATIO:
+                continue
+
+            # Attach the finding to the source's own summary page when present
+            # (the natural thing to expand), else any page citing the source.
+            target = (
+                next((c for c in citing
+                      if c["sdid"] == src["id"] and c["dir"] == "/wiki/summaries/"), None)
+                or next((c for c in citing if c["sdid"] == src["id"]), None)
+                or citing[0]
+            )
+            issues.append(LintIssue(
+                check="thin_page", severity="warning", page=target["page_path"],
+                description=(
+                    f"{orphans} of {len(chunks)} source chunks in '{src['filename']}' "
+                    "aren't reflected in the wiki page(s) citing it"
+                ),
+                suggestion=(
+                    "Expand or regenerate the page to cover the source, or accept the "
+                    "Tier-2 fallback for the uncovered part"
+                ),
+            ))
+    return issues
