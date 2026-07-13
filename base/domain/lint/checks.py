@@ -426,10 +426,17 @@ def thin_page_check(db_path: str) -> list[LintIssue]:
     Pure, no LLM — the ingest-side pata of the coverage story. NOT measured by
     size (a good summary is deliberately short; size would false-alarm on every
     good summary). The ruler is orphan chunks: per source doc, a page-chunk whose
-    content words barely appear in ANY wiki page citing that source. When most of
-    a source's chunks are orphaned, the wiki under-covers it, so a legit question
-    about the missing part would have to fall to Tier-2 — flag it (warning) so the
-    page can be expanded. Reuses the same lexical `coverage` that verifies Tier-2.
+    content words barely appear in the wiki pages that carry that source. When most
+    of a source's chunks are orphaned, the wiki under-covers it, so a legit
+    question about the missing part would have to fall to Tier-2 — flag it
+    (warning) so the page can be expanded. Reuses the same lexical `coverage` that
+    verifies Tier-2.
+
+    Coverage = the pages that CITE the source (the summaries) PLUS the concept
+    pages those summaries link to. Only summaries carry a `cites` edge back to the
+    source; the detail lives in the concept pages they spawned, which don't. Miss
+    those and the check measures the source against the short summary alone and
+    false-alarms on every doc whose detail was split into concepts.
     """
     from domain.chat.overlap import is_supported
 
@@ -451,8 +458,8 @@ def thin_page_check(db_path: str) -> list[LintIssue]:
                 continue
 
             citing = conn.execute(
-                "SELECT d.path || d.filename AS page_path, d.content AS content, "
-                "       d.source_document_id AS sdid, d.path AS dir "
+                "SELECT d.id AS wiki_id, d.path || d.filename AS page_path, "
+                "       d.content AS content, d.source_document_id AS sdid, d.path AS dir "
                 "FROM document_references dr "
                 "JOIN documents d ON dr.source_document_id = d.id AND d.source_kind = 'wiki' "
                 "WHERE dr.target_document_id = ? AND dr.reference_type = 'cites'",
@@ -461,7 +468,19 @@ def thin_page_check(db_path: str) -> list[LintIssue]:
             if not citing:
                 continue
 
-            pages_text = " ".join(c["content"] or "" for c in citing)
+            # Coverage = citing pages (summaries) + the concept pages they link to.
+            texts = [c["content"] or "" for c in citing]
+            citing_ids = [c["wiki_id"] for c in citing]
+            placeholders = ",".join("?" * len(citing_ids))
+            linked = conn.execute(
+                "SELECT t.content FROM document_references l "
+                "JOIN documents t ON l.target_document_id = t.id AND t.source_kind = 'wiki' "
+                f"WHERE l.reference_type = 'links_to' AND l.source_document_id IN ({placeholders})",
+                citing_ids,
+            ).fetchall()
+            texts.extend(r["content"] or "" for r in linked)
+
+            pages_text = " ".join(texts)
             orphans = sum(
                 1 for ch in chunks
                 if not is_supported(ch, pages_text, min_coverage=_THIN_ORPHAN_COVERAGE)
