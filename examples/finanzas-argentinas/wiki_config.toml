@@ -93,7 +93,7 @@ terminos = ["cedear", "cedears", "cripto", "bitcoin"]
 
 # Lista BLANCA: otros nombres de datos que SÍ tenemos (canónico -> alias).
 [alias_datos]
-dolar = ["billete verde", "blue", "divisa"]
+dolar = ["billete verde", "divisa"]
 
 # FALSOS sinónimos: pares que NO son lo mismo -> no cruzar en el paso de sinónimos.
 [falsos_sinonimos]
