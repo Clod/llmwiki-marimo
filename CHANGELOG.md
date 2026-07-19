@@ -11,6 +11,46 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Added
+- **Dataset engine** — a domain-neutral `datasets/` capability: tabular data
+  files the assistant queries through an opt-in `query_dataset` tool, kept
+  separate from the curated wiki so numbers come from the data, never the model.
+- **Argentine finance advisory** (`finance_argentina`) — a deterministic
+  `estimar_alternativas` tool that ranks investment alternatives for a given
+  amount and horizon with **code-computed** gains (never LLM-estimated), flags
+  non-estimable instruments (equities), and carries a nominal-vs-real inflation
+  disclaimer.
+- **`finanzas-argentinas` demo** — a pre-ingested Spanish finance wiki with
+  `datasets/`, a tuned `wiki_config.toml`, a demo guide, and its own live
+  acceptance UAT (`scripts/uat_finanzas.py`).
+- **Ingest-time vocabulary subsystem** — the assistant generates data/concept
+  aliases while ingesting; a vocabulary linter + auto-repair keeps the alias map
+  honest (collisions dropped, stale/covered/ambiguous surfaced); a coverage
+  **roster** decides what the wiki actually covers; and a thin-page detector
+  flags source chunks the wiki leaves uncovered.
+- **Hybrid pre-retrieval** (opt-in per wiki) — code retrieves and injects wiki
+  context *before* the model answers, gated on the coverage roster so an
+  off-topic or uncovered question is refused deterministically instead of leaking
+  from a tangential chunk; tiered curated-then-raw sources with answer-vs-source
+  verification; and a live toggle in the read app.
+- **Pluggable citation/grounding guardrail** and an **opt-in JSONL chat trace**
+  (one row per turn) for offline diagnosis.
+
+### Fixed
+- **Pre-retrieval now actually retrieves.** The FTS query reached SQLite FTS5 raw,
+  so any natural question crashed the search and silently returned no hits — the
+  gate then refused valid, covered questions. Queries are now sanitized; both
+  tiers are gated on the coverage roster; a data/advisory question routes to the
+  tools before any raw-doc fallback; and a generic advisory question (an amount +
+  horizon, no named instrument) reaches the advisory tool instead of being
+  refused.
+- **Citation detection recognizes the real format.** A `Referencia:`/`Fuente:`
+  line (what the prompt asks for and the app emits) and a source-document
+  citation (`.docx`/`.pdf`) now count as grounded/cited in the chat trace and the
+  eval graders, not only an inline `(wiki/….md)`.
+- **Lint & repair** labels advisory-only vocabulary findings clearly instead of
+  reporting them as "Unknown check type".
+
 ## [0.2.3] - 2026-07-08
 
 ### Fixed
