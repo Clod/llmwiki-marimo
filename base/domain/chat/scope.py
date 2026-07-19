@@ -56,6 +56,36 @@ def mentions_known_data(
     )
 
 
+_ADVISORY_CUES = (
+    "alternativ", "invert", "invier", "conviene", "recomend", "rendimiento",
+    "cuanto gan", "cuanto rind", "cuanto me da", "donde pong", "que hago con",
+    "colocar", "en que pongo",
+)
+_MONEY_RE = re.compile(
+    r"\$\s*\d|\b\d[\d.,]*\s*(?:mil|millon|millones|palos?|lucas?|pesos?|dolares?|usd)\b"
+)
+_HORIZON_RE = re.compile(
+    r"\b\d+\s*(?:dia|dias|mes|meses|ano|anos|semana|semanas|trimestre|trimestres)\b"
+)
+
+
+def advisory_intent(question: str) -> bool:
+    """True if the question is an investment-advisory request even without naming
+    a specific instrument (e.g. "tengo $1M por 3 meses, ¿qué alternativas tengo?").
+
+    The gate routes a data question to the tools by NAMED data term
+    (`mentions_known_data`); a generic advisory question names none, so it would
+    otherwise refuse. We recognise it by an advisory cue (alternativas / invertir
+    / cuánto ganaría / …) TOGETHER WITH a money amount or a time horizon — kept
+    conservative so an ordinary question that merely contains a number doesn't
+    route to the (amount-hungry) advisory tool.
+    """
+    q = _normalize(question)
+    if not any(cue in q for cue in _ADVISORY_CUES):
+        return False
+    return bool(_MONEY_RE.search(q) or _HORIZON_RE.search(q))
+
+
 def drop_false_synonyms(
     question: str, proposals: Iterable[str], false_synonyms: Mapping[str, Iterable[str]]
 ) -> list[str]:

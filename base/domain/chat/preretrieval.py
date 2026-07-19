@@ -11,13 +11,14 @@ against. Everything here is derived from a `DatasetSource`; no LLM.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 
 from domain.chat.guardrail import enforce_grounding, refusal_for
 from domain.chat.overlap import is_supported
 from domain.chat.postprocess import answer_with_table, ensure_citation
-from domain.chat.scope import is_off_limits, mentions_known_data
+from domain.chat.scope import advisory_intent, is_off_limits, mentions_known_data
 from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
 from domain.tools.search import search_chunks
@@ -59,14 +60,47 @@ def _format_hits(rows: list[dict]) -> list[str]:
     return blocks
 
 
+# Ubiquitous Spanish function words. OR-joining these would make an off-topic
+# question ("¿la capital de Francia?") match nearly every page — so we drop them
+# (along with 1-2 char tokens) before building the query. The roster gate is the
+# real coverage authority; this just keeps the lexical match on content words.
+_FTS_STOPWORDS = frozenset({
+    "que", "qué", "los", "las", "una", "unos", "unas", "con", "por", "para",
+    "del", "como", "cómo", "son", "sos", "está", "estan", "están", "este",
+    "esta", "esto", "estos", "estas", "cual", "cuál", "cuales", "cuáles",
+    "quien", "quién", "dame", "hago", "estoy", "más", "mas", "pero", "sus",
+    "nos", "les", "ese", "esa", "eso", "aquel", "sobre", "entre", "desde",
+    "hasta", "donde", "dónde", "cuando", "cuándo", "muy", "hay", "tengo",
+})
+
+
+def _fts_query(text: str) -> str:
+    """Turn a natural-language question into a safe FTS5 MATCH expression.
+
+    FTS5 reads bare ',', '?', '¿', quotes, etc. as syntax, so passing a raw
+    question to MATCH raised OperationalError — silently swallowed by
+    search_chunks, which then returned no hits and left the pre-retrieval gate
+    with nothing to inject. We tokenize to word characters, drop stopwords and
+    1-2 char tokens, and OR the rest, quoting each so an FTS keyword
+    (OR/AND/NOT/NEAR) that happens to be a word can't act as an operator. Empty
+    string when nothing meaningful remains — search_chunks short-circuits that
+    to [].
+    """
+    tokens = [
+        t for t in re.findall(r"\w+", text, flags=re.UNICODE)
+        if len(t) > 2 and t.lower() not in _FTS_STOPWORDS
+    ]
+    return " OR ".join(f'"{t}"' for t in tokens)
+
+
 def retrieve_wiki(db_path: str, query: str, *, limit: int = 6) -> list[str]:
     """Top curated-wiki chunks for `query` (Tier 1). Empty list if none."""
-    return _format_hits(search_chunks(db_path, query, limit=limit, scope="wiki"))
+    return _format_hits(search_chunks(db_path, _fts_query(query), limit=limit, scope="wiki"))
 
 
 def retrieve_source_chunks(db_path: str, query: str, *, limit: int = 4) -> list[str]:
     """Top raw source-document chunks for `query` (Tier 2). Empty if none."""
-    return _format_hits(search_chunks(db_path, query, limit=limit, scope="sources"))
+    return _format_hits(search_chunks(db_path, _fts_query(query), limit=limit, scope="sources"))
 
 
 @dataclass(frozen=True)
@@ -98,23 +132,31 @@ def plan_retrieval(
     has_data: bool,
     in_roster: bool,
 ) -> RetrievalPlan:
-    """Decide the plan. Order: blacklist first (refuse), then curated wiki
-    (Tier 1), then — only for a covered topic — raw docs (Tier 2, verify), then a
-    data/advisory question (tools only), else refuse without invoking the model.
+    """Decide the plan. Order: blacklist first (refuse), then — for a covered
+    topic — curated wiki (Tier 1); then a data/advisory question (tools only);
+    then raw docs (Tier 2, verify) as the covered-topic fallback; else refuse
+    without invoking the model.
 
     `has_data` and `in_roster` are computed by the caller (`mentions_known_data`
-    against the dataset vocab, and against the full coverage padrón). Tier-2 is
-    gated on `in_roster`: an UNcovered topic never reaches the raw docs, so a
-    tangential chunk can't be used to leak general knowledge (the CEDEARs leak).
+    against the dataset vocab, and against the full coverage padrón). BOTH tiers
+    are gated on `in_roster`: lexical FTS can match a curated or raw chunk on a
+    shared word for an UNcovered topic, so the padrón — not the search hit — is
+    the authority on coverage. This is what stops a tangential chunk from leaking
+    general knowledge (the CEDEARs leak), on Tier 1 as well as Tier 2.
     """
     if is_off_limits(question, off_limits):
         return _REFUSE
-    if wiki_hits:
+    if wiki_hits and in_roster:
         return RetrievalPlan("invoke", "curado", "\n\n".join(wiki_hits), False)
+    if has_data:
+        # A question that names known data goes to the tools (query_dataset /
+        # advisory) before any raw-doc fallback: the dataset value/date beats
+        # answering from raw prose — and a lexical raw-doc hit would otherwise
+        # divert "¿a cuánto está el billete verde?" to Tier-2 and starve it of
+        # the actual number.
+        return RetrievalPlan("invoke", None, None, False)
     if doc_hits and in_roster:
         return RetrievalPlan("invoke", "crudo", "\n\n".join(doc_hits), True)
-    if has_data:
-        return RetrievalPlan("invoke", None, None, False)
     return _REFUSE
 
 
@@ -144,7 +186,10 @@ async def pre_retrieval_answer(
     refusal = refusal_for(language)
     aliases = [alias for names in config.data_aliases.values() for alias in names]
     vocabulary = build_vocabulary(LocalMarkdownSource(workspace / "datasets"))
-    has_data = mentions_known_data(question, vocabulary, aliases)
+    # Route to the tools either by a NAMED data term or by generic advisory intent
+    # ("$1M, 3 meses, ¿qué alternativas?") — the latter names no instrument but
+    # still belongs on the query_dataset/estimar_alternativas path, not a refusal.
+    has_data = mentions_known_data(question, vocabulary, aliases) or advisory_intent(question)
     # "In the padrón" = the question names something the wiki actually covers
     # (a dataset term OR a concept page name OR a known alias). Tier-2 (raw docs)
     # is allowed ONLY for a covered topic, so an uncovered question can't pull a

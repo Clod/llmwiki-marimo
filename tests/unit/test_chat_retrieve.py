@@ -52,3 +52,68 @@ def test_retrieve_empty_when_no_hits(monkeypatch):
     monkeypatch.setattr(preretrieval, "search_chunks", lambda *a, **k: [])
     assert retrieve_wiki("db", "x") == []
     assert retrieve_source_chunks("db", "x") == []
+
+
+def _capture_query(monkeypatch):
+    """Monkeypatch search_chunks to record the query string it receives."""
+    seen = {}
+
+    def fake(db, query, limit=10, scope="all"):
+        seen["query"] = query
+        return []
+
+    monkeypatch.setattr(preretrieval, "search_chunks", fake)
+    return seen
+
+
+def test_retrieve_wiki_sanitizes_fts_query(monkeypatch):
+    """A raw natural-language question must not reach FTS5 verbatim.
+
+    FTS5 reads ',', '?', '¿' as syntax, so the raw question raised
+    OperationalError and silently returned no hits — the pre-retrieval gate then
+    fell through to a context-less plan. The wrapper must tokenize the question
+    into a safe OR-query before it hits MATCH.
+    """
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "Si hago un plazo fijo, ¿le estoy ganando a la inflación?")
+    q = seen["query"]
+    assert not any(ch in q for ch in ",¿?"), f"unsanitized FTS query: {q!r}"
+    assert "plazo" in q and "inflación" in q
+    assert " OR " in q  # tokens are OR-joined, not passed as one phrase
+
+
+def test_retrieve_source_sanitizes_fts_query(monkeypatch):
+    seen = _capture_query(monkeypatch)
+    retrieve_source_chunks("db", "¿Cuánto ganaría con acciones de YPF?")
+    q = seen["query"]
+    assert not any(ch in q for ch in ",¿?"), f"unsanitized FTS query: {q!r}"
+    assert "acciones" in q and "YPF" in q
+
+
+def test_retrieve_wiki_punctuation_only_query_is_empty(monkeypatch):
+    """A query with no word characters sanitizes to '' → search_chunks skips it."""
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "¿? , .")
+    assert seen["query"] == ""
+
+
+def test_retrieve_wiki_drops_stopwords_and_short_tokens(monkeypatch):
+    """Ubiquitous words (es, la, de, qué…) must not reach FTS.
+
+    OR-joining every token means a stopword that appears on nearly every page
+    makes an off-topic question match the whole corpus — defeating the roster
+    gate. Only content tokens survive.
+    """
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "¿Qué es la capital de Francia?")
+    q = seen["query"]
+    for junk in ('"es"', '"la"', '"de"', '"Qué"', '"qué"'):
+        assert junk not in q, f"stopword leaked into FTS query: {junk} in {q!r}"
+    assert '"capital"' in q and '"Francia"' in q
+
+
+def test_retrieve_wiki_all_stopwords_query_is_empty(monkeypatch):
+    """A question made only of stopwords sanitizes to '' (nothing to match on)."""
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "¿Qué es esto?")
+    assert seen["query"] == ""

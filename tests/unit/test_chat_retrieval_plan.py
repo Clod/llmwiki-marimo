@@ -51,6 +51,13 @@ def test_raw_doc_hit_not_in_roster_refuses():
     assert plan.action == "refuse"
 
 
+def test_curated_wiki_hit_not_in_roster_refuses():
+    # Uncovered topic whose stopword/word overlap happened to match a curated page
+    # must NOT trigger Tier 1 either — the padrón is the authority, not lexical FTS.
+    plan = _plan(wiki_hits=["pagina que mencionó una palabra al pasar"], in_roster=False)
+    assert plan.action == "refuse"
+
+
 def test_curated_wins_over_raw_docs():
     plan = _plan(wiki_hits=["pagina curada"], doc_hits=["chunk crudo"])
     assert plan.tier == "curado"
@@ -63,6 +70,17 @@ def test_data_question_invokes_with_no_context():
     assert plan.tier is None
     assert plan.context is None
     assert plan.verify is False
+
+
+def test_data_question_beats_raw_docs():
+    # A question that names known data goes to tools even when raw-doc chunks
+    # matched — the dataset value beats answering from raw prose (the "billete
+    # verde" case). has_data is checked before Tier-2.
+    plan = _plan(wiki_hits=[], doc_hits=["prosa que menciona el dólar"],
+                 has_data=True, in_roster=True)
+    assert plan.action == "invoke"
+    assert plan.tier is None       # tools, not Tier-2 crudo
+    assert plan.context is None
 
 
 def test_nothing_found_refuses_without_model():

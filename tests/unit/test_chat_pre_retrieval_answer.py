@@ -44,12 +44,13 @@ def _run(coro):
     return asyncio.run(coro)
 
 
-def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(), monkeypatch):
+def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(),
+            concepts=(), monkeypatch):
     monkeypatch.setattr(preretrieval, "build_vocabulary", lambda src: set(vocab))
     monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda db, q, **k: list(wiki))
     monkeypatch.setattr(preretrieval, "retrieve_source_chunks", lambda db, q, **k: list(docs))
     monkeypatch.setattr(preretrieval, "LocalMarkdownSource", lambda p: object())
-    monkeypatch.setattr(preretrieval, "concept_page_names", lambda db: [])
+    monkeypatch.setattr(preretrieval, "concept_page_names", lambda db: list(concepts))
     return _run(pre_retrieval_answer(
         question, config=CFG, db_path="db", workspace=Path("/tmp/wp"),
         history=[], language="es", run_agent=run_agent,
@@ -64,27 +65,40 @@ def test_off_limits_refuses_without_calling_agent(monkeypatch):
 
 
 def test_tier1_curated_injects_context_and_returns_answer(monkeypatch):
+    # Covered topic (in the roster) with a curated hit -> Tier 1 injects + answers.
     agent = _fake_agent("Una caución es... Referencia: cauciones-bursatiles.md")
-    out = _answer("¿qué es una caución?", agent,
+    out = _answer("¿qué es una caución?", agent, vocab={"caución"},
                   wiki=["[cauciones-bursatiles.md]\nUna caución es una operación..."],
                   monkeypatch=monkeypatch)
     assert "Una caución es" in out
     assert "cauciones-bursatiles.md" in agent.calls[0]  # context was injected
 
 
+def test_tier1_curated_hit_not_in_roster_refuses(monkeypatch):
+    # A curated hit on an UNcovered topic (empty roster) must NOT inject — the
+    # padrón is the authority, not the lexical FTS hit.
+    agent = _fake_agent("no debería contestar")
+    out = _answer("¿cuál es la capital de Francia?", agent,
+                  wiki=["[panel-lider.md]\nEl panel líder concentra el capital..."],
+                  monkeypatch=monkeypatch)
+    assert out == REFUSAL_ES
+    assert agent.calls == []  # model never invoked
+
+
 def test_tier2_unsupported_answer_is_refused(monkeypatch):
-    # Covered topic (mentions dólar) so Tier 2 fires; the answer is off-source -> refuse.
+    # Covered CONCEPT (not a data term, no curated page) so Tier 2 fires; the
+    # answer is off-source -> refuse. A data-term topic would go to tools instead.
     agent = _fake_agent("Los CEDEARs permiten invertir en Apple, Google y Amazon.")
-    out = _answer("¿qué pasa con el dólar oficial?", agent, vocab={"dolar"},
-                  wiki=[], docs=["[05 Bonos.docx]\nExposición al dólar oficial mayorista."],
+    out = _answer("¿qué es una caución bursátil?", agent, concepts={"caución bursátil"},
+                  wiki=[], docs=["[12 Cauciones.docx]\nLa caución bursátil es un préstamo garantizado."],
                   monkeypatch=monkeypatch)
     assert out == REFUSAL_ES
 
 
 def test_tier2_supported_answer_gets_warning(monkeypatch):
-    src = "[05 Bonos.docx]\nLos bonos dólar linked ajustan por el tipo de cambio oficial mayorista."
-    agent = _fake_agent("Los bonos dólar linked ajustan por el tipo de cambio oficial.")
-    out = _answer("¿qué son los bonos dólar linked?", agent, vocab={"dolar"},
+    src = "[12 Cauciones.docx]\nLa caución bursátil es un préstamo de corto plazo garantizado con títulos."
+    agent = _fake_agent("La caución bursátil es un préstamo de corto plazo garantizado con títulos.")
+    out = _answer("¿qué es una caución bursátil?", agent, concepts={"caución bursátil"},
                   wiki=[], docs=[src], monkeypatch=monkeypatch)
     assert "documento fuente" in out.lower()  # the Tier-2 warning
 
@@ -120,3 +134,21 @@ def test_data_question_invokes_tools_only_no_context(monkeypatch):
                   vocab={"dolar"}, monkeypatch=monkeypatch)
     assert "1180" in out
     assert agent.calls[0] == "¿a cuánto está el billete verde?"  # no context prepended
+
+
+def test_advisory_intent_without_named_data_invokes_tools(monkeypatch):
+    # Case G: a generic advisory question names no instrument (vocab miss) but
+    # asks "$1M, 3 meses, ¿qué alternativas?" -> advisory_intent routes it to the
+    # tools path (invoke, no injected context) instead of refusing.
+    from pydantic_ai.messages import ModelRequest, ToolReturnPart
+    grounded = [ModelRequest(parts=[
+        ToolReturnPart(tool_name="estimar_alternativas",
+                       content="| Credicoop 90d | $90.000 |", tool_call_id="c1")
+    ])]
+    agent = _fake_agent("La mejor alternativa rinde $90.000.", messages=grounded)
+    out = _answer(
+        "Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo y cuánto ganaría?",
+        agent, wiki=[], docs=[], vocab=frozenset(), monkeypatch=monkeypatch,
+    )
+    assert "90.000" in out
+    assert agent.calls  # the model WAS invoked (not refused at the gate)
