@@ -56,9 +56,17 @@ def _jsonable(value: Any) -> Any:
         return str(value)
 
 
+_CITATION_MARKERS = (".md", ".docx", ".doc", ".pdf", ".txt", ".csv")
+
+
 def _looks_cited(text: str) -> bool:
-    """Cheap heuristic: a grounded answer names its source page (a ``*.md`` path)."""
-    return ".md" in (text or "")
+    """Cheap heuristic: a grounded answer names its source.
+
+    A curated wiki page (``*.md``) OR the source document it came from
+    (``*.docx`` / ``*.pdf`` …) — the pre-retrieval curated path cites the source
+    doc, so matching only ``.md`` would miss it and read as uncited.
+    """
+    return any(marker in (text or "") for marker in _CITATION_MARKERS)
 
 
 def extract_tool_activity(messages: Any) -> tuple[list[dict], list[dict]]:
@@ -101,6 +109,10 @@ def build_turn_record(
 ) -> dict:
     """Assemble one JSONL turn record (pure; safe to unit-test)."""
     tool_calls, tool_returns = extract_tool_activity(messages)
+    cited = _looks_cited(final_answer)
+    # A cited answer IS grounded even with no tool calls: the pre-retrieval curated
+    # path answers from injected context (tool-less) and cites its source, so the
+    # tool-based `grounded` passed in reads False — the citation is the evidence.
     return {
         "ts": _now_iso(),
         "question": question,
@@ -112,10 +124,10 @@ def build_turn_record(
         "tool_calls": tool_calls,
         "tool_returns": tool_returns,
         "raw_output": raw_output,
-        "grounded": grounded,
+        "grounded": bool(grounded) or cited,
         "refusal_substituted": refusal_substituted,
         "final_answer": final_answer,
-        "cited": _looks_cited(final_answer),
+        "cited": cited,
     }
 
 

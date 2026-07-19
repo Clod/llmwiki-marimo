@@ -100,6 +100,39 @@ def test_build_turn_record_uncited_answer():
     assert rec["cited"] is False
 
 
+def test_cited_recognizes_source_document_citation():
+    # A curated pre-retrieval answer cites the SOURCE doc (.docx/.pdf), not a .md —
+    # that must still count as cited.
+    rec = chat_trace.build_turn_record(
+        question="q", language="es", strict_mode=True, history=[],
+        messages=[], raw_output="…", grounded=False, refusal_substituted=False,
+        final_answer="El plazo fijo tradicional… Referencia: 10 Plazos Fijos.docx",
+    )
+    assert rec["cited"] is True
+
+
+def test_context_grounded_answer_is_grounded_without_tools():
+    # Pre-retrieval curated path: no tool calls (tool-less agent), but the answer
+    # cites its injected source -> it IS grounded, not "ungrounded".
+    rec = chat_trace.build_turn_record(
+        question="q", language="es", strict_mode=True, history=[],
+        messages=[], raw_output="…", grounded=False, refusal_substituted=False,
+        final_answer="Una caución… Fuente: [wiki/concepts/caucion-bursatil.md]",
+    )
+    assert rec["cited"] is True
+    assert rec["grounded"] is True
+
+
+def test_refusal_is_neither_cited_nor_grounded():
+    rec = chat_trace.build_turn_record(
+        question="q", language="es", strict_mode=True, history=[],
+        messages=[], raw_output="", grounded=False, refusal_substituted=True,
+        final_answer="Eso no está en mi base de conocimiento.",
+    )
+    assert rec["cited"] is False
+    assert rec["grounded"] is False
+
+
 # ── record_turn (I/O) ───────────────────────────────────────────────────────
 
 def _record() -> dict:
