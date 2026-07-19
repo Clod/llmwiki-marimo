@@ -350,3 +350,35 @@ def test_repair_vocab_collision_via_dispatch(tmp_workspace: WorkspaceFixture) ->
     report = repair_wiki(lint, tmp_workspace.db_path, tmp_workspace.workspace)  # no LLM needed
     assert len(report.fixed) == 1
     assert read_generated_aliases(tmp_workspace.workspace) == {"CEDEAR": ["Certificado"]}
+
+
+def test_repair_skips_advisory_vocab_checks_with_clear_message(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    # vocab_stale / vocab_covered are informational — they have no auto-repair, but
+    # they are KNOWN checks and must not be labelled "Unknown check type".
+    lint = LintReport(issues=[
+        LintIssue(check="vocab_stale", severity="warning",
+                  page=".llmwiki/aliases.generated.toml",
+                  description="Aliases for 'X', which has no page or dataset",
+                  suggestion="Remove it"),
+        LintIssue(check="vocab_covered", severity="info", page="wiki_config.toml",
+                  description="'cripto' is in [fuera_de_alcance] but now has a page",
+                  suggestion="Remove it"),
+    ])
+    report = repair_wiki(lint, tmp_workspace.db_path, tmp_workspace.workspace)
+    assert len(report.skipped) == 2
+    for r in report.skipped:
+        assert "unknown check type" not in r.message.lower()
+        assert "advisory" in r.message.lower()
+
+
+def test_repair_genuinely_unknown_check_is_still_flagged(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    lint = LintReport(issues=[LintIssue(
+        check="totally_made_up", severity="warning", page="x",
+        description="d", suggestion="s")])
+    report = repair_wiki(lint, tmp_workspace.db_path, tmp_workspace.workspace)
+    assert len(report.skipped) == 1
+    assert "unknown check type" in report.skipped[0].message.lower()

@@ -33,6 +33,10 @@ _DISPATCH = {
     "vocab_collision":  repair_vocab_collision,
 }
 
+# Known checks that surface a finding for a human but have no automatic repair
+# (informational/warning only). They are skipped deliberately — NOT "unknown".
+_ADVISORY_CHECKS = {"vocab_stale", "vocab_covered", "vocab_ambiguous"}
+
 
 def repair_wiki(
     lint_report: LintReport,
@@ -78,10 +82,15 @@ def repair_wiki(
     for issue in lint_report.issues:
         handler = _DISPATCH.get(issue.check)
         if handler is None:
+            message = (
+                "advisory finding — no automatic repair (resolve by hand)"
+                if issue.check in _ADVISORY_CHECKS
+                else f"Unknown check type: {issue.check}"
+            )
             result = RepairResult(
                 check=issue.check, page=issue.page,
                 action="skipped", success=True,
-                message=f"Unknown check type: {issue.check}",
+                message=message,
             )
         elif issue.check in _NEEDS_LLM and llm_client is None:
             result = RepairResult(
