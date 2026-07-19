@@ -1,25 +1,25 @@
 # 10 Plazos Fijos
 
-**Fuente:** 10 Plazos Fijos.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-08
+**Fuente:** 10 Plazos Fijos.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-19
 
 ## Resumen
 
-El documento describe los plazos fijos bancarios en Argentina, incluyendo sus variantes: tradicional, UVA y en dólares. Explica su funcionamiento, riesgos asociados, horizonte recomendado y cuándo es conveniente utilizarlos. Además, proporciona información sobre cómo acceder a tasas actualizadas y compara los plazos fijos con otros instrumentos financieros más flexibles.
+Los plazos fijos bancarios en Argentina son contratos donde el ahorrista entrega dinero a un banco por un tiempo determinado a cambio de intereses. Existen tres tipos principales: tradicional, UVA y en dólares, cada uno con diferentes características y riesgos asociados, como la inflación y la liquidez. Estos instrumentos son utilizados como referencia de tasa mínima y son accesibles desde homebanking sin necesidad de cuenta comitente.
 
 ## Conceptos relacionados
 
-- [Plazo Fijo Tradicional](../concepts/plazo-fijo-tradicional.md)
-- [Plazo Fijo UVA](../concepts/plazo-fijo-uva.md)
-- [Plazo Fijo en Dólares](../concepts/plazo-fijo-en-dolares.md)
-- [Riesgos de Plazos Fijos](../concepts/riesgos-de-plazos-fijos.md)
-- [Banco Central de la República Argentina (BCRA)](../concepts/banco-central-de-la-republica-argentina-bcra.md)
+- [Plazo fijo tradicional](../concepts/plazo-fijo-tradicional.md)
+- [Plazo fijo UVA](../concepts/plazo-fijo-uva.md)
+- [Plazo fijo en dólares](../concepts/plazo-fijo-en-dolares.md)
+- [Riesgo de inflación](../concepts/riesgo-de-inflacion.md)
+- [Riesgo de liquidez](../concepts/riesgo-de-liquidez.md)
 
 ## Información de la fuente
 
 - **Archivo:** 10 Plazos Fijos.docx
 - **Tipo:** docx
 - **Páginas:** 3
-- **Ingerido:** 2026-07-08
+- **Ingerido:** 2026-07-19
 - **Analizador:** libreoffice+opendataloader
 
 [^1]: 10 Plazos Fijos.docx

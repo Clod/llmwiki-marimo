@@ -6,15 +6,15 @@ sources: [05 Bonos Dólar Linked y Duales.docx]
 # Riesgo de atraso cambiario
 
 ## Definición
-El riesgo de atraso cambiario se refiere a la posibilidad de que el Banco Central de la República Argentina mantenga un tipo de cambio oficial anclado, lo que puede erosionar el rendimiento de los bonos Dólar Linked frente a la inflación y el mercado de dólares libres (05 Bonos Dólar Linked y Duales.docx).
+El riesgo de atraso cambiario es el riesgo de que el Banco Central retrase el ajuste del tipo de cambio oficial, lo cual puede afectar el rendimiento de los bonos Dólar Linked (05 Bonos Dólar Linked y Duales.docx).
 
 ## Características clave
-- Implica un tipo de cambio oficial que no se ajusta adecuadamente a las condiciones del mercado.
-- Puede afectar negativamente el rendimiento de instrumentos financieros como los bonos Dólar Linked.
-- Está relacionado con la política monetaria del Banco Central de la República Argentina.
+- Se refiere a la demora en la actualización del tipo de cambio oficial.
+- Impacta directamente en el rendimiento de instrumentos financieros como los bonos Dólar Linked.
+- Depende de las políticas cambiarias del Banco Central.
 
 ## Contexto
-El riesgo de atraso cambiario es un factor importante en la economía argentina, especialmente en el contexto de alta inflación y fluctuaciones en el mercado de divisas. Los inversores en bonos Dólar Linked deben considerar este riesgo al evaluar el rendimiento potencial de sus inversiones, ya que un tipo de cambio anclado puede no reflejar el valor real del dólar en el mercado libre, afectando así la rentabilidad de dichos bonos.
+El riesgo de atraso cambiario es un factor importante en la gestión de inversiones en mercados donde el tipo de cambio es regulado por el gobierno. En particular, afecta a los inversores en bonos Dólar Linked, ya que estos instrumentos están diseñados para proteger contra la devaluación de la moneda local. Sin embargo, si el ajuste del tipo de cambio se retrasa, el rendimiento esperado de estos bonos puede no cumplirse, lo que introduce un riesgo adicional para los inversores (05 Bonos Dólar Linked y Duales.docx).
 
 ## Fuentes
 - 05 Bonos Dólar Linked y Duales.docx

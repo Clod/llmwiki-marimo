@@ -1,24 +1,28 @@
 # 12 Cauciones Bursátiles
 
-**Fuente:** 12 Cauciones Bursátiles.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-08
+**Fuente:** 12 Cauciones Bursátiles.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-19
 
 ## Resumen
 
-Las cauciones bursátiles son operaciones de corto plazo en el mercado de capitales argentino, donde un colocador presta dinero a un tomador a cambio de una tasa de interés, con garantías superiores. Estas operaciones son seguras debido a los mecanismos de aforo y las garantías exigidas por BYMA, y son ideales para rentabilizar saldos transitorios en pesos argentinos.
+Una caución bursátil es una operación financiera de corto plazo similar a un depósito a plazo, realizada en el mercado de capitales con garantías superiores. Involucra a un colocador que presta dinero y un tomador que recibe los fondos, ofreciendo un colateral que supera el valor prestado. Los riesgos incluyen el riesgo inflacionario y de tasa, aunque el riesgo de crédito es prácticamente nulo gracias a las garantías exigidas por BYMA.
 
 ## Conceptos relacionados
 
-- [Cauciones Bursátiles](../concepts/cauciones-bursatiles.md)
+- [Caución Bursátil](../concepts/caucion-bursatil.md)
 - [BYMA](../concepts/byma.md)
 - [Riesgo de Crédito en Cauciones](../concepts/riesgo-de-credito-en-cauciones.md)
-- [Mercado de Capitales Argentino](../concepts/mercado-de-capitales-argentino.md)
+- [Riesgo Inflacionario en Cauciones](../concepts/riesgo-inflacionario-en-cauciones.md)
 
 ## Información de la fuente
 
 - **Archivo:** 12 Cauciones Bursátiles.docx
 - **Tipo:** docx
 - **Páginas:** 3
-- **Ingerido:** 2026-07-08
+- **Ingerido:** 2026-07-19
 - **Analizador:** libreoffice+opendataloader
 
 [^1]: 12 Cauciones Bursátiles.docx
+
+## Véase también
+
+- [Riesgo inflacionario](../concepts/riesgo-inflacionario.md)

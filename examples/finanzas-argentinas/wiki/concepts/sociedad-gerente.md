@@ -6,15 +6,20 @@ sources: [07 FCI Money Market.docx]
 # Sociedad Gerente
 
 ## Definición
-La Sociedad Gerente es la entidad responsable de la administración de los Fondos Comunes de Inversión (FCI) Money Market. Su función principal incluye la gestión del patrimonio del fondo y el cobro de honorarios de administración anuales que se descuentan diariamente del patrimonio administrado (07 FCI Money Market.docx).
+La Sociedad Gerente es la entidad encargada de administrar los Fondos Comunes de Inversión (FCI) Money Market y se encarga de cobrar honorarios de administración anuales (07 FCI Money Market.docx).
 
 ## Características clave
 - Administra los FCI Money Market.
-- Cobra honorarios de administración anuales.
-- Los honorarios se descuentan diariamente del patrimonio administrado.
+- Cobra honorarios de administración anuales por sus servicios.
+- Es una entidad especializada en la gestión de inversiones.
 
 ## Contexto
-En el ámbito de los Fondos Comunes de Inversión, la Sociedad Gerente juega un papel crucial al encargarse de la gestión y administración de los fondos. Esto incluye la toma de decisiones de inversión y la supervisión del rendimiento del fondo, asegurando que se cumplan los objetivos financieros establecidos para los inversores. La estructura de honorarios de la Sociedad Gerente está diseñada para alinearse con los intereses de los inversores, ya que se basa en el patrimonio administrado.
+La Sociedad Gerente juega un papel crucial en el ámbito de los Fondos Comunes de Inversión, especialmente en los Money Market. Su función es garantizar una gestión eficiente y profesional de los fondos, lo que es esencial para maximizar el rendimiento de las inversiones de los participantes. Al ser responsable de la administración de estos fondos, la Sociedad Gerente debe cumplir con regulaciones específicas y mantener la confianza de los inversores.
+
+## Véase también
+
+- [FCI Money Market](fci-money-market.md)
+- [07 Fci Money Market](../summaries/07-fci-money-market.md)
 
 ## Fuentes
 - 07 FCI Money Market.docx

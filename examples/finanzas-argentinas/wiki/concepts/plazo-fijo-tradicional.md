@@ -1,20 +1,25 @@
 ---
-tags: [instrumento]
+tags: [instrument]
 sources: [10 Plazos Fijos.docx]
 ---
 
-# Plazo Fijo Tradicional
+# Plazo fijo tradicional
 
 ## Definición
-El Plazo Fijo Tradicional es un tipo de depósito a plazo en el que se acuerda una tasa de interés fija al inicio del período de inversión. Este instrumento financiero es utilizado para asegurar un rendimiento predecible sobre el capital invertido.
+El plazo fijo tradicional es un tipo de depósito bancario en pesos que ofrece una tasa de interés fija pactada al inicio del contrato. Este tipo de inversión puede no compensar la inflación real, afectando el poder adquisitivo del capital invertido (10 Plazos Fijos.docx).
 
 ## Características clave
-- Tasa de interés fija pactada al inicio del plazo (10 Plazos Fijos.docx).
-- Riesgo de pérdida de poder adquisitivo si la inflación real supera la tasa de interés acordada (10 Plazos Fijos.docx).
-- El capital y los intereses se devuelven al vencimiento del plazo acordado.
+- Depósito en pesos.
+- Tasa de interés fija.
+- Duración determinada al inicio del contrato.
+- Riesgo de no compensar la inflación real.
 
 ## Contexto
-El Plazo Fijo Tradicional se enmarca dentro de los instrumentos de inversión de bajo riesgo, ya que ofrece una rentabilidad estable y predecible. Sin embargo, en contextos de alta inflación, puede no ser suficiente para proteger el poder adquisitivo del inversor, lo que lo convierte en una opción menos atractiva en economías inestables.
+El plazo fijo tradicional es una opción de inversión comúnmente utilizada por personas que buscan una forma segura de obtener rendimientos sobre su capital. Sin embargo, en contextos de alta inflación, la tasa fija puede resultar insuficiente para mantener el valor real del dinero invertido, lo que lo convierte en una opción menos atractiva en economías inestables.
+
+## Véase también
+
+- [10 Plazos Fijos](../summaries/10-plazos-fijos.md)
 
 ## Fuentes
 - 10 Plazos Fijos.docx

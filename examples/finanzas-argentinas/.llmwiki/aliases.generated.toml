@@ -1,0 +1,17 @@
+# Generated at ingest — do not edit by hand.
+# Hand overrides live in wiki_config.toml [alias_datos]; this file is merged UNDER them.
+
+[alias_datos]
+"Bolsas y Mercados Argentinos" = ["BCBA"]
+"Bonos CER/UVA" = ["Bonos ajustables por inflación", "Bonos CER", "Bonos UVA"]
+"Bonos Duales" = ["Duales"]
+"Bonos Dólar Linked" = ["Dólar Linked"]
+"Coeficiente de Estabilización de Referencia" = ["CER"]
+"Panel Líder" = ["S&P Merval"]
+"Plazo fijo UVA" = ["UVA"]
+"Plazo fijo en dólares" = ["Depósito en dólares"]
+"Plazo fijo tradicional" = ["Tradicional en pesos"]
+"Riesgo de atraso cambiario" = ["brecha cambiaria"]
+"Riesgo inflacionario" = ["Riesgo de tasa/inflación"]
+"Tasa Interna de Retorno Real" = ["TIR Real"]
+"Unidad de Valor Adquisitivo" = ["UVA"]
