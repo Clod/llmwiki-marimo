@@ -5,7 +5,7 @@ inside a document the evidence came from. A breadcrumb naming a neighbouring
 section is worse than no breadcrumb at all: it is a confident wrong answer.
 """
 
-from domain.ingestion.chunker import chunk_text
+from domain.ingestion.chunker import chunk_pages, chunk_text
 
 
 def _para(word: str, n: int) -> str:
@@ -149,3 +149,54 @@ def test_text_before_any_heading_has_an_empty_breadcrumb():
 
     assert len(chunks) == 1
     assert chunks[0].header_breadcrumb == ""
+
+
+def test_a_section_carries_across_a_page_break():
+    """A page boundary is not a section boundary.
+
+    PDFs and DOCX files are chunked a page at a time, but their outline runs
+    through the whole document: a section opened on one page keeps going on the
+    next. Restarting the heading stack per page leaves every fragment below the
+    first page-break of a section unlabelled.
+    """
+    pages = [
+        (1, "# Doc\n\n## Principales riesgos\n" + _para("alpha", 100)),
+        (2, _para("beta", 100)),
+    ]
+
+    chunks = chunk_pages(pages)
+
+    assert [c.page for c in chunks] == [1, 2]
+    assert [c.header_breadcrumb for c in chunks] == [
+        "Doc > Principales riesgos",
+        "Doc > Principales riesgos",
+    ]
+
+
+def test_a_heading_opening_a_later_page_replaces_the_carried_section():
+    """Carrying the outline must not pin it: a new page can open a new section."""
+    pages = [
+        (1, "# Doc\n\n## Section A\n" + _para("alpha", 100)),
+        (2, "## Section B\n" + _para("beta", 100)),
+        (3, _para("gamma", 100)),
+    ]
+
+    chunks = chunk_pages(pages)
+
+    assert [c.header_breadcrumb for c in chunks] == [
+        "Doc > Section A",
+        "Doc > Section B",
+        "Doc > Section B",
+    ]
+
+
+def test_page_indices_stay_sequential_across_pages():
+    """Carrying state must not disturb the global chunk numbering."""
+    pages = [
+        (1, "# Doc\n\n## Section A\n" + _para("alpha", 400)),
+        (2, "## Section B\n" + _para("beta", 400)),
+    ]
+
+    chunks = chunk_pages(pages)
+
+    assert [c.index for c in chunks] == list(range(len(chunks)))
