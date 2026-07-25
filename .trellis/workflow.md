@@ -257,6 +257,37 @@ Not everything runs in CI — know which gate you are (and are not) passing.
 - The wiki UATs (`examples/<demo>/UAT*.md`) are the manual acceptance scripts for
   a demo's behavior; keep them in sync when the behavior they assert changes.
 
+### Keeping docs honest
+
+Documentation rot is not a discipline problem — this project had a "update the
+spec docs" checklist item and still shipped a reference to a file that did not
+exist, six references to a deleted test, and a §6 that never mentioned a whole
+subsystem. Split the problem:
+
+**Derivable facts are never maintained by hand.** They are generated or
+enforced:
+
+| Fact | Mechanism |
+|------|-----------|
+| Relative links in docs | `tests/unit/test_docs_links.py` — fails CI on a dead link |
+| Ingestion artifact counts | generated: `scripts/capture_ingestion_walkthrough.py` |
+| Test counts / badges | prefer deleting the number over maintaining it |
+
+If you find yourself typing a number into prose that a command could compute,
+that is a rot surface — generate it, assert it, or drop it.
+
+**Judgment facts need a trigger, not a reminder.** "Update the docs" is
+unactionable; this is what actually enumerates what:
+
+| If you changed… | …these enumerate it |
+|---|---|
+| a lint check | `docs/manual/workflows.md` §6.1 (table + diagram) + quick-status table |
+| a repair action | §6.2 dispatch table |
+| a pipeline step | §6.3 (steps table + sequence diagram), `docs/ingestion_walkthrough.md` |
+| a chat tool | §6.7 tool inventory, `.trellis/spec/backend/chat-retrieval.md` |
+| a test file's name | both READMEs, `CONTRIBUTING.md`, `spec/backend/quality-guidelines.md`, `spec/backend/directory-structure.md` |
+| added a doc | the manual's index, the `docs/` tree in both READMEs |
+
 ---
 
 ## Session End
