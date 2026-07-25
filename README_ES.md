@@ -3,7 +3,6 @@
 [![CI](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml/badge.svg)](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Tests](https://img.shields.io/badge/tests-497-brightgreen.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Version](https://img.shields.io/github/v/tag/Clod/llmwiki-marimo?label=version&sort=semver&color=blue)](https://github.com/Clod/llmwiki-marimo/releases)
 [![Changelog](https://img.shields.io/badge/changelog-md-orange)](CHANGELOG.md)
@@ -68,12 +67,12 @@ vivos y calcula asesoramiento con fundamento sobre ellos.*
 - **Paquete de evaluación con LLM-como-juez** — un comando reúne las preguntas, las propias respuestas del modelo, la evidencia citada y los pares página-fuente vs. página-generada contra una rúbrica *congelada* de 1–5, para puntuar la calidad del chat **y** de la ingesta (y comparar modelos).
 - **Comprobación de idoneidad del modelo** — un PASS/FAIL de un solo comando sobre si un modelo dado supera el umbral de rechazo fuera del corpus, citas y síntesis citada.
 - **Prompting basado en evidencia** — el prompt de sistema por defecto incluye un ejemplo resuelto y completamente citado, porque las pruebas demostraron que eso es lo que hizo falta para una citación fiable entre documentos.
-- **Wiki que se auto-mantiene** — seis comprobaciones de lint (contradicciones, páginas obsoletas, huérfanas, conceptos faltantes, referencias cruzadas faltantes, vacíos de datos) con auto-reparación de las seguras.
+- **Wiki que se auto-mantiene** — nueve comprobaciones de lint (contradicciones, páginas obsoletas, huérfanas, conceptos faltantes, referencias cruzadas faltantes, vacíos de datos, vacíos ya cubiertos, deriva de vocabulario, páginas flacas) con auto-reparación de las seguras.
 - **Agnóstica del proveedor, con modelo dividido** — cualquier endpoint compatible con OpenAI; usa un modelo local barato para el chat y uno más potente para la ingesta, solo con `.env`.
 
 **Calidad de ingeniería**
 
-- **497 pruebas en tres capas, ≈1:1 prueba-a-código** (núcleo agnóstico del framework en `base/`, ejercitado sin navegador) — pruebas unitarias deterministas con LLM falso (sin claves, sin red); una regresión de *caracterización* sobre un corpus dorado congelado que vuelve a comprobar la columna vertebral de la ingesta real sin volver a llamar al modelo; y E2E con Playwright sobre las apps en vivo.
+- **Pruebas en tres capas, ≈1:1 prueba-a-código** (núcleo agnóstico del framework en `base/`, ejercitado sin navegador) — pruebas unitarias deterministas con LLM falso (sin claves, sin red); una regresión de *caracterización* sobre un corpus dorado congelado que vuelve a comprobar la columna vertebral de la ingesta real sin volver a llamar al modelo; y E2E con Playwright sobre las apps en vivo.
 - **Núcleo agnóstico del framework** — toda la lógica vive en `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo es solo la UI en los bordes, así que el motor se ejercita con pruebas unitarias sin navegador.
 - **UI maleable** — como la interfaz son notebooks de marimo, las tres columnas de la app de lectura son simples anotaciones `@app.cell(column=N)`: abre la app con `marimo edit` y reorganiza o re-columna las celdas según tu flujo, gusto o monitor — sin tocar código de frontend.
 - **Consciente de la seguridad** — un guardia contra *path-traversal* en el lector de páginas invocable por el LLM, un modelo de amenazas explícito de inyección de prompts y un [`SECURITY.md`](SECURITY.md) documentado.
@@ -221,9 +220,9 @@ examples/               # Wikis de demostración pre-ingeridas (usadas por quick
 └── fairy-tales/           # Navegable sin LLM; el chat necesita un modelo
 
 tests/
-├── unit/                  # 470 pruebas unitarias (FakeLLM, sin red)
-├── regression/            # 16 pruebas congeladas de corpus dorado (ingesta real, sin modelo en vivo)
-├── e2e/                   # 11 pruebas E2E con Playwright (app de ingesta + lectura)
+├── unit/                  # Pruebas unitarias deterministas (FakeLLM, sin red)
+├── regression/            # Pruebas congeladas de corpus dorado (ingesta real, sin modelo en vivo)
+├── e2e/                   # E2E con Playwright sobre las apps en vivo (no en CI)
 └── fixtures/              # PDFs de prueba + config de wiki + corpus dorado
 
 quickstart.py           # Instalador de consola de un comando (solo Python; ver Inicio rápido)

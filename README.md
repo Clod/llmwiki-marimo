@@ -3,7 +3,6 @@
 [![CI](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml/badge.svg)](https://github.com/Clod/llmwiki-marimo/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Tests](https://img.shields.io/badge/tests-497-brightgreen.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Version](https://img.shields.io/github/v/tag/Clod/llmwiki-marimo?label=version&sort=semver&color=blue)](https://github.com/Clod/llmwiki-marimo/releases)
 [![Changelog](https://img.shields.io/badge/changelog-md-orange)](CHANGELOG.md)
@@ -62,12 +61,12 @@ that also keeps live data and computes grounded advice over it.*
 - **LLM-as-judge eval packet** — one command bundles the questions, the model's own answers, the cited evidence, and source-vs-generated page pairs against a *frozen* 1–5 rubric, to score chat **and** ingestion quality (and compare models).
 - **Model-suitability check** — a one-command PASS/FAIL on whether a given model clears the bar for off-corpus refusal, citations, and cited synthesis.
 - **Evidence-based prompting** — the default system prompt embeds a worked, fully-cited example because testing proved that's what reliable cross-document citation took.
-- **Self-maintaining wiki** — six lint checks (contradictions, stale pages, orphans, missing concepts, missing cross-refs, data gaps) with auto-repair of the safe ones.
+- **Self-maintaining wiki** — nine lint checks (contradictions, stale pages, orphans, missing concepts, missing cross-refs, data gaps, filled gaps, vocabulary drift, thin pages) with auto-repair of the safe ones.
 - **Provider-agnostic, split-model** — any OpenAI-compatible endpoint; run a cheap local model for chat and a stronger one for ingestion, via `.env` alone.
 
 **Engineering quality**
 
-- **497 tests across three layers, ≈1:1 test-to-code** (framework-agnostic core in `base/`, exercised without a browser) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
+- **Tests across three layers, ≈1:1 test-to-code** (framework-agnostic core in `base/`, exercised without a browser) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
 - **Framework-agnostic core** — all logic lives in `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo is only the UI at the edges, so the engine is exercised by unit tests without a browser.
 - **Malleable UI** — because the GUI is marimo notebooks, the read app's three columns are plain `@app.cell(column=N)` annotations: open the app with `marimo edit` and re-stack or re-column the cells to suit your workflow, taste, or monitor — no frontend code to touch.
 - **Security-conscious** — a path-traversal guard on the LLM-callable page reader, an explicit prompt-injection threat model, and a documented [`SECURITY.md`](SECURITY.md).
@@ -212,9 +211,9 @@ examples/               # Pre-ingested demo wikis (used by quickstart.py)
 └── fairy-tales/           # Browsable with no LLM; chat needs a model
 
 tests/
-├── unit/                  # 470 unit tests (FakeLLM, no network)
-├── regression/            # 16 frozen golden-corpus tests (real ingest, no live model)
-├── e2e/                   # 11 Playwright E2E tests (ingest + read app)
+├── unit/                  # Deterministic unit tests (FakeLLM, no network)
+├── regression/            # Frozen golden-corpus tests (real ingest, no live model)
+├── e2e/                   # Playwright E2E on the live apps (not in CI)
 └── fixtures/              # Test PDFs + wiki config + golden corpus
 
 quickstart.py           # One-command console installer (Python-only; see Quick start)

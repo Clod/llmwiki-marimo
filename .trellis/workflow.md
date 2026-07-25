@@ -281,7 +281,7 @@ unactionable; this is what actually enumerates what:
 
 | If you changed… | …these enumerate it |
 |---|---|
-| a lint check | `docs/manual/workflows.md` §6.1 (table + diagram) + quick-status table |
+| a lint check | `docs/manual/workflows.md` §6.1 (table + diagram) + quick-status table, **and the "self-maintaining wiki" Highlights bullet in both READMEs, which counts them** |
 | a repair action | §6.2 dispatch table |
 | a pipeline step | §6.3 (steps table + sequence diagram), `docs/ingestion_walkthrough.md` |
 | a chat tool | §6.7 tool inventory, `.trellis/spec/backend/chat-retrieval.md` |
