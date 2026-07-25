@@ -485,7 +485,7 @@ vertebral se comprueba contra una ingesta real sin volver a llamar al modelo.
 
 ```bash
 uv run playwright install chromium                            # una vez
-HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s   # pipeline de ingesta
+HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s  # pipeline de ingesta
 HEADLESS=1 uv run pytest tests/e2e/test_read_app.py  -v -s    # app de lectura (usa el workspace del paso 1)
 ```
 

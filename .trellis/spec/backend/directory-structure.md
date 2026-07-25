@@ -81,8 +81,8 @@ tests/
 │   ├── test_lint_*.py                # one file per lint check type
 │   ├── test_repair.py                # repair_wiki dispatcher + all action types
 │   └── test_wiki_tools.py            # PydanticAI tool functions (mock RunContext)
-├── e2e/                              # 9 tests — live marimo + real LLM via OpenRouter
-│   ├── test_ingest_app.py            # Playwright: upload PDF, wait for wiki page in DB
+├── e2e/                              # live marimo + real LLM — NOT in CI
+│   ├── test_ingest_app_v2.py         # Playwright: picker, ingest form, log, vocab, delete
 │   └── test_read_app.py              # Playwright: page list, nav, chat panel
 └── fixtures/
     ├── pdfs/                         # Source PDFs for e2e ingest tests

@@ -475,7 +475,7 @@ real ingest without re-calling the model.
 
 ```bash
 uv run playwright install chromium                            # once
-HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s   # ingest pipeline
+HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s  # ingest pipeline
 HEADLESS=1 uv run pytest tests/e2e/test_read_app.py  -v -s    # read app (uses the step-1 workspace)
 ```
 

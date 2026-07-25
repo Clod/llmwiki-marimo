@@ -422,7 +422,7 @@ uv run pytest tests/unit/test_pipeline_phase2.py -v
 `tests/e2e/test_ingest_app_v2.py` is the current E2E suite (wiki picker, ingest
 form, Activity Log, vocabulary lint lines, scan idempotency, cross-links; opt-in
 `E2E_FULL=1` / `E2E_DESTRUCTIVE=1` for the slower/destructive cases).
-`tests/e2e/test_ingest_app.py` is the older suite, kept until v2 has run green.
+It replaced the older suite, which predated the picker/form/vocabulary work.
 
 ---
 
