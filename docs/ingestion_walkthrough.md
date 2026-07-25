@@ -171,6 +171,46 @@ different grain:
    ORDER BY chunks_fts.rank;
   ```
 
+  `rank` is the one column there that doesn't explain itself. FTS5 fills it with
+  **BM25**, and the wiki takes it as it comes: no per-column weighting, there
+  being a single indexed column to weight. Its values are negative and the best
+  match is the most negative, which is why ordering ascending puts the strongest
+  hit first. For *caución*, the eight fragments score like this:
+
+  | fragment | mentions | tokens | rank |
+  |---:|---:|---:|---:|
+  | 77 | 11 | 290 | −3.37 |
+  | 76 | 10 | 300 | −3.32 |
+  | 49 | 6 | 239 | −3.19 |
+  | 75 | 8 | 361 | −3.17 |
+  | 50 | 5 | 212 | −3.14 |
+  | 47 | 5 | 470 | −2.77 |
+  | 48 | 5 | 510 | −2.72 |
+  | 30 | 1 | 506 | −1.34 |
+
+  Three behaviours are legible in that last column. Repetition counts, but it
+  **saturates**: among fragments of roughly 500 tokens, going from one mention
+  to five (30 → 48) is worth 1.38 of rank, while among fragments of roughly 250,
+  going from six to eleven (49 → 77) is worth 0.18 — the first few mentions
+  establish that a passage is on the subject, and later ones mostly repeat the
+  news. Length is **normalised**: fragments 50, 47 and 48 mention the word the
+  same five times and finish in descending order of size, on the reasoning that
+  five mentions inside 212 tokens is a passage more nearly *about* caución than
+  the same five diluted across 510. And rarity is weighed too, invisibly in a
+  single-word query: a term occurring in most fragments separates them poorly,
+  so BM25 discounts it in favour of the rarer terms in the same query.
+
+  What BM25 does not do deserves equal billing. It is **purely lexical** —
+  there are no embeddings anywhere in this pipeline. A fragment that treats the
+  same idea in entirely different words does not rank badly; it does not appear
+  at all, and no amount of ordering will recover it. That single limitation
+  explains a surprising amount of the architecture downstream: the vocabulary
+  and aliases generated at ingest exist to reconcile the words a reader might
+  use with the words the corpus actually contains, and the curated wiki layer
+  exists so that a question can be answered from a page written *about* a
+  concept rather than from whichever raw paragraph happened to repeat its name
+  most often.
+
   Matching is looser than string equality, too, and deliberately: the tokenizer
   folds case and accents, so the word typed without its accent still finds the
   fragments that spell it properly. Eleven fragments in that demo write
