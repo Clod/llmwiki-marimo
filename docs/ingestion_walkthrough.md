@@ -32,17 +32,57 @@ quietly fix.
 
 ## The mental model
 
-Sources are truth. The two fairy-tale PDFs — and, later, a datasets folder —
-never change once ingested; they sit in `workspace/sources/` (and
-`workspace/datasets/`) as the record of what was actually said. The wiki
-under `workspace/wiki/` is **derived** from them: every page is something the
-pipeline generated, and it is safe to delete, regenerate, or repair because it
-carries no information the sources don't already have. `.llmwiki/index.db`
-(SQLite) is the index over both — it's what makes "which pages cite this
-source" and "which pages link to that page" answerable in a query instead of
-a grep. And `wiki/` is a git repository: every ingest, edit, and delete is a
-commit, so the derived layer has the same undo history a source-controlled
-codebase does.
+### Two kinds of input, and why they are not the same thing
+
+A workspace can hold two kinds of input, and the difference between them is
+structural, not cosmetic — they travel through completely different paths.
+
+**Sources** (`workspace/sources/`) are documents: PDFs, DOCX. They carry
+*durable prose* — what a caución bursátil is, how Cinderella's story goes.
+Their content is stable: the tale does not change next week. A source is read
+**once**, at ingest, and *compiled*: extracted, chunked into `document_chunks`,
+and distilled by an LLM into concept and summary pages. Answering from it later
+means reading the wiki page that was compiled from it, with the source kept
+underneath as the evidence a citation points at.
+
+**Datasets** (`workspace/datasets/`) are tables: markdown files whose
+front-matter declares a category and whose rows carry values with an `as_of`
+date. They carry *volatile facts* — what the MEP was worth on 25 June. Their
+content is **meant** to change; refreshing one is the normal case, not an edit.
+
+And they are **never ingested at all.** Not "ingested differently" — not
+ingested. In the shipped finance demo, `documents` holds exactly six source
+rows, its six DOCX files; `dolar.md` and its siblings have no row, no chunks,
+no FTS entry and no generated page. `datasets/source.py:LocalMarkdownSource`
+globs the folder and reads the file **at question time**, parsing the row that
+was asked for. No LLM stands anywhere in that path.
+
+That asymmetry is the point, and it follows from what would go wrong otherwise.
+Distilling a dataset into a wiki page would break it twice over: the page would
+be stale the instant the table is refreshed, and — worse — it would launder an
+exact figure into prose, where it can no longer be quoted verbatim with the date
+it belongs to. So the split is drawn along the axis of *what kind of claim it
+is*: the wiki answers "what **is** X?", the datasets answer "what is X **worth
+today**?", and the second question is never answered by a model's recollection
+of a document it read last month. Refreshing a rate becomes overwriting a file —
+nothing to re-ingest, no page to go stale, no re-distillation to pay for.
+
+What the two share: both are inputs **you** own, the pipeline never modifies
+either, and both feed the wiki's vocabulary and coverage roster (the Coda shows
+the dataset half of that). This walkthrough's fairy-tale corpus has sources
+only, which is why the dataset machinery appears just in the Coda.
+
+### What is truth and what is disposable
+
+Both kinds of input are truth. Everything else in the workspace is derived from
+them. The wiki under `workspace/wiki/` is **derived**: every page is something
+the pipeline generated, and it is safe to delete, regenerate, or repair because
+it carries no information the sources don't already have. `.llmwiki/index.db`
+(SQLite) is the index over the sources and the wiki — it's what makes "which
+pages cite this source" and "which pages link to that page" answerable in a
+query instead of a grep. And `wiki/` is a git repository: every ingest, edit,
+and delete is a commit, so the derived layer has the same undo history a
+source-controlled codebase does.
 
 That division — source of truth vs. derived index vs. derived, disposable
 knowledge base — is what lets the rest of this walkthrough get away with
