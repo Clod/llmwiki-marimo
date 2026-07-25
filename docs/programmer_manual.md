@@ -19,8 +19,9 @@
 5. [Native Tool Layer](#5-native-tool-layer)
 6. [Workflows](manual/workflows.md) — *(companion file)* lint · repair · ingest ·
    batch · scan · regenerate · chat/RAG · chat→wiki · source/page deletion
-   — see also the [Ingestion Walkthrough](ingestion_walkthrough.md), the
-   narrative counterpart: one corpus through its whole lifecycle, with real numbers
+   — see also the narrative counterparts, both with real, regenerable numbers:
+   the [Ingestion Walkthrough](ingestion_walkthrough.md) (what ingestion builds)
+   and the [Query Walkthrough](query_walkthrough.md) (how a question is routed)
 7. [Marimo Apps](#7-marimo-apps)
 8. [Configuration](#8-configuration)
 9. [Testing](#9-testing)

@@ -118,7 +118,10 @@ and only falls back to raw chunks when needed.
 > re-ingest, an edited source, a deletion — showing exactly which wiki pages, DB  
 > rows, citation edges and vocabulary entries each step produces. Its numbers  
 > aren't hand-written: they come from a real run, and  
-> `scripts/capture_ingestion_walkthrough.py` regenerates them on demand.
+> `scripts/capture_ingestion_walkthrough.py` regenerates them on demand. Its
+> counterpart, the [Query Walkthrough](docs/query_walkthrough.md), does the same
+> for the read side: seven questions, and the routing each one got — including
+> the two the system refuses without ever calling the model.
 
 ---
 
@@ -205,6 +208,8 @@ docs/
 ├── programmer_manual.md   # Canonical developer reference
 ├── ingestion_walkthrough.md          # One corpus, end to end — the narrative view
 ├── ingestion_walkthrough_appendix.md # Its artifact inventory (generated, regenerable)
+├── query_walkthrough.md              # Seven questions, and how each was routed
+├── query_walkthrough_appendix.md     # Its routing capture (generated, regenerable)
 └── archive/               # Superseded design docs (historical)
 
 examples/               # Pre-ingested demo wikis (used by quickstart.py)

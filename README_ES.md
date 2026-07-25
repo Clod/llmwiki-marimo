@@ -126,7 +126,10 @@ solo recurre a los fragmentos en bruto cuando hace falta.
 > mostrando exactamente qué páginas del wiki, filas en la BD, aristas del grafo de  
 > citas y entradas de vocabulario produce cada paso. Sus números no están escritos  
 > a mano: salen de una corrida real, y  
-> `scripts/capture_ingestion_walkthrough.py` los regenera cuando haga falta.
+> `scripts/capture_ingestion_walkthrough.py` los regenera cuando haga falta. Su
+> contraparte, el [Query Walkthrough](docs/query_walkthrough.md) (en inglés),
+> hace lo mismo del lado de la lectura: siete preguntas y el ruteo que recibió
+> cada una — incluidas las dos que el sistema rechaza sin llamar al modelo.
 
 ---
 
@@ -214,6 +217,8 @@ docs/
 ├── programmer_manual.md   # Referencia canónica para desarrolladores
 ├── ingestion_walkthrough.md          # Un corpus de punta a punta — la visión narrativa
 ├── ingestion_walkthrough_appendix.md # Su inventario de artefactos (generado, regenerable)
+├── query_walkthrough.md              # Siete preguntas y cómo se ruteó cada una
+├── query_walkthrough_appendix.md     # Su captura de ruteo (generada, regenerable)
 └── archive/               # Documentos de diseño superados (históricos)
 
 examples/               # Wikis de demostración pre-ingeridas (usadas por quickstart.py)

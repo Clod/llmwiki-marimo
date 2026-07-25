@@ -11,8 +11,10 @@
 > entry per workflow, with contracts. For the narrative version, the
 > [Ingestion Walkthrough](../ingestion_walkthrough.md) follows one small corpus
 > through its whole lifecycle (first document · second document · no-op
-> re-ingest · edited source · deletion) with real, regenerable numbers, and
-> links back here for each contract.
+> re-ingest · edited source · deletion), and the
+> [Query Walkthrough](../query_walkthrough.md) follows seven questions through
+> the routing gate on the read side. Both use real, regenerable numbers and
+> link back here for each contract.
 
 Each workflow below follows the same template:
 
