@@ -63,6 +63,18 @@ class Chunk:
     header_breadcrumb: str = ""
 
 
+def _settled_or(breadcrumb: str, settled: bool, fallback: str) -> str:
+    """The breadcrumb to write out for a chunk about to be emitted.
+
+    An unsettled breadcrumb means no body text ever arrived under the heading it
+    names — the chunk merely ends on that heading, with the section's content
+    falling beyond it. Naming the chunk after it would point a citation at a
+    passage the chunk does not contain, so the previous chunk's heading, which
+    the text actually sits under, is used instead.
+    """
+    return breadcrumb if settled else fallback
+
+
 def chunk_text(
     content: str,
     chunk_size: int = CHUNK_SIZE,
@@ -99,6 +111,24 @@ def chunk_text(
     # Temporary buffer of paragraphs forming the current chunk being built
     current_blocks: list[str] = []
 
+    # The heading path this chunk belongs to. Captured while the chunk is still
+    # collecting its opening headings and then frozen, so the breadcrumb names
+    # the section the chunk holds text FROM — not a later heading it happens to
+    # end on, and not the section that starts right after it.
+    current_breadcrumb = ""
+
+    # The last breadcrumb actually written out. A chunk that ends on a heading
+    # with no text under it falls back to this, rather than taking the name of
+    # a section it holds nothing from.
+    last_settled_breadcrumb = ""
+
+    # Whether the breadcrumb above has settled. It settles once the chunk holds
+    # body text that sits under some heading. Text arriving while no heading has
+    # been seen at all is preamble, not body — a wiki page opens with a YAML
+    # frontmatter block before its title — and must not settle anything, or the
+    # title that follows it would never be recorded.
+    current_settled = False
+
     # Cumulative token counter for the current chunk
     current_tokens = 0
 
@@ -123,6 +153,19 @@ def chunk_text(
             # Push the new heading onto the stack
             header_stack.append((level, heading))
 
+            # A chunk that has not settled is still being titled, so this
+            # heading belongs to it. Once settled, a later heading must not
+            # overwrite it: that heading introduces the NEXT chunk, not this one.
+            if not current_settled:
+                current_breadcrumb = " > ".join(t for _, t in header_stack)
+
+            # A heading is only a heading up to its own end of line. Generated
+            # wiki pages put the section text on the very next line with no
+            # blank line between, so this block usually carries body text too.
+            block_has_body = bool(para[header_match.end():].strip())
+        else:
+            block_has_body = True
+
         # B. If adding this paragraph would exceed the maximum CHUNK_SIZE:
         #    we finalize, validate, and save the current chunk before continuing
         if current_tokens + para_tokens > chunk_size and current_blocks:
@@ -130,17 +173,18 @@ def chunk_text(
             chunk_str = "\n\n".join(current_blocks)
 
             # If the chunk is long enough to be useful (above minimum limits):
+            emitted_breadcrumb = _settled_or(current_breadcrumb, current_settled,
+                                             last_settled_breadcrumb)
             if _estimate_tokens(chunk_str) >= MIN_CHUNK_TOKENS:
-                # Build the hierarchy breadcrumb (e.g., "Overview > Definitions > Concept A")
-                breadcrumb = " > ".join(t for _, t in header_stack)
                 chunks.append(Chunk(
                     index=len(chunks),
                     content=chunk_str,
                     page=page,
                     start_char=current_start,
                     token_count=_estimate_tokens(chunk_str),
-                    header_breadcrumb=breadcrumb,
+                    header_breadcrumb=emitted_breadcrumb,
                 ))
+            last_settled_breadcrumb = emitted_breadcrumb
 
             # C. Establish context overlap for the NEXT chunk.
             #    We pull trailing paragraphs from this chunk until we fill the 'overlap' budget.
@@ -148,12 +192,21 @@ def chunk_text(
             current_blocks = overlap_blocks
             current_tokens = overlap_tokens
 
+            # The chunk starting here sits under whatever heading is in force
+            # now — including the one that just triggered this flush — and is
+            # open to being titled further until its own body text begins.
+            current_breadcrumb = " > ".join(t for _, t in header_stack)
+            current_settled = False
+
             # Recalculate where the new overlapping chunk starts in characters
             current_start = char_pos - sum(len(b) + 2 for b in overlap_blocks)
 
         # D. Add current paragraph block to our buffer
         current_blocks.append(para)
         current_tokens += para_tokens
+        # Body text sitting under a heading closes the chunk's title
+        if block_has_body and header_stack:
+            current_settled = True
         # Move our absolute character pointer (+2 accounts for the double-newlines '\n\n' separator)
         char_pos += len(para) + 2
 
@@ -161,14 +214,14 @@ def chunk_text(
     if current_blocks:
         chunk_str = "\n\n".join(current_blocks)
         if _estimate_tokens(chunk_str) >= MIN_CHUNK_TOKENS:
-            breadcrumb = " > ".join(t for _, t in header_stack)
             chunks.append(Chunk(
                 index=len(chunks),
                 content=chunk_str,
                 page=page,
                 start_char=current_start,
                 token_count=_estimate_tokens(chunk_str),
-                header_breadcrumb=breadcrumb,
+                header_breadcrumb=_settled_or(current_breadcrumb, current_settled,
+                                              last_settled_breadcrumb),
             ))
 
     return chunks
