@@ -129,9 +129,12 @@ different grain:
   with the text that depends on it — though that repetition is capped and
   frequently doesn't happen at all: when the preceding paragraph is itself
   larger than the cap, nothing is repeated (in the shipped demo, eight of twelve
-  boundaries carry no overlap). Each fragment records the document, page and
-  heading it came from, which is what lets a search hit be traced back to a
-  place a citation can name. Both kinds of document are chunked: the raw sources
+  boundaries carry no overlap). Each fragment records the document and page it
+  came from, plus a **breadcrumb**: the path of markdown headings in force where
+  its text sits, joined with ` > ` — `Bonos Dólar Linked y Duales > Principales
+  riesgos estructurales`. That is what lets a search hit be traced back to a
+  place a citation can name, since a page number alone locates a fragment in a
+  PDF but says nothing about where it belongs in the document's argument. Both kinds of document are chunked: the raw sources
   and the generated wiki pages alike, and because every fragment points back at
   its parent document, a search can be restricted to one kind or the other —
   which is what lets the curated wiki and the raw sources be searched as two
@@ -152,15 +155,16 @@ different grain:
   them, two entries look like this:
 
   ```text
-  caución   →  77, 76, 49, 75, 50, 47, 48, 30
-  inflación →  73, 59, 71, 76, 25, 12, 70, 46, 13, 63, 69, 38, 60, …
+  caución   →  101, 123, 108, 119, 107, 94, 95, 89
+  inflación →  121, 104, 116, 123, 106, 83, 115, 100, 84, 124, 129, 91, …
   ```
 
-  Those are `rowid`s, already in rank order, and they are the whole answer the
-  index gives: eight fragments out of fifty-three for the first word, and the
-  other forty-five never looked at. Turning that back into something quotable is
-  a join — the index supplies which and in what order, the tables supply the
-  text and the provenance:
+  Those are `rowid`s — internal row numbers, reassigned whenever the corpus is
+  rebuilt — already in rank order, and they are the whole answer the index
+  gives: eight fragments out of fifty-three for the first word, and the other
+  forty-five never looked at. Turning that back into something quotable is a
+  join — the index supplies which and in what order, the tables supply the text
+  and the provenance:
 
   ```sql
   SELECT d.filename, c.page, c.header_breadcrumb, c.content
@@ -179,14 +183,14 @@ different grain:
 
   | fragment | mentions | tokens | rank |
   |---:|---:|---:|---:|
-  | 77 | 11 | 290 | −3.37 |
-  | 76 | 10 | 300 | −3.32 |
-  | 49 | 6 | 239 | −3.19 |
-  | 75 | 8 | 361 | −3.17 |
-  | 50 | 5 | 212 | −3.14 |
-  | 47 | 5 | 470 | −2.77 |
-  | 48 | 5 | 510 | −2.72 |
-  | 30 | 1 | 506 | −1.34 |
+  | 101 | 11 | 290 | −3.37 |
+  | 123 | 10 | 300 | −3.32 |
+  | 108 | 6 | 239 | −3.19 |
+  | 119 | 8 | 361 | −3.17 |
+  | 107 | 5 | 212 | −3.14 |
+  | 94 | 5 | 470 | −2.77 |
+  | 95 | 5 | 510 | −2.72 |
+  | 89 | 1 | 506 | −1.34 |
 
   Three behaviours are legible in that last column. Repetition counts, but it
   **saturates**: among fragments of roughly 500 tokens, going from one mention
