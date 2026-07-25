@@ -151,6 +151,14 @@ external origin — see the [contract, §2](../.trellis/spec/backend/chat-retrie
 `postprocess.ensure_citation` is what guarantees the second line survives
 even if the model's own prose forgets to mention `dolar.md` by name.
 
+This answer is where the ingestion side's design decision gets paid back. A
+dataset is deliberately **never compiled into a wiki page** — it is read at
+question time, precisely so a figure stays quotable with the date it belongs
+to instead of being laundered into static prose; see [Two kinds of
+input](ingestion_walkthrough.md#the-mental-model) for why that split is drawn
+where it is. The cost of that decision is one extra tool call at query time.
+This is what it buys.
+
 ### 3. An alias reaches the datum
 
 *"¿A cuánto está el billete verde?"*

@@ -72,6 +72,12 @@ either, and both feed the wiki's vocabulary and coverage roster (the Coda shows
 the dataset half of that). This walkthrough's fairy-tale corpus has sources
 only, which is why the dataset machinery appears just in the Coda.
 
+The payoff of this split is visible on the read side rather than here: in the
+[query walkthrough](query_walkthrough.md#2-a-datum-with-its-date), a single
+answer about the MEP dollar carries curated prose explaining what it *is*
+alongside a live figure with its `as_of` date — one citation for the page, one
+for the datum's external origin. That is what the two paths are for.
+
 ### What is truth and what is disposable
 
 Both kinds of input are truth. Everything else in the workspace is derived from
