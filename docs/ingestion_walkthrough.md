@@ -5,7 +5,7 @@
 > section per operation, with contract tables. This document is different genre,
 > same pipeline: it follows **one small corpus through its whole lifecycle** —
 > first document, second document, a no-op re-ingest, an edited source, a
-> deletion — so the reader can see the arc that the per-workflow tables can't
+> deletion — so the reader can see the story that the per-workflow tables can't
 > show on their own.
 
 **Audience.** This is written for someone evaluating the engineering, not
@@ -155,8 +155,8 @@ different grain:
   them, two entries look like this:
 
   ```text
-  caución   →  101, 123, 108, 119, 107, 94, 95, 89
-  inflación →  121, 104, 116, 123, 106, 83, 115, 100, 84, 124, 129, 91, …
+  caución   →  207, 229, 214, 225, 213, 200, 201, 195
+  inflación →  227, 210, 222, 229, 212, 189, 221, 206, 190, 230, 235, 197, …
   ```
 
   Those are `rowid`s — internal row numbers, reassigned whenever the corpus is
@@ -183,14 +183,14 @@ different grain:
 
   | fragment | mentions | tokens | rank |
   |---:|---:|---:|---:|
-  | 101 | 11 | 290 | −3.37 |
-  | 123 | 10 | 300 | −3.32 |
-  | 108 | 6 | 239 | −3.19 |
-  | 119 | 8 | 361 | −3.17 |
-  | 107 | 5 | 212 | −3.14 |
-  | 94 | 5 | 470 | −2.77 |
-  | 95 | 5 | 510 | −2.72 |
-  | 89 | 1 | 506 | −1.34 |
+  | 207 | 11 | 290 | −3.37 |
+  | 229 | 10 | 300 | −3.32 |
+  | 214 | 6 | 239 | −3.19 |
+  | 225 | 8 | 361 | −3.17 |
+  | 213 | 5 | 212 | −3.14 |
+  | 200 | 5 | 470 | −2.77 |
+  | 201 | 5 | 510 | −2.72 |
+  | 195 | 1 | 506 | −1.34 |
 
   Three behaviours are legible in that last column. Repetition counts, but it
   **saturates**: among fragments of roughly 500 tokens, going from one mention
@@ -256,7 +256,7 @@ knowledge base — is what lets the rest of this walkthrough get away with
 things like "just delete the page and regenerate it": nothing here can lose
 data, because the sources were never the thing being deleted.
 
-## The arc, top to bottom
+## The story, top to bottom
 
 ```mermaid
 flowchart LR
@@ -270,7 +270,8 @@ flowchart LR
 ```
 
 Five acts and a coda. Acts 1–3c stay inside the bundled fairy-tale corpus on
-purpose — no domain knowledge required, so the machinery is the whole story.
+purpose — no domain knowledge required, so the machinery is all there is to
+follow.
 The coda switches to the shipped `examples/finanzas-argentinas` demo to show
 the half of the vocabulary subsystem that only fires when a wiki has a
 `datasets/` folder.
