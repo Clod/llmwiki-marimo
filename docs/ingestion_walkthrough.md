@@ -47,12 +47,12 @@ underneath as the evidence a citation points at.
 
 **Datasets** (`workspace/datasets/`) are tables: markdown files whose
 front-matter declares a category and whose rows carry values with an `as_of`
-date. They carry *volatile facts* — what the MEP was worth on 25 June. Their
+date. They carry *volatile facts* — what the dollar MEP was worth on 25 June. Their
 content is **meant** to change; refreshing one is the normal case, not an edit.
 
 And they are **never ingested at all.** Not "ingested differently" — not
 ingested. In the shipped finance demo, `documents` holds exactly six source
-rows, its six DOCX files; `dolar.md` and its siblings have no row, no chunks,
+rows, its six DOCX files; the `dolar.md` dataset and its siblings have no row, no chunks,
 no FTS entry and no generated page. `datasets/source.py:LocalMarkdownSource`
 globs the folder and reads the file **at question time**, parsing the row that
 was asked for. No LLM stands anywhere in that path.
