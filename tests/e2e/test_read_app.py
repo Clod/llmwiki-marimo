@@ -2,12 +2,12 @@
 E2E test for marimo/read_app.py (read-only viewer + FTS5 chat).
 
 Prerequisites:
-    1. Run test_ingest_app.py first to populate tests/fixtures/workspace/
+    1. Run test_ingest_app_v2.py first to populate tests/fixtures/workspace_e2e/
     2. uv run playwright install chromium (once)
 
 Run both suites in order:
     cd /path/to/llmwiki
-    uv run pytest tests/e2e/test_ingest_app.py tests/e2e/test_read_app.py -v -s
+    uv run pytest tests/e2e/test_ingest_app_v2.py tests/e2e/test_read_app.py -v -s
 
 Run read tests only (requires workspace already populated):
     uv run pytest tests/e2e/test_read_app.py -v -s
@@ -39,7 +39,7 @@ from domain.chat.guardrail import REFUSAL_EN
 
 PROJECT_ROOT  = Path(__file__).resolve().parent.parent.parent
 FIXTURES_DIR  = PROJECT_ROOT / "tests" / "fixtures"
-WORKSPACE     = FIXTURES_DIR / "workspace"
+WORKSPACE     = FIXTURES_DIR / "workspace_e2e"   # produced by test_ingest_app_v2.py
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -79,8 +79,8 @@ def read_app_server() -> str:
     wiki_dir = WORKSPACE / "wiki"
     if not wiki_dir.exists() or not list(wiki_dir.glob("*.md")):
         pytest.skip(
-            "No wiki pages found in tests/fixtures/workspace/wiki/. "
-            "Run test_ingest_app.py first."
+            "No wiki pages found in tests/fixtures/workspace_e2e/wiki/. "
+            "Run test_ingest_app_v2.py first."
         )
 
     config_src = FIXTURES_DIR / "wiki_config.toml"

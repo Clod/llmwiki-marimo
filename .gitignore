@@ -69,6 +69,7 @@ nvidia-10k-first20.md
 /playwright/.cache/
 /playwright/.auth/
 tests/fixtures/workspace/
+tests/fixtures/workspace_e2e/
 
 # Generated reports (codemap scans, etc.)
 .reports/
