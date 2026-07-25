@@ -57,6 +57,17 @@ no FTS entry and no generated page. `datasets/source.py:LocalMarkdownSource`
 globs the folder and reads the file **at question time**, parsing the row that
 was asked for. No LLM stands anywhere in that path.
 
+The whole distinction, at a glance:
+
+| | **Sources** (`sources/`) | **Datasets** (`datasets/`) |
+|---|---|---|
+| What they carry | durable prose | volatile facts, each with its date |
+| When they are read | **once**, at ingest | at question time, every time |
+| What happens to them | *compiled*: chunked, FTS-indexed, distilled by an LLM into pages | *nothing*: `glob` + `read_text`, and the requested row is parsed |
+| In the database | one row per document (six, in the finance demo) | zero rows, zero chunks, zero pages |
+| Refreshing one | re-ingest; the pages derived from it go stale | overwrite the file — that is the whole procedure |
+| Answers the question | "what **is** X?" | "what is X **worth today**?" |
+
 That asymmetry is the point, and it follows from what would go wrong otherwise.
 Distilling a dataset into a wiki page would break it twice over: the page would
 be stale the instant the table is refreshed, and — worse — it would launder an
