@@ -112,6 +112,14 @@ and only falls back to raw chunks when needed.
 > [`docs/programmer_manual.md`](docs/programmer_manual.md) — workflows, prompts,  
 > entry points, gaps, and the pending-work roadmap. Earlier design notes are in  
 > [`docs/archive/`](docs/archive/).
+>
+> **Want the big picture first?** The  
+> [Ingestion Walkthrough](docs/ingestion_walkthrough.md) follows one small corpus  
+> through its whole lifecycle — first document, second document, a no-op  
+> re-ingest, an edited source, a deletion — showing exactly which wiki pages, DB  
+> rows, citation edges and vocabulary entries each step produces. Its numbers  
+> aren't hand-written: they come from a real run, and  
+> `scripts/capture_ingestion_walkthrough.py` regenerates them on demand.
 
 ---
 
@@ -196,6 +204,8 @@ database/
 
 docs/
 ├── programmer_manual.md   # Canonical developer reference
+├── ingestion_walkthrough.md          # One corpus, end to end — the narrative view
+├── ingestion_walkthrough_appendix.md # Its artifact inventory (generated, regenerable)
 └── archive/               # Superseded design docs (historical)
 
 examples/               # Pre-ingested demo wikis (used by quickstart.py)

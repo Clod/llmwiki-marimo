@@ -119,6 +119,15 @@ solo recurre a los fragmentos en bruto cuando hace falta.
 > [`docs/programmer_manual.md`](docs/programmer_manual.md) — flujos de trabajo, prompts,  
 > puntos de entrada, brechas y la hoja de ruta de trabajo pendiente. Las notas de diseño  
 > anteriores están en [`docs/archive/`](docs/archive/).
+>
+> **¿Preferís la visión de conjunto primero?** El  
+> [Ingestion Walkthrough](docs/ingestion_walkthrough.md) (en inglés) sigue a un  
+> corpus pequeño a lo largo de todo su ciclo de vida — primer documento, segundo  
+> documento, una re-ingesta sin cambios, una fuente editada, un borrado —  
+> mostrando exactamente qué páginas del wiki, filas en la BD, aristas del grafo de  
+> citas y entradas de vocabulario produce cada paso. Sus números no están escritos  
+> a mano: salen de una corrida real, y  
+> `scripts/capture_ingestion_walkthrough.py` los regenera cuando haga falta.
 
 ---
 
@@ -204,6 +213,8 @@ database/
 
 docs/
 ├── programmer_manual.md   # Referencia canónica para desarrolladores
+├── ingestion_walkthrough.md          # Un corpus de punta a punta — la visión narrativa
+├── ingestion_walkthrough_appendix.md # Su inventario de artefactos (generado, regenerable)
 └── archive/               # Documentos de diseño superados (históricos)
 
 examples/               # Wikis de demostración pre-ingeridas (usadas por quickstart.py)

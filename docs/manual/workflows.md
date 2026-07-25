@@ -7,6 +7,13 @@
 
 ## 6. Workflows
 
+> **Looking for the big picture instead?** This section is *reference* — one
+> entry per workflow, with contracts. For the narrative version, the
+> [Ingestion Walkthrough](../ingestion_walkthrough.md) follows one small corpus
+> through its whole lifecycle (first document · second document · no-op
+> re-ingest · edited source · deletion) with real, regenerable numbers, and
+> links back here for each contract.
+
 Each workflow below follows the same template:
 
 > **Status · Entry · Steps · LLM prompts (inline) · Triggers · Today vs Target · Verification**
