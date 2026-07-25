@@ -102,12 +102,12 @@ wiki page that exists on disk — but it is what turns a folder of files into
 something you can ask questions of. Four tables carry that, each with a
 different grain:
 
-- `documents` — **one row per thing that exists**: every source file dropped
+- `documents` — **one row per thing that exists in sources and wiki**: every source file dropped
   into the workspace, and every wiki page the pipeline generated. `source_kind`
   is what tells the two apart, which is how one table can hold both without
   confusing them. A row records what the thing is (name, path, type), what state
   it is in, and — for a source — a fingerprint of the file as it was on disk when
-  it was read, so the pipeline can later tell whether the file still matches what
+  it was ingested, so the pipeline can later tell whether the file still matches what
   was ingested.
 
 - `document_pages` — **one row per page of a source document**, holding the text
@@ -119,12 +119,20 @@ different grain:
 
 - `document_chunks` — **one row per retrievable fragment.** A page is the wrong
   unit to search against: too long to be a precise answer, too arbitrary to be a
-  clean quote. So text is cut into overlapping passages of roughly 512 tokens,
-  overlapping by about 128 — the overlap exists so a sentence straddling a
-  boundary isn't lost to both neighbours — and each fragment remembers the
-  document, the page and the heading it came from, which is what lets a search
-  hit be traced back to a place a citation can name. Both kinds of document are
-  chunked: the raw sources and the generated wiki pages alike.
+  clean quote. So text is accumulated paragraph by paragraph until adding the
+  next one would exceed a size budget of about 512 — *estimated* tokens, since
+  the count is a characters-over-four heuristic rather than a real tokenizer.
+  Boundaries therefore always fall between paragraphs, never mid-sentence; the
+  only text ever cut at a sentence is a single paragraph too large to be a
+  fragment on its own. A fragment may also begin by repeating the tail of the
+  one before it, so a definition introduced just before a boundary still travels
+  with the text that depends on it — though that repetition is capped and
+  frequently doesn't happen at all: when the preceding paragraph is itself
+  larger than the cap, nothing is repeated (in the shipped demo, eight of twelve
+  boundaries carry no overlap). Each fragment records the document, page and
+  heading it came from, which is what lets a search hit be traced back to a
+  place a citation can name. Both kinds of document are chunked: the raw sources
+  and the generated wiki pages alike.
 
 - `chunks_fts` — the full-text index over those fragments. It is an FTS5
   **external-content** table, meaning it stores no second copy of the text: it
