@@ -26,6 +26,10 @@ __pycache__/
 # IDE
 .idea/
 .vscode/
+# ...except the shared markdown guard: without it, editors reformat .md on
+# save and mangle emphasis/links. Personal editor prefs stay in User settings.
+!.vscode/
+!.vscode/settings.json
 *.swp
 *.swo
 

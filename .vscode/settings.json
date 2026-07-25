@@ -1,0 +1,19 @@
+{
+  // Shared, project-level guard — keep this file free of personal preferences
+  // (those belong in your User settings; workspace settings are versioned).
+  //
+  // VS Code / Antigravity reformats markdown on save by default: it reflows
+  // prose, inserts trailing-space hard breaks, splits emphasis that spanned a
+  // line break (`**16 `x`**` becomes `**16 `x**``), cuts a link in two, and
+  // inverts [`code`](link) into the broken `[code](link)`. The docs here are
+  // hand-authored and their line breaks are deliberate, so formatting is off.
+  //
+  // Note it only applies when THIS folder is the workspace root — opening a
+  // parent folder bypasses it.
+  "[markdown]": {
+    "editor.formatOnSave": false,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false,
+    "files.trimTrailingWhitespace": false
+  }
+}
