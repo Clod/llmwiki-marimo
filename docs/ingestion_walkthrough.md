@@ -96,44 +96,59 @@ them. The wiki under `workspace/wiki/` is **derived**: every page is something
 the pipeline generated, and it is safe to delete, regenerate, or repair because
 it carries no information the sources don't already have.
 
-`.llmwiki/index.db` (SQLite) is the index over both — and "index" carries more
-weight there than it looks. Four tables do the work, and each one is what makes
-some act in this walkthrough possible:
+`.llmwiki/index.db` (SQLite) is the index over both. It holds no knowledge of
+its own — every value in it was copied out of a source file or derived from a
+wiki page that exists on disk — but it is what turns a folder of files into
+something you can ask questions of. Four tables carry that, each with a
+different grain:
 
-- **`documents`** — one row per input *and* per generated page, told apart by
-  `source_kind`. It also holds `content_hash` and `mtime_ns`, which is what Act
-  3a's row of `+0`s is made of; `status`, which is what step 6 commits before
-  the LLM writes anything; `source_document_id`, the 1-to-1 link Act 3c consults
-  to decide which page dies with its source; and `stale_since`, where "marked 4
-  citing page(s) stale" is physically written.
-- **`document_pages`** — the extracted text, page by page, cached at ingest.
-  This is why regenerating the wiki (§6.6) or repairing a stale page (§6.2)
-  never re-parses a PDF or re-runs LibreOffice: the expensive extraction
-  happened once, and its output is still sitting here.
-- **`document_chunks`** + **`chunks_fts`** — the retrieval surface. `chunks_fts`
-  is an FTS5 **external-content** table: it stores no second copy of the text,
-  it indexes `document_chunks.content` and is kept in step by three triggers
-  (insert, update, delete). That is why the search index cannot quietly drift
-  from the rows it claims to index. And because every chunk joins back to its
-  parent document, a search can be scoped by that document's `source_kind` —
-  `'wiki'` versus `'source'` — which is precisely what implements
-  curated-pages-first with raw documents as the fallback.
-- **`document_references`** — the citation graph: `cites` and `links_to`, the
-  distinction Act 3c turns on.
+- `documents` — **one row per thing that exists**: every source file dropped
+  into the workspace, and every wiki page the pipeline generated. `source_kind`
+  is what tells the two apart, which is how one table can hold both without
+  confusing them. A row records what the thing is (name, path, type), what state
+  it is in, and — for a source — a fingerprint of the file as it was on disk when
+  it was read, so the pipeline can later tell whether the file still matches what
+  was ingested.
 
-Two integrity mechanisms deserve naming, because the acts below lean on them
-without saying so. Every child table declares `ON DELETE CASCADE` against its
-parent document, so removing a source row takes its pages, chunks and edges with
-it in one statement instead of in application code that could be interrupted
-half-way; the FTS triggers extend that to the search index. Together they are
-why Act 3c's deletion leaves nothing dangling — no orphaned chunk, no phantom
-hit for a page that no longer exists.
+- `document_pages` — **one row per page of a source document**, holding the text
+  the extractor pulled out of that page. This is the document's content in
+  machine-readable form, kept verbatim and kept for good: extraction (parsing a
+  PDF, pushing a DOCX through LibreOffice) is the slowest step in the pipeline
+  that isn't an LLM call, and storing its output means it is paid for exactly
+  once no matter how often the wiki is rebuilt from it afterwards.
 
-What the database is *not* is a store of record. Every value in it was either
-copied from a source file or derived from a wiki page that exists on disk;
-nothing a human authored lives only here. It is a query surface built so that
-"which pages cite this source", "has this file changed", and "which chunks
-mention *caución*" are one statement each instead of a walk over the filesystem.
+- `document_chunks` — **one row per retrievable fragment.** A page is the wrong
+  unit to search against: too long to be a precise answer, too arbitrary to be a
+  clean quote. So text is cut into overlapping passages of roughly 512 tokens,
+  overlapping by about 128 — the overlap exists so a sentence straddling a
+  boundary isn't lost to both neighbours — and each fragment remembers the
+  document, the page and the heading it came from, which is what lets a search
+  hit be traced back to a place a citation can name. Both kinds of document are
+  chunked: the raw sources and the generated wiki pages alike.
+
+- `chunks_fts` — the full-text index over those fragments. It is an FTS5
+  **external-content** table, meaning it stores no second copy of the text: it
+  indexes `document_chunks.content` in place and is kept in step by three
+  triggers, on insert, update and delete. That is why the search index cannot
+  quietly drift out of agreement with the rows it claims to index. And because
+  every fragment joins back to its parent document, a search can be scoped by
+  that document's `source_kind` — which is what makes it possible to search the
+  curated wiki and the raw sources as two separate layers rather than one pile.
+
+- `document_references` — **one row per edge between two documents**, of one of
+  two kinds: `cites`, meaning a wiki page draws its content from a source, and
+  `links_to`, meaning a wiki page links to another wiki page. Keeping this graph
+  in a table, rather than re-deriving it by scanning markdown whenever it is
+  needed, is what makes provenance a query.
+
+Two integrity mechanisms hold that structure together. Every child table
+declares `ON DELETE CASCADE` against its parent document, so removing a document
+takes its pages, fragments and edges with it in a single statement, rather than
+in application code that could be interrupted half-way and leave debris. The FTS
+triggers extend the same guarantee to the search index. Between them, a deletion
+cannot leave an orphaned fragment behind, or a phantom hit for a page that no
+longer exists.
+
 
 And `wiki/` is a git repository: every ingest, edit, and delete is a commit, so
 the derived layer has the same undo history a source-controlled codebase does.
