@@ -47,7 +47,11 @@ underneath as the evidence a citation points at.
 
 **Datasets** (`workspace/datasets/`) are tables: markdown files whose
 front-matter declares a category and whose rows carry values with an `as_of`
-date. They carry *volatile facts* — what the dollar MEP was worth on 25 June. Their
+date. *Front-matter* is the YAML block fenced between two `---` lines at the top
+of a markdown file: metadata **about** the document, where the body below is the
+document — machine-parseable, but travelling inside the file rather than in a
+sidecar that can drift away from it. They carry *volatile facts* — what the
+dollar MEP was worth on 25 June. Their
 content is **meant** to change; refreshing one is the normal case, not an edit.
 
 And they are **never ingested at all.** Not "ingested differently" — not
