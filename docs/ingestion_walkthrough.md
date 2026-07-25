@@ -132,16 +132,29 @@ different grain:
   boundaries carry no overlap). Each fragment records the document, page and
   heading it came from, which is what lets a search hit be traced back to a
   place a citation can name. Both kinds of document are chunked: the raw sources
-  and the generated wiki pages alike.
+  and the generated wiki pages alike, and because every fragment points back at
+  its parent document, a search can be restricted to one kind or the other —
+  which is what lets the curated wiki and the raw sources be searched as two
+  separate layers instead of one undifferentiated pile.
 
-- `chunks_fts` — the full-text index over those fragments. It is an FTS5
-  **external-content** table, meaning it stores no second copy of the text: it
-  indexes `document_chunks.content` in place and is kept in step by three
-  triggers, on insert, update and delete. That is why the search index cannot
-  quietly drift out of agreement with the rows it claims to index. And because
-  every fragment joins back to its parent document, a search can be scoped by
-  that document's `source_kind` — which is what makes it possible to search the
-  curated wiki and the raw sources as two separate layers rather than one pile.
+- `chunks_fts` — **not a table of data, but the search index over the fragments
+  above.** Finding which fragments mention *caución* by scanning every row with
+  `LIKE '%caución%'` would mean reading the entire corpus on every question, and
+  would return matches in arbitrary order. A full-text index inverts the
+  problem: it is built once, maps each word to the fragments containing it, and
+  can therefore answer *and rank* in one lookup. That lookup is where the search
+  for evidence begins whenever a question gets that far — a question the wiki
+  knows it does not cover is turned away before the index is ever consulted.
+
+  Two design choices about it are worth knowing. It is declared
+  **external-content**, which means it keeps no copy of the text: SQLite is told
+  to read the words from `document_chunks.content` itself, so the corpus is
+  stored exactly once rather than duplicated into the index. The price of that
+  arrangement is that the index no longer notices writes to the table on its
+  own — so three triggers, on insert, update and delete, tell it. Together they
+  are why the index cannot quietly fall out of agreement with the rows it claims
+  to describe: there is no path by which a fragment changes and its index entry
+  doesn't.
 
 - `document_references` — **one row per edge between two documents**, of one of
   two kinds: `cites`, meaning a wiki page draws its content from a source, and
