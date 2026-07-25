@@ -138,13 +138,46 @@ different grain:
   separate layers instead of one undifferentiated pile.
 
 - `chunks_fts` — **not a table of data, but the search index over the fragments
-  above.** Finding which fragments mention *caución* by scanning every row with
+  above.** Finding which fragments mention *"caución"* by scanning every row with
   `LIKE '%caución%'` would mean reading the entire corpus on every question, and
   would return matches in arbitrary order. A full-text index inverts the
   problem: it is built once, maps each word to the fragments containing it, and
   can therefore answer *and rank* in one lookup. That lookup is where the search
   for evidence begins whenever a question gets that far — a question the wiki
   knows it does not cover is turned away before the index is ever consulted.
+
+  Concretely, it holds the mapping in the direction a question needs it — from
+  word to fragments, rather than from fragment to words. In the shipped finance
+  demo, whose 53 fragments come from six sources and the pages written off
+  them, two entries look like this:
+
+  ```text
+  caución   →  77, 76, 49, 75, 50, 47, 48, 30
+  inflación →  73, 59, 71, 76, 25, 12, 70, 46, 13, 63, 69, 38, 60, …
+  ```
+
+  Those are `rowid`s, already in rank order, and they are the whole answer the
+  index gives: eight fragments out of fifty-three for the first word, and the
+  other forty-five never looked at. Turning that back into something quotable is
+  a join — the index supplies which and in what order, the tables supply the
+  text and the provenance:
+
+  ```sql
+  SELECT d.filename, c.page, c.header_breadcrumb, c.content
+    FROM chunks_fts
+    JOIN document_chunks c ON c.rowid = chunks_fts.rowid
+    JOIN documents       d ON d.id    = c.document_id
+   WHERE chunks_fts MATCH '"caución"'
+   ORDER BY chunks_fts.rank;
+  ```
+
+  Matching is looser than string equality, too, and deliberately: the tokenizer
+  folds case and accents, so the word typed without its accent still finds the
+  fragments that spell it properly. Eleven fragments in that demo write
+  *inflación* and never once the bare *inflacion* — and searching for
+  `inflacion` returns all eleven. The `LIKE` scan would have missed every one of
+  them, which is the second thing an index buys beyond speed: the question no
+  longer has to be spelled the way the corpus happens to spell it.
 
   Two design choices about it are worth knowing. It is declared
   **external-content**, which means it keeps no copy of the text: SQLite is told
