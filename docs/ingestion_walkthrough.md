@@ -239,14 +239,14 @@ different grain:
 
 - `document_references` — **one row per edge between two documents**, of one of
   two kinds: `cites`, meaning a wiki page draws its content from a source, and
-  `links_to`, meaning a wiki page links to another wiki page. One page in the
-  finance demo is the origin of both, which is the sharpest way to see the
-  difference:
+  `links_to`, meaning a wiki page links to another wiki page. One page is
+  usually the origin of both, which is the sharpest way to see the difference —
+  these two rows are from Act 1 below:
 
   | `reference_type` | from | to |
   |---|---|---|
-  | `cites` | `12-cauciones-bursatiles.md` *(wiki)* | `12 Cauciones Bursátiles.docx` *(source)* |
-  | `links_to` | `12-cauciones-bursatiles.md` *(wiki)* | `caucion-bursatil.md` *(wiki)* |
+  | `cites` | `wiki/concepts/cinderella.md` *(wiki)* | `Cinderella.pdf` *(source)* |
+  | `links_to` | `wiki/concepts/cinderella.md` *(wiki)* | `wiki/concepts/fairy-godmother.md` *(wiki)* |
 
   The first edge points *down*, at the evidence the page was written from; the
   second points *sideways*, at a sibling page. The rows are the same shape, but
