@@ -239,9 +239,24 @@ different grain:
 
 - `document_references` — **one row per edge between two documents**, of one of
   two kinds: `cites`, meaning a wiki page draws its content from a source, and
-  `links_to`, meaning a wiki page links to another wiki page. Keeping this graph
-  in a table, rather than re-deriving it by scanning markdown whenever it is
-  needed, is what makes provenance a query.
+  `links_to`, meaning a wiki page links to another wiki page. One page in the
+  finance demo is the origin of both, which is the sharpest way to see the
+  difference:
+
+  | `reference_type` | from | to |
+  |---|---|---|
+  | `cites` | `12-cauciones-bursatiles.md` *(wiki)* | `12 Cauciones Bursátiles.docx` *(source)* |
+  | `links_to` | `12-cauciones-bursatiles.md` *(wiki)* | `caucion-bursatil.md` *(wiki)* |
+
+  The first edge points *down*, at the evidence the page was written from; the
+  second points *sideways*, at a sibling page. The rows are the same shape, but
+  they answer different questions — *where did this come from?* against *what
+  else should I read?* — and they behave differently when a document is deleted.
+  One naming trap is worth disarming here: `source_document_id` holds the
+  document doing the referring, not the thing sitting in `sources/`.
+
+  Keeping this graph in a table, rather than re-deriving it by scanning markdown
+  whenever it is needed, is what makes provenance a query.
 
 Two integrity mechanisms hold that structure together. Every child table
 declares `ON DELETE CASCADE` against its parent document, so removing a document
