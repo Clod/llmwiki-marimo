@@ -33,6 +33,10 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "base"))
 
 DEMO = _PROJECT_ROOT / "examples" / "finanzas-argentinas"
+# A wiki of documents and nothing else, which ships with the pre-retrieval box
+# unticked. Probing it answers "what would ticking it cost here?" — deterministic
+# and free, so the walkthrough can show the trade-off instead of asserting it.
+PLAIN_DEMO = _PROJECT_ROOT / "examples" / "fairy-tales"
 _MAX_ANSWER_CHARS = 1200          # the advisory table is ~40 rows; keep the appendix readable
 
 
@@ -92,6 +96,44 @@ class Decision:
     model_invoked: bool = False
     refusal_substituted: bool = False
     cited: bool = False
+
+
+def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
+    """What ticking the pre-retrieval box would do to a wiki of documents alone.
+
+    Runs the same gate over the plain demo's own suggested prompts — the four
+    questions its author expects people to ask. No LLM: this is the deterministic
+    half applied to a workspace that ships with the box unticked, so the
+    walkthrough can show the cost of the other setting rather than claim it.
+    """
+    from domain.chat.config import load_config
+    from domain.chat.preretrieval import (build_vocabulary, plan_retrieval,
+                                          retrieve_source_chunks, retrieve_wiki)
+    from domain.chat.scope import advisory_intent, is_off_limits, mentions_known_data
+    from domain.datasets.source import LocalMarkdownSource
+    from domain.tools.wiki_fs import concept_page_names
+
+    db_path = str(PLAIN_DEMO / ".llmwiki" / "index.db")
+    if not Path(db_path).exists():
+        return []
+
+    cfg = load_config(PLAIN_DEMO)
+    vocab = build_vocabulary(LocalMarkdownSource(PLAIN_DEMO / "datasets"))
+    coverage = set(vocab) | set(concept_page_names(db_path))
+    aliases = [a for names in cfg.data_aliases.values() for a in names]
+
+    rows = []
+    for q in list(cfg.suggested_prompts or []):
+        off = is_off_limits(q, cfg.off_limits)
+        in_roster = mentions_known_data(q, coverage, aliases)
+        wiki_hits = [] if off else retrieve_wiki(db_path, q)
+        doc_hits = (retrieve_source_chunks(db_path, q)
+                    if (not off and not wiki_hits and in_roster) else [])
+        has_data = mentions_known_data(q, vocab, aliases) or advisory_intent(q)
+        plan = plan_retrieval(q, off_limits=cfg.off_limits, wiki_hits=wiki_hits,
+                              doc_hits=doc_hits, has_data=has_data, in_roster=in_roster)
+        rows.append((q, len(wiki_hits), in_roster, plan.action))
+    return rows
 
 
 def _gate(case: Case, cfg, db_path: str, vocab, coverage, aliases) -> Decision:
@@ -173,11 +215,35 @@ def _render(decisions: list[Decision], with_answers: bool) -> str:
     out += [
         "",
         f"Rows 1–{sum(1 for d in decisions if not d.case.needs_datasets)} are mechanisms "
-        "any wiki has. The rest are reachable only because this one has a",
-        "`datasets/` folder: without it the `data` column is `False` throughout and that",
-        "branch of the chain is never taken.",
+        "any wiki with the box ticked has. The rest are reachable only because",
+        "this one has a `datasets/` folder: without it the `data` column is `False`",
+        "throughout and that branch of the chain is never taken.",
+        "",
     ]
-    out.append("")
+
+    plain = _probe_plain_wiki()
+    if plain:
+        out += [
+            "## The same gate on a wiki of documents alone",
+            "",
+            f"`{PLAIN_DEMO.name}` ships with the pre-retrieval box **unticked**. These are",
+            "its own `suggested_prompts` — the questions its author expects — run through",
+            "the gate as if the box were ticked. Also pure code, also free to reproduce.",
+            "",
+            "| Question | wiki | roster | plan if ticked |",
+            "|---|---|---|---|",
+        ]
+        for q, hits, in_roster, action in plain:
+            out.append(f"| {q} | {hits} | {in_roster} | **{action}** |")
+        refused = sum(1 for *_, a in plain if a == "refuse")
+        out += [
+            "",
+            f"{refused} of {len(plain)} would be refused, every one of them with wiki hits",
+            "to spare. Nothing names a concept page, so nothing is in the roster, and this",
+            "wiki has no dataset vocabulary to widen it with — which is the reason the box",
+            "ships unticked here and ticked on the finance demo.",
+            "",
+        ]
 
     if not with_answers:
         return "\n".join(out) + "\n"
@@ -203,11 +269,14 @@ def _render(decisions: list[Decision], with_answers: bool) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", type=Path,
-                        default=_PROJECT_ROOT / "docs" / "query_walkthrough_appendix.md")
+    parser.add_argument("--out", type=Path, default=None)
     parser.add_argument("--plan-only", action="store_true",
-                        help="capture only the deterministic routing table (no LLM, no cost)")
+                        help="capture only the deterministic routing table (no LLM, no cost); "
+                             "prints unless --out is given, so it cannot clobber the answers")
     args = parser.parse_args()
+    args.out_given = args.out is not None
+    if args.out is None:
+        args.out = _PROJECT_ROOT / "docs" / "query_walkthrough_appendix.md"
 
     from dotenv import load_dotenv
     load_dotenv(_PROJECT_ROOT / ".env")
@@ -261,6 +330,16 @@ def main() -> int:
                 print(f"   invoked={d.model_invoked} tools={d.tool_calls} cited={d.cited}")
 
         asyncio.run(_run_all())
+
+    if args.plan_only and not args.out_given:
+        # --plan-only produces the routing table and nothing else. Writing that
+        # over the appendix would silently delete the captured answers, which is
+        # a bad trade for a command whose whole appeal is that it costs nothing
+        # and can be run casually. Print it instead; pass --out to write.
+        print("\n" + _render(decisions, with_answers=False))
+        print("[note] --plan-only printed the table instead of overwriting "
+              f"{args.out.name} (its answers would be lost). Pass --out to write.")
+        return 0
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(_render(decisions, with_answers=not args.plan_only), encoding="utf-8")

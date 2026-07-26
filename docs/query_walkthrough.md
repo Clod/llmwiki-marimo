@@ -4,9 +4,9 @@
 > authoritative contract for everything below is
 > [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
 > — prefer it over this document whenever the two seem to disagree. §6.7 of
-> [Workflows](manual/workflows.md) documents a *different*, older chat path
-> (see [What this does not cover](#what-this-does-not-cover)). This document
-> is the sibling of [`ingestion_walkthrough.md`](ingestion_walkthrough.md):
+> [Workflows](manual/workflows.md) is the reference for the mode Part 1
+> describes. This document is the sibling of
+> [`ingestion_walkthrough.md`](ingestion_walkthrough.md):
 > that one follows what ingestion **builds**; this one follows what a query
 > **does**.
 
@@ -17,19 +17,20 @@ it was. Every act below links into
 [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
 for the authoritative contract instead of restating it.
 
-**Two halves, and which one you need.** The first three acts are mechanisms
-**any wiki has**: a curated page answering, and two different ways of declining
-to answer. The last four are reachable only because this particular wiki keeps a
-`datasets/` folder, and they are gathered under [Wikis whose facts
-change](#wikis-whose-facts-change) — the same division, on the same line, as the
-[ingestion walkthrough](ingestion_walkthrough.md#wikis-whose-facts-change).
+**Two modes, and a checkbox between them.** The read app carries a
+**Pre-retrieval** toggle, and it is not a performance switch — it decides *who
+goes looking* for the evidence. Unticked, the model does: it holds search tools
+and calls them as it sees fit. Ticked, code does: it retrieves before the model
+is consulted, and can decline to consult it at all. Each half of this document
+takes one setting, because they are not a basic and an advanced mode. They are
+two different answers to the same question, and each pays for what it buys.
 
-**The corpus.** All seven questions run against the pre-ingested
-`examples/finanzas-argentinas` demo, including the generic three. That is a
-limitation worth stating rather than hiding: unlike the ingestion side, there is
-no captured run of this document against the fairy-tale corpus, so the *examples*
-stay financial even where the *mechanism* is not. Read the first three acts for
-what the code does, not for what the questions are about.
+**The corpus follows the setting.** Part 1 runs on `examples/fairy-tales`, a wiki
+of documents and nothing else, which ships with the box **unticked**. Part 2 runs
+on `examples/finanzas-argentinas`, which keeps volatile facts in a
+[`datasets/` folder](ingestion_walkthrough.md#wikis-whose-facts-change) and ships
+with the box **ticked**. That the two demos ship on different settings is the
+argument of this document in miniature.
 
 **The numbers are real.** Every routing decision and every quoted answer
 below was captured from an actual run, not written by hand. The full capture
@@ -43,16 +44,25 @@ uv run python scripts/capture_query_walkthrough.py
 ## The thesis
 
 The ingestion walkthrough's thesis was that the wiki compounds. This one is
-narrower and, for this audience, more load-bearing:
+narrower, and it is a question rather than a claim:
 
-> **The interesting engineering is in what the system declines to do — and
-> the decision is made by code, before the model is consulted, and often
-> instead of consulting it.**
+> **What do you want to be true when the system does not know?**
 
-Every act below is in service of that claim. Routing is deterministic and
-free. Refusals cost nothing — no prompt, no completion, no token. Numbers
-that end up in an answer were never produced by the model; they were
-computed in Python and only *narrated* by it.
+There are two defensible answers. *Let it try anyway* — search, gather what
+there is, and let a well-instructed model judge whether that is enough. Or
+*make it stop* — decide in code, before any model is consulted, whether the
+question is one this wiki covers, and refuse deterministically when it is not.
+
+The first buys flexibility and pays for it in guarantees: a model that *can*
+search can also skip searching, and can dress a tangential match up as an
+answer. The second buys guarantees and pays for them in reach: it answers only
+what it can recognise as covered, and a question that names nothing it knows is
+turned away even when the search would have found something.
+
+Neither is the crippled version of the other, and the walkthrough is arranged to
+let you disagree with me about which you want. What is not negotiable in either
+mode: a number that reaches an answer was never produced by the model. It was
+computed in Python and only *narrated*.
 
 ## How the appendix is generated
 
@@ -78,7 +88,75 @@ the quotes are the only honest way to show what a live run produced without
 either pasting the whole appendix or asserting something that might not
 survive the next regeneration.
 
-## The routing decision, in shape
+## Part 1 — the box unticked: the model goes looking
+
+This is what a wiki does out of the box, and what `master` does with no
+`datasets/` folder anywhere in sight. The agent is handed three tools —
+`read_wiki_page`, `search_wiki_fts`, `search_source_chunks` — and a system
+prompt telling it the order to use them in: index first, curated wiki second,
+raw sources only if the pages fall short. §6.7 of
+[Workflows](manual/workflows.md) is the reference for it; this section is about
+why you would leave it on.
+
+**What it buys is reach.** Nothing decides in advance what the wiki covers, so
+nothing has to. The agent can answer a question about one page, or about all of
+them, or about the shape of the collection itself — because it is holding a
+search tool and can go find out. The `fairy-tales` demo suggests four questions
+to newcomers, and every one of them is that sort: *What tales are in this wiki?*
+· *Summarize the plot of each tale* · *What characters and themes do the tales
+share?* · *Compare how each story ends*. None names a particular concept. All
+four are natural things to ask an encyclopedia, and all four need an agent free
+to look around.
+
+**What it costs is a guarantee.** Routing is prompt-driven — the instruction to
+search is a *request*, and the model may or may not honour it. It can answer
+from memory without calling anything. It can call `search_source_chunks`, get a
+paragraph that shares a word with the question, and build a confident answer on
+top of it. Nothing structural prevents either; the system prompt asks, and asks
+firmly, and asking is what it does.
+
+For a wiki of fairy tales that is a fair trade. Nobody is harmed by a loosely
+sourced sentence about a glass slipper, and the reach is worth having.
+
+### What ticking the box would cost here
+
+The trade is not a matter of opinion, and it does not need a model to measure.
+Running the same four suggested prompts through the pre-retrieval gate — pure
+code, no LLM, free to reproduce — gives this:
+
+| Question | wiki hits | in roster | plan if ticked |
+|---|---:|---|---|
+| What tales are in this wiki? | 6 | False | **refuse** |
+| Summarize the plot of each tale | 6 | False | **refuse** |
+| What characters and themes do the tales share? | 6 | False | **refuse** |
+| Compare how each story ends | 6 | False | **refuse** |
+
+Four out of four, each with six wiki hits sitting right there. The coverage
+roster is built from the wiki's **concept-page names**, so a question that names
+no concept is uncovered by construction — and a question *about the collection*
+never names one. Ticking the box on this wiki would refuse the four questions it
+puts in front of every new reader.
+
+That is why `fairy-tales` ships unticked, and it is the cleanest possible
+statement of what the setting is for. The table regenerates with
+`uv run python scripts/capture_query_walkthrough.py --plan-only`, which prints
+rather than writes.
+
+## Part 2 — the box ticked: code goes looking
+
+Everything from here on runs on `examples/finanzas-argentinas`, with the box
+**ticked**. The reason that wiki makes the opposite choice is the subject of the
+rest of this document.
+
+Start with what changes about the failure the first mode accepts. A loosely
+sourced sentence about a glass slipper costs nothing. A loosely sourced sentence
+about what an instrument yields, or whether an investment is safe, costs
+something real — and the specific failure the first mode cannot prevent, a
+tangential chunk laundered into a confident answer, is exactly the failure that
+does damage here. When the stakes change, "the prompt asks the model to search"
+stops being good enough, and the request has to become a branch.
+
+### The routing decision, in shape
 
 `preretrieval.plan_retrieval` is an `if`/`elif` chain checked in a fixed order,
 and the order itself is the design decision (§3 of the
@@ -113,9 +191,9 @@ The [appendix's routing table](query_walkthrough_appendix.md#the-routing-decisio
 has one row per question below, with the actual `off_limits`/`data`/`roster`
 values and FTS hit counts this diagram abstracts away.
 
-## Three acts any wiki has
+### Three acts any ticked wiki has
 
-### 1. A curated page answers
+#### 1. A curated page answers
 
 *"¿Qué es una caución bursátil y por qué se la considera de bajo riesgo?"*
 
@@ -133,7 +211,7 @@ correctly by calling `search_wiki_fts` itself — but "could" is doing a lot of
 work in that sentence, and this design removes the "could" entirely for the
 common case.
 
-### 2. In scope, but not covered
+#### 2. In scope, but not covered
 
 *"¿Qué es un ETF?"*
 
@@ -152,7 +230,7 @@ general knowledge past the wiki-only instruction. Gating Tier 2 on the
 roster, not the hit count, closes that path before the model ever sees the
 question.
 
-### 3. Off topic
+#### 3. Off topic
 
 *"¿Cuál es la capital de Francia?"*
 
@@ -172,7 +250,7 @@ prompt-based "please refuse off-topic questions" instruction can offer, because
 a prompt is a request the model may or may not honour, while this refusal is a
 branch the model never reaches.
 
-## Wikis whose facts change
+### Wikis whose facts change
 
 **Everything above this line applies to any wiki.** What follows needs a
 `datasets/` folder, and the sibling document explains why such a wiki keeps its
@@ -202,7 +280,7 @@ roster is the union of the dataset vocabulary and the concept-page names, so the
 gate in the first half of this document admits questions the pages alone would
 not cover.
 
-### 4. A datum, with its date
+#### 4. A datum, with its date
 
 *"¿A cuánto está el dólar MEP?"*
 
@@ -233,7 +311,7 @@ change](ingestion_walkthrough.md#wikis-whose-facts-change) for why that split is
 drawn where it is. The cost of that decision is one extra tool call at query time.
 This is what it buys.
 
-### 5. An alias reaches the datum
+#### 5. An alias reaches the datum
 
 *"¿A cuánto está el billete verde?"*
 
@@ -261,7 +339,7 @@ layer never has to guess a nickname on the fly. This is the same argument as
 that document's alias artifact, paid off on the other side of the pipeline:
 work done once at ingest time is work the query path never has to redo.
 
-### 6. Deterministic advisory
+#### 6. Deterministic advisory
 
 *"Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo y
 cuánto ganaría?"*
@@ -293,7 +371,7 @@ form the system prompt actually specifies (§2 of the contract lists the
 `fuente` column explicitly as a valid citation carrier), and this document
 would rather show the false negative than quietly drop the flag.
 
-### 7. The honest limit
+#### 7. The honest limit
 
 *"¿Cuánto ganaría con acciones de YPF?"*
 
@@ -314,13 +392,13 @@ loud rather than silently declining to answer or, worse, guessing.
 
 ## What this does not cover
 
-**The agentic mode.** §6.7 of [Workflows](manual/workflows.md) documents a
-different chat path, where the agent itself calls `read_wiki_page`,
-`search_wiki_fts`, and `search_source_chunks` — "routing is prompt-driven,
-not code-driven," in that document's own words. It is reachable today behind
-a UI toggle, but it predates the pre-retrieval work described here, and this
-document does not treat it as the current design; §6.7 is the place to read
-about it, not this one.
+**A captured run of Part 1.** The unticked mode is described here and
+measured only at its boundary — what ticking the box would refuse. There is no
+transcript of the agentic path answering those four questions, because the
+capture script drives the pre-retrieval engine and nothing else. So Part 1
+argues from the mechanism and from the gate's own numbers, while Part 2 argues
+from quoted output. That asymmetry is a gap in the tooling, not a claim that one
+mode is better observed than the other.
 
 **Tier-2 answer-vs-source verification.** `plan_retrieval` marks a Tier-2
 (raw-doc) plan with `verify=True`, and `pre_retrieval_answer` calls
@@ -341,11 +419,11 @@ narrate a case that wasn't actually observed.
   questions through the real gate and the real model and regenerates
   [`docs/query_walkthrough_appendix.md`](query_walkthrough_appendix.md).
 - `uv run python scripts/capture_query_walkthrough.py --plan-only`
-  reproduces the routing table alone — the deterministic half — with no LLM
-  client constructed and no cost. Worth running on its own: it's the
-  cheapest possible way to check that the routing decision for a given
-  question is what this document claims it is, without spending anything on
-  a completion.
+  reproduces both deterministic tables — the routing decision for Part 2's
+  seven questions, and Part 1's "what ticking the box would cost here" — with
+  no LLM client constructed and no cost. It **prints** rather than writing,
+  so running it casually cannot overwrite the captured answers. This is the
+  cheapest way to check that a routing decision is what this document says.
 
 ## Where to go next
 
@@ -353,9 +431,9 @@ narrate a case that wasn't actually observed.
   — the current, authoritative contract for the plan order, the roster
   gate, and the citation format. Prefer it over this document's prose
   wherever they seem to disagree.
-- [Workflows](manual/workflows.md) §6.7 — the older, prompt-driven agentic
-  chat path, still reachable via a UI toggle but superseded in spirit by the
-  pre-retrieval flow this document describes.
+- [Workflows](manual/workflows.md) §6.7 — the per-operation reference for the
+  unticked mode of Part 1: the tool inventory, the prompt-driven routing order,
+  and what each phase is for.
 - [`docs/ingestion_walkthrough.md`](ingestion_walkthrough.md) — the sibling
   document. Act 5 above is the natural bridge: the alias it resolves is
   built by the same ingest-time mechanism that document's Act 1 shows being
