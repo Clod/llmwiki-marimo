@@ -478,7 +478,7 @@ What the two kinds share: both are inputs **you** own, the pipeline never
 modifies either, and both feed the wiki's vocabulary and coverage roster.
 
 The payoff is visible on the read side rather than here: in the [query
-walkthrough](query_walkthrough.md#2-a-datum-with-its-date), a single answer
+walkthrough](query_walkthrough.md#4-a-datum-with-its-date), a single answer
 about the MEP dollar carries curated prose explaining what it *is* alongside a
 live figure with its `as_of` date — one citation for the page, one for the
 datum's external origin. That is what the two paths are for.

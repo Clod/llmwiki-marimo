@@ -17,15 +17,19 @@ it was. Every act below links into
 [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
 for the authoritative contract instead of restating it.
 
-**The corpus.** Everything here runs against the pre-ingested
-`examples/finanzas-argentinas` demo — the same wiki the [ingestion
-walkthrough](ingestion_walkthrough.md#wikis-whose-facts-change)'s closing
-section uses to show the `datasets/` half of the vocabulary subsystem. The
-fairy-tale corpus that carries the rest of that document can't carry this one:
-five of the seven
-acts below (a datum with its date, an alias resolving, a deterministic
-advisory table, an "not estimable" refusal, a roster refusal) only exist
-because this wiki has a `datasets/` folder and a finance domain overlay.
+**Two halves, and which one you need.** The first three acts are mechanisms
+**any wiki has**: a curated page answering, and two different ways of declining
+to answer. The last four are reachable only because this particular wiki keeps a
+`datasets/` folder, and they are gathered under [Wikis whose facts
+change](#wikis-whose-facts-change) — the same division, on the same line, as the
+[ingestion walkthrough](ingestion_walkthrough.md#wikis-whose-facts-change).
+
+**The corpus.** All seven questions run against the pre-ingested
+`examples/finanzas-argentinas` demo, including the generic three. That is a
+limitation worth stating rather than hiding: unlike the ingestion side, there is
+no captured run of this document against the fairy-tale corpus, so the *examples*
+stay financial even where the *mechanism* is not. Read the first three acts for
+what the code does, not for what the questions are about.
 
 **The numbers are real.** Every routing decision and every quoted answer
 below was captured from an actual run, not written by hand. The full capture
@@ -50,7 +54,7 @@ free. Refusals cost nothing — no prompt, no completion, no token. Numbers
 that end up in an answer were never produced by the model; they were
 computed in Python and only *narrated* by it.
 
-## The two halves
+## How the appendix is generated
 
 The appendix is deliberately generated in two passes, and the split matters
 enough to explain before reading either half.
@@ -76,9 +80,10 @@ survive the next regeneration.
 
 ## The routing decision, in shape
 
-`preretrieval.plan_retrieval` is a five-branch `if`/`elif` chain, checked in
-this fixed order — reproduced here as a diagram because the order itself is
-the design decision (§3 of the [contract](../.trellis/spec/backend/chat-retrieval.md)):
+`preretrieval.plan_retrieval` is an `if`/`elif` chain checked in a fixed order,
+and the order itself is the design decision (§3 of the
+[contract](../.trellis/spec/backend/chat-retrieval.md)). In a wiki built out of
+documents alone — no `datasets/` folder — it has four branches:
 
 ```mermaid
 flowchart TD
@@ -86,30 +91,29 @@ flowchart TD
     OFF -->|yes| R1["refuse<br/>no model call"]
     OFF -->|no| T1{"wiki_hits and in_roster?"}
     T1 -->|yes| TIER1["invoke - Tier 1 curado<br/>inject curated page, no verify"]
-    T1 -->|no| DATA{"has_data?"}
-    DATA -->|yes| TOOLS["invoke - tools only<br/>query_dataset / estimar_alternativas"]
-    DATA -->|no| T2{"doc_hits and in_roster?"}
+    T1 -->|no| T2{"doc_hits and in_roster?"}
     T2 -->|yes| TIER2["invoke - Tier 2 crudo<br/>inject raw chunk, verify + warn"]
     T2 -->|no| R2["refuse<br/>no model call"]
 ```
 
-Two things about this order are easy to miss reading the code once and worth
-stating plainly. First, `has_data` is checked **before** the raw-doc
-fallback (Tier 2), not after: a question that names a dataset term should
-reach `query_dataset` for the live figure, not get answered from a raw
-document chunk that happens to mention the same term in prose. Second, both
-Tier 1 and Tier 2 are gated on `in_roster` — the coverage roster built from
-the dataset vocabulary *and* the wiki's own concept-page names — not on the
-FTS hit count alone. Lexical search can return a hit for an uncovered topic
-that merely shares a word with a covered one; the roster, not the search
-engine, is the authority on what the wiki actually covers. (Act 7 below
-shows this happening for real, with numbers.)
+Two things about it are easy to miss reading the code once. First, **two of the
+four outcomes never reach the model at all** — a refusal costs no prompt and no
+completion, and is byte-identical on every run. Second, both tiers are gated on
+`in_roster`, the coverage roster built from the wiki's own concept-page names,
+and **not** on the FTS hit count. Lexical search happily returns a hit for an
+uncovered topic that merely shares a word with a covered one; the roster, not
+the search engine, is the authority on what the wiki covers. The third act below
+shows that happening for real, with numbers.
+
+A wiki that also keeps volatile facts inserts a fifth branch into this chain.
+Where it goes, and why the position matters, is [the second half of this
+document](#wikis-whose-facts-change).
 
 The [appendix's routing table](query_walkthrough_appendix.md#the-routing-decision-deterministic--no-model-involved)
 has one row per question below, with the actual `off_limits`/`data`/`roster`
 values and FTS hit counts this diagram abstracts away.
 
-## The seven acts
+## Three acts any wiki has
 
 ### 1. A curated page answers
 
@@ -129,7 +133,76 @@ correctly by calling `search_wiki_fts` itself — but "could" is doing a lot of
 work in that sentence, and this design removes the "could" entirely for the
 common case.
 
-### 2. A datum, with its date
+### 2. In scope, but not covered
+
+*"¿Qué es un ETF?"*
+
+`off_limits=False`, `data=False`, `roster=False`, and both `wiki` and `docs`
+hit counts are **0**. The plan is `refuse`, and the model was **never
+invoked** — no completion, no token spent. The `docs=0` is not "the search
+came back empty"; it's that the raw-source search never ran at all. Looking
+at `preretrieval.pre_retrieval_answer`, `retrieve_source_chunks` is only
+called when `wiki_hits` is empty **and** `in_roster` is true — and here
+`in_roster` is false, so the raw-source lookup is skipped outright. There is
+no tangential source chunk sitting around for a leaky prompt to dress up as
+a general-knowledge answer, because the code never went looking for one.
+This is the fix for what the contract calls the CEDEARs leak (§3): a
+tangential lexical match on an uncovered topic used to be enough to smuggle
+general knowledge past the wiki-only instruction. Gating Tier 2 on the
+roster, not the hit count, closes that path before the model ever sees the
+question.
+
+### 3. Off topic
+
+*"¿Cuál es la capital de Francia?"*
+
+The most instructive row in the whole appendix, and the one that most
+directly earns the thesis: `off_limits=False`, `data=False`,
+`roster=False` — but `wiki=6`. The FTS query genuinely matched 6 chunks in
+the curated wiki (some shared word between the question and unrelated
+financial prose). If the plan were driven by the hit count alone, this would
+be Tier 1: inject those 6 chunks and let the model try to answer a geography
+question from financial context. It isn't, because `wiki_hits and
+in_roster` requires *both*, and `in_roster` is false — nothing about
+"Francia" is in the coverage roster. The plan falls through every branch to
+`refuse`, and the model is never invoked. The answer is the same fixed
+string as Act 2, `"Eso no está en mi base de conocimiento."`, produced
+without a completion call, identical on every run — a property no
+prompt-based "please refuse off-topic questions" instruction can offer, because
+a prompt is a request the model may or may not honour, while this refusal is a
+branch the model never reaches.
+
+## Wikis whose facts change
+
+**Everything above this line applies to any wiki.** What follows needs a
+`datasets/` folder, and the sibling document explains why such a wiki keeps its
+volatile facts [outside the compiled
+pages](ingestion_walkthrough.md#wikis-whose-facts-change) instead of in them.
+
+The consequence for retrieval is one more branch in the chain, inserted between
+the two tiers:
+
+```mermaid
+flowchart TD
+    T1{"wiki_hits and in_roster?"} -->|no| DATA{"has_data?"}
+    DATA -->|yes| TOOLS["invoke - tools only<br/>query_dataset / estimar_alternativas"]
+    DATA -->|no| T2{"doc_hits and in_roster?"}
+```
+
+Its position is the decision worth arguing about. `has_data` is checked
+**before** the raw-document fallback, not after: a question naming a dataset
+term should reach `query_dataset` for the live figure, rather than be answered
+out of a raw chunk that happens to mention the same term in prose. A stale
+sentence about the dollar is not a worse answer than the current rate — it is a
+different kind of claim altogether, and the chain refuses to substitute one for
+the other.
+
+`has_data` is also what widens the coverage roster: in a wiki with datasets the
+roster is the union of the dataset vocabulary and the concept-page names, so the
+gate in the first half of this document admits questions the pages alone would
+not cover.
+
+### 4. A datum, with its date
 
 *"¿A cuánto está el dólar MEP?"*
 
@@ -160,7 +233,7 @@ change](ingestion_walkthrough.md#wikis-whose-facts-change) for why that split is
 drawn where it is. The cost of that decision is one extra tool call at query time.
 This is what it buys.
 
-### 3. An alias reaches the datum
+### 5. An alias reaches the datum
 
 *"¿A cuánto está el billete verde?"*
 
@@ -188,7 +261,7 @@ layer never has to guess a nickname on the fly. This is the same argument as
 that document's alias artifact, paid off on the other side of the pipeline:
 work done once at ingest time is work the query path never has to redo.
 
-### 4. Deterministic advisory
+### 6. Deterministic advisory
 
 *"Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo y
 cuánto ganaría?"*
@@ -220,63 +293,24 @@ form the system prompt actually specifies (§2 of the contract lists the
 `fuente` column explicitly as a valid citation carrier), and this document
 would rather show the false negative than quietly drop the flag.
 
-### 5. The honest limit
+### 7. The honest limit
 
 *"¿Cuánto ganaría con acciones de YPF?"*
 
-Same `invoke (curado)` plan as Acts 1 and 2 — 6 wiki hits, in roster — and
+Same `invoke (curado)` plan as Acts 1 and 4 — 6 wiki hits, in roster — and
 again **zero** tool calls. The answer: "No es posible estimar cuánto
 ganarías con acciones de YPF, ya que las acciones son un instrumento de
 renta variable... Las ganancias o pérdidas potenciales no son predecibles de
 antemano," closing with `Referencia: 01 Acciones Locales.docx`.
 
-The interesting contrast is with Act 4: both are advisory-shaped questions,
+The interesting contrast is with Act 6: both are advisory-shaped questions,
 but this one names a specific, variable-return instrument instead of asking
 for a generic ranking. The curated page for equities states plainly that
 returns aren't estimable, and the model reports that limitation instead of
 either refusing outright or fabricating a number. The system knows the
-difference between "I can compute this" (fixed-income instruments, Act 4)
+difference between "I can compute this" (fixed-income instruments, Act 6)
 and "this is not computable" (equities, here) — and says the second one out
 loud rather than silently declining to answer or, worse, guessing.
-
-### 6. In scope, but not covered
-
-*"¿Qué es un ETF?"*
-
-`off_limits=False`, `data=False`, `roster=False`, and both `wiki` and `docs`
-hit counts are **0**. The plan is `refuse`, and the model was **never
-invoked** — no completion, no token spent. The `docs=0` is not "the search
-came back empty"; it's that the raw-source search never ran at all. Looking
-at `preretrieval.pre_retrieval_answer`, `retrieve_source_chunks` is only
-called when `wiki_hits` is empty **and** `in_roster` is true — and here
-`in_roster` is false, so the raw-source lookup is skipped outright. There is
-no tangential source chunk sitting around for a leaky prompt to dress up as
-a general-knowledge answer, because the code never went looking for one.
-This is the fix for what the contract calls the CEDEARs leak (§3): a
-tangential lexical match on an uncovered topic used to be enough to smuggle
-general knowledge past the wiki-only instruction. Gating Tier 2 on the
-roster, not the hit count, closes that path before the model ever sees the
-question.
-
-### 7. Off topic
-
-*"¿Cuál es la capital de Francia?"*
-
-The most instructive row in the whole appendix, and the one that most
-directly earns the thesis: `off_limits=False`, `data=False`,
-`roster=False` — but `wiki=6`. The FTS query genuinely matched 6 chunks in
-the curated wiki (some shared word between the question and unrelated
-financial prose). If the plan were driven by the hit count alone, this would
-be Tier 1: inject those 6 chunks and let the model try to answer a geography
-question from financial context. It isn't, because `wiki_hits and
-in_roster` requires *both*, and `in_roster` is false — nothing about
-"Francia" is in the coverage roster. The plan falls through every branch to
-`refuse`, and the model is never invoked. The answer is the same fixed
-string as Act 6, `"Eso no está en mi base de conocimiento."`, produced
-without a completion call, identical on every run — a property no
-prompt-based "please refuse off-topic questions" instruction can offer, because
-a prompt is a request the model may or may not honour, while this refusal is a
-branch the model never reaches.
 
 ## What this does not cover
 
@@ -323,6 +357,6 @@ narrate a case that wasn't actually observed.
   chat path, still reachable via a UI toggle but superseded in spirit by the
   pre-retrieval flow this document describes.
 - [`docs/ingestion_walkthrough.md`](ingestion_walkthrough.md) — the sibling
-  document. Act 3 above is the natural bridge: the alias it resolves is
+  document. Act 5 above is the natural bridge: the alias it resolves is
   built by the same ingest-time mechanism that document's Act 1 shows being
   written.

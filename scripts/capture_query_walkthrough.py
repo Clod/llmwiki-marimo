@@ -43,23 +43,35 @@ class Case:
     act: str
     question: str
     teaches: str
+    # True when the case only exists because the wiki has a datasets/ folder —
+    # the has_data branch, the dataset vocabulary, the finance advisory tools.
+    needs_datasets: bool = False
 
 
+# Ordered so the appendix reads the way the walkthrough does: the mechanisms
+# every wiki gets first, then the ones a datasets/ folder adds. Reordering this
+# list reorders the appendix, so the two cannot drift apart.
 CASES = [
+    # ── Any wiki ──────────────────────────────────────────────────────────────
     Case("A curated page answers", "¿Qué es una caución bursátil y por qué se la considera de bajo riesgo?",
          "Tier-1: the code injects the curated page; the answer cites it."),
-    Case("A datum, with its date", "¿A cuánto está el dólar MEP?",
-         "The value comes from a dataset via query_dataset, quoted with its as_of date."),
-    Case("An alias reaches the datum", "¿A cuánto está el billete verde?",
-         "The vocabulary built at ingest lets a nickname resolve to the same dataset."),
-    Case("Deterministic advisory", "Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo y cuánto ganaría?",
-         "The ranking and every gain are computed in Python; the model only narrates."),
-    Case("The honest limit", "¿Cuánto ganaría con acciones de YPF?",
-         "Variable-return instruments are declared non-estimable instead of guessed."),
     Case("In scope, not covered", "¿Qué es un ETF?",
          "The roster gate refuses without reading raw sources — no tangential chunk to leak from."),
     Case("Off topic", "¿Cuál es la capital de Francia?",
          "Refused deterministically, without invoking the model at all."),
+    # ── Only reachable when the wiki has a datasets/ folder ───────────────────
+    Case("A datum, with its date", "¿A cuánto está el dólar MEP?",
+         "The value comes from a dataset via query_dataset, quoted with its as_of date.",
+         needs_datasets=True),
+    Case("An alias reaches the datum", "¿A cuánto está el billete verde?",
+         "The vocabulary built at ingest lets a nickname resolve to the same dataset.",
+         needs_datasets=True),
+    Case("Deterministic advisory", "Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo y cuánto ganaría?",
+         "The ranking and every gain are computed in Python; the model only narrates.",
+         needs_datasets=True),
+    Case("The honest limit", "¿Cuánto ganaría con acciones de YPF?",
+         "Variable-return instruments are declared non-estimable instead of guessed.",
+         needs_datasets=True),
 ]
 
 
@@ -158,6 +170,13 @@ def _render(decisions: list[Decision], with_answers: bool) -> str:
             f"| {i} | {q} | {d.off_limits} | {d.has_data} | {d.in_roster} "
             f"| {d.wiki_hits} | {d.doc_hits} | **{d.action}**{tier} |"
         )
+    out += [
+        "",
+        f"Rows 1–{sum(1 for d in decisions if not d.case.needs_datasets)} are mechanisms "
+        "any wiki has. The rest are reachable only because this one has a",
+        "`datasets/` folder: without it the `data` column is `False` throughout and that",
+        "branch of the chain is never taken.",
+    ]
     out.append("")
 
     if not with_answers:
