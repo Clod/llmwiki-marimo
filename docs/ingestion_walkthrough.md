@@ -262,23 +262,38 @@ data, because the sources were never the thing being deleted.
 
 ## The story, top to bottom
 
+Each act below states the workspace as it stands when the act ends, and the one
+thing that act exists to demonstrate. Every figure is read off the generated
+[appendix](ingestion_walkthrough_appendix.md).
+
 ```mermaid
-flowchart LR
-    E(["empty wiki"]) --> A1["Act 1<br/>Cinderella.pdf<br/>first document"]
-    A1 --> A2["Act 2<br/>+ Little Red Riding Hood.pdf<br/>wiki compounds"]
-    A2 --> A3a{"Act 3a<br/>re-ingest, unchanged"}
-    A3a -->|hash matches, +0| A2
-    A2 --> A3b["Act 3b<br/>Cinderella.pdf edited<br/>on disk, re-ingested"]
-    A3b --> A3c["Act 3c<br/>Little Red Riding Hood.pdf<br/>deleted"]
-    A3c --> COD["Coda<br/>datasets/ present<br/>(finanzas-argentinas demo)"]
+flowchart TD
+    E(["empty workspace<br/>0 sources · 0 wiki pages · 0 chunks · 0 edges"])
+
+    subgraph FT ["Acts 1–3c — the bundled fairy-tale corpus"]
+        direction TB
+        A1["Act 1 · Cinderella.pdf (5 pp) ingested<br/>1 source · 5 extracted pages<br/>6 wiki pages · 16 chunks<br/>6 cites · 15 links_to<br/>▸ the source row is committed ready<br/>before the LLM writes a single page"]
+        A2["Act 2 · + Little Red Riding Hood.pdf (2 pp)<br/>2 sources · 7 extracted pages<br/>11 wiki pages · 23 chunks<br/>cites 6 → 11 · links_to 15 → 25<br/>▸ the wiki compounds — Act 1's pages end up<br/>better connected than they went in"]
+        A3a{"Act 3a · re-ingested,<br/>nothing changed on disk"}
+        A3b["Act 3b · Cinderella.pdf replaced on disk<br/>2 sources — the row is updated, not duplicated<br/>16 wiki pages · 31 chunks · links_to 25 → 61<br/>lint tail: 45 issues · 35 fixed · 10 skipped · 0 failed<br/>▸ every skip reports which of two reasons it was"]
+        A3c["Act 3c · Little Red Riding Hood.pdf deleted<br/>1 source · 15 wiki pages · 28 chunks<br/>cites 16 → 11 · links_to 61 → 57<br/>▸ its 1 summary page dies with it;<br/>its 4 concept pages are kept and marked stale"]
+    end
+
+    COD["Coda · the finanzas-argentinas demo<br/>a datasets/ folder is present<br/>▸ the second alias pass runs — once per scan,<br/>gated on a fingerprint of the dataset vocabulary"]
+
+    E --> A1 --> A2 --> A3a
+    A3a -->|"hash matches · +0 rows · 0 model calls"| A2
+    A3a --> A3b --> A3c --> COD
 ```
 
-Five acts and a coda. Acts 1–3c stay inside the bundled fairy-tale corpus on
-purpose — no domain knowledge required, so the machinery is all there is to
-follow.
-The coda switches to the shipped `examples/finanzas-argentinas` demo to show
-the half of the vocabulary subsystem that only fires when a wiki has a
-`datasets/` folder.
+Acts 1–3c stay inside the bundled fairy-tale corpus on purpose — no domain
+knowledge required, so the machinery is all there is to follow. The coda
+switches to the shipped `examples/finanzas-argentinas` demo to show the half of
+the vocabulary subsystem that only fires when a wiki has a `datasets/` folder.
+
+The one edge that loops backwards is the point of Act 3a: a re-ingest with
+nothing changed on disk returns the workspace to the state it was already in,
+which is why the arrow goes back rather than forward.
 
 ## Act 1 — one document lands in an empty wiki
 
