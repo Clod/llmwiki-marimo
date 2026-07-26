@@ -18,10 +18,11 @@ it was. Every act below links into
 for the authoritative contract instead of restating it.
 
 **The corpus.** Everything here runs against the pre-ingested
-`examples/finanzas-argentinas` demo — the same wiki the
-[ingestion walkthrough](ingestion_walkthrough.md)'s coda uses to show the
-`datasets/` half of the vocabulary subsystem. The fairy-tale corpus that
-carries the rest of that document can't carry this one: five of the seven
+`examples/finanzas-argentinas` demo — the same wiki the [ingestion
+walkthrough](ingestion_walkthrough.md#wikis-whose-facts-change)'s closing
+section uses to show the `datasets/` half of the vocabulary subsystem. The
+fairy-tale corpus that carries the rest of that document can't carry this one:
+five of the seven
 acts below (a datum with its date, an alias resolving, a deterministic
 advisory table, an "not estimable" refusal, a roster refusal) only exist
 because this wiki has a `datasets/` folder and a finance domain overlay.
@@ -154,9 +155,9 @@ even if the model's own prose forgets to mention `dolar.md` by name.
 This answer is where the ingestion side's design decision gets paid back. A
 dataset is deliberately **never compiled into a wiki page** — it is read at
 question time, precisely so a figure stays quotable with the date it belongs
-to instead of being laundered into static prose; see [Two kinds of
-input](ingestion_walkthrough.md#the-mental-model) for why that split is drawn
-where it is. The cost of that decision is one extra tool call at query time.
+to instead of being laundered into static prose; see [Wikis whose facts
+change](ingestion_walkthrough.md#wikis-whose-facts-change) for why that split is
+drawn where it is. The cost of that decision is one extra tool call at query time.
 This is what it buys.
 
 ### 3. An alias reaches the datum

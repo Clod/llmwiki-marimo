@@ -32,70 +32,29 @@ quietly fix.
 
 ## The mental model
 
-### Two kinds of input, and why they are not the same thing
+### What a source is, and what the pipeline does with it
 
-A workspace can hold two kinds of input, and the difference between them is
-structural, not cosmetic — they travel through completely different paths.
+The input a workspace lives on is a **source** (`workspace/sources/`): a
+document, PDF or DOCX. Sources carry *durable prose* — how Cinderella's story
+goes, what a glass slipper is for. Their content is stable: the tale does not
+change next week.
 
-**Sources** (`workspace/sources/`) are documents: PDFs, DOCX. They carry
-*durable prose* — what a caución bursátil is, how Cinderella's story goes.
-Their content is stable: the tale does not change next week. A source is read
-**once**, at ingest, and *compiled*: extracted, chunked into `document_chunks`,
-and distilled by an LLM into concept and summary pages. Answering from it later
+That stability is what licenses the central decision. A source is read **once**,
+at ingest, and *compiled*: extracted, chunked into `document_chunks`, and
+distilled by an LLM into concept and summary pages. Answering a question later
 means reading the wiki page that was compiled from it, with the source kept
-underneath as the evidence a citation points at.
+underneath as the evidence a citation points at — not re-reading the PDF, and
+not paying an LLM again for work already done.
 
-**Datasets** (`workspace/datasets/`) are tables: markdown files whose
-front-matter declares a category and whose rows carry values with an `as_of`
-date. *Front-matter* is the YAML block fenced between two `---` lines at the top
-of a markdown file: metadata **about** the document, where the body below is the
-document — machine-parseable, but travelling inside the file rather than in a
-sidecar that can drift away from it. They carry *volatile facts* — what the
-dollar MEP was worth on 25 June. Their
-content is **meant** to change; refreshing one is the normal case, not an edit.
-
-And they are **never ingested at all.** Not "ingested differently" — not
-ingested. In the shipped finance demo, `documents` holds exactly six source
-rows, its six DOCX files; the `dolar.md` dataset and its siblings have no row, no chunks,
-no FTS entry and no generated page. `datasets/source.py:LocalMarkdownSource`
-globs the folder and reads the file **at question time**, parsing the row that
-was asked for. No LLM stands anywhere in that path.
-
-The whole distinction, at a glance:
-
-| | **Sources** (`sources/`) | **Datasets** (`datasets/`) |
-|---|---|---|
-| What they carry | durable prose | volatile facts, each with its date |
-| When they are read | **once**, at ingest | at question time, every time |
-| What happens to them | *compiled*: chunked, FTS-indexed, distilled by an LLM into pages | *nothing*: `glob` + `read_text`, and the requested row is parsed |
-| In the database | one row per document (six, in the finance demo) | zero rows, zero chunks, zero pages |
-| Refreshing one | re-ingest; the pages derived from it go stale | overwrite the file — that is the whole procedure |
-| Answers the question | "what **is** X?" | "what is X **worth today**?" |
-
-That asymmetry is the point, and it follows from what would go wrong otherwise.
-Distilling a dataset into a wiki page would break it twice over: the page would
-be stale the instant the table is refreshed, and — worse — it would launder an
-exact figure into prose, where it can no longer be quoted verbatim with the date
-it belongs to. So the split is drawn along the axis of *what kind of claim it
-is*: the wiki answers "what **is** X?", the datasets answer "what is X **worth
-today**?", and the second question is never answered by a model's recollection
-of a document it read last month. Refreshing a rate becomes overwriting a file —
-nothing to re-ingest, no page to go stale, no re-distillation to pay for.
-
-What the two share: both are inputs **you** own, the pipeline never modifies
-either, and both feed the wiki's vocabulary and coverage roster (the Coda shows
-the dataset half of that). This walkthrough's fairy-tale corpus has sources
-only, which is why the dataset machinery appears just in the Coda.
-
-The payoff of this split is visible on the read side rather than here: in the
-[query walkthrough](query_walkthrough.md#2-a-datum-with-its-date), a single
-answer about the MEP dollar carries curated prose explaining what it *is*
-alongside a live figure with its `as_of` date — one citation for the page, one
-for the datum's external origin. That is what the two paths are for.
+Compiling is only sound because the answer will not have changed by the time it
+is read. A fact that goes out of date needs the opposite treatment, and that is
+a different kind of wiki with a different mechanism — the [closing
+section](#wikis-whose-facts-change) is about those. Everything up to it holds
+for any wiki at all.
 
 ### What is truth and what is disposable
 
-Both kinds of input are truth. Everything else in the workspace is derived from
+Sources are truth. Everything else in the workspace is derived from
 them. The wiki under `workspace/wiki/` is **derived**: every page is something
 the pipeline generated, and it is safe to delete, regenerate, or repair because
 it carries no information the sources don't already have.
@@ -135,8 +94,8 @@ different grain:
   larger than the cap, nothing is repeated (in the shipped demo, eight of twelve
   boundaries carry no overlap). Each fragment records the document and page it
   came from, plus a **breadcrumb**: the path of markdown headings in force where
-  its text sits, joined with ` > ` — `Bonos Dólar Linked y Duales > Principales
-  riesgos estructurales`. That is what lets a search hit be traced back to a
+  its text sits, joined with ` > ` — `Cinderella > Definition`. That is what
+  lets a search hit be traced back to a
   place a citation can name, since a page number alone locates a fragment in a
   PDF but says nothing about where it belongs in the document's argument. Both kinds of document are chunked: the raw sources
   and the generated wiki pages alike, and because every fragment points back at
@@ -294,17 +253,18 @@ flowchart TD
         A3c["Act 3c · Little Red Riding Hood.pdf deleted<br/>1 source · 15 wiki pages · 28 chunks<br/>cites 16 → 11 · links_to 61 → 57<br/>▸ its 1 summary page dies with it;<br/>its 4 concept pages are kept and marked stale"]
     end
 
-    COD["Coda · the finanzas-argentinas demo<br/>a datasets/ folder is present<br/>▸ the second alias pass runs — once per scan,<br/>gated on a fingerprint of the dataset vocabulary"]
+    COD["Closing section · only for wikis with datasets/<br/>the finanzas-argentinas demo<br/>▸ the second alias pass runs — once per scan,<br/>gated on a fingerprint of the dataset vocabulary"]
 
     E --> A1 --> A2 --> A3a
     A3a -->|"hash matches · +0 rows · 0 model calls"| A2
-    A3a --> A3b --> A3c --> COD
+    A3a --> A3b --> A3c -.->|"only if the wiki has volatile facts"| COD
 ```
 
-Acts 1–3c stay inside the bundled fairy-tale corpus on purpose — no domain
-knowledge required, so the machinery is all there is to follow. The coda
-switches to the shipped `examples/finanzas-argentinas` demo to show the half of
-the vocabulary subsystem that only fires when a wiki has a `datasets/` folder.
+The five acts stay inside the bundled fairy-tale corpus on purpose — no domain
+knowledge required, so the machinery is all there is to follow. The dotted edge
+is dotted for a reason: the closing section applies only to wikis that keep
+volatile facts, and it switches to the shipped `examples/finanzas-argentinas`
+demo because the fairy-tale corpus has nothing of the sort.
 
 The one edge that loops backwards is the point of Act 3a: a re-ingest with
 nothing changed on disk returns the workspace to the state it was already in,
@@ -463,9 +423,69 @@ flowchart LR
     CON2["another concept page"] -->|links_to — survives| CON1
 ```
 
-## Coda — what a `datasets/` folder adds
+## Wikis whose facts change
 
-Everything above happens in a corpus with only PDFs. The appendix confirms
+**Everything above this line describes any wiki.** What follows describes a
+subset of them, and if you are building the ordinary kind you can stop here.
+
+Some subjects will not sit still. An encyclopedia of fairy tales is finished
+when it is written; an encyclopedia of a financial market is out of date by the
+afternoon. Compiling a source into a wiki page — the move the whole pipeline
+rests on — is only sound because the answer will not have changed by the time
+somebody reads it. Point that machinery at an exchange rate and it breaks
+twice over: the page is stale the instant the rate moves, and, worse, the exact
+figure gets laundered into prose where it can no longer be quoted with the date
+it belongs to.
+
+So a wiki that needs facts like those keeps them somewhere else, in a second
+kind of input the compiler is never allowed to touch.
+
+**Datasets** (`workspace/datasets/`) are tables: markdown files whose
+front-matter declares a category and whose rows carry values with an `as_of`
+date. *Front-matter* is the YAML block fenced between two `---` lines at the top
+of a markdown file: metadata **about** the document, where the body below is the
+document — machine-parseable, but travelling inside the file rather than in a
+sidecar that can drift away from it. They carry *volatile facts* — what the
+dollar MEP was worth on 25 June. Their content is **meant** to change;
+refreshing one is the normal case, not an edit.
+
+And they are **never ingested at all.** Not "ingested differently" — not
+ingested. In the shipped finance demo, `documents` holds exactly six source
+rows, its six DOCX files; the `dolar.md` dataset and its siblings have no row,
+no chunks, no FTS entry and no generated page.
+`datasets/source.py:LocalMarkdownSource` globs the folder and reads the file
+**at question time**, parsing the row that was asked for. No LLM stands
+anywhere in that path.
+
+The whole distinction, at a glance:
+
+| | **Sources** (`sources/`) | **Datasets** (`datasets/`) |
+|---|---|---|
+| What they carry | durable prose | volatile facts, each with its date |
+| When they are read | **once**, at ingest | at question time, every time |
+| What happens to them | *compiled*: chunked, FTS-indexed, distilled by an LLM into pages | *nothing*: `glob` + `read_text`, and the requested row is parsed |
+| In the database | one row per document (six, in the finance demo) | zero rows, zero chunks, zero pages |
+| Refreshing one | re-ingest; the pages derived from it go stale | overwrite the file — that is the whole procedure |
+| Answers the question | "what **is** X?" | "what is X **worth today**?" |
+
+The split is drawn along the axis of *what kind of claim it is*: the wiki
+answers "what **is** X?", the datasets answer "what is X **worth today**?", and
+the second question is never answered by a model's recollection of a document
+it read last month. Refreshing a rate becomes overwriting a file — nothing to
+re-ingest, no page to go stale, no re-distillation to pay for.
+
+What the two kinds share: both are inputs **you** own, the pipeline never
+modifies either, and both feed the wiki's vocabulary and coverage roster.
+
+The payoff is visible on the read side rather than here: in the [query
+walkthrough](query_walkthrough.md#2-a-datum-with-its-date), a single answer
+about the MEP dollar carries curated prose explaining what it *is* alongside a
+live figure with its `as_of` date — one citation for the page, one for the
+datum's external origin. That is what the two paths are for.
+
+### What a `datasets/` folder adds at ingest
+
+Everything above the line happens in a corpus with only PDFs. The appendix confirms
 that: every act's file list shows `.llmwiki/aliases.generated.toml`, but
 **no** `.llmwiki/dataset_aliases.fingerprint` ever appears — that sidecar
 file simply never gets written, because there is no `datasets/` folder for it

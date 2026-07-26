@@ -142,14 +142,28 @@ def test_the_accent_folding_claim_still_holds(db):
     assert found == total
 
 
-def test_the_breadcrumb_example_is_a_real_value(doc, db):
-    """The breadcrumb shown for document_chunks is one the demo actually holds."""
-    quoted = re.search(
-        r"joined with ` > ` — `([^`]+)`", doc.replace("\n  ", " ")
-    )
+def test_the_breadcrumb_example_is_what_the_chunker_produces(doc):
+    """The breadcrumb shown for document_chunks, re-derived from a shipped page.
+
+    Checked against the chunker rather than against a stored database, because
+    a database can be older than the code that would write it today — the
+    fairy-tale demo's index.db is exactly that — while a markdown file plus the
+    current chunker is the thing the pipeline would actually produce.
+    """
+    quoted = re.search(r"joined with ` > ` — `([^`]+)`", doc.replace("\n  ", " "))
     assert quoted, "the breadcrumb example is gone from the walkthrough"
-    hits = db.execute(
-        "SELECT count(*) FROM document_chunks WHERE header_breadcrumb = ?",
-        (quoted.group(1),),
-    ).fetchone()[0]
-    assert hits > 0, f"no chunk carries the breadcrumb {quoted.group(1)!r}"
+
+    page = REPO / "examples" / "fairy-tales" / "wiki" / "concepts" / "cinderella.md"
+    if not page.exists():
+        pytest.skip("fairy-tale demo page not present")
+
+    import sys
+    sys.path.insert(0, str(REPO / "base"))
+    from domain.ingestion.chunker import chunk_pages
+
+    produced = {c.header_breadcrumb
+                for c in chunk_pages([(1, page.read_text(encoding="utf-8"))])}
+    assert quoted.group(1) in produced, (
+        f"the walkthrough quotes {quoted.group(1)!r}, but chunking "
+        f"{page.name} produces {sorted(produced)}"
+    )
