@@ -198,10 +198,10 @@ different grain:
 
   Three behaviours are legible in that last column. Repetition counts, but it
   **saturates**: among fragments of roughly 500 tokens, going from one mention
-  to five (30 → 48) is worth 1.38 of rank, while among fragments of roughly 250,
-  going from six to eleven (49 → 77) is worth 0.18 — the first few mentions
-  establish that a passage is on the subject, and later ones mostly repeat the
-  news. Length is **normalised**: fragments 50, 47 and 48 mention the word the
+  to five (195 → 201) is worth 1.38 of rank, while among fragments of roughly
+  250, going from six to eleven (214 → 207) is worth 0.18 — the first few
+  mentions establish that a passage is on the subject, and later ones mostly
+  repeat the news. Length is **normalised**: fragments 213, 200 and 201 mention the word the
   same five times and finish in descending order of size, on the reasoning that
   five mentions inside 212 tokens is a passage more nearly *about* caución than
   the same five diluted across 510. And rarity is weighed too, invisibly in a

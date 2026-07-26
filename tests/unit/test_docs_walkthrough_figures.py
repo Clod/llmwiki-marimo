@@ -77,6 +77,38 @@ def test_the_bm25_table_matches_what_the_index_returns(doc, db):
     assert quoted == [tuple(r) for r in measured]
 
 
+def test_every_rowid_named_in_the_prose_is_one_the_table_shows(doc, db):
+    """Rowids cited in the surrounding sentences, not just in the table.
+
+    The first version of this file checked the table and the mapping line and
+    stopped there — so the paragraph reading those rows off by number kept
+    citing rowids from two re-chunks earlier, and the document contradicted its
+    own table with every check passing.
+    """
+    prose = re.search(
+        r"Three behaviours are legible.+?rarer terms in the same query\.",
+        doc, re.S,
+    )
+    assert prose, "the BM25 explanation is gone from the walkthrough"
+
+    # Anchor on the shapes the prose uses to name rows — "(a → b)" for the two
+    # saturation comparisons and "fragments a, b and c" for the length one.
+    # Matching every number instead would sweep up token counts, and filtering
+    # those out by membership would filter out the stale rowids as well: the
+    # first cut of this test did exactly that and caught nothing.
+    cited = {int(n) for pair in re.findall(r"\((\d+) → (\d+)\)", prose.group(0))
+             for n in pair}
+    cited |= {int(n) for n in
+              re.search(r"fragments (\d+), (\d+) and (\d+)", prose.group(0)).groups()}
+
+    # Six distinct rows across the three comparisons — one row carries two of them
+    assert len(cited) == 6, f"expected 6 distinct rows named in the prose, got {sorted(cited)}"
+    live = set(_fts_rowids(db, "caución"))
+    assert cited <= live, (
+        f"prose cites rowids the index no longer returns: {sorted(cited - live)}"
+    )
+
+
 def test_the_corpus_size_the_prose_quotes_is_current(doc, db):
     """"eight fragments out of fifty-three", spelled out in the prose."""
     assert "out of fifty-three" in doc
