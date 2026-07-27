@@ -7,6 +7,12 @@
 > first document, second document, a no-op re-ingest, an edited source, a
 > deletion — so the reader can see the story that the per-workflow tables can't
 > show on their own.
+>
+> **It is in two parts.** Everything up to [Wikis whose facts
+> change](#wikis-whose-facts-change) is about any wiki at all, and a reader
+> building the ordinary kind can stop at that heading having missed nothing.
+> The sections after it are for wikis that also hold facts with an expiry date
+> — rates, prices, anything true only as of a day — and switch corpus to say so.
 
 **Audience.** This is written for someone evaluating the engineering, not
 learning to operate the app. You can already read a schema and a function
@@ -91,8 +97,8 @@ different grain:
   one before it, so a definition introduced just before a boundary still travels
   with the text that depends on it — though that repetition is capped and
   frequently doesn't happen at all: when the preceding paragraph is itself
-  larger than the cap, nothing is repeated (in the shipped demo, eight of twelve
-  boundaries carry no overlap). Each fragment records the document and page it
+  larger than the cap, nothing is repeated (in the fairy-tale corpus, ten of
+  fourteen boundaries carry no overlap; where it happens it runs 92–119 tokens). Each fragment records the document and page it
   came from, plus a **breadcrumb**: the path of markdown headings in force where
   its text sits, joined with ` > ` — `Cinderella > Definition`. That is what
   lets a search hit be traced back to a
@@ -104,8 +110,8 @@ different grain:
   separate layers instead of one undifferentiated pile.
 
 - `chunks_fts` — **not a table of data, but the search index over the fragments
-  above.** Finding which fragments mention *"caución"* by scanning every row with
-  `LIKE '%caución%'` would mean reading the entire corpus on every question, and
+  above.** Finding which fragments mention *slipper* by scanning every row with
+  `LIKE '%slipper%'` would mean reading the entire corpus on every question, and
   would return matches in arbitrary order. A full-text index inverts the
   problem: it is built once, maps each word to the fragments containing it, and
   can therefore answer *and rank* in one lookup. That lookup is where the search
@@ -113,19 +119,19 @@ different grain:
   knows it does not cover is turned away before the index is ever consulted.
 
   Concretely, it holds the mapping in the direction a question needs it — from
-  word to fragments, rather than from fragment to words. In the shipped finance
-  demo, whose 53 fragments come from six sources and the pages written off
-  them, two entries look like this:
+  word to fragments, rather than from fragment to words. In the shipped
+  fairy-tale demo, whose 34 fragments come from three tales and the pages
+  written off them, two entries look like this:
 
   ```text
-  caución   →  207, 229, 214, 225, 213, 200, 201, 195
-  inflación →  227, 210, 222, 229, 212, 189, 221, 206, 190, 230, 235, 197, …
+  slipper     →  52, 9, 40, 50, 51, 8, 1, 5
+  Cinderella  →  39, 51, 52, 53, 50, 40, 9, 4, 3, 7, 1, 8, …
   ```
 
   Those are `rowid`s — internal row numbers, reassigned whenever the corpus is
   rebuilt — already in rank order, and they are the whole answer the index
-  gives: eight fragments out of fifty-three for the first word, and the other
-  forty-five never looked at. Turning that back into something quotable is a
+  gives: eight fragments out of thirty-four for the first word, and the other
+  twenty-six never looked at. Turning that back into something quotable is a
   join — the index supplies which and in what order, the tables supply the text
   and the provenance:
 
@@ -134,38 +140,44 @@ different grain:
     FROM chunks_fts
     JOIN document_chunks c ON c.rowid = chunks_fts.rowid
     JOIN documents       d ON d.id    = c.document_id
-   WHERE chunks_fts MATCH '"caución"'
+   WHERE chunks_fts MATCH '"slipper"'
    ORDER BY chunks_fts.rank;
   ```
+
+  The top three rows that come back are `glass-slipper.md`, then
+  `Cinderella.pdf` itself, then `cinderella.md` — a curated page, a raw source
+  and another page, ranked against each other in one list, which is what makes
+  the two-layer split of the previous bullet a choice rather than an accident.
 
   `rank` is the one column there that doesn't explain itself. FTS5 fills it with
   **BM25**, and the wiki takes it as it comes: no per-column weighting, there
   being a single indexed column to weight. Its values are negative and the best
   match is the most negative, which is why ordering ascending puts the strongest
-  hit first. For *caución*, the eight fragments score like this:
+  hit first. For *slipper*, the eight fragments score like this:
 
   | fragment | mentions | tokens | rank |
   |---:|---:|---:|---:|
-  | 207 | 11 | 290 | −3.37 |
-  | 229 | 10 | 300 | −3.32 |
-  | 214 | 6 | 239 | −3.19 |
-  | 225 | 8 | 361 | −3.17 |
-  | 213 | 5 | 212 | −3.14 |
-  | 200 | 5 | 470 | −2.77 |
-  | 201 | 5 | 510 | −2.72 |
-  | 195 | 1 | 506 | −1.34 |
+  | 52 | 4 | 292 | −2.00 |
+  | 9 | 7 | 519 | −1.97 |
+  | 40 | 3 | 251 | −1.94 |
+  | 50 | 2 | 276 | −1.71 |
+  | 51 | 2 | 276 | −1.71 |
+  | 8 | 3 | 471 | −1.57 |
+  | 1 | 1 | 411 | −1.00 |
+  | 5 | 1 | 481 | −0.91 |
 
   Three behaviours are legible in that last column. Repetition counts, but it
   **saturates**: among fragments of roughly 500 tokens, going from one mention
-  to five (195 → 201) is worth 1.38 of rank, while among fragments of roughly
-  250, going from six to eleven (214 → 207) is worth 0.18 — the first few
-  mentions establish that a passage is on the subject, and later ones mostly
-  repeat the news. Length is **normalised**: fragments 213, 200 and 201 mention the word the
-  same five times and finish in descending order of size, on the reasoning that
-  five mentions inside 212 tokens is a passage more nearly *about* caución than
-  the same five diluted across 510. And rarity is weighed too, invisibly in a
-  single-word query: a term occurring in most fragments separates them poorly,
-  so BM25 discounts it in favour of the rarer terms in the same query.
+  to three (5 → 8) is worth 0.66 of rank, while going from three to seven
+  (8 → 9) is worth only 0.40 — the first few mentions establish that a passage
+  is on the subject, and later ones mostly repeat the news. Length is
+  **normalised**: fragments 1 and 5 mention the word exactly once each and
+  finish in order of size, on the reasoning that one mention inside 411 tokens
+  is a passage more nearly *about* the slipper than one diluted across 481.
+  Fragments 50 and 51 are the control: same mentions, same length, identical
+  rank to the hundredth. And rarity is weighed too, invisibly in a single-word
+  query: a term occurring in most fragments separates them poorly, so BM25
+  discounts it in favour of the rarer terms in the same query.
 
   What BM25 does not do deserves equal billing. It is **purely lexical** —
   there are no embeddings anywhere in this pipeline. A fragment that treats the
@@ -178,13 +190,15 @@ different grain:
   concept rather than from whichever raw paragraph happened to repeat its name
   most often.
 
-  Matching is looser than string equality, too, and deliberately: the tokenizer
-  folds case and accents, so the word typed without its accent still finds the
-  fragments that spell it properly. Eleven fragments in that demo write
-  *inflación* and never once the bare *inflacion* — and searching for
-  `inflacion` returns all eleven. The `LIKE` scan would have missed every one of
-  them, which is the second thing an index buys beyond speed: the question no
-  longer has to be spelled the way the corpus happens to spell it.
+  Matching is looser than string equality, too, and deliberately. The tokenizer
+  stems words and folds case, so a search does not have to guess the form the
+  text happens to use: two fragments in this corpus write *slippers* and never
+  the bare singular, and searching for `slipper` returns both. (The same
+  tokenizer folds accents, so in a corpus that has any, a word typed without its
+  accent still finds the fragments that spell it properly.) A `LIKE`
+  scan would have missed those two, which is the second thing an index buys
+  beyond speed: the question no longer has to be spelled the way the corpus
+  happens to spell it.
 
   Two design choices about it are worth knowing. It is declared
   **external-content**, which means it keeps no copy of the text: SQLite is told
@@ -225,9 +239,9 @@ triggers extend the same guarantee to the search index. Between them, a deletion
 cannot leave an orphaned fragment behind, or a phantom hit for a page that no
 longer exists.
 
-
-And `wiki/` is a git repository: every ingest, edit, and delete is a commit, so
-the derived layer has the same undo history a source-controlled codebase does.
+Alongside the database, `wiki/` is a git repository in its own right: every
+ingest, edit, and delete is a commit, so the derived layer has the same undo
+history a source-controlled codebase does.
 
 That division — source of truth vs. derived index vs. derived, disposable
 knowledge base — is what lets the rest of this walkthrough get away with
@@ -423,10 +437,24 @@ flowchart LR
     CON2["another concept page"] -->|links_to — survives| CON1
 ```
 
+## Verify it yourself
+
+Everything above is reproducible, not just re-readable:
+
+- `uv run python scripts/capture_ingestion_walkthrough.py` re-runs the exact
+  sequence — ingest, ingest, re-ingest unchanged, edit and re-ingest, delete —
+  against a fresh temporary workspace and regenerates
+  [`docs/ingestion_walkthrough_appendix.md`](ingestion_walkthrough_appendix.md).
+- `tests/e2e/test_ingest_app_v2.py` asserts the same journey through the real
+  Marimo UI (wiki picker, ingest form, Activity Log, vocabulary lint lines,
+  scan idempotency, cross-links) rather than by calling the pipeline
+  functions directly.
+
 ## Wikis whose facts change
 
-**Everything above this line describes any wiki.** What follows describes a
-subset of them, and if you are building the ordinary kind you can stop here.
+**Everything before this heading describes any wiki**, and a reader building
+the ordinary kind has already finished. What follows describes a subset: wikis
+that also carry facts with an expiry date.
 
 Some subjects will not sit still. An encyclopedia of fairy tales is finished
 when it is written; an encyclopedia of a financial market is out of date by the
@@ -485,7 +513,7 @@ datum's external origin. That is what the two paths are for.
 
 ### What a `datasets/` folder adds at ingest
 
-Everything above the line happens in a corpus with only PDFs. The appendix confirms
+Everything in the acts above happens in a corpus with only PDFs. The appendix confirms
 that: every act's file list shows `.llmwiki/aliases.generated.toml`, but
 **no** `.llmwiki/dataset_aliases.fingerprint` ever appears — that sidecar
 file simply never gets written, because there is no `datasets/` folder for it
@@ -531,19 +559,6 @@ among the advisory findings with no automatic repair — it's surfaced for a
 human to resolve, not auto-fixed). Showing that the linter catches a real
 ambiguity in the project's own demo data is more credible to this audience
 than asserting the demo has none.
-
-## Verify it yourself
-
-Everything above is reproducible, not just re-readable:
-
-- `uv run python scripts/capture_ingestion_walkthrough.py` re-runs the exact
-  sequence — ingest, ingest, re-ingest unchanged, edit and re-ingest, delete —
-  against a fresh temporary workspace and regenerates
-  [`docs/ingestion_walkthrough_appendix.md`](ingestion_walkthrough_appendix.md).
-- `tests/e2e/test_ingest_app_v2.py` asserts the same journey through the real
-  Marimo UI (wiki picker, ingest form, Activity Log, vocabulary lint lines,
-  scan idempotency, cross-links) rather than by calling the pipeline
-  functions directly.
 
 ## Where to go next
 

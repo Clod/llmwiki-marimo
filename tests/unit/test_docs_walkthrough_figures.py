@@ -1,7 +1,7 @@
 """The FTS figures quoted in the ingestion walkthrough must match the demo.
 
-The walkthrough shows real rowids, ranks and counts measured against the
-shipped finanzas-argentinas demo. Those are exactly the kind of number that
+The walkthrough's general half shows real rowids, ranks and counts measured
+against the shipped fairy-tale demo — the corpus that half is written on. Those are exactly the kind of number that
 rots silently: anything that re-chunks the corpus reassigns the rowids, and a
 doc claiming to quote real output is worthless once it quotes stale output.
 
@@ -18,7 +18,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 DOC = REPO / "docs" / "ingestion_walkthrough.md"
-DEMO_DB = REPO / "examples" / "finanzas-argentinas" / ".llmwiki" / "index.db"
+DEMO_DB = REPO / "examples" / "fairy-tales" / ".llmwiki" / "index.db"
 
 pytestmark = pytest.mark.skipif(
     not DEMO_DB.exists(), reason="shipped demo database not present"
@@ -48,13 +48,13 @@ def _fts_rowids(db, word: str) -> list[int]:
 
 
 def test_the_word_to_rowid_mapping_is_current(doc):
-    """The `caución →` line lists the live hits, in rank order."""
-    line = re.search(r"^\s*caución\s+→\s+(.+)$", doc, re.M)
+    """The `slipper →` line lists the live hits, in rank order."""
+    line = re.search(r"^\s*slipper\s+→\s+(.+)$", doc, re.M)
     assert line, "the mapping example is gone from the walkthrough"
     quoted = [int(n) for n in line.group(1).split(",") if n.strip().isdigit()]
 
     with sqlite3.connect(f"file:{DEMO_DB}?mode=ro", uri=True) as db:
-        assert quoted == _fts_rowids(db, "caución")
+        assert quoted == _fts_rowids(db, "slipper")
 
 
 def test_the_bm25_table_matches_what_the_index_returns(doc, db):
@@ -67,10 +67,10 @@ def test_the_bm25_table_matches_what_the_index_returns(doc, db):
 
     measured = db.execute(
         "SELECT chunks_fts.rowid, "
-        "  (length(lower(c.content)) - length(replace(lower(c.content),'cauci',''))) / 5, "
+        "  (length(lower(c.content)) - length(replace(lower(c.content),'slipper',''))) / 7, "
         "  c.token_count, round(chunks_fts.rank, 2) "
         "FROM chunks_fts JOIN document_chunks c ON c.rowid = chunks_fts.rowid "
-        "WHERE chunks_fts MATCH '\"caución\"' ORDER BY chunks_fts.rank"
+        "WHERE chunks_fts MATCH '\"slipper\"' ORDER BY chunks_fts.rank"
     ).fetchall()
 
     quoted = [(int(a), int(b), int(c), -float(d)) for a, b, c, d in rows]
@@ -98,47 +98,49 @@ def test_every_rowid_named_in_the_prose_is_one_the_table_shows(doc, db):
     # first cut of this test did exactly that and caught nothing.
     cited = {int(n) for pair in re.findall(r"\((\d+) → (\d+)\)", prose.group(0))
              for n in pair}
-    cited |= {int(n) for n in
-              re.search(r"fragments (\d+), (\d+) and (\d+)", prose.group(0)).groups()}
+    cited |= {int(n) for pair in re.findall(r"[Ff]ragments (\d+) and (\d+)", prose.group(0))
+              for n in pair}
 
     # Six distinct rows across the three comparisons — one row carries two of them
     assert len(cited) == 6, f"expected 6 distinct rows named in the prose, got {sorted(cited)}"
-    live = set(_fts_rowids(db, "caución"))
+    live = set(_fts_rowids(db, "slipper"))
     assert cited <= live, (
         f"prose cites rowids the index no longer returns: {sorted(cited - live)}"
     )
 
 
 def test_the_corpus_size_the_prose_quotes_is_current(doc, db):
-    """"eight fragments out of fifty-three", spelled out in the prose."""
-    assert "out of fifty-three" in doc
-    assert db.execute("SELECT count(*) FROM document_chunks").fetchone()[0] == 53
+    """"eight fragments out of thirty-four", spelled out in the prose."""
+    assert "out of thirty-four" in doc
+    assert db.execute("SELECT count(*) FROM document_chunks").fetchone()[0] == 34
 
-    assert "whose 53 fragments come from six sources" in doc
+    assert "whose 34 fragments come from three tales" in doc
     sources = db.execute(
         "SELECT count(*) FROM documents WHERE source_kind='source'"
     ).fetchone()[0]
-    assert sources == 6
+    assert sources == 3
 
 
-def test_the_accent_folding_claim_still_holds(db):
-    """Eleven fragments spell *inflación* and never the bare form; all are found.
+def test_the_looser_matching_claim_still_holds(db):
+    """Fragments that only ever write *slippers* are found by *slipper*.
 
-    The doc's point is that a LIKE scan would miss them, so the number matters
-    less than the equality — but a zero here would mean the example is vacuous.
+    The doc's point is that a LIKE scan would miss them, so the equality matters
+    more than the count — but a zero here would mean the example is vacuous.
     """
-    only_accented = (
+    only_plural = (
         "SELECT count(*) FROM document_chunks "
-        "WHERE content LIKE '%inflación%' AND content NOT LIKE '%inflacion%'"
+        "WHERE content LIKE '%slippers%' AND content NOT LIKE '%slipper %' "
+        "AND content NOT LIKE '%slipper,%' AND content NOT LIKE '%slipper.%'"
     )
-    total = db.execute(only_accented).fetchone()[0]
+    total = db.execute(only_plural).fetchone()[0]
     found = db.execute(
         "SELECT count(*) FROM document_chunks c WHERE c.rowid IN "
-        "(SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH '\"inflacion\"') "
-        "AND c.content LIKE '%inflación%' AND c.content NOT LIKE '%inflacion%'"
+        "(SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH '\"slipper\"') "
+        "AND c.content LIKE '%slippers%' AND c.content NOT LIKE '%slipper %' "
+        "AND c.content NOT LIKE '%slipper,%' AND c.content NOT LIKE '%slipper.%'"
     ).fetchone()[0]
 
-    assert total > 0
+    assert total > 0, "no fragment writes only the plural — the example is vacuous"
     assert found == total
 
 
