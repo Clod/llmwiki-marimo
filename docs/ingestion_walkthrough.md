@@ -2,7 +2,9 @@
 
 > Part of the [LLMWiki Programmer Manual](programmer_manual.md). §6
 > [Workflows](manual/workflows.md) documents ingestion as **reference** — one
-> section per operation, with contract tables. This document is different genre,
+> section per operation, each pinned down by tables: the steps in order and the
+> function behind each, what every LLM call is given and returns, and which
+> database tables the operation reads and writes. This document is different genre,
 > same pipeline: it follows **one small corpus through its whole lifecycle** —
 > first document, second document, a no-op re-ingest, an edited source, a
 > deletion — so the reader can see the story that the per-workflow tables can't
@@ -96,8 +98,8 @@ The vocabulary for the acts below comes from here. A page whose source has moved
 on is **stale** — flagged, not deleted, because the text may still be fine.
 Two pages that should link and don't are a **missing xref**. And a repair that
 needs the model to rewrite prose is *skipped* when no model was supplied, rather
-than guessed at — Act 3b is about that distinction. §6.1 and §6.2 are the
-contracts.
+than guessed at — Act 3b is about that distinction. §6.1 lists every check lint
+runs; §6.2 lists every repair and says which of them need a model.
 
 ### What is truth and what is disposable
 
