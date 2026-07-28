@@ -32,6 +32,10 @@ on `examples/finanzas-argentinas`, which keeps volatile facts in a
 with the box **ticked**. That the two demos ship on different settings is the
 argument of this document in miniature.
 
+If you are building the ordinary kind of wiki, **Part 1 is the whole document
+for you** — Part 2 describes a setting you have no reason to turn on, on a
+corpus you do not have.
+
 **The numbers are real.** Every routing decision and every quoted answer
 below was captured from an actual run, not written by hand. The full capture
 lives in the generated
@@ -141,6 +145,20 @@ That is why `fairy-tales` ships unticked, and it is the cleanest possible
 statement of what the setting is for. The table regenerates with
 `uv run python scripts/capture_query_walkthrough.py --plan-only`, which prints
 rather than writes.
+
+### What Part 1 does not show
+
+No transcript. The unticked mode is described here and measured only at its
+boundary — what ticking the box *would* refuse — because the capture script
+drives the pre-retrieval engine and nothing else. So this half argues from the
+mechanism and from the gate's own numbers, while Part 2 quotes live output.
+That asymmetry is a gap in the tooling, not a claim that one mode is better
+observed than the other.
+
+If you stop here, the two things worth following are §6.7 of
+[Workflows](manual/workflows.md), which is the per-operation reference for this
+mode, and [`ingestion_walkthrough.md`](ingestion_walkthrough.md), which is where
+the wiki being queried came from.
 
 ## Part 2 — the box ticked: code goes looking
 
@@ -390,15 +408,7 @@ difference between "I can compute this" (fixed-income instruments, Act 6)
 and "this is not computable" (equities, here) — and says the second one out
 loud rather than silently declining to answer or, worse, guessing.
 
-## What this does not cover
-
-**A captured run of Part 1.** The unticked mode is described here and
-measured only at its boundary — what ticking the box would refuse. There is no
-transcript of the agentic path answering those four questions, because the
-capture script drives the pre-retrieval engine and nothing else. So Part 1
-argues from the mechanism and from the gate's own numbers, while Part 2 argues
-from quoted output. That asymmetry is a gap in the tooling, not a claim that one
-mode is better observed than the other.
+### What Part 2 does not show
 
 **Tier-2 answer-vs-source verification.** `plan_retrieval` marks a Tier-2
 (raw-doc) plan with `verify=True`, and `pre_retrieval_answer` calls
