@@ -35,8 +35,40 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   verification; and a live toggle in the read app.
 - **Pluggable citation/grounding guardrail** and an **opt-in JSONL chat trace**
   (one row per turn) for offline diagnosis.
+- **Two walkthrough documents, generated from real runs.** The [ingestion
+  walkthrough](docs/ingestion_walkthrough.md) follows one small corpus through
+  its whole lifecycle — first document, second, a no-op re-ingest, an edited
+  source, a deletion — and the [query walkthrough](docs/query_walkthrough.md)
+  follows a spectrum of questions through both chat modes. Each is split so a
+  reader with an ordinary wiki can stop half way, and each is paired with a
+  capture script (`scripts/capture_*_walkthrough.py`) that regenerates its
+  appendix, so the figures they quote come from running the pipeline rather
+  than from memory.
+
+### Changed
+- **The ingest end-to-end test was rewritten** for the current app
+  (`tests/e2e/test_ingest_app_v2.py`, replacing `test_ingest_app.py`): it drives
+  the wiki picker, ingest form, Activity Log, vocabulary lint lines, scan
+  idempotency and cross-links through the real Marimo UI. The slower cases stay
+  opt-in behind `E2E_FULL=1` and `E2E_DESTRUCTIVE=1`.
 
 ### Fixed
+- **Chunk breadcrumbs named the wrong section.** `header_breadcrumb` — the
+  heading path a search hit is traced back to, and what a citation names beyond
+  a page number — was serialised when a chunk was closed, from the heading stack
+  as it then stood. Because a heading is pushed before the size check, a chunk
+  flushed at a heading boundary was labelled with the section that *starts after
+  it*: in the shipped demo one chunk was named "Principales riesgos
+  estructurales" while containing nothing of it but the heading line, and that
+  section's actual text sat in the next chunk under a different name. A
+  breadcrumb naming the wrong section is worse than none — it aims a citation at
+  a passage the fragment does not contain.
+
+  Two further cases came out of the same work: a chunk that merely *ends* on a
+  heading no longer takes that section's name, and the heading outline now
+  carries across page breaks, so a section running past the bottom of a PDF page
+  keeps its name (and its document title) instead of restarting. The column had
+  no tests; it has seven now.
 - **Pre-retrieval now actually retrieves.** The FTS query reached SQLite FTS5 raw,
   so any natural question crashed the search and silently returned no hits — the
   gate then refused valid, covered questions. Queries are now sanitized; both
