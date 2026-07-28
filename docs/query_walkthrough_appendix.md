@@ -17,14 +17,110 @@ rows, instead of consulting it.
 | # | Question | off_limits | data | roster | wiki | docs | plan |
 |---|---|---|---|---|---|---|---|
 | 1 | ¿Qué es una caución bursátil y por qué se la considera de… | False | True | True | 6 | 0 | **invoke** (curado) |
-| 2 | ¿A cuánto está el dólar MEP? | False | True | True | 6 | 0 | **invoke** (curado) |
-| 3 | ¿A cuánto está el billete verde? | False | True | True | 0 | 2 | **invoke** |
-| 4 | Tengo $1.000.000 que no necesito por 3 meses, ¿qué altern… | False | True | False | 1 | 0 | **invoke** |
-| 5 | ¿Cuánto ganaría con acciones de YPF? | False | True | True | 6 | 0 | **invoke** (curado) |
-| 6 | ¿Qué es un ETF? | False | False | False | 0 | 0 | **refuse** |
-| 7 | ¿Cuál es la capital de Francia? | False | False | False | 6 | 0 | **refuse** |
+| 2 | ¿Qué es un ETF? | False | False | False | 0 | 0 | **refuse** |
+| 3 | ¿Cuál es la capital de Francia? | False | False | False | 6 | 0 | **refuse** |
+| 4 | ¿A cuánto está el dólar MEP? | False | True | True | 6 | 0 | **invoke** (curado) |
+| 5 | ¿A cuánto está el billete verde? | False | True | True | 0 | 2 | **invoke** |
+| 6 | Tengo $1.000.000 que no necesito por 3 meses, ¿qué altern… | False | True | False | 1 | 0 | **invoke** |
+| 7 | ¿Cuánto ganaría con acciones de YPF? | False | True | True | 6 | 0 | **invoke** (curado) |
 
-## The answers (live model — wording varies run to run)
+Rows 1–3 are mechanisms any wiki with the box ticked has. The rest are reachable only because
+this one has a `datasets/` folder: without it the `data` column is `False`
+throughout and that branch of the chain is never taken.
+
+## The same gate on a wiki of documents alone
+
+`fairy-tales` ships with the pre-retrieval box **unticked**. These are
+its own `suggested_prompts` — the questions its author expects — run through
+the gate as if the box were ticked. Also pure code, also free to reproduce.
+
+| Question | wiki | roster | plan if ticked |
+|---|---|---|---|
+| What tales are in this wiki? | 6 | False | **refuse** |
+| Summarize the plot of each tale | 6 | False | **refuse** |
+| What characters and themes do the tales share? | 6 | False | **refuse** |
+| Compare how each story ends | 6 | False | **refuse** |
+
+4 of 4 would be refused, every one of them with wiki hits
+to spare. Nothing names a concept page, so nothing is in the roster, and this
+wiki has no dataset vocabulary to widen it with — which is the reason the box
+ships unticked here and ticked on the finance demo.
+
+## The unticked mode, answering (live model)
+
+Three of `fairy-tales`'s own suggested prompts, put to the agentic
+path: wiki search tools in the model's hands, no gate in front of it. The
+tools column is the point — nothing in the code decided to call those, the
+model did.
+
+### P1. The collection, not a page
+
+> What tales are in this wiki?
+
+*What it exercises:* The agent has to find out what exists; no single page answers this.
+
+- tools the model chose to call: `read_wiki_page`
+- carries a citation: **False**
+
+```text
+The wiki contains summaries and concepts for the following fairy tales:
+
+### Summaries
+- **Cinderella**: A fairy tale about a kind and beautiful young woman who is mistreated by her stepfamily.
+- **Little Red Riding Hood**: A story about a young girl who is sent by her mother to visit her grandmother and encounters a cunning wolf.
+- **Snow White and the Seven Dwarfs**: The tale of a young princess named Snow White who is pursued by her jealous stepmother, the Wicked Queen.
+
+### Concepts
+- **Cinderella**: Includes details about the protagonist, the Fairy Godmother, the glass slipper, the royal ball, and the antagonistic stepmother and stepsisters.
+- **Little Red Riding Hood**: Focuses on the young girl and the Wolf, who deceives her and her grandmother.
+- **Snow White**: Covers Snow White, the Magic Mirror, the Seven Dwarfs, the Poisoned Apple, and the Wicked Queen.
+
+Additionally, there are concepts related to fairy tales in general and "The Blue Fairy Book," a collection edited by Andrew Lang.
+```
+
+### P2. Synthesis across pages
+
+> What characters and themes do the tales share?
+
+*What it exercises:* Retrieval of several pages, then a comparison the sources never state.
+
+- tools the model chose to call: `read_wiki_page`, `search_wiki_fts`, `search_wiki_fts`, `search_wiki_fts`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`
+- carries a citation: **True**
+
+```text
+The classic fairy tales "Cinderella," "Snow White and the Seven Dwarfs," and "Little Red Riding Hood" share several characters and themes:
+
+### Shared Characters
+- **Stepmothers**: Both "Cinderella" and "Snow White" feature antagonistic stepmothers. In "Cinderella," the stepmother and stepsisters subject Cinderella to a life of servitude, embodying themes of jealousy and familial conflict (wiki/concepts/stepmother-and-stepsisters.md). In "Snow White," the Wicked Queen is driven by vanity and jealousy, making several attempts on Snow White's life (wiki/concepts/the-wicked-queen.md).
+
+### Shared Themes
+- **Jealousy and Vanity**: Both "Cinderella" and "Snow White" explore themes of jealousy and vanity. The stepmother and stepsisters in "Cinderella" are jealous of Cinderella's beauty and kindness (wiki/concepts/stepmother-and-stepsisters.md), while the Wicked Queen in "Snow White" is driven by her vanity and jealousy of Snow White's beauty (wiki/concepts/the-wicked-queen.md).
+- **Transformation and Magic**: "Cinderella" features magical transformation through the Fairy Godmother, who uses magic to help Cinderella attend the royal ball (wiki/concepts/fairy-godmother.md). This theme of m
+…[truncated for the appendix]
+```
+
+### P3. A comparison the prompt demands be retrieved
+
+> Compare how each story ends
+
+*What it exercises:* The system prompt forbids comparing from memory — each tale must be read first.
+
+- tools the model chose to call: `search_wiki_fts`, `search_wiki_fts`, `search_wiki_fts`, `read_wiki_page`, `search_source_chunks`, `search_source_chunks`, `search_source_chunks`
+- carries a citation: **True**
+
+```text
+Here's a comparison of how each story ends based on the available information:
+
+- **Cinderella**: The story concludes with Cinderella marrying the prince after he finds her by using the glass slipper she left behind at the royal ball. This leads to a happy ending for Cinderella and reconciliation with her stepsisters (wiki/summaries/cinderella.md).
+
+- **Snow White**: The ending involves the Queen consulting her magic mirror, which tells her she is the fairest of all. However, the Seven Dwarfs find Snow White dead on the floor, suggesting a tragic turn before any resolution (Snow White and the Seven Dwarfs.pdf, p. 6).
+
+- **Little Red Riding Hood**: I couldn't find specific details about the ending of "Little Red Riding Hood" in the available sources.
+
+If you would like to save this comparison, you can use the "Save last response to wiki" form with the title "Comparison of Fairy Tale Endings" under the category "Summary."
+```
+
+## The ticked mode, answering (live model — wording varies run to run)
 
 ### 1. A curated page answers
 
@@ -38,18 +134,48 @@ rows, instead of consulting it.
 - carries a citation: **True**
 
 ```text
-Una caución bursátil es una operación financiera de corto plazo realizada en el mercado de capitales, similar a un depósito a plazo, pero con garantías superiores. En esta operación, un colocador presta dinero a un tomador, quien recibe los fondos ofreciendo un colateral que supera el valor prestado. Se considera de bajo riesgo principalmente por dos razones:
+Una caución bursátil es una operación financiera de corto plazo realizada en el mercado de capitales, similar a un depósito a plazo, pero con garantías superiores. Involucra a un colocador que presta dinero y un tomador que recibe los fondos, ofreciendo un colateral que supera el valor prestado. Se considera de bajo riesgo principalmente por dos razones:
 
-1. **Garantías Exigidas**: La Bolsa y Mercados Argentinos (BYMA) regula estas operaciones y exige garantías que minimizan el riesgo de crédito. Esto significa que el riesgo de que una de las partes no cumpla con sus obligaciones financieras es prácticamente nulo, gracias al mecanismo de aforo y las garantías exigidas.
+1. **Riesgo de crédito prácticamente nulo**: Gracias a las garantías exigidas por la Bolsa y Mercados Argentinos (BYMA), el riesgo de que una de las partes no cumpla con sus obligaciones financieras es casi inexistente. BYMA regula las cauciones bursátiles y exige garantías que minimizan el riesgo de crédito.
 
-2. **Riesgo de Crédito Prácticamente Nulo**: Debido a las medidas de seguridad implementadas, como el mecanismo de aforo que asegura que el valor de las garantías sea suficiente para cubrir las obligaciones, el riesgo de crédito es casi inexistente.
+2. **Garantías superiores**: Las cauciones bursátiles ofrecen garantías más sólidas en comparación con otros instrumentos similares, lo que proporciona una mayor seguridad a los inversores.
 
-Sin embargo, es importante tener en cuenta el riesgo inflacionario, que se refiere a la posibilidad de que la inflación real supere la tasa de interés ofrecida por estas inversiones, afectando su rentabilidad.
+Sin embargo, es importante considerar el riesgo inflacionario, que se refiere a la posibilidad de que la inflación real supere la tasa de interés ofrecida por estas inversiones, afectando su rentabilidad.
 
 Referencia: 12 Cauciones Bursátiles.docx
 ```
 
-### 2. A datum, with its date
+### 2. In scope, not covered
+
+> ¿Qué es un ETF?
+
+*What it exercises:* The roster gate refuses without reading raw sources — no tangential chunk to leak from.
+
+- model invoked: **False**
+- tools called: —
+- answer replaced by the guardrail: **True**
+- carries a citation: **False**
+
+```text
+Eso no está en mi base de conocimiento.
+```
+
+### 3. Off topic
+
+> ¿Cuál es la capital de Francia?
+
+*What it exercises:* Refused deterministically, without invoking the model at all.
+
+- model invoked: **False**
+- tools called: —
+- answer replaced by the guardrail: **True**
+- carries a citation: **False**
+
+```text
+Eso no está en mi base de conocimiento.
+```
+
+### 4. A datum, with its date
 
 > ¿A cuánto está el dólar MEP?
 
@@ -68,7 +194,7 @@ Fuente: ambito.com
 Referencia: dolar.md
 ```
 
-### 3. An alias reaches the datum
+### 5. An alias reaches the datum
 
 > ¿A cuánto está el billete verde?
 
@@ -88,18 +214,18 @@ Aquí tienes las cotizaciones actuales del dólar en Argentina:
   - Fecha: 2026-06-25
   - Fuente: ambito.com
 
-- **Dólar CCL (Contado con Liquidación)**:
+- **Dólar CCL**:
   - Compra: 1190.0 ARS
   - Venta: 1196.0 ARS
   - Fecha: 2026-06-25
   - Fuente: ambito.com
 
-No se encontraron datos para el dólar oficial en este momento.
+No se encontraron datos para el dólar oficial.
 
 Referencia: dolar.md
 ```
 
-### 4. Deterministic advisory
+### 6. Deterministic advisory
 
 > Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo y cuánto ganaría?
 
@@ -131,7 +257,7 @@ Aquí tienes las alternativas de inversión para $1.000.000 a 3 meses, con sus g
 …[truncated for the appendix]
 ```
 
-### 5. The honest limit
+### 7. The honest limit
 
 > ¿Cuánto ganaría con acciones de YPF?
 
@@ -143,38 +269,8 @@ Aquí tienes las alternativas de inversión para $1.000.000 a 3 meses, con sus g
 - carries a citation: **True**
 
 ```text
-No es posible estimar cuánto ganarías con acciones de YPF, ya que las acciones son un instrumento de renta variable. Esto significa que su rendimiento depende de múltiples factores, como el desempeño de la empresa, las condiciones del mercado y la economía en general. Las ganancias o pérdidas potenciales no son predecibles de antemano.
+No es posible estimar cuánto ganarías con acciones de YPF, ya que las acciones son un instrumento de renta variable. Esto significa que su rendimiento depende de múltiples factores, como el desempeño de la empresa, las condiciones del mercado, y otros riesgos estructurales de inversión. La herramienta de estimación marca las acciones como "no estimable" porque su ganancia no puede predecirse de manera confiable.
 
 Referencia: 01 Acciones Locales.docx
-```
-
-### 6. In scope, not covered
-
-> ¿Qué es un ETF?
-
-*What it exercises:* The roster gate refuses without reading raw sources — no tangential chunk to leak from.
-
-- model invoked: **False**
-- tools called: —
-- answer replaced by the guardrail: **True**
-- carries a citation: **False**
-
-```text
-Eso no está en mi base de conocimiento.
-```
-
-### 7. Off topic
-
-> ¿Cuál es la capital de Francia?
-
-*What it exercises:* Refused deterministically, without invoking the model at all.
-
-- model invoked: **False**
-- tools called: —
-- answer replaced by the guardrail: **True**
-- carries a citation: **False**
-
-```text
-Eso no está en mi base de conocimiento.
 ```
 

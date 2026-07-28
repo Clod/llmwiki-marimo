@@ -83,9 +83,9 @@ can inspect it, diff it across commits, and reproduce it for the cost of a
 SQLite query. `scripts/capture_query_walkthrough.py --plan-only` captures
 *only* this half — no LLM client is even constructed.
 
-The **answers** need a live model and vary in wording from run to run —
-different phrasing, different ordering of a table's ties, occasionally a
-different sentence structure. Read them for *behavior* (does it cite? does
+The **answers** — both modes, the agentic one first — need a live model and vary
+in wording from run to run: different phrasing, different ordering of a table's
+ties, occasionally a different sentence structure. Read them for *behavior* (does it cite? does
 it refuse? does it call the tool it should?), never for exact prose. That is
 also why this document quotes them rather than describing them from memory:
 the quotes are the only honest way to show what a live run produced without
@@ -113,14 +113,53 @@ four are natural things to ask an encyclopedia, and all four need an agent free
 to look around.
 
 **What it costs is a guarantee.** Routing is prompt-driven — the instruction to
-search is a *request*, and the model may or may not honour it. It can answer
-from memory without calling anything. It can call `search_source_chunks`, get a
-paragraph that shares a word with the question, and build a confident answer on
-top of it. Nothing structural prevents either; the system prompt asks, and asks
-firmly, and asking is what it does.
+search is a *request*, and the model may or may not honour it. Nothing
+structural prevents it answering from memory, or building a confident answer on
+a paragraph that merely shares a word with the question. The system prompt asks,
+and asks firmly, and asking is what it does.
 
-For a wiki of fairy tales that is a fair trade. Nobody is harmed by a loosely
-sourced sentence about a glass slipper, and the reach is worth having.
+Three of those suggested prompts were put to the live agent, and between them
+they show both halves of the bargain. The full transcripts are in the
+[appendix](query_walkthrough_appendix.md#the-unticked-mode-answering-live-model);
+what matters here is what the model chose to do.
+
+**Reach, demonstrated.** *What characters and themes do the tales share?* is a
+question no page in the wiki answers, and the agent went and assembled it: three
+`search_wiki_fts` calls and eight `read_wiki_page` calls, **eleven tool calls in
+one turn**, ending in a comparison of stepmothers across Cinderella and Snow
+White with a citation on each claim. Nothing in the code planned that. Ticking
+the box would have refused the question outright.
+
+**The guarantee, absent.** *What tales are in this wiki?* took a single
+`read_wiki_page` and produced a correct, complete inventory of three tales and
+their concepts — **carrying no citation at all**, in a wiki whose system prompt
+says citations are "mandatory, not optional" and that every factual statement
+must carry one. The instruction was ignored and nothing noticed. The answer
+happens to be right; the point is that its being right is not something the
+system established.
+
+**And the failure the second mode exists to prevent, in the open.** *Compare how
+each story ends* went seven calls deep, exhausted the curated pages, and fell
+through to `search_source_chunks` three times. What came back:
+
+> **Snow White**: The ending involves the Queen consulting her magic mirror,
+> which tells her she is the fairest of all. However, the Seven Dwarfs find Snow
+> White dead on the floor, suggesting a tragic turn before any resolution
+> (Snow White and the Seven Dwarfs.pdf, p. 6).
+
+That is not how Snow White ends — it is the middle of the tale, before the
+prince arrives. The citation is real and the page number is real; the passage it
+points at simply is not the ending. This is the whole risk in one sentence: a
+raw fragment retrieved for a question it does not answer, narrated confidently,
+and **stamped with a citation that makes it look grounded**. The same answer
+also declines honestly on Little Red Riding Hood — "I couldn't find specific
+details" — which is what makes the Snow White paragraph instructive rather than
+merely wrong. The model is not being reckless. It found something, and something
+is not the same as the answer.
+
+For a wiki of fairy tales, that is still a fair trade. Nobody is harmed by a
+misremembered ending, and the reach is worth having. Part 2 is about what
+changes when that stops being true.
 
 ### What ticking the box would cost here
 
@@ -148,12 +187,16 @@ rather than writes.
 
 ### What Part 1 does not show
 
-No transcript. The unticked mode is described here and measured only at its
-boundary — what ticking the box *would* refuse — because the capture script
-drives the pre-retrieval engine and nothing else. So this half argues from the
-mechanism and from the gate's own numbers, while Part 2 quotes live output.
-That asymmetry is a gap in the tooling, not a claim that one mode is better
-observed than the other.
+**Three questions is not a sample.** The two failures above — a missing citation
+and a mid-tale paragraph offered as an ending — are what one run produced, not a
+rate. Run it again and the model may cite the inventory and get the ending
+right; that is exactly the property being described. A mode whose guarantees
+come from a prompt behaves differently from turn to turn, so the honest claim is
+*this can happen and here it did*, not *this happens N% of the time*.
+
+**And nothing here is a verdict on the model.** A stronger one would fail less
+often. It would still fail without warning, which is the part that does not go
+away by upgrading.
 
 If you stop here, the two things worth following are §6.7 of
 [Workflows](manual/workflows.md), which is the per-operation reference for this
