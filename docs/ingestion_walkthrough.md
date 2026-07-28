@@ -47,16 +47,57 @@ change next week.
 
 That stability is what licenses the central decision. A source is read **once**,
 at ingest, and *compiled*: extracted, chunked into `document_chunks`, and
-distilled by an LLM into concept and summary pages. Answering a question later
-means reading the wiki page that was compiled from it, with the source kept
-underneath as the evidence a citation points at — not re-reading the PDF, and
-not paying an LLM again for work already done.
+distilled by an LLM into two kinds of wiki page. A **summary page** is one per
+document — what this file says, in order. A **concept page** is one per topic,
+and is the interesting kind: it belongs to the subject rather than to any
+document, so several sources can contribute to it and it grows as the corpus
+does. Answering a question later means reading the page that was compiled from
+the source, with the source kept underneath as the evidence a citation points
+at — not re-reading the PDF, and not paying an LLM again for work already done.
 
 Compiling is only sound because the answer will not have changed by the time it
 is read. A fact that goes out of date needs the opposite treatment, and that is
 a different kind of wiki with a different mechanism — the [closing
 section](#wikis-whose-facts-change) is about those. Everything up to it holds
 for any wiki at all.
+
+### What ingesting one file actually does
+
+The acts below refer to these steps by number, so here is the shape once.
+`ingestion/pipeline.py:ingest_file` runs thirteen; grouped, they are four
+movements:
+
+| | Steps | What happens | LLM? |
+|---|---|---|---|
+| **Take it in** | 1–5 | validate the file · check hash and mtime · extract `(page, markdown)` pairs · chunk them · write `documents`, `document_pages`, `document_chunks` in one transaction | no |
+| **Publish the source** | **6** | mark the row `status='ready'` — from here the source is searchable | no |
+| **Write the wiki** | 7–10 | pull out a summary and a list of concepts · write a page per concept · record the aliases found (8b) · build the summary page · rewrite `overview.md` | **yes**, except 8b and the summary page |
+| **Close the books** | 11–13 | append to `log.md` · git commit · optional lint pass | no |
+
+Two things to carry forward. **Step 6 sits between the two halves**, and Act 1 is
+about why it sits exactly there. And the model is used in one movement only — the
+other nine steps are ordinary code, which is what makes a re-ingest of an
+unchanged file free (Act 3a).
+
+§6.3 of [Workflows](manual/workflows.md#63-single-document-ingestion-) has the authoritative
+table, function by function; this is the outline the story needs, not a
+replacement for it.
+
+### The other half: lint and repair
+
+Ingestion tries to leave the wiki consistent, but it cannot always. A page can
+end up citing a source that changed underneath it; two concept pages that share
+a source can end up unlinked. So the pipeline closes with a **lint** pass that
+looks for those defects and reports them, and a **repair** pass that fixes the
+ones it can fix without guessing. Lint never writes; repair writes only what
+lint found.
+
+The vocabulary for the acts below comes from here. A page whose source has moved
+on is **stale** — flagged, not deleted, because the text may still be fine.
+Two pages that should link and don't are a **missing xref**. And a repair that
+needs the model to rewrite prose is *skipped* when no model was supplied, rather
+than guessed at — Act 3b is about that distinction. §6.1 and §6.2 are the
+contracts.
 
 ### What is truth and what is disposable
 
@@ -297,8 +338,9 @@ table.
 The step ordering here is the load-bearing detail, not the row counts. §6.3's
 step table (`ingestion/pipeline.py:ingest_file`) commits the source row with
 `status='ready'` at **step 6** — before the LLM has written a single wiki
-page in steps 7–9. That ordering means a failed structured-extraction or
-concept-page call never leaves the corpus half-indexed: worst case, a source
+page in steps 7–9. That ordering means a failure in step 7 (the LLM pass that
+reads the document and returns its summary and concept list) or in the
+concept-page calls that follow never leaves the corpus half-indexed: worst case, a source
 sits in the database, fully searchable via `document_chunks`, with no wiki
 page yet — never the other way around, a wiki page pointing at a source that
 isn't really there. It's also why "the wiki is derived and disposable" isn't
