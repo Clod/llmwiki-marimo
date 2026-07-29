@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Little Red Riding Hood
 tags: [entity]
-sources: [Little Red Riding Hood.pdf]
+sources:
+  - resource: sources/Little Red Riding Hood.pdf
 ---
 
 # Little Red Riding Hood

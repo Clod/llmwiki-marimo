@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Espejo mágico
 tags: [instrument]
-sources: [Blancanieves.pdf]
+sources:
+  - resource: sources/Blancanieves.pdf
 ---
 
 # Espejo mágico

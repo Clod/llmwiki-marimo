@@ -1,3 +1,8 @@
+---
+type: summary
+title: 10 Plazos Fijos
+---
+
 # 10 Plazos Fijos
 
 **Fuente:** 10 Plazos Fijos.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-19

@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Riesgo de crédito del Estado
 tags: [tema]
-sources: [05 Bonos Dólar Linked y Duales.docx]
+sources:
+  - resource: sources/05 Bonos Dólar Linked y Duales.docx
 ---
 
 # Riesgo de crédito del Estado

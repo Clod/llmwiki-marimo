@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Acciones locales
 tags: [instrument]
-sources: [01 Acciones Locales.docx]
+sources:
+  - resource: sources/01 Acciones Locales.docx
 ---
 
 # Acciones locales

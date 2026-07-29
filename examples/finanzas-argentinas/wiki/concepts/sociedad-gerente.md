@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Sociedad Gerente
 tags: [entity]
-sources: [07 FCI Money Market.docx]
+sources:
+  - resource: sources/07 FCI Money Market.docx
 ---
 
 # Sociedad Gerente

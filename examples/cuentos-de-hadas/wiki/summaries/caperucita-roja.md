@@ -1,3 +1,8 @@
+---
+type: summary
+title: Caperucita Roja
+---
+
 # Caperucita Roja
 
 **Fuente:** Caperucita Roja.pdf | **Tipo:** pdf | **Páginas:** 4 | **Ingerido:** 2026-07-08

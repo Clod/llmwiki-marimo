@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Cenicienta
 tags: [entity]
-sources: [La Cenicienta.pdf]
+sources:
+  - resource: sources/La Cenicienta.pdf
 ---
 
 # Cenicienta

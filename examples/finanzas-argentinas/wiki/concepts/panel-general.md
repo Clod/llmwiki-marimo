@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Panel General
 tags: [theme]
-sources: [01 Acciones Locales.docx]
+sources:
+  - resource: sources/01 Acciones Locales.docx
 ---
 
 # Panel General

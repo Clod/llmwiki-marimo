@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Coeficiente de Estabilización de Referencia
 tags: [instrument]
-sources: [04 Bonos CER y UVA.docx]
+sources:
+  - resource: sources/04 Bonos CER y UVA.docx
 ---
 
 # Coeficiente de Estabilización de Referencia

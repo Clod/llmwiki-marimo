@@ -1,6 +1,9 @@
 ---
+type: concept
+title: The Blue Fairy Book
 tags: [instrument]
-sources: [Little Red Riding Hood.pdf]
+sources:
+  - resource: sources/Little Red Riding Hood.pdf
 ---
 
 # The Blue Fairy Book

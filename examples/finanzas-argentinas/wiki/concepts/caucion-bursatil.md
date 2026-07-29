@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Caución Bursátil
 tags: [instrument]
-sources: [12 Cauciones Bursátiles.docx]
+sources:
+  - resource: sources/12 Cauciones Bursátiles.docx
 ---
 
 # Caución Bursátil

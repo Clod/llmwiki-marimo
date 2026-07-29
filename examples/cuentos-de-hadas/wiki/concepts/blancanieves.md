@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Blancanieves
 tags: [entity]
-sources: [Blancanieves.pdf]
+sources:
+  - resource: sources/Blancanieves.pdf
 ---
 
 # Blancanieves

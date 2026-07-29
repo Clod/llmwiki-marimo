@@ -1,3 +1,8 @@
+---
+type: summary
+title: 07 Fci Money Market
+---
+
 # 07 Fci Money Market
 
 **Fuente:** 07 FCI Money Market.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-19

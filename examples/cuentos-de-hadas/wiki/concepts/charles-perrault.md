@@ -1,6 +1,10 @@
 ---
+type: concept
+title: Charles Perrault
 tags: [entity]
-sources: [Caperucita Roja.pdf, La Cenicienta.pdf]
+sources:
+  - resource: sources/Caperucita Roja.pdf
+  - resource: sources/La Cenicienta.pdf
 ---
 
 # Charles Perrault

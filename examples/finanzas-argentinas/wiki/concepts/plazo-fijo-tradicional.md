@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Plazo fijo tradicional
 tags: [instrument]
-sources: [10 Plazos Fijos.docx]
+sources:
+  - resource: sources/10 Plazos Fijos.docx
 ---
 
 # Plazo fijo tradicional
