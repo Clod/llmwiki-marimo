@@ -11,6 +11,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Added
+- **The pre-retrieval switch is documented where you would look for it.** Both
+  `wiki_config.example.toml` templates now carry the `[pre_retrieval]` section and
+  its three scope lists, commented out, and both READMEs explain the trade in the
+  chat-configuration section. The flag decides the entire shape of the read path,
+  and until now it appeared only in the manual, the walkthrough and the finance
+  demo's own config — so a user copying the template had no way to learn it exists.
+
 ### Changed
 - **Wiki-page front-matter is written by code, not by the model, and follows the
   [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog).**
