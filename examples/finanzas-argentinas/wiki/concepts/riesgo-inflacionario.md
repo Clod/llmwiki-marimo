@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Riesgo inflacionario
 tags: [theme]
-sources: [07 FCI Money Market.docx]
+sources:
+  - resource: sources/07 FCI Money Market.docx
 ---
 
 # Riesgo inflacionario

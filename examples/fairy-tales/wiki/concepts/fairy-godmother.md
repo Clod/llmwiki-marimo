@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Fairy Godmother
 tags: [entity]
-sources: [Cinderella.pdf]
+sources:
+  - resource: sources/Cinderella.pdf
 ---
 
 # Fairy Godmother

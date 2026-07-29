@@ -1,3 +1,8 @@
+---
+type: summary
+title: Snow White And The Seven Dwarfs
+---
+
 # Snow White And The Seven Dwarfs
 
 **Source:** Snow White and the Seven Dwarfs.pdf | **Type:** pdf | **Pages:** 6 | **Ingested:** 2026-07-08

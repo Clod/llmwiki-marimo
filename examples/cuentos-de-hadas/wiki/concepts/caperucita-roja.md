@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Caperucita Roja
 tags: [entity]
-sources: [Caperucita Roja.pdf]
+sources:
+  - resource: sources/Caperucita Roja.pdf
 ---
 
 # Caperucita Roja

@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Moraleja de Caperucita Roja
 tags: [theme]
-sources: [Caperucita Roja.pdf]
+sources:
+  - resource: sources/Caperucita Roja.pdf
 ---
 
 # Moraleja de Caperucita Roja

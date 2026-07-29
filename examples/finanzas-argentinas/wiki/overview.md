@@ -1,3 +1,8 @@
+---
+type: overview
+title: Resumen general de la base de conocimiento
+---
+
 # Resumen general de la base de conocimiento
 
 La base de conocimiento sobre el mercado financiero argentino se ha enriquecido con la inclusión de información sobre las cauciones bursátiles, un instrumento financiero de corto plazo que se asemeja a un depósito a plazo, pero que se realiza en el mercado de capitales con garantías superiores. En una caución bursátil, un colocador presta dinero a un tomador que recibe los fondos, ofreciendo un colateral que supera el valor prestado. Este mecanismo ofrece una alternativa atractiva para quienes buscan seguridad, ya que el riesgo de crédito es prácticamente nulo gracias a las garantías exigidas por Bolsas y Mercados Argentinos (BYMA). Sin embargo, los inversores deben considerar los riesgos inflacionarios y de tasa asociados a este tipo de operaciones.

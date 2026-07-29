@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Enanos
 tags: [entity]
-sources: [Blancanieves.pdf]
+sources:
+  - resource: sources/Blancanieves.pdf
 ---
 
 # Enanos

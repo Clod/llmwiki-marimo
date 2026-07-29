@@ -1,3 +1,8 @@
+---
+type: summary
+title: 05 Bonos Dólar Linked Y Duales
+---
+
 # 05 Bonos Dólar Linked Y Duales
 
 **Fuente:** 05 Bonos Dólar Linked y Duales.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-19

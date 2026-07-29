@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Bonos CER/UVA
 tags: [instrument]
-sources: [04 Bonos CER y UVA.docx]
+sources:
+  - resource: sources/04 Bonos CER y UVA.docx
 ---
 
 # Bonos CER/UVA

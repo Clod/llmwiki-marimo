@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Riesgo de liquidez
 tags: [theme]
-sources: [10 Plazos Fijos.docx]
+sources:
+  - resource: sources/10 Plazos Fijos.docx
 ---
 
 # Riesgo de liquidez

@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Riesgos de los bonos CER/UVA
 tags: [theme]
-sources: [04 Bonos CER y UVA.docx]
+sources:
+  - resource: sources/04 Bonos CER y UVA.docx
 ---
 
 # Riesgos de los bonos CER/UVA

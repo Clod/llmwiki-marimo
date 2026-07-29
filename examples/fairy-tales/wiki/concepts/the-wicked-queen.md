@@ -1,6 +1,9 @@
 ---
+type: concept
+title: The Wicked Queen
 tags: [entity]
-sources: [Snow White and the Seven Dwarfs.pdf]
+sources:
+  - resource: sources/Snow White and the Seven Dwarfs.pdf
 ---
 
 # The Wicked Queen

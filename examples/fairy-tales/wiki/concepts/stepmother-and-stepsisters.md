@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Stepmother and Stepsisters
 tags: [entity]
-sources: [Cinderella.pdf]
+sources:
+  - resource: sources/Cinderella.pdf
 ---
 
 # Stepmother and Stepsisters

@@ -1,3 +1,8 @@
+---
+type: overview
+title: Resumen general de la base de conocimiento
+---
+
 # Resumen general de la base de conocimiento
 
 La base de conocimiento ha sido enriquecida con la incorporación de cuentos clásicos que exploran temas universales a través de relatos fascinantes. Estos cuentos, "Blancanieves" de los Hermanos Grimm, "Caperucita Roja" y "La Cenicienta" de Charles Perrault, ofrecen una visión profunda de la lucha entre el bien y el mal, la inocencia y la traición, y la importancia de la precaución, la bondad y el amor verdadero.

@@ -167,8 +167,8 @@ different grain:
   written off them, two entries look like this:
 
   ```text
-  slipper     →  52, 9, 40, 50, 51, 8, 1, 5
-  Cinderella  →  39, 51, 52, 53, 50, 40, 9, 4, 3, 7, 1, 8, …
+  slipper     →  130, 117, 127, 126, 128, 116, 109, 113
+  Cinderella  →  138, 128, 130, 126, 135, 127, 117, 112, 111, 115, 109, 116, …
   ```
 
   Those are `rowid`s — internal row numbers, reassigned whenever the corpus is
@@ -200,27 +200,29 @@ different grain:
 
   | fragment | mentions | tokens | rank |
   |---:|---:|---:|---:|
-  | 52 | 4 | 292 | −2.00 |
-  | 9 | 7 | 519 | −1.97 |
-  | 40 | 3 | 251 | −1.94 |
-  | 50 | 2 | 276 | −1.71 |
-  | 51 | 2 | 276 | −1.71 |
-  | 8 | 3 | 471 | −1.57 |
-  | 1 | 1 | 411 | −1.00 |
-  | 5 | 1 | 481 | −0.91 |
+  | 130 | 5 | 306 | −2.08 |
+  | 117 | 7 | 519 | −1.98 |
+  | 127 | 3 | 262 | −1.94 |
+  | 126 | 2 | 289 | −1.71 |
+  | 128 | 2 | 290 | −1.70 |
+  | 116 | 3 | 471 | −1.58 |
+  | 109 | 1 | 411 | −1.01 |
+  | 113 | 1 | 481 | −0.91 |
 
   Three behaviours are legible in that last column. Repetition counts, but it
   **saturates**: among fragments of roughly 500 tokens, going from one mention
-  to three (5 → 8) is worth 0.66 of rank, while going from three to seven
-  (8 → 9) is worth only 0.40 — the first few mentions establish that a passage
-  is on the subject, and later ones mostly repeat the news. Length is
-  **normalised**: fragments 1 and 5 mention the word exactly once each and
+  to three (113 → 116) is worth 0.67 of rank, while going from three to seven
+  (116 → 117) is worth only 0.40 — the first few mentions establish that a
+  passage is on the subject, and later ones mostly repeat the news. Length is
+  **normalised**: fragments 109 and 113 mention the word exactly once each and
   finish in order of size, on the reasoning that one mention inside 411 tokens
-  is a passage more nearly *about* the slipper than one diluted across 481.
-  Fragments 50 and 51 are the control: same mentions, same length, identical
-  rank to the hundredth. And rarity is weighed too, invisibly in a single-word
-  query: a term occurring in most fragments separates them poorly, so BM25
-  discounts it in favour of the rarer terms in the same query.
+  is a passage more nearly *about* the slipper than one diluted across 481. The
+  normalisation is finer than that comparison suggests — fragments 126 and 128
+  carry two mentions apiece and differ by a single token of length, and that one
+  token separates their ranks by a hundredth. And rarity is weighed too,
+  invisibly in a single-word query: a term occurring in most fragments separates
+  them poorly, so BM25 discounts it in favour of the rarer terms in the same
+  query.
 
   What BM25 does not do deserves equal billing. It is **purely lexical** —
   there are no embeddings anywhere in this pipeline. A fragment that treats the
