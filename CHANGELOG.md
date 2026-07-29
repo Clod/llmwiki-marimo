@@ -11,6 +11,17 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Added
+- **A ticked wiki can answer questions about itself.** With pre-retrieval on, a
+  question about the collection as a whole — "what is in this wiki?", "compare all
+  of them" — was refused, because coverage is derived from concept-page names and
+  such a question names no concept. Widening that list does not help and was
+  measured not to: no roster of item names can contain a question about the
+  collection. `wiki/overview.md` and `wiki/index.md` exist to describe it, and are
+  now injected directly when the question is shaped that way — they carry no
+  `documents` row, so search could never have reached them. The branch cannot fire
+  without a page to inject, so a wiki with neither refuses exactly as before.
+
 ## [0.3.0] - 2026-07-29
 
 ### Added
