@@ -31,7 +31,7 @@ mechanism" is added to the engine.**
 ```
 ┌───────────────────────────── ENGINE (generic, public) ─────────────────────────────┐
 │  • DatasetSource  — read normalized dataset rows (backend-agnostic)                   │
-│  • Concept pages  — markdown + free-form YAML front-matter                            │
+│  • Concept pages  — markdown + code-written YAML front-matter                         │
 │  • Tool hook      — conditionally register one extra agent tool                       │
 └───────────────────────────────────────────────────────────────────────────────────┘
             ▲ imports                                   ▲ reads front-matter keys
