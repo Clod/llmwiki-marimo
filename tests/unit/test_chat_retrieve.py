@@ -7,7 +7,11 @@ search_chunks' own concern.
 """
 
 from domain.chat import preretrieval
-from domain.chat.preretrieval import retrieve_source_chunks, retrieve_wiki
+from domain.chat.preretrieval import (
+    retrieve_collection_pages,
+    retrieve_source_chunks,
+    retrieve_wiki,
+)
 
 
 def test_retrieve_wiki_formats_and_drops_empty(monkeypatch):
@@ -117,3 +121,48 @@ def test_retrieve_wiki_all_stopwords_query_is_empty(monkeypatch):
     seen = _capture_query(monkeypatch)
     retrieve_wiki("db", "¿Qué es esto?")
     assert seen["query"] == ""
+
+
+# ── retrieve_collection_pages (reads wiki/overview.md + wiki/index.md from disk)
+
+
+def test_retrieve_collection_pages_overview_then_index(tmp_path):
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    (wiki / "overview.md").write_text("# Knowledge Base Overview\n\nOverview prose.\n")
+    (wiki / "index.md").write_text("# Wiki Index\n\n- [A](a.md)\n")
+
+    pages = retrieve_collection_pages(tmp_path)
+
+    assert len(pages) == 2
+    assert "wiki/overview.md" in pages[0] and "Overview prose" in pages[0]
+    assert "wiki/index.md" in pages[1] and "Wiki Index" in pages[1]
+
+
+def test_retrieve_collection_pages_strips_front_matter(tmp_path):
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    (wiki / "overview.md").write_text(
+        "---\ntype: overview\n---\n# Knowledge Base Overview\n\nOverview prose.\n"
+    )
+
+    pages = retrieve_collection_pages(tmp_path)
+
+    assert len(pages) == 1
+    assert "type: overview" not in pages[0]
+    assert "Overview prose" in pages[0]
+
+
+def test_retrieve_collection_pages_only_overview_present(tmp_path):
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    (wiki / "overview.md").write_text("# Knowledge Base Overview\n\nOverview prose.\n")
+
+    pages = retrieve_collection_pages(tmp_path)
+
+    assert len(pages) == 1
+    assert "wiki/overview.md" in pages[0]
+
+
+def test_retrieve_collection_pages_empty_when_neither_exists(tmp_path):
+    assert retrieve_collection_pages(tmp_path) == []

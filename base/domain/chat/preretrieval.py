@@ -18,7 +18,13 @@ from dataclasses import dataclass
 from domain.chat.guardrail import enforce_grounding, refusal_for
 from domain.chat.overlap import is_supported
 from domain.chat.postprocess import answer_with_table, ensure_citation
-from domain.chat.scope import advisory_intent, is_off_limits, mentions_known_data
+from domain.chat.scope import (
+    advisory_intent,
+    collection_intent,
+    is_off_limits,
+    mentions_known_data,
+)
+from domain.datasets.frontmatter import split_frontmatter
 from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
 from domain.tools.search import search_chunks
@@ -103,6 +109,37 @@ def retrieve_source_chunks(db_path: str, query: str, *, limit: int = 4) -> list[
     return _format_hits(search_chunks(db_path, _fts_query(query), limit=limit, scope="sources"))
 
 
+def retrieve_collection_pages(workspace) -> list[str]:
+    """Read the pages that describe the WIKI AS A WHOLE — overview then index —
+    straight from disk, for a collection-level question (Tier 1 "curado").
+
+    `wiki/overview.md` and `wiki/index.md` never get a `documents` row, chunks,
+    or FTS entries: the agentic system prompt reaches them by literally reading
+    the file as step 1, but `search_chunks` (what `retrieve_wiki` queries) never
+    sees them. So for a question like "what tales are in this wiki?" there is
+    nothing to find in the index, no matter how the FTS query is built — the
+    evidence has to come from disk, the same place the agentic mode gets it.
+
+    Overview first: it is narrative, written to be read start to finish, and
+    the better context for a collection question. Index is a bare listing —
+    still useful, but second. Front-matter is stripped (`split_frontmatter`):
+    the model is being handed context to answer FROM, not page metadata.
+    Returns `[]` when neither file exists — the natural "nothing to inject"
+    case, which is also what makes this branch a no-op on a wiki with no
+    collection pages instead of a separate special case.
+    """
+    pages: list[str] = []
+    for rel in ("wiki/overview.md", "wiki/index.md"):
+        path = workspace / rel
+        if not path.exists():
+            continue
+        _, body = split_frontmatter(path.read_text(encoding="utf-8"))
+        body = body.strip()
+        if body:
+            pages.append(f"[{rel}]\n{body}")
+    return pages
+
+
 @dataclass(frozen=True)
 class RetrievalPlan:
     """What to do with a question after the deterministic gate + retrieval.
@@ -131,11 +168,13 @@ def plan_retrieval(
     doc_hits: list[str],
     has_data: bool,
     in_roster: bool,
+    collection_hits: list[str] = [],
 ) -> RetrievalPlan:
     """Decide the plan. Order: blacklist first (refuse), then — for a covered
-    topic — curated wiki (Tier 1); then a data/advisory question (tools only);
-    then raw docs (Tier 2, verify) as the covered-topic fallback; else refuse
-    without invoking the model.
+    topic — curated wiki (Tier 1); then a collection-level question (Tier 1,
+    the overview/index read from disk); then a data/advisory question (tools
+    only); then raw docs (Tier 2, verify) as the covered-topic fallback; else
+    refuse without invoking the model.
 
     `has_data` and `in_roster` are computed by the caller (`mentions_known_data`
     against the dataset vocab, and against the full coverage padrón). BOTH tiers
@@ -143,11 +182,23 @@ def plan_retrieval(
     shared word for an UNcovered topic, so the padrón — not the search hit — is
     the authority on coverage. This is what stops a tangential chunk from leaking
     general knowledge (the CEDEARs leak), on Tier 1 as well as Tier 2.
+
+    `collection_hits` sits AFTER the named-roster Tier 1 check and BEFORE
+    `has_data`. After, because a question can be both collection-shaped and
+    name covered subjects — "compare Cinderella and Snow White" hits the
+    roster, and the two concept pages beat the overview. Before `has_data`, so
+    a collection question on a datasets wiki ("what data do you have?") reaches
+    the overview instead of the tools. `collection_hits` is only ever non-empty
+    when the wiki actually has an overview/index page to inject (see
+    `retrieve_collection_pages`), so this branch is a no-op — not a special
+    case — on a wiki without one.
     """
     if is_off_limits(question, off_limits):
         return _REFUSE
     if wiki_hits and in_roster:
         return RetrievalPlan("invoke", "curado", "\n\n".join(wiki_hits), False)
+    if collection_hits:
+        return RetrievalPlan("invoke", "curado", "\n\n".join(collection_hits), False)
     if has_data:
         # A question that names known data goes to the tools (query_dataset /
         # advisory) before any raw-doc fallback: the dataset value/date beats
@@ -198,17 +249,23 @@ async def pre_retrieval_answer(
     in_roster = mentions_known_data(question, coverage, aliases)
 
     if is_off_limits(question, config.off_limits):
-        wiki_hits, doc_hits = [], []
+        wiki_hits, doc_hits, collection_hits = [], [], []
     else:
         wiki_hits = retrieve_wiki(db_path, question)
         doc_hits = (
             retrieve_source_chunks(db_path, question)
             if (not wiki_hits and in_roster) else []
         )
+        # Collection-shaped question ("what tales are in this wiki?") — inject
+        # the overview/index read from disk. Empty when the wiki has neither
+        # page, so an ordinary wiki with no collection page falls through to
+        # has_data/doc_hits/refuse exactly as it did before this branch existed.
+        collection_hits = retrieve_collection_pages(workspace) if collection_intent(question) else []
 
     plan = plan_retrieval(
         question, off_limits=config.off_limits,
         wiki_hits=wiki_hits, doc_hits=doc_hits, has_data=has_data, in_roster=in_roster,
+        collection_hits=collection_hits,
     )
 
     if plan.action == "refuse":
