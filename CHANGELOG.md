@@ -11,6 +11,85 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Added
+- **Dataset engine** — a domain-neutral `datasets/` capability: tabular data
+  files the assistant queries through an opt-in `query_dataset` tool, kept
+  separate from the curated wiki so numbers come from the data, never the model.
+- **Argentine finance advisory** (`finance_argentina`) — a deterministic
+  `estimar_alternativas` tool that ranks investment alternatives for a given
+  amount and horizon with **code-computed** gains (never LLM-estimated), flags
+  non-estimable instruments (equities), and carries a nominal-vs-real inflation
+  disclaimer.
+- **`finanzas-argentinas` demo** — a pre-ingested Spanish finance wiki with
+  `datasets/`, a tuned `wiki_config.toml`, a demo guide, and its own live
+  acceptance UAT (`scripts/uat_finanzas.py`).
+- **Ingest-time vocabulary subsystem** — the assistant generates data/concept
+  aliases while ingesting; a vocabulary linter + auto-repair keeps the alias map
+  honest (collisions dropped, stale/covered/ambiguous surfaced); a coverage
+  **roster** decides what the wiki actually covers; and a thin-page detector
+  flags source chunks the wiki leaves uncovered.
+- **Hybrid pre-retrieval** (opt-in per wiki) — code retrieves and injects wiki
+  context *before* the model answers, gated on the coverage roster so an
+  off-topic or uncovered question is refused deterministically instead of leaking
+  from a tangential chunk; tiered curated-then-raw sources with answer-vs-source
+  verification; and a live toggle in the read app.
+- **Pluggable citation/grounding guardrail** and an **opt-in JSONL chat trace**
+  (one row per turn) for offline diagnosis.
+- **A tabbed read app ships alongside the grid one** (`marimo/read_app_tabs.py`).
+  It is **not the default and not yet documented**: `quickstart.py`, both READMEs
+  and the programmer manual still launch `marimo/read_app.py`, and the E2E suite
+  still covers that one. Both carry the same chat, including the pre-retrieval
+  toggle, so any change to the chat currently has to be made twice. Promotion —
+  and the removal of the grid app — waits on a parity test proving nothing was
+  lost in the move.
+- **Two walkthrough documents, generated from real runs.** The [ingestion
+  walkthrough](docs/ingestion_walkthrough.md) follows one small corpus through
+  its whole lifecycle — first document, second, a no-op re-ingest, an edited
+  source, a deletion — and the [query walkthrough](docs/query_walkthrough.md)
+  follows a spectrum of questions through both chat modes. Each is split so a
+  reader with an ordinary wiki can stop half way, and each is paired with a
+  capture script (`scripts/capture_*_walkthrough.py`) that regenerates its
+  appendix, so the figures they quote come from running the pipeline rather
+  than from memory.
+
+### Changed
+- **The ingest end-to-end test was rewritten** for the current app
+  (`tests/e2e/test_ingest_app_v2.py`, replacing `test_ingest_app.py`): it drives
+  the wiki picker, ingest form, Activity Log, vocabulary lint lines, scan
+  idempotency and cross-links through the real Marimo UI. The slower cases stay
+  opt-in behind `E2E_FULL=1` and `E2E_DESTRUCTIVE=1`.
+
+### Fixed
+- **Chunk breadcrumbs named the wrong section.** `header_breadcrumb` — the
+  heading path a search hit is traced back to, and what a citation names beyond
+  a page number — was serialised when a chunk was closed, from the heading stack
+  as it then stood. Because a heading is pushed before the size check, a chunk
+  flushed at a heading boundary was labelled with the section that *starts after
+  it*: in the shipped demo one chunk was named "Principales riesgos
+  estructurales" while containing nothing of it but the heading line, and that
+  section's actual text sat in the next chunk under a different name. A
+  breadcrumb naming the wrong section is worse than none — it aims a citation at
+  a passage the fragment does not contain.
+
+  Two further cases came out of the same work: a chunk that merely *ends* on a
+  heading no longer takes that section's name, and the heading outline now
+  carries across page breaks, so a section running past the bottom of a PDF page
+  keeps its name (and its document title) instead of restarting. The column had
+  no tests; it has seven now.
+- **Pre-retrieval now actually retrieves.** The FTS query reached SQLite FTS5 raw,
+  so any natural question crashed the search and silently returned no hits — the
+  gate then refused valid, covered questions. Queries are now sanitized; both
+  tiers are gated on the coverage roster; a data/advisory question routes to the
+  tools before any raw-doc fallback; and a generic advisory question (an amount +
+  horizon, no named instrument) reaches the advisory tool instead of being
+  refused.
+- **Citation detection recognizes the real format.** A `Referencia:`/`Fuente:`
+  line (what the prompt asks for and the app emits) and a source-document
+  citation (`.docx`/`.pdf`) now count as grounded/cited in the chat trace and the
+  eval graders, not only an inline `(wiki/….md)`.
+- **Lint & repair** labels advisory-only vocabulary findings clearly instead of
+  reporting them as "Unknown check type".
+
 ## [0.2.3] - 2026-07-08
 
 ### Fixed

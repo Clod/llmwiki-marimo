@@ -7,6 +7,15 @@
 
 ## 6. Workflows
 
+> **Looking for the big picture instead?** This section is *reference* — one
+> entry per workflow, with contracts. For the narrative version, the
+> [Ingestion Walkthrough](../ingestion_walkthrough.md) follows one small corpus
+> through its whole lifecycle (first document · second document · no-op
+> re-ingest · edited source · deletion), and the
+> [Query Walkthrough](../query_walkthrough.md) follows seven questions through
+> the routing gate on the read side. Both use real, regenerable numbers and
+> link back here for each contract.
+
 Each workflow below follows the same template:
 
 > **Status · Entry · Steps · LLM prompts (inline) · Triggers · Today vs Target · Verification**
@@ -15,13 +24,13 @@ Each workflow below follows the same template:
 
 | #    | Workflow           | Status | Entry                                                                | Pending                                                |
 | ---- | ------------------ | ------ | -------------------------------------------------------------------- | ------------------------------------------------------ |
-| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; auto-tail done for ingest; scan/regenerate pending (§11.11) |
-| 6.2  | Repair             | ✅      | `repair/runner.py:repair_wiki`                                                | All five deterministic repairs implemented             |
+| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; `vocabulary` + `thin_page` checks added; auto-tail done for ingest; scan/regenerate pending (§11.11) |
+| 6.2  | Repair             | ✅      | `repair/runner.py:repair_wiki`                                                | All eight deterministic repairs implemented             |
 | 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:ingest_file`                                           | Lint+repair tail opt-in today (§11.11)                 |
 | 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:batch_ingest`                                   | Lint+repair tail opt-in today (§11.11)                 |
 | 6.5  | Scan sources       | ✅      | `ingestion/pipeline.py:scan_and_ingest`                                          | Should chain into lint+repair (§11.11)                 |
 | 6.6  | Regenerate         | ✅      | `ingestion/pipeline.py:regenerate_wiki_pages`                                          | Should chain into lint+repair (§11.8)                  |
-| 6.7  | Chat / RAG         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Phases 1–3 (wiki + sources) complete; web search (Phase 4) is a future enhancement (§12) |
+| 6.7  | Chat / RAG         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Two modes: agent-driven (default) and opt-in pre-retrieval. Phases 1–3 (wiki + sources) complete; web search (Phase 4) is a future enhancement (§12) |
 | 6.8  | Chat → Wiki        | ✅      | `read_app.py` Save form → `chat/wiki_tools.py:save_to_wiki` (user-driven; agent has no write tool) | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred (§12) |
 | 6.9  | Source deletion    | ✅      | `tools/deletion.py:delete_source`                                               | —                                                      |
 | 6.10 | Wiki page deletion | ✅      | `tools/wiki_fs.py:delete_page`                               | —                                                     |
@@ -88,7 +97,7 @@ and stores involved; 🧠 marks a step that calls the LLM.
 
 ```mermaid
 flowchart LR
-    L["lint_wiki()"] -->|always| DET["5 deterministic checks:<br/>orphan · stale · missing_xref<br/>missing_concept · gap_filled"]
+    L["lint_wiki()"] -->|always| DET["7 deterministic checks:<br/>orphan · stale · missing_xref<br/>missing_concept · gap_filled<br/>vocabulary · thin_page"]
     L -->|client set| LLM["2 LLM checks 🧠:<br/>contradiction · data_gap"]
     DET -. reads .-> S[("index.db + wiki/ FS")]
     LLM -. reads .-> S
@@ -126,7 +135,7 @@ callback here so the long LLM lint reports progress instead of going silent (a u
 watching the log would otherwise think the run had hung). Deterministic-only lint is
 fast, so the callback mostly matters in full-LLM mode.
 
-**Seven checks (`base/domain/lint/checks.py`):**
+**Nine checks (`base/domain/lint/checks.py`):**
 
 | Check             | Function           | Type                            | Severity       | What it finds                                                                                  |
 | ----------------- | ------------------ | ------------------------------- | -------------- | ---------------------------------------------------------------------------------------------- |
@@ -135,10 +144,27 @@ fast, so the callback mostly matters in full-LLM mode.
 | `missing_xref`    | `missing_xref_check` | deterministic                 | info           | Concept pairs that share a cited source but don't link to each other                           |
 | `missing_concept` | `missing_concept_check` | deterministic              | warning        | `[text](concepts/foo.md)` links to non-existent files (regex `_CONCEPT_LINK_RE`)               |
 | `gap_filled`      | `gap_filled_check` | deterministic (always runs)     | info           | `<!-- DATA_GAP: slug -->` TODO markers whose topic is now covered by a source                  |
+| `vocabulary`      | `vocabulary_check` | deterministic                   | error/warning/info | Alias-map drift vs the live coverage roster — see the four findings below                  |
+| `thin_page`       | `thin_page_check`  | deterministic                   | warning        | Source docs whose wiki pages leave ≥50% of the source's chunks *orphaned*                      |
 | `contradiction`   | `contradiction_check` | **LLM** (skip if `client=None`) | error       | Pair-wise LLM comparison of concepts sharing a source                                          |
 | `data_gap`        | `data_gap_check`   | **LLM** (skip if `client=None`) | info           | LLM scan of all concept titles for missing/underdeveloped topics                               |
 
-The runner calls the five deterministic checks unconditionally and the two LLM
+`vocabulary_check` emits four distinct findings, each with its own severity:
+
+- `vocab_collision` (**error**) — an alias that is really another covered term's name
+- `vocab_stale` (**warning**) — aliases for a canonical the wiki no longer covers
+- `vocab_ambiguous` (**warning**) — one alias mapping to two canonicals
+- `vocab_covered` (**info**) — a `[fuera_de_alcance]` term that now has a page/dataset
+
+`thin_page_check`'s ruler is **orphan chunks, not page size** (a good summary is
+deliberately short) — it reuses the same `chat/overlap.py:coverage` that verifies
+Tier-2 chat answers. Coverage = the pages that **cite** the source plus the
+concept pages those summaries **link to**. Constants in `checks.py`:
+`_THIN_MIN_CHUNKS = 3` (skip tiny docs), `_THIN_ORPHAN_COVERAGE = 0.2` (a chunk
+counts as covered when ≥20% of its words appear in the pages), `_THIN_ORPHAN_RATIO
+= 0.5` (flag at half orphaned).
+
+The runner calls the seven deterministic checks unconditionally and the two LLM
 checks only when a `client` is passed (`lint/runner.py:lint_wiki`).
 
 **LLM prompts (in `checks.py`):**
@@ -196,6 +222,7 @@ flowchart TD
     DISP -->|contradiction| CO["repair_contradiction"]
     DISP -->|data_gap| DG["repair_data_gap"]
     DISP -->|gap_filled| GF["repair_gap_filled"]
+    DISP -->|vocab_collision| VC["repair_vocab_collision"]
     O --> W1["DELETE documents · document_chunks<br/>· document_references · FS page"]
     ST --> W2["create_page overwrite:<br/>documents U · chunks D+I<br/>· references U · FS U"]
     MC --> W3["create_page new:<br/>documents C · chunks C · references C<br/>· index.md U · FS C"]
@@ -203,6 +230,7 @@ flowchart TD
     CO --> W4
     DG --> W4
     GF --> W2
+    VC --> W5["drop alias from<br/>.llmwiki/aliases.generated.toml<br/>(skip if hand override)"]
 ```
 
 🧠 = needs an LLM client; skipped when `llm_client=None` (`stale`, `missing_concept`).
@@ -233,9 +261,14 @@ print(repair_report.summary())   # "4 issue(s): 2 fixed, 1 skipped, 1 failed"
 | `contradiction`   | `repair_contradiction`          | Append idempotent `<!-- CONTRADICTION: path_b -->` + `⚠️` callout to page A; call `update_references`. Needs a human to resolve; repair only flags.                | No                                                        | ✅         |
 | `data_gap`        | `repair_data_gap`               | Insert `<!-- DATA_GAP: slug -->` TODO note into the most-related wiki page (FTS host selection). Skips if topic already covered by a source.                        | No                                                        | ✅         |
 | `gap_filled`      | `repair_gap_filled`             | Replace DATA_GAP block with `> ℹ️ See [Title](rel).` link; `create_page(overwrite=True)` + `update_references`. Fires when a topic's source is ingested.           | No                                                        | ✅         |
+| `vocab_collision` | `repair_vocab_collision`        | Drop the colliding alias from the **generated artifact** (`.llmwiki/aliases.generated.toml`). If the alias is not in the artifact it came from a hand override in `wiki_config.toml`, so it is **skipped** with a message rather than editing the human's file | No                                                        | ✅         |
 
 LLM-dependent repairs (`stale`, `missing_concept`) are automatically skipped when
-`llm_client=None`.
+`llm_client=None`. Three more checks are known but intentionally have **no**
+dispatch entry — `vocab_stale`, `vocab_covered`, `vocab_ambiguous`
+(`_ADVISORY_CHECKS` in `repair/runner.py`) are informational findings with no safe
+automatic fix; they are skipped with `"advisory finding — no automatic repair
+(resolve by hand)"` rather than reported as an unknown check type.
 
 **Report shape (`repair/report.py`):**
 
@@ -255,7 +288,7 @@ class RepairReport:
     # Properties: .fixed, .skipped, .failed, .summary()
 ```
 
-**Today:** All five deterministic repair types are implemented. A wiki-wide
+**Today:** All eight deterministic repair types are implemented. A wiki-wide
 "Run Wiki Lint & Repair" button covers on-demand repair; repair also auto-runs
 in the post-ingest tail (§6.3) and after chat→wiki save (§6.8).
 
@@ -290,6 +323,7 @@ sequenceDiagram
         P->>DB: documents (wiki) + chunks · update_references → document_references
         P->>FS: update_index → index.md
     end
+    Note over P: Step 8b: update_generated_aliases → .llmwiki/aliases.generated.toml<br/>(best-effort, deterministic — no 🧠)
     P->>FS: build_summary_page → create_page summaries/{slug}.md
     P->>DB: documents + chunks + document_references (source_document_id set)
     P->>GEN: update_overview
@@ -328,6 +362,7 @@ result = ingest_file(
 | **6** | **Commit `status='ready'**` — readers can now see the source                                              | `pipeline.py`                                       |
 | 7     | LLM: structured extraction → `ExtractionResult(document_summary, concepts[])`                             | `wiki_generator.py:extract_structured` (line 189)   |
 | 8     | For each concept: build page (LLM) → `create_page(overwrite=True)` → `update_references` → `update_index` | `wiki_generator.build_concept_page` (270)           |
+| **8b** | Update the generated alias artifact (best-effort, deterministic)                                          | `alias_generation.py:update_generated_aliases`      |
 | 9     | Build summary page (deterministic) → `create_page` with `source_document_id`                              | `wiki_generator.build_summary_page` (238)           |
 | 10    | LLM: rewrite `wiki/overview.md`                                                                           | `wiki_generator.update_overview` (304)              |
 | 11    | Append `## [date] Ingested | filename` to `wiki/log.md`                                                   | `wiki_fs.append_to_page`                            |
@@ -389,9 +424,14 @@ original failure.
 **Verification:**
 
 ```bash
-HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s
+HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s
 uv run pytest tests/unit/test_pipeline_phase2.py -v
 ```
+
+`tests/e2e/test_ingest_app_v2.py` is the current E2E suite (wiki picker, ingest
+form, Activity Log, vocabulary lint lines, scan idempotency, cross-links; opt-in
+`E2E_FULL=1` / `E2E_DESTRUCTIVE=1` for the slower/destructive cases).
+It replaced the older suite, which predated the picker/form/vocabulary work.
 
 ---
 
@@ -441,6 +481,15 @@ Then at the end of the batch the wrapper does **once**:
 3. Single `auto_commit("batch ingest: N file(s)")`.
 4. Optional `lint_wiki()` deterministic pass.
 
+**Alias passes: per-file, but not per-batch.** Since each file still runs the
+full §6.3 pipeline internally, Step 8b's per-concept alias update
+(`alias_generation.update_generated_aliases`) *does* run for every file in the
+batch. But `batch.py` has no call to `regenerate_dataset_aliases` or
+`crosslink_wiki_pages` — those two passes are **scan-only** (§6.5). So: concept
+aliases are generated per file, while the dataset-alias pass and the cross-link
+pass only happen when the same files are ingested via `scan_and_ingest` instead
+of `batch_ingest` directly.
+
 **LLM call count for N files, K concepts/file:**
 
 - `batch_ingest`: `N × (1 extract + K concepts) + 1 overview`
@@ -476,11 +525,27 @@ flowchart TD
     D --> LP{"for each candidate"}
     LP --> I["ingest_file() — full §6.3 pipeline"]
     I --> LP
-    LP -->|done| R["report: ingested / skipped / failed"]
+    LP -->|done| DA["dataset-alias pass (once) 🧠<br/>regenerate_dataset_aliases<br/>fingerprint-gated"]
+    DA --> CL["cross-link final pass<br/>crosslink_wiki_pages<br/>(only if something was ingested)"]
+    CL --> R["report: ingested / skipped / failed"]
 ```
 
 The boxed `ingest_file()` step is the entire §6.3 pipeline (run sequentially, not in
 batch mode). One trace run wraps the whole scan (no-op unless `WIKI_TRACE=1`).
+After the per-file loop, `scan_and_ingest` runs two extra passes, once per scan
+(not once per file):
+
+1. **Dataset-alias pass** (`regenerate_dataset_aliases`) — the dataset
+   vocabulary doesn't change per document, so this runs once for the whole scan
+   rather than inside `ingest_file`. It is **fingerprint-gated**: a sidecar
+   `.llmwiki/dataset_aliases.fingerprint` means the LLM pass re-runs only when
+   `datasets/` actually changed. Logs `🔤 Generated aliases for N data term(s)`
+   and, on collisions, `⚠️ N dataset-alias collision(s) dropped`. Best-effort —
+   an alias failure never fails the scan.
+2. **Cross-link final pass** (`crosslink_wiki_pages`) — runs only when something
+   was ingested this scan; injects "See also" links so a page created early in
+   the scan can link to a concept extracted from a later document. Deterministic
+   (no LLM). Logs `🔗 Cross-linked N page(s)`.
 
 **Entry:** `scan_and_ingest()` — `base/domain/ingestion/pipeline.py:scan_and_ingest`
 
@@ -574,6 +639,14 @@ re-extraction), and re-runs:
 
 ### 6.7 Query / Chat (multi-phase RAG) ✅
 
+> **This section documents the default mode**, in which the agent holds the
+> search tools and decides for itself when to use them. A wiki can instead opt
+> into **pre-retrieval**, where code retrieves before the model is consulted and
+> may refuse without consulting it at all — see [Pre-retrieval: the other
+> mode](#pre-retrieval-the-other-mode) at the end of this section. Both ship;
+> neither supersedes the other. The narrative comparison, with captured output
+> from both, is [`docs/query_walkthrough.md`](../query_walkthrough.md).
+
 ```mermaid
 flowchart TD
     Q["user question"] --> P1["Phase 1 · read_wiki_page(index.md)"]
@@ -585,7 +658,7 @@ flowchart TD
     ANS -->|worth keeping| CAP["user saves via form → §6.8"]
 ```
 
-Routing is prompt-driven, not code-driven. All phases are **read-only** over
+Routing in this mode is prompt-driven, not code-driven. All phases are **read-only** over
 `index.db` + `wiki/`; the agent never writes — saving (§6.8) is a separate
 user action via the read-app Save form (`save_to_wiki`).
 
@@ -593,7 +666,7 @@ user action via the read-app Save form (`save_to_wiki`).
 the system prompt in `base/domain/chat/config.py` (`_DEFAULT_SYSTEM_PROMPT`).
 
 This is the most important section for understanding *how answers are*  
-*generated*. The routing is **prompt-driven, not code-driven** — there is no  
+*generated*. In this mode the routing is **prompt-driven, not code-driven** — there is no  
 Python `if`/`else` deciding which tool to call. The LLM reads the system  
 prompt and picks tools accordingly. The code just provides the toolbox.
 
@@ -611,16 +684,33 @@ and higher-signal than re-deriving knowledge from raw chunks on every query.
 | `read_wiki_page(path)`                   | `chat/wiki_tools.py:read_wiki_page`       | single file            | Direct page lookup by known path          |
 | `search_wiki_fts(query, limit=10)`       | `chat/wiki_tools.py:search_wiki_fts`      | `source_kind='wiki'`   | Topic discovery across all wiki pages     |
 | `search_source_chunks(query, limit=10)`  | `chat/tools.py:search_source_chunks` (async) | `source_kind='source'` | Last-resort lookup into raw PDFs/DOCXs    |
+| `query_dataset(...)`                     | `chat/dataset_tools.py`    | `workspace/datasets/`  | Only registered when the workspace has datasets — a current value with its `as_of` date |
+| *domain overlay* (e.g. `estimar_alternativas`) | passed in as `extra_tools` | overlay-defined   | Only when an overlay activates for this workspace (§6.11) |
 | Web search                               | —                          | —                      | ❌ **NOT YET IMPLEMENTED** (Pending §11.5) |
 
 The agent receives `db_path` as `deps_type=str`. Every tool derives the  
 workspace from it via `workspace = Path(db_path).parent.parent` (because the  
 DB is always at `workspace/.llmwiki/index.db`).
 
-The registered set is exactly `chat/agent.py:create_agent` →
-`tools=[read_wiki_page, search_wiki_fts, search_source_chunks]` — all read-only.
-The agent has **no write tool**: saving a chat answer as a wiki page is the
-user's action via the read-app Save form (`save_to_wiki`, §6.8).
+Those three are the retrieval tools, but they are not the whole registered set.
+`chat/agent.py:create_agent` builds it in three steps:
+
+```python
+tools = [read_wiki_page, search_wiki_fts, search_source_chunks] if include_wiki_tools else []
+if <workspace/datasets/ holds at least one valid dataset file>:
+    tools.append(query_dataset)
+if extra_tools:                       # domain overlay, e.g. estimar_alternativas
+    tools.extend(extra_tools)
+```
+
+So a workspace with a `datasets/` folder gets `query_dataset` **in this mode
+too** — it is not part of the pre-retrieval opt-in — and a domain overlay adds
+whatever it registers. `include_wiki_tools` is what the other mode turns off;
+with it left on, the three above are present as described.
+
+All of them are read-only. The agent has **no write tool**: saving a chat answer
+as a wiki page is the user's action via the read-app Save form
+(`save_to_wiki`, §6.8).
 
 #### Routing rules (from `_DEFAULT_SYSTEM_PROMPT`)
 
@@ -683,7 +773,7 @@ either to keep the defaults.
 
 > ⚠️ **A custom `system_prompt` must preserve the wiki-first routing**  
 > (index → `search_wiki_fts` → `search_source_chunks` *fallback*). Because routing  
-> is prompt-driven (above), a prompt that tells the agent to "always use  
+> is prompt-driven in this mode (above), a prompt that tells the agent to "always use  
 > `search_source_chunks`" silently degrades the system to plain RAG and defeats the  
 > whole LLM-Wiki design. The shipped example keeps the routing intact and only  
 > specialises the domain line.
@@ -703,6 +793,48 @@ rebuilt by the `wiki_context` cell whenever the active wiki changes (§7.1).
 guarantee the LLM does it. Track regressions via the E2E suite.
 - Phases are not numbered explicitly in the prompt today; tightening them to
   "Phase 1 / Phase 2 / Phase 3" labels would only matter once Phase 4 lands (§12).
+
+#### Pre-retrieval: the other mode
+
+Everything above assumes the agent does its own looking. A wiki can opt into the
+opposite arrangement, in which **code retrieves first** and the model is handed
+the result — or not consulted at all.
+
+**How it is switched.** Per wiki, in `wiki_config.toml`:
+
+```toml
+[pre_retrieval]
+enabled = true
+```
+
+`chat/config.py` reads it into `WikiAssistantConfig.pre_retrieval` (default
+`False`, so a workspace that says nothing keeps the mode above). The read app
+also exposes it as a live checkbox beside "Modo estricto", which picks between
+two agents built up front, so toggling takes effect on the next message without
+rebuilding the chat.
+
+**What changes.** `create_agent(..., include_wiki_tools=False)` drops
+`read_wiki_page`, `search_wiki_fts` and `search_source_chunks` — the model no
+longer *has* the tools whose use this section's routing rules request.
+`query_dataset` and any overlay tools stay. In their place
+`chat/preretrieval.py:pre_retrieval_answer` runs the retrieval itself and
+`plan_retrieval` decides, in Python, one of: refuse without a model call; inject
+a curated page and answer from it; go to the data tools; or inject a raw chunk,
+answer, and verify the answer against it.
+
+| | This section's mode | Pre-retrieval |
+|---|---|---|
+| Who searches | the model, via tools | code, before the model |
+| Who decides it is out of scope | the model, if the prompt persuades it | `plan_retrieval`, deterministically |
+| Cost of a refusal | a completion | nothing — the model is never called |
+| Reach | any question, including about the collection | only what the coverage roster recognises |
+
+**Where the authority is.** The order of those branches and the citation format
+are contracts, specified in
+[`.trellis/spec/backend/chat-retrieval.md`](../../.trellis/spec/backend/chat-retrieval.md);
+prefer it over prose. [`docs/query_walkthrough.md`](../query_walkthrough.md)
+walks both modes with captured output, including why the shipped `fairy-tales`
+demo leaves the box unticked and `finanzas-argentinas` ticks it.
 
 ---
 

@@ -63,6 +63,50 @@ class Chunk:
     header_breadcrumb: str = ""
 
 
+@dataclass(frozen=True)
+class Outline:
+    """Where in a document's heading structure chunking has got to.
+
+    A page break is not a section break: a PDF section opened on page 3 runs on
+    into page 4, and chunking a page at a time would forget that. This is the
+    state handed from one page to the next so it doesn't.
+    """
+    # The heading path in force, as (level, title) from outermost to innermost
+    headers: tuple[tuple[int, str], ...] = ()
+    # The last breadcrumb written out, used as the fallback in _settled_or
+    last_breadcrumb: str = ""
+
+    @property
+    def breadcrumb(self) -> str:
+        """The heading path rendered the way it is stored on a chunk."""
+        return " > ".join(t for _, t in self.headers)
+
+    def with_heading(self, level: int, title: str) -> "Outline":
+        """The outline after a heading of the given level opens a section.
+
+        Headings at the same level or deeper are closed by it, which is what
+        keeps the path an outline rather than an ever-growing list.
+        """
+        kept = tuple((lv, t) for lv, t in self.headers if lv < level)
+        return Outline(kept + ((level, title),), self.last_breadcrumb)
+
+    def with_last_breadcrumb(self, breadcrumb: str) -> "Outline":
+        """The outline after a chunk has been emitted under `breadcrumb`."""
+        return Outline(self.headers, breadcrumb)
+
+
+def _settled_or(breadcrumb: str, settled: bool, fallback: str) -> str:
+    """The breadcrumb to write out for a chunk about to be emitted.
+
+    An unsettled breadcrumb means no body text ever arrived under the heading it
+    names — the chunk merely ends on that heading, with the section's content
+    falling beyond it. Naming the chunk after it would point a citation at a
+    passage the chunk does not contain, so the previous chunk's heading, which
+    the text actually sits under, is used instead.
+    """
+    return breadcrumb if settled else fallback
+
+
 def chunk_text(
     content: str,
     chunk_size: int = CHUNK_SIZE,
@@ -82,22 +126,66 @@ def chunk_text(
     Returns:
         A list of constructed Chunk objects.
     """
-    # 1. Clean input: return empty list immediately if there is no text
+    chunks, _ = chunk_text_continuing(
+        content, Outline(), chunk_size=chunk_size, overlap=overlap,
+        page=page, start_char_offset=start_char_offset,
+    )
+    return chunks
+
+
+def chunk_text_continuing(
+    content: str,
+    outline: Outline,
+    chunk_size: int = CHUNK_SIZE,
+    overlap: int = CHUNK_OVERLAP,
+    page: int | None = None,
+    start_char_offset: int = 0,
+) -> tuple[list[Chunk], Outline]:
+    """Chunk one more stretch of a document, resuming from `outline`.
+
+    Same as chunk_text, except that it starts inside whatever section the
+    previous stretch ended in and reports where this one ended, so a document
+    split into pages can be chunked page by page without losing its outline.
+
+    Args:
+        content: The raw text string to chunk.
+        outline: Heading state left by the preceding stretch of the document.
+        chunk_size: Target token capacity of each chunk.
+        overlap: Target token count to overlap between chunks.
+        page: Optional page identifier.
+        start_char_offset: The starting character position offset.
+
+    Returns:
+        The chunks of this stretch, and the outline the next one resumes from.
+    """
+    # 1. Clean input: return immediately if there is no text, leaving the
+    #    incoming outline untouched for whatever follows.
     if not content or not content.strip():
-        return []
+        return [], outline
 
     # 2. Slice text into separate paragraphs, then break apart any single
     #    paragraph larger than chunk_size so it can't become one oversized chunk.
     paragraphs = _split_oversized(_split_paragraphs(content), chunk_size)
-
-    # Stores tuples of (header_level, header_title) to track markdown outline depth
-    header_stack: list[tuple[int, str]] = []
 
     # The final list of constructed Chunks we will return
     chunks: list[Chunk] = []
 
     # Temporary buffer of paragraphs forming the current chunk being built
     current_blocks: list[str] = []
+
+    # The heading path this chunk belongs to. Captured while the chunk is still
+    # collecting its opening headings and then frozen, so the breadcrumb names
+    # the section the chunk holds text FROM — not a later heading it happens to
+    # end on, and not the section that starts right after it. Text resuming
+    # mid-section starts out under the section it is resuming inside.
+    current_breadcrumb = outline.breadcrumb
+
+    # Whether the breadcrumb above has settled. It settles once the chunk holds
+    # body text that sits under some heading. Text arriving while no heading has
+    # been seen at all is preamble, not body — a wiki page opens with a YAML
+    # frontmatter block before its title — and must not settle anything, or the
+    # title that follows it would never be recorded.
+    current_settled = False
 
     # Cumulative token counter for the current chunk
     current_tokens = 0
@@ -118,10 +206,21 @@ def chunk_text(
             level = len(header_match.group(1)) # Number of hashes determines level (e.g., '###' is level 3)
             heading = header_match.group(2).strip()
 
-            # Pop off any deeper/equal headings from the stack to maintain outline hierarchy
-            header_stack = [(lv, t) for lv, t in header_stack if lv < level]
-            # Push the new heading onto the stack
-            header_stack.append((level, heading))
+            # Open the new section, closing any at the same level or deeper
+            outline = outline.with_heading(level, heading)
+
+            # A chunk that has not settled is still being titled, so this
+            # heading belongs to it. Once settled, a later heading must not
+            # overwrite it: that heading introduces the NEXT chunk, not this one.
+            if not current_settled:
+                current_breadcrumb = outline.breadcrumb
+
+            # A heading is only a heading up to its own end of line. Generated
+            # wiki pages put the section text on the very next line with no
+            # blank line between, so this block usually carries body text too.
+            block_has_body = bool(para[header_match.end():].strip())
+        else:
+            block_has_body = True
 
         # B. If adding this paragraph would exceed the maximum CHUNK_SIZE:
         #    we finalize, validate, and save the current chunk before continuing
@@ -130,17 +229,18 @@ def chunk_text(
             chunk_str = "\n\n".join(current_blocks)
 
             # If the chunk is long enough to be useful (above minimum limits):
+            emitted_breadcrumb = _settled_or(current_breadcrumb, current_settled,
+                                             outline.last_breadcrumb)
             if _estimate_tokens(chunk_str) >= MIN_CHUNK_TOKENS:
-                # Build the hierarchy breadcrumb (e.g., "Overview > Definitions > Concept A")
-                breadcrumb = " > ".join(t for _, t in header_stack)
                 chunks.append(Chunk(
                     index=len(chunks),
                     content=chunk_str,
                     page=page,
                     start_char=current_start,
                     token_count=_estimate_tokens(chunk_str),
-                    header_breadcrumb=breadcrumb,
+                    header_breadcrumb=emitted_breadcrumb,
                 ))
+            outline = outline.with_last_breadcrumb(emitted_breadcrumb)
 
             # C. Establish context overlap for the NEXT chunk.
             #    We pull trailing paragraphs from this chunk until we fill the 'overlap' budget.
@@ -148,30 +248,41 @@ def chunk_text(
             current_blocks = overlap_blocks
             current_tokens = overlap_tokens
 
+            # The chunk starting here sits under whatever heading is in force
+            # now — including the one that just triggered this flush — and is
+            # open to being titled further until its own body text begins.
+            current_breadcrumb = outline.breadcrumb
+            current_settled = False
+
             # Recalculate where the new overlapping chunk starts in characters
             current_start = char_pos - sum(len(b) + 2 for b in overlap_blocks)
 
         # D. Add current paragraph block to our buffer
         current_blocks.append(para)
         current_tokens += para_tokens
+        # Body text sitting under a heading closes the chunk's title
+        if block_has_body and outline.headers:
+            current_settled = True
         # Move our absolute character pointer (+2 accounts for the double-newlines '\n\n' separator)
         char_pos += len(para) + 2
 
     # 4. Finalize the remaining trailing paragraphs at the end of the file
     if current_blocks:
         chunk_str = "\n\n".join(current_blocks)
+        emitted_breadcrumb = _settled_or(current_breadcrumb, current_settled,
+                                         outline.last_breadcrumb)
         if _estimate_tokens(chunk_str) >= MIN_CHUNK_TOKENS:
-            breadcrumb = " > ".join(t for _, t in header_stack)
             chunks.append(Chunk(
                 index=len(chunks),
                 content=chunk_str,
                 page=page,
                 start_char=current_start,
                 token_count=_estimate_tokens(chunk_str),
-                header_breadcrumb=breadcrumb,
+                header_breadcrumb=emitted_breadcrumb,
             ))
+        outline = outline.with_last_breadcrumb(emitted_breadcrumb)
 
-    return chunks
+    return chunks, outline
 
 
 def chunk_pages(page_contents: list[tuple[int, str]]) -> list[Chunk]:
@@ -184,9 +295,13 @@ def chunk_pages(page_contents: list[tuple[int, str]]) -> list[Chunk]:
         A combined list of Chunk objects indexed sequentially across pages.
     """
     all_chunks: list[Chunk] = []
+    # The heading structure runs through the document, not through each page, so
+    # it is handed on from one page to the next
+    outline = Outline()
     for page_num, content in page_contents:
-        # Chunk the text of this specific page
-        for c in chunk_text(content, page=page_num):
+        # Chunk the text of this specific page, resuming where the last left off
+        page_chunks, outline = chunk_text_continuing(content, outline, page=page_num)
+        for c in page_chunks:
             # Recalculate its global index across all pages combined
             c.index = len(all_chunks)
             all_chunks.append(c)

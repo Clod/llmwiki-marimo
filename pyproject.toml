@@ -18,6 +18,7 @@ dependencies = [
     "pydantic-ai>=1.97.0",
     "anywidget>=0.11.0",
     "traitlets>=5.15.0",
+    "pyyaml>=6.0",
 ]
 
 [project.urls]

@@ -170,10 +170,10 @@ run in a sandboxed/offline environment — pull the branch to a machine with a k
    ```
 
 3. **Run ingest before read** — the read app E2E skips unless a prior ingest has
-   populated `tests/fixtures/workspace/`:
+   populated `tests/fixtures/workspace_e2e/`:
 
    ```bash
-   HEADLESS=1 uv run pytest tests/e2e/test_ingest_app.py -v -s
+   HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s
    HEADLESS=1 uv run pytest tests/e2e/test_read_app.py -v -s
    ```
 

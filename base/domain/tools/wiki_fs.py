@@ -362,3 +362,18 @@ def delete_page(
         file_path.unlink()
 
     return existed
+
+
+def concept_page_names(db_path: str) -> list[str]:
+    """Titles of all ready concept pages — the concept half of the coverage roster.
+
+    Shared by the pre-retrieval gate and the vocabulary linter so both judge
+    "what the wiki covers" the same way.
+    """
+    from domain.tools.db import get_connection
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT title FROM documents "
+            "WHERE source_kind='wiki' AND path='/wiki/concepts/' AND status='ready'"
+        ).fetchall()
+    return [r["title"] for r in rows if r["title"]]

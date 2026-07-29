@@ -1473,6 +1473,7 @@ dependencies = [
     { name = "pydantic-ai" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "traitlets" },
 ]
 
@@ -1494,6 +1495,7 @@ requires-dist = [
     { name = "pydantic-ai", specifier = ">=1.97.0" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "traitlets", specifier = ">=5.15.0" },
 ]
 

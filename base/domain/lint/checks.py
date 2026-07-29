@@ -339,3 +339,172 @@ def gap_filled_check(db_path: str) -> list[LintIssue]:
                     topic=slug,
                 ))
     return issues
+
+
+# ── 3.7: Vocabulary check (alias map vs live coverage) ────────────────────────
+
+def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
+    """Cross the effective alias vocabulary against the wiki's live coverage.
+
+    Pure (no LLM). The ingest-time generator drops collisions when it writes, so
+    this catches the drift it can't: a collision introduced by a hand override or
+    a newly-added dataset; an alias entry for a canonical the wiki no longer
+    covers; an alias mapping to two canonicals; and an off-limits term now covered.
+    """
+    from domain.chat.config import load_config
+    from domain.chat.vocabulary import build_roster, normalize, validate_aliases
+    from domain.ingestion.alias_generation import dataset_vocabulary
+    from domain.tools.wiki_fs import concept_page_names
+
+    config = load_config(Path(workspace))
+    aliases = config.data_aliases
+    if not aliases and not config.off_limits:
+        return []
+
+    roster = set(build_roster(dataset_vocabulary(Path(workspace)), concept_page_names(db_path)))
+    issues: list[LintIssue] = []
+    artifact = ".llmwiki/aliases.generated.toml"
+
+    # 1. Collisions — an alias that is really another covered canonical's name.
+    for c in validate_aliases(aliases, roster).collisions:
+        issues.append(LintIssue(
+            check="vocab_collision", severity="error", page=artifact,
+            description=(
+                f"Alias '{c.alias}' of '{c.canonical}' is really the name of '{c.collides_with}'"
+            ),
+            suggestion=f"List '{c.alias}' under '{c.canonical}' in [falsos_sinonimos], or remove it",
+            alias=c.alias,
+        ))
+
+    # 2. Stale — an alias entry for a canonical the wiki no longer covers.
+    for canonical in aliases:
+        if normalize(canonical) not in roster:
+            issues.append(LintIssue(
+                check="vocab_stale", severity="warning", page=artifact,
+                description=f"Aliases for '{canonical}', which has no page or dataset",
+                suggestion="Remove the entry, or restore the page/dataset it names",
+            ))
+
+    # 3. Ambiguous — one alias mapping to two different canonicals.
+    owners: dict[str, list[str]] = {}
+    for canonical, alias_list in aliases.items():
+        for alias in alias_list:
+            owners.setdefault(normalize(alias), []).append(canonical)
+    for alias_norm, canonicals in owners.items():
+        if len({normalize(c) for c in canonicals}) > 1:
+            issues.append(LintIssue(
+                check="vocab_ambiguous", severity="warning", page=artifact,
+                description=(
+                    f"Alias '{alias_norm}' maps to several canonicals: "
+                    f"{', '.join(sorted(set(canonicals)))}"
+                ),
+                suggestion="Keep the alias under a single canonical",
+            ))
+
+    # 4. Covered — an off-limits term the wiki now actually covers.
+    for term in config.off_limits:
+        if normalize(term) in roster:
+            issues.append(LintIssue(
+                check="vocab_covered", severity="info", page="wiki_config.toml",
+                description=f"'{term}' is in [fuera_de_alcance] but now has a page or dataset",
+                suggestion="Remove it from the blacklist — it's covered now",
+            ))
+
+    return issues
+
+
+# ── 3.8: Thin-page detector (source chunks left uncovered by the wiki) ─────────
+
+_THIN_MIN_CHUNKS = 3         # too few chunks → a ratio is meaningless; skip tiny docs
+_THIN_ORPHAN_COVERAGE = 0.2  # a chunk is "covered" if ≥20% of its words appear in the pages
+_THIN_ORPHAN_RATIO = 0.5     # flag only when at least half the chunks are orphaned
+
+
+def thin_page_check(db_path: str) -> list[LintIssue]:
+    """Source docs whose wiki page(s) leave many of their chunks uncovered.
+
+    Pure, no LLM — the ingest-side pata of the coverage story. NOT measured by
+    size (a good summary is deliberately short; size would false-alarm on every
+    good summary). The ruler is orphan chunks: per source doc, a page-chunk whose
+    content words barely appear in the wiki pages that carry that source. When most
+    of a source's chunks are orphaned, the wiki under-covers it, so a legit
+    question about the missing part would have to fall to Tier-2 — flag it
+    (warning) so the page can be expanded. Reuses the same lexical `coverage` that
+    verifies Tier-2.
+
+    Coverage = the pages that CITE the source (the summaries) PLUS the concept
+    pages those summaries link to. Only summaries carry a `cites` edge back to the
+    source; the detail lives in the concept pages they spawned, which don't. Miss
+    those and the check measures the source against the short summary alone and
+    false-alarms on every doc whose detail was split into concepts.
+    """
+    from domain.chat.overlap import is_supported
+
+    issues: list[LintIssue] = []
+    with get_connection(db_path) as conn:
+        sources = conn.execute(
+            "SELECT id, filename FROM documents "
+            "WHERE source_kind = 'source' AND status != 'failed'"
+        ).fetchall()
+        for src in sources:
+            chunks = [
+                r["content"] for r in conn.execute(
+                    "SELECT content FROM document_pages WHERE document_id = ? ORDER BY page",
+                    (src["id"],),
+                ).fetchall()
+                if (r["content"] or "").strip()
+            ]
+            if len(chunks) < _THIN_MIN_CHUNKS:
+                continue
+
+            citing = conn.execute(
+                "SELECT d.id AS wiki_id, d.path || d.filename AS page_path, "
+                "       d.content AS content, d.source_document_id AS sdid, d.path AS dir "
+                "FROM document_references dr "
+                "JOIN documents d ON dr.source_document_id = d.id AND d.source_kind = 'wiki' "
+                "WHERE dr.target_document_id = ? AND dr.reference_type = 'cites'",
+                (src["id"],),
+            ).fetchall()
+            if not citing:
+                continue
+
+            # Coverage = citing pages (summaries) + the concept pages they link to.
+            texts = [c["content"] or "" for c in citing]
+            citing_ids = [c["wiki_id"] for c in citing]
+            placeholders = ",".join("?" * len(citing_ids))
+            linked = conn.execute(
+                "SELECT t.content FROM document_references l "
+                "JOIN documents t ON l.target_document_id = t.id AND t.source_kind = 'wiki' "
+                f"WHERE l.reference_type = 'links_to' AND l.source_document_id IN ({placeholders})",
+                citing_ids,
+            ).fetchall()
+            texts.extend(r["content"] or "" for r in linked)
+
+            pages_text = " ".join(texts)
+            orphans = sum(
+                1 for ch in chunks
+                if not is_supported(ch, pages_text, min_coverage=_THIN_ORPHAN_COVERAGE)
+            )
+            if orphans / len(chunks) < _THIN_ORPHAN_RATIO:
+                continue
+
+            # Attach the finding to the source's own summary page when present
+            # (the natural thing to expand), else any page citing the source.
+            target = (
+                next((c for c in citing
+                      if c["sdid"] == src["id"] and c["dir"] == "/wiki/summaries/"), None)
+                or next((c for c in citing if c["sdid"] == src["id"]), None)
+                or citing[0]
+            )
+            issues.append(LintIssue(
+                check="thin_page", severity="warning", page=target["page_path"],
+                description=(
+                    f"{orphans} of {len(chunks)} source chunks in '{src['filename']}' "
+                    "aren't reflected in the wiki page(s) citing it"
+                ),
+                suggestion=(
+                    "Expand or regenerate the page to cover the source, or accept the "
+                    "Tier-2 fallback for the uncovered part"
+                ),
+            ))
+    return issues

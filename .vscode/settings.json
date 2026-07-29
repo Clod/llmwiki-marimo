@@ -1,0 +1,41 @@
+{
+  // Shared, project-level guard — keep this file free of personal preferences
+  // (those belong in your User settings; workspace settings are versioned).
+  //
+  // The markdown under docs/ is hand-authored and its line breaks are
+  // deliberate: prose is wrapped by hand, and several passages depend on
+  // emphasis and links surviving exactly as written. Any tool that rewrites the
+  // file on its own damages it silently — the rendered page breaks while the
+  // diff looks like harmless whitespace.
+  //
+  // What this block stops: a markdown FORMATTER running on save/paste/type
+  // (Prettier, Markdown All in One's table formatter, and the like), plus
+  // trailing-whitespace trimming, which would eat intentional hard breaks.
+  //
+  // What it CANNOT stop — and the more damaging case in practice:
+  //
+  //   * A WYSIWYG markdown editor. Those are not formatters; they parse the
+  //     file into a document model and RE-SERIALISE it when the buffer is
+  //     saved, so no formatOnSave setting is consulted. The signature is
+  //     unmistakable: a trailing double space on nearly every line, emphasis
+  //     that spanned a line break split in two (`**16 `x`**` becoming
+  //     `**16 `x**``), a link cut into two links pointing at the same target,
+  //     and [`code`](link) inverted into the broken `[code](link)`.
+  //     Keep `"workbench.editorAssociations": {"*.md": "default"}` in your User
+  //     settings, and read docs with the built-in preview (Cmd/Ctrl+Shift+V),
+  //     which renders without ever writing. With "files.autoSave" on, a WYSIWYG
+  //     editor rewrites the file without you pressing save at all.
+  //
+  //   * Anything at all, if a PARENT folder is the workspace root. Workspace
+  //     settings are read from the root only, so opening ~/some/parent/ instead
+  //     of this repo silently disables everything here.
+  //
+  // If a doc suddenly shows those symptoms, the fix is `git diff` — the damage
+  // is mechanical and the committed version is the good one.
+  "[markdown]": {
+    "editor.formatOnSave": false,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false,
+    "files.trimTrailingWhitespace": false
+  }
+}

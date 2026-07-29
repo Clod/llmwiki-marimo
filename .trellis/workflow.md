@@ -84,9 +84,10 @@ cat .trellis/spec/frontend/type-safety.md          # For types
 
 **Backend Task**:
 ```bash
-cat .trellis/spec/backend/database-guidelines.md   # For DB operations
-cat .trellis/spec/backend/type-safety.md           # For types
+cat .trellis/spec/backend/database-guidelines.md   # For DB operations (+ deletion semantics)
+cat .trellis/spec/backend/chat-retrieval.md        # For chat retrieval / grounding / citations
 cat .trellis/spec/backend/logging-guidelines.md    # For logging
+cat .trellis/spec/backend/datasets-format.md       # For dataset sources
 ```
 
 ---
@@ -108,23 +109,17 @@ cat .trellis/spec/backend/logging-guidelines.md    # For logging
 |-- .developer           # Developer identity (gitignored)
 |-- scripts/
 |   |-- __init__.py          # Python package init
-|   |-- common/              # Shared utilities (Python)
-|   |   |-- __init__.py
-|   |   |-- paths.py         # Path utilities
-|   |   |-- developer.py     # Developer management
-|   |   +-- git_context.py   # Git context implementation
-|   |-- multi_agent/         # Multi-agent pipeline scripts
-|   |   |-- __init__.py
-|   |   |-- start.py         # Start worktree agent
-|   |   |-- status.py        # Monitor agent status
-|   |   |-- create_pr.py     # Create PR
-|   |   +-- cleanup.py       # Cleanup worktree
+|   |-- common/              # Shared utilities: paths, developer, git_context,
+|   |                        # config, phase, registry, task_queue, worktree, cli_adapter
+|   |-- multi_agent/         # Pipeline: plan, start, status, create_pr, cleanup
 |   |-- init_developer.py    # Initialize developer identity
 |   |-- get_developer.py     # Get current developer name
 |   |-- task.py              # Manage tasks
 |   |-- get_context.py       # Get session context
+|   |-- create_bootstrap.py  # Generate a bootstrap prompt
 |   +-- add_session.py       # One-click session recording
-|-- workspace/           # Developer workspaces
+|-- workspace/           # Developer workspaces (GITIGNORED in this repo — the
+|                        # journal is a local logbook, it never enters a commit/PR)
 |   |-- index.md         # Workspace index + Session template
 |   +-- {developer}/     # Per-developer directories
 |       |-- index.md     # Personal index (with @@@auto markers)
@@ -213,10 +208,11 @@ python3 ./.trellis/scripts/task.py create "<title>" --slug <task-name>
    --> For cross-layer: read .trellis/spec/guides/
 
 3. Self-test
-   --> Run project's lint/test commands (see spec docs)
-   --> Manual feature testing
+   --> uv run pytest tests/unit tests/regression   # exactly what CI runs
+   --> uv run ruff check <changed files>
+   --> Manual feature testing (see "Testing layers" below)
 
-4. Commit code
+4. Commit code — only when the human asks
    --> git add <files>
    --> git commit -m "type(scope): description"
        Format: feat/fix/docs/refactor/test/chore
@@ -233,8 +229,64 @@ python3 ./.trellis/scripts/task.py create "<title>" --slug <task-name>
 - [OK] Manual feature testing passes
 
 **Project-specific checks**:
-- See `.trellis/spec/frontend/quality-guidelines.md` for frontend
+- See `.trellis/spec/frontend/quality-guidelines.md` for frontend (marimo notebooks)
 - See `.trellis/spec/backend/quality-guidelines.md` for backend
+
+### Testing layers
+
+Not everything runs in CI — know which gate you are (and are not) passing.
+
+| Layer | Command | In CI? | Needs |
+|-------|---------|--------|-------|
+| Unit + regression | `uv run pytest tests/unit tests/regression` | **Yes** — the only automated gate | nothing (FakeLLM, no network) |
+| Lint | `uv run ruff check <paths>` | Yes | nothing |
+| Demo acceptance UAT | `uv run python scripts/uat_finanzas.py --brief` | No | live LLM (`.env`) |
+| E2E (marimo apps) | `HEADLESS=1 uv run pytest tests/e2e/<file> -v -s` | No | live LLM + `uv run playwright install chromium` |
+
+**Consequences of that table** (learned the hard way):
+- A green CI proves the deterministic core only. Anything touching **retrieval,
+  grounding, citations or the marimo UI** must be exercised by the UAT/E2E layers
+  before you call it done — the pre-retrieval feature once passed every unit test
+  while being dead in the app (see `.trellis/spec/backend/chat-retrieval.md`).
+- E2E suites are **stateful and ordered**: the ingest E2E builds the fixture
+  workspace the read E2E consumes, so run ingest first. Each E2E owns its own
+  workspace dir + port so suites never fight.
+- Expensive or destructive E2E cases are **opt-in** via env flags (e.g.
+  `E2E_FULL=1` for the LLM lint sweep, `E2E_DESTRUCTIVE=1` for deletion), so the
+  default run stays cheap. Check the file's docstring for its flags.
+- The wiki UATs (`examples/<demo>/UAT*.md`) are the manual acceptance scripts for
+  a demo's behavior; keep them in sync when the behavior they assert changes.
+
+### Keeping docs honest
+
+Documentation rot is not a discipline problem — this project had a "update the
+spec docs" checklist item and still shipped a reference to a file that did not
+exist, six references to a deleted test, and a §6 that never mentioned a whole
+subsystem. Split the problem:
+
+**Derivable facts are never maintained by hand.** They are generated or
+enforced:
+
+| Fact | Mechanism |
+|------|-----------|
+| Relative links in docs | `tests/unit/test_docs_links.py` — fails CI on a dead link |
+| Ingestion artifact counts | generated: `scripts/capture_ingestion_walkthrough.py` |
+| Test counts / badges | prefer deleting the number over maintaining it |
+
+If you find yourself typing a number into prose that a command could compute,
+that is a rot surface — generate it, assert it, or drop it.
+
+**Judgment facts need a trigger, not a reminder.** "Update the docs" is
+unactionable; this is what actually enumerates what:
+
+| If you changed… | …these enumerate it |
+|---|---|
+| a lint check | `docs/manual/workflows.md` §6.1 (table + diagram) + quick-status table, **and the "self-maintaining wiki" Highlights bullet in both READMEs, which counts them** |
+| a repair action | §6.2 dispatch table |
+| a pipeline step | §6.3 (steps table + sequence diagram), `docs/ingestion_walkthrough.md` |
+| a chat tool | §6.7 tool inventory, `.trellis/spec/backend/chat-retrieval.md` |
+| a test file's name | both READMEs, `CONTRIBUTING.md`, `spec/backend/quality-guidelines.md`, `spec/backend/directory-structure.md` |
+| added a doc | the manual's index, the `docs/` tree in both READMEs |
 
 ---
 
@@ -352,8 +404,8 @@ python3 ./.trellis/scripts/task.py list-archive    # List archived tasks
 3. **After development complete**:
    - Use `/trellis:finish-work` for completion checklist
    - After fix bug, use `/trellis:break-loop` for deep analysis
-   - Human commits after testing passes
-   - Use `add_session.py` to record progress
+   - Commit after the human asks (and after testing passes)
+   - Use `/trellis:record-session` (or `add_session.py`) to record progress
 
 ### [X] DON'T - Should Not Do
 
@@ -362,7 +414,9 @@ python3 ./.trellis/scripts/task.py list-archive    # List archived tasks
 3. **Don't** develop multiple unrelated tasks simultaneously
 4. **Don't** commit code with lint/test errors
 5. **Don't** forget to update spec docs after learning something
-6. [!] **Don't** execute `git commit` - AI should not commit code
+6. [!] **Don't** run `git commit` / `git push` on your own initiative — the AI
+   commits **only when the human explicitly asks**, never as a side effect of
+   finishing a task (pushing to a branch with an open PR is outward-facing too)
 
 ---
 
@@ -397,9 +451,14 @@ python3 ./.trellis/scripts/task.py list      # List tasks
 python3 ./.trellis/scripts/task.py create "<title>" # Create task
 
 # Slash commands
-/trellis:finish-work          # Pre-commit checklist
-/trellis:break-loop           # Post-debug analysis
+/trellis:start                # Begin a session (context + guidelines)
+/trellis:before-backend-dev   # Read backend guidelines before coding
+/trellis:check-backend        # Verify backend correctness after coding
 /trellis:check-cross-layer    # Cross-layer verification
+/trellis:finish-work          # Pre-commit checklist
+/trellis:update-spec          # Capture a contract into .trellis/spec/
+/trellis:record-session       # Record the session after the human commits
+/trellis:break-loop           # Post-debug analysis
 ```
 
 ---

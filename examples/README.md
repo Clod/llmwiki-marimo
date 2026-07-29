@@ -9,6 +9,7 @@ browse** (chat needs an LLM; browsing the generated pages does not).
 |------|----------|----------|
 | `fairy-tales/` | English | Three public-domain fairy tales (Cinderella, Snow White, Little Red Riding Hood) ingested into concept + summary pages, with a prebuilt FTS index. |
 | `cuentos-de-hadas/` | Spanish (`es`) | Three public-domain tales (La Cenicienta, Blancanieves, Caperucita Roja — Perrault & the Grimms) ingested into Spanish concept + summary pages, with a prebuilt FTS index. Mirrors `fairy-tales/` to show the `language = "es"` path. |
+| `finanzas-argentinas/` | Spanish (`es`) | Argentine personal-finance advisor. Six instrument docs (plazo fijo, FCI money market, caución, acciones, bonos CER/UVA, dólar linked) ingested into Spanish concept + summary pages, **plus a `datasets/` folder** of live rates/prices that a deterministic `estimar_alternativas` advisory ranks and cites (never fabricating a number; equities/FX flagged non-estimable). Ships `GUIA_DEMO.md`, a step-by-step demo script that doubles as a 9-question acceptance test. |
 
 ## What's inside a demo
 
@@ -25,6 +26,11 @@ fairy-tales/
 > search-ready. The demo's own `.gitignore` still excludes `.llmwiki/`, so when
 > the installer copies this folder into your `wikis/` and you later ingest your
 > own documents there, your index churn won't be tracked.
+
+A demo may also carry a **`datasets/`** folder (markdown tables of live,
+structured data such as rates or prices) and a **`GUIA_DEMO.md`** walkthrough —
+`finanzas-argentinas/` has both. Datasets feed the chat's `query_dataset` tool
+and any domain advisory; see that demo's guide for a worked example.
 
 ## Adding a demo
 

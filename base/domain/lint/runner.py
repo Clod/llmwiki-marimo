@@ -11,6 +11,8 @@ from .checks import (
     missing_xref_check,
     orphan_check,
     staleness_check,
+    thin_page_check,
+    vocabulary_check,
 )
 from .report import LintReport
 
@@ -43,6 +45,10 @@ def lint_wiki(
     issues.extend(missing_concept_check(db_path, workspace))
     _p("🔎 lint: gap-filled markers")
     issues.extend(gap_filled_check(db_path))
+    _p("🔎 lint: vocabulary")
+    issues.extend(vocabulary_check(db_path, workspace))
+    _p("🔎 lint: thin pages")
+    issues.extend(thin_page_check(db_path))
     if client:
         _p("🔎 lint: contradiction sweep (LLM, pairwise)…")
         issues.extend(contradiction_check(db_path, workspace, client, model, progress_cb))

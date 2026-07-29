@@ -499,3 +499,51 @@ def repair_gap_filled(
         action="gap_resolved", success=True,
         message=f"Linked '{slug}' → {target_path}",
     )
+
+
+def repair_vocab_collision(
+    issue: LintIssue,
+    db_path: str,
+    workspace: Path,
+) -> RepairResult:
+    """Drop a colliding alias from the GENERATED artifact (machine-owned only).
+
+    A `vocab_collision` can come from two places: the generated artifact
+    (`.llmwiki/aliases.generated.toml`, machine-owned) or a hand override in
+    `wiki_config.toml` (human-authored). This repair only ever edits the generated
+    artifact — never the human's config. If the offending alias isn't in the
+    artifact, it came from a hand override, so we surface it and skip rather than
+    silently rewrite a file the user wrote by hand.
+    """
+    from domain.chat.vocabulary import (
+        normalize,
+        read_generated_aliases,
+        write_generated_aliases,
+    )
+
+    alias_norm = normalize(issue.alias)
+    current = read_generated_aliases(workspace)
+    in_artifact = any(
+        normalize(a) == alias_norm for aliases in current.values() for a in aliases
+    )
+    if not alias_norm or not in_artifact:
+        return RepairResult(
+            check="vocab_collision", page=issue.page,
+            action="skipped", success=True,
+            message=(
+                f"Alias '{issue.alias}' is a hand override in wiki_config.toml, not in the "
+                "generated artifact — resolve it by hand or add it to [falsos_sinonimos]"
+            ),
+        )
+
+    cleaned = {
+        canonical: kept
+        for canonical, aliases in current.items()
+        if (kept := [a for a in aliases if normalize(a) != alias_norm])
+    }
+    write_generated_aliases(workspace, cleaned)
+    return RepairResult(
+        check="vocab_collision", page=issue.page,
+        action="deleted", success=True,
+        message=f"Dropped colliding alias '{issue.alias}' from the generated artifact",
+    )

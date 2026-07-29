@@ -7,6 +7,7 @@ from domain.ingestion.wiki_generator import (
     ExtractionResult,
     build_concept_page,
     build_summary_page,
+    extract_dataset_aliases,
     extract_structured,
     update_overview,
 )
@@ -39,6 +40,49 @@ def test_extract_structured_parses_valid_json() -> None:
     assert result.concepts[0].name == "Federal Reserve"
     assert result.concepts[0].category == "entity"
     assert result.concepts[1].name == "Quantitative Easing"
+
+
+_JSON_WITH_ALIASES = json.dumps({
+    "document_summary": "This document explains CEDEARs.",
+    "concepts": [
+        {
+            "name": "CEDEAR",
+            "category": "instrument",
+            "insight": "A certificate representing a foreign share",
+            "aliases": ["Certificado de Depósito Argentino", "CEDEARs"],
+        },
+    ],
+})
+
+
+def test_extract_structured_parses_aliases() -> None:
+    """Phase-1 of the ingest-time vocabulary: concepts carry their alt-names."""
+    llm = FakeLLMClient(response_content=_JSON_WITH_ALIASES)
+    result = extract_structured(_DOC_META, _PAGE_CONTENTS, llm, "fake")
+    assert result.concepts[0].name == "CEDEAR"
+    assert result.concepts[0].aliases == ["Certificado de Depósito Argentino", "CEDEARs"]
+
+
+def test_extract_structured_aliases_default_empty_when_absent() -> None:
+    """Back-compat: JSON without an 'aliases' key yields an empty list, not an error."""
+    llm = FakeLLMClient(response_content=_VALID_JSON)  # _VALID_JSON has no aliases
+    result = extract_structured(_DOC_META, _PAGE_CONTENTS, llm, "fake")
+    assert result.concepts[0].aliases == []
+    assert result.concepts[1].aliases == []
+
+
+def test_extract_structured_drops_blank_and_nonstring_aliases() -> None:
+    """The parser keeps only non-empty string aliases (defensive against LLM noise)."""
+    noisy = json.dumps({
+        "document_summary": "s",
+        "concepts": [
+            {"name": "Dólar", "category": "instrument", "insight": "i",
+             "aliases": ["blue", "", "  ", None, 42, "billete verde"]},
+        ],
+    })
+    llm = FakeLLMClient(response_content=noisy)
+    result = extract_structured(_DOC_META, _PAGE_CONTENTS, llm, "fake")
+    assert result.concepts[0].aliases == ["blue", "billete verde"]
 
 
 def test_extract_structured_strips_markdown_fences() -> None:
@@ -275,6 +319,65 @@ def test_update_overview_handles_none_content() -> None:
         model="fake",
     )
     assert result == ""
+
+
+# ── extract_dataset_aliases (Piece 4: the dataset-alias LLM pass) ──────────────
+
+_DATASET_ALIAS_JSON = json.dumps({
+    "aliases": {
+        "dólar": ["billete verde", "verde"],
+        "plazo fijo": ["pf"],
+    }
+})
+
+
+def test_extract_dataset_aliases_parses_map() -> None:
+    llm = FakeLLMClient(response_content=_DATASET_ALIAS_JSON)
+    result = extract_dataset_aliases(["dólar", "plazo fijo"], llm, "fake")
+    assert result == {"dólar": ["billete verde", "verde"], "plazo fijo": ["pf"]}
+
+
+def test_extract_dataset_aliases_empty_terms_skips_llm() -> None:
+    """No terms → no LLM call, empty map (nothing to propose)."""
+    llm = FakeLLMClient(response_content=_DATASET_ALIAS_JSON)
+    assert extract_dataset_aliases([], llm, "fake") == {}
+    assert llm.calls == []
+
+
+def test_extract_dataset_aliases_sends_terms_in_prompt() -> None:
+    llm = FakeLLMClient(response_content=_DATASET_ALIAS_JSON)
+    extract_dataset_aliases(["dólar", "plazo fijo"], llm, "fake")
+    prompt = llm.calls[0]["messages"][1]["content"]
+    assert "dólar" in prompt and "plazo fijo" in prompt
+
+
+def test_extract_dataset_aliases_strips_fences() -> None:
+    fenced = f"```json\n{_DATASET_ALIAS_JSON}\n```"
+    llm = FakeLLMClient(response_content=fenced)
+    result = extract_dataset_aliases(["dólar", "plazo fijo"], llm, "fake")
+    assert result == {"dólar": ["billete verde", "verde"], "plazo fijo": ["pf"]}
+
+
+def test_extract_dataset_aliases_cleans_blank_and_nonstring() -> None:
+    noisy = json.dumps({"aliases": {"dólar": ["blue", "", "  ", None, 42, "verde"]}})
+    llm = FakeLLMClient(response_content=noisy)
+    result = extract_dataset_aliases(["dólar"], llm, "fake")
+    assert result == {"dólar": ["blue", "verde"]}
+
+
+def test_extract_dataset_aliases_falls_back_on_invalid_json() -> None:
+    llm = FakeLLMClient(response_content="not json at all")
+    assert extract_dataset_aliases(["dólar"], llm, "fake") == {}
+
+
+def test_extract_dataset_aliases_tolerates_non_dict_aliases() -> None:
+    llm = FakeLLMClient(response_content=json.dumps({"aliases": ["oops", "a list"]}))
+    assert extract_dataset_aliases(["dólar"], llm, "fake") == {}
+
+
+def test_extract_dataset_aliases_handles_none_content() -> None:
+    llm = FakeLLMClient(response_content=None)
+    assert extract_dataset_aliases(["dólar"], llm, "fake") == {}
 
 
 def test_concept_structuring_prompts_preserve_citations() -> None:

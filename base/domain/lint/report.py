@@ -12,6 +12,7 @@ class LintIssue:
     suggestion: str
     related_page: str = ""  # the "other" page (path_b) for xref/contradiction
     topic: str = ""         # gap topic slug for data_gap / gap_filled
+    alias: str = ""         # the offending alias for vocab_collision (drives the auto-repair)
 
 
 @dataclass

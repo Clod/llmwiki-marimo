@@ -29,6 +29,26 @@ def test_no_citation_when_absent() -> None:
     assert graders.has_citation("She flees the ball at midnight.") is False
 
 
+def test_citation_detected_for_referencia_line() -> None:
+    # The system-prompt-specified / ensure_citation-emitted format: a trailing
+    # "Referencia: <page>" line, no surrounding parentheses.
+    answer = (
+        "La caución bursátil es de bajo riesgo.\n\n"
+        "Referencia: wiki/concepts/caucion-bursatil.md"
+    )
+    assert graders.has_citation(answer) is True
+
+
+def test_citation_detected_for_fuente_line() -> None:
+    assert graders.has_citation("El dólar MEP está a 1180.\nFuente: ambito.com") is True
+
+
+def test_referencia_line_counts_and_extracts() -> None:
+    text = "Texto.\n\nReferencia: dolar.md, ambito.com"
+    assert graders.citation_count(text) == 2
+    assert graders.extract_citations(text) == ["dolar.md", "ambito.com"]
+
+
 def test_citation_count_is_distinct() -> None:
     text = (
         "a (wiki/summaries/cinderella.md) b (wiki/summaries/snow-white.md) "

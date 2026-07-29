@@ -24,9 +24,10 @@ from .extractor import extract, LibreOfficeNotInstalledError, check_libreoffice
 from .index_manager import update_index, remove_index_entry
 from .wiki_generator import (
     build_wiki_page, make_wiki_slug,
-    extract_structured, build_summary_page, build_concept_page, update_overview,
-    inject_see_also,
+    extract_structured, extract_dataset_aliases, build_summary_page, build_concept_page,
+    update_overview, inject_see_also,
 )
+from .alias_generation import regenerate_dataset_aliases, update_generated_aliases
 from domain.i18n import get_locale
 from domain.tools.db import open_db
 from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
@@ -293,6 +294,21 @@ def ingest_file(
                     one_liner = concept.insight[:80] if concept.insight else concept.name
                     update_index(workspace, f"concepts/{slug}.md", one_liner, "concepts", language=language)
 
+            # ── Step 8b: Update the generated alias artifact (best-effort) ────
+            # Concepts contribute their name + aliases to .llmwiki/aliases.generated.toml,
+            # validated against the wiki's coverage. Never abort ingest on failure —
+            # the pages are the deliverable; an alias is secondary.
+            try:
+                _alias_result = update_generated_aliases(
+                    workspace,
+                    _all_concept_names(db_path),
+                    [(c.name, c.aliases) for c in extraction.concepts],
+                )
+                if _alias_result.collisions:
+                    _cb(f"⚠️ {len(_alias_result.collisions)} alias collision(s) dropped")
+            except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail ingest
+                logger.warning("alias generation failed for %s: %s", file_path.name, exc)
+
             # ── Step 9: Create summary page ───────────────────────────────────
             _cb("📄 Writing summary page...")
             with tracer.stage("summary"):
@@ -513,6 +529,24 @@ def scan_and_ingest(
             results.append(
                 ingest_file(fp, db_path, workspace, llm_client, model, progress_cb, language=language)
             )
+
+        # ── Dataset-alias pass (Piece 4): aliases for the known data terms ────
+        # A workspace-level regen (the dataset vocab doesn't change per-doc, so it
+        # isn't part of ingest_file). Gated on a fingerprint of the vocabulary, so
+        # the LLM runs only when the datasets/ actually changed. Best-effort — an
+        # alias must never fail a scan.
+        try:
+            _ds = regenerate_dataset_aliases(
+                workspace,
+                _all_concept_names(db_path),
+                lambda terms: extract_dataset_aliases(terms, llm_client, model, language=language),
+            )
+            if _ds and _ds.collisions:
+                _cb(f"⚠️ {len(_ds.collisions)} dataset-alias collision(s) dropped")
+            elif _ds:
+                _cb(f"🔤 Generated aliases for {len(_ds.aliases)} data term(s)")
+        except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail the scan
+            logger.warning("dataset alias generation failed: %s", exc)
 
     ingested = sum(1 for r in results if r.status == "ingested")
     skipped  = sum(1 for r in results if r.status == "skipped")

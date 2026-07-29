@@ -19,6 +19,9 @@
 5. [Native Tool Layer](#5-native-tool-layer)
 6. [Workflows](manual/workflows.md) — *(companion file)* lint · repair · ingest ·
    batch · scan · regenerate · chat/RAG · chat→wiki · source/page deletion
+   — see also the narrative counterparts, both with real, regenerable numbers:
+   the [Ingestion Walkthrough](ingestion_walkthrough.md) (what ingestion builds)
+   and the [Query Walkthrough](query_walkthrough.md) (how a question is routed)
 7. [Marimo Apps](#7-marimo-apps)
 8. [Configuration](#8-configuration)
 9. [Testing](#9-testing)
@@ -27,6 +30,7 @@
 12. [Future Enhancements](#12-future-enhancements)
 13. [Glossary](#13-glossary)
 14. [Tracing & Observability](#14-tracing--observability)
+15. [Datasets, Grounding Guardrail & the `finance_argentina` Overlay](#15-datasets-grounding-guardrail--the-finance_argentina-overlay)
 
 Status legend used throughout: ✅ implemented · 🟡 partial · ❌ missing.
 
@@ -176,16 +180,29 @@ llmwiki/
 │   ├── config.py                       # pydantic-settings (.env)
 │   └── domain/
 │       ├── chat/
-│       │   ├── agent.py                # create_agent() factory
+│       │   ├── agent.py                # create_agent() factory (+ extra_tools/extra_prompt seam)
 │       │   ├── config.py               # _DEFAULT_SYSTEM_PROMPT + load_config()
 │       │   ├── tools.py                # search_source_chunks (async, sources scope)
-│       │   └── wiki_tools.py           # read_wiki_page, search_wiki_fts,
-│       │                               #   save_to_wiki (form-driven)
+│       │   ├── wiki_tools.py           # read_wiki_page, search_wiki_fts, save_to_wiki
+│       │   ├── dataset_tools.py        # query_dataset (current structured values; §15)
+│       │   └── guardrail.py            # cite-or-refuse grounding post-check (§15)
+│       ├── datasets/                    # Generic transient-data engine (§15)
+│       │   ├── models.py               # DatasetRow + DatasetSource Protocol
+│       │   ├── frontmatter.py          # YAML front-matter (PyYAML)
+│       │   ├── parser.py               # matriz/largo markdown → normalized rows
+│       │   └── source.py               # LocalMarkdownSource (parse-on-read) + has_active_datasets
 │       ├── eval/                        # Half-automated UAT eval packet (§9)
 │       │   ├── graders.py              # pure regex/leak checks (shared w/ eval_chat_model)
 │       │   ├── rubric.py               # frozen judge instructions + 1–5 rubric + probes
 │       │   ├── packet.py               # dataclasses + pure markdown render
 │       │   └── reader.py               # read-only evidence gathering from a wiki DB
+│       ├── finance_argentina/           # Example domain overlay: investment advisory (§15)
+│       │   ├── requirements.py / .md   # manifest: what each category needs
+│       │   ├── concept_attrs.py        # finance attrs read from concept front-matter
+│       │   ├── validator.py            # domain lint (datasets + attributes)
+│       │   ├── formulae.py             # deterministic TEA / gain math
+│       │   ├── advisory.py             # estimate_alternatives()
+│       │   └── agent_tool.py           # estimar_alternativas tool + activate()
 │       ├── ingestion/
 │       │   ├── pipeline.py             # ingest_file, scan_and_ingest,
 │       │   │                           #   regenerate_wiki_pages
@@ -228,15 +245,18 @@ llmwiki/
 │   ├── build_golden_corpus.py          # Build/freeze the golden-corpus snapshot (§9)
 │   ├── eval_chat_model.py              # PASS/FAIL smoke test of the chat model (§9)
 │   ├── build_eval_packet.py            # Generate the half-automated UAT eval packet (§9)
+│   ├── uat_finanzas.py                 # Run the finanzas-argentinas demo UAT (9 GUIA_DEMO.md questions)
 │   └── render_trace.py                 # Render a trace.jsonl run to a timeline (§14.7)
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
-│   ├── unit/                           # 276 unit tests (no LLM, no network)
+│   ├── unit/                           # 487 unit tests (no LLM, no network)
 │   ├── regression/                     # golden-corpus + eval-reader invariants (skips until frozen)
-│   └── e2e/                            # 9 Playwright tests (live marimo + LLM)
+│   └── e2e/                            # 11 Playwright tests (live marimo + LLM)
 ├── examples/                          # Pre-ingested demo wikis for quickstart.py (§7)
-│   └── fairy-tales/                   # Complete workspace; browsable with no LLM
+│   ├── fairy-tales/                   # Complete workspace; browsable with no LLM
+│   ├── cuentos-de-hadas/             # Spanish (es) mirror of fairy-tales
+│   └── finanzas-argentinas/          # Spanish advisor demo: datasets/ + GUIA_DEMO.md
 ├── docs/
 │   ├── programmer_manual.md            # THIS FILE
 │   ├── sqlite_data_dictionary.md       # Per-column DB reference
@@ -524,7 +544,9 @@ each runner's `finally`), with a defensive sweep of leaked handlers on the next 
 
 ### `read_app.py`
 
-Three-column grid:
+Three-column layout (cells tagged `@app.cell(column=N)` — no grid file; the
+former `layouts/read_app.grid.json` was removed because a positional grid
+desyncs whenever cells are added):
 
 | Pane                  | Cell                       | Role                                                                                                   |
 | --------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -535,7 +557,8 @@ Three-column grid:
 | — (logic only)        | `delete_event_cell`        | Watches `delete_widget.event_id`; fires `set_delete_trigger` on confirm                                |
 | — (logic only)        | `delete_runner`            | Calls `wiki_fs.delete_page`, rescans page list, clears selection                                       |
 | Middle                | `middle_panel`             | Renders the selected page as markdown + nav links                                                      |
-| Right                 | `chat_panel`               | PydanticAI agent stream + suggested prompts                                                            |
+| Right                 | `chat_panel`               | PydanticAI agent + suggested prompts; grounding guardrail (§15) — strict → buffered + gated, off → streamed |
+| Right                 | `guardrail_flag`, `guardrail_toggle` | "Modo estricto" switch flips grounding; the flag is a plain dict read live inside `respond`, so toggling never rebuilds the chat |
 | Right (below chat)    | `save_form`, `save_action` | Saves the last assistant reply to the wiki via `save_to_wiki` with LLM structuring pass                |
 
 Two rendering details in this app:
@@ -721,8 +744,8 @@ wiki with the default assistant). See `wiki_config.example.toml` (English) or
 ### Run
 
 ```bash
-uv run pytest tests/unit/ -v               # 276 unit tests — fast, no LLM
-uv run pytest tests/e2e/ -v -s             # 9 E2E tests — live marimo + LLM (test_ingest_pdf is parametrized over 3 PDFs)
+uv run pytest tests/unit/ -v               # 470 unit tests — fast, no LLM
+uv run pytest tests/e2e/ -v -s             # 11 E2E tests — live marimo + LLM (test_ingest_pdf is parametrized over 3 PDFs)
 ```
 
 Slash commands: `/test-ingest`, `/test-read`, `/test-all`.
@@ -1249,3 +1272,105 @@ LLM and ask it to reconcile against `index.db`, or script it in a few lines of S
 - **Tests:** `tests/unit/test_trace.py` — channel resolution, disabled no-op, proxy
   transparency, sha/size-always-present, meta header shape, contextvar tagging, and an
   end-to-end ingest whose trace joins against the DB.
+
+---
+
+## 15. Datasets, Grounding Guardrail & the `finance_argentina` Overlay
+
+> Turns the wiki from a pure prose encyclopedia into a **knowledge-and-data**
+> engine: alongside the durable concept pages it can carry **live, structured
+> datasets**, and a domain overlay can compute **deterministic, cited advice**
+> over them. The engine is domain-neutral; `finance_argentina` is the first
+> overlay. Full design: `.trellis/spec/backend/datasets-format.md` (the
+> executable format contract), `docs/design_datasets.md` (interface design),
+> `docs/design_finance_argentina.md` (the overlay).
+
+### 15.1 The two-kind-of-knowledge model
+
+| Kind | Nature | Cadence | Pipeline |
+|------|--------|---------|----------|
+| **Conceptual** | distilled prose (what something *is*) | seldom | the concept pipeline (§6), unchanged |
+| **Dataset** | structured tabular values (the current numbers) | periodic | this section — parsed structurally, replace-on-refresh, **never LLM-distilled** |
+
+Datasets are **opt-in per workspace**: dormant unless `WORKSPACE/datasets/` holds
+≥1 valid file (`datasets.source.has_active_datasets`). A wiki without it is
+byte-identical to before (guarded by `tests/unit/test_chat_agent_datasets.py::test_optionality_guard`).
+
+### 15.2 Dataset engine (`base/domain/datasets/`, domain-neutral)
+
+- **Format** — one markdown file per category, `datasets/<categoria>.md`, with
+  YAML front-matter declaring its shape (`type: dataset`, `categoria`, `formato`
+  ∈ {`matriz`, `largo`}, `as_of`, `fuente`, + mapping keys) and one table.
+  `parser.parse_dataset_markdown` flattens it to a normalized row `(categoria,
+  clave, metrica, valor, unidad, dims, as_of, fuente)`. The reject-file / skip-row
+  / warn validation matrix (all logged, never swallowed) is in the spec §5.
+- **Access** — `models.DatasetSource` Protocol (`categories()`, `query()`);
+  `source.LocalMarkdownSource` is the parse-on-read implementation. Backend-
+  agnostic, so a remote service could implement the same Protocol. `query()`
+  confines the (LLM-supplied) `categoria` to `datasets/` — a path-traversal guard
+  mirroring `read_wiki_page`.
+- **Chat tool** — `chat/dataset_tools.query_dataset` returns a compact, cited
+  markdown table; the agent quotes values verbatim with their `as_of` date.
+  Registered on the agent only when the workspace has datasets, via the generic
+  `extra_tools`/`extra_prompt` seam on `chat/agent.create_agent` (engine stays
+  domain-agnostic).
+
+### 15.3 Grounding guardrail (`base/domain/chat/guardrail.py`)
+
+A deterministic post-check: a run is *grounded* iff some tool returned
+substantive content (`has_grounding`); otherwise `enforce_grounding` replaces the
+answer with a language-appropriate refusal (`REFUSAL_ES`/`REFUSAL_EN`). It catches
+answers the model leaks despite the system prompt (general knowledge on "related"
+topics). Wired in `read_app.respond`, toggled by the "Modo estricto" GUI switch:
+
+- **ON** → run to completion, then gate (refuse if ungrounded). Cannot stream —
+  you can't retract text already shown.
+- **OFF** → stream token-by-token (original UX), ungated.
+
+The toggle is a plain shared dict read at call-time (not `mo.state`, which isn't
+reliably live inside the async chat closure), so flipping it never rebuilds the
+chat. Known limit: it catches *no-evidence* answers, not an answer that ignored
+evidence it did retrieve (that needs answer-vs-source verification — deferred).
+
+### 15.4 `finance_argentina` overlay (`base/domain/finance_argentina/`)
+
+Concrete domain logic (Argentine personal finance), Spanish-facing. Reads the
+engine's `DatasetSource` + concept front-matter; the engine never imports it.
+
+- **Requirements manifest** (`requirements.md` + `requirements.py`) — single
+  source of truth: per category, which dataset `metricas` and concept
+  `attributes` are required. Read by the validator (and, later, a producer).
+- **Concept attributes** (`concept_attrs.py`) — finance vocabulary read from the
+  concept page front-matter: `disponibilidad`, `plazos_dias`, `monto_minimo`,
+  `moneda`, `metodo_calculo`, `metrica_tasa`, `depende_de` (the *factual* driver
+  of variability for non-deterministic instruments — distinct from cited risk).
+- **Validator** (`validator.py`) — a domain lint check over **structured md only**
+  (datasets + concept attributes, never prose/PDFs); excludes a failing category
+  from the advisory with an honest reason.
+- **Formulae** (`formulae.py`) — deterministic `tea(metodo_calculo, r, term)` and
+  `projected_gain(P, tea, horizon_days)`; raises on `no_deterministico` rather
+  than fabricating.
+- **Advisory** (`advisory.py`) — `estimate_alternatives(amount, horizon_months,
+  …)`: validator gate → eligibility (currency / min amount / term-fit) → list
+  **every** eligible option ranked by gain, plus a separate **variable-return**
+  section (flagged "no estimable" with its `depende_de` driver). Every figure
+  cited (value · `as_of` · `fuente`) under the stated assumption *"si la tasa
+  actual se mantiene"*.
+- **Tool + activation** (`agent_tool.py`) — the Spanish `estimar_alternativas`
+  tool and `activate(workspace)`, which registers it (via `extra_tools`) only
+  when the manifest validates with ≥1 passing category.
+
+**Honesty guarantees:** cite source **and date** for every figure; gain math is
+deterministic code, never the LLM; equities / inflation- / FX-linked instruments
+are flagged *not estimable* rather than guessed.
+
+### 15.5 Deferred (the "how" and beyond)
+
+- **Producer / data feed** — datasets are authored by hand today (a future
+  scheduled job or data-as-a-service would fill them). The cite-source-and-date
+  guarantee is only as honest as the data fed in.
+- **Held-to-maturity & scenario estimation** (bonds/LECAPs; "if inflation = X%")
+  — would move some `no_deterministico` instruments into estimable, under an
+  explicit stated assumption.
+- **Multi-currency comparison** (FX across ARS/USD), **GRAN** (one concept page →
+  several advisory categories), and **personal holdings**.

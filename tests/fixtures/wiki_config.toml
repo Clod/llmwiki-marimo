@@ -1,4 +1,4 @@
-# Test wiki configuration — used by E2E tests pointing at tests/fixtures/workspace/
+# Test wiki configuration — copied into the E2E workspace (tests/fixtures/workspace_e2e/)
 
 [assistant]
 system_prompt = """
