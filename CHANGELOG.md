@@ -11,6 +11,8 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-29
+
 ### Added
 - **Dataset engine** — a domain-neutral `datasets/` capability: tabular data
   files the assistant queries through an opt-in `query_dataset` tool, kept
@@ -206,7 +208,8 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.3...master
+[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.3.0...master
+[0.3.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.0...v0.2.1
