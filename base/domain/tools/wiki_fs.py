@@ -24,6 +24,8 @@ from pathlib import Path
 
 # Specialized connection opener function from our local database utilities
 from domain.tools.db import open_db
+# Frontmatter writer/parser shared with dataset files — see module docstring
+from domain.datasets.frontmatter import parse_frontmatter, render_frontmatter, split_frontmatter
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
@@ -159,6 +161,103 @@ def _strip_dead_links(
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+_PAGE_TYPE_BY_DIR = {
+    "/wiki/concepts/": "concept",
+    "/wiki/summaries/": "summary",
+}
+
+
+def _resource_for_raw_source(raw: str) -> str:
+    """Map a raw source identifier — a bare filename, or the "chat" sentinel —
+    to an OKF `resource` value.
+
+    Every call site (pipeline.py's ingested-file sources, wiki_tools.py's
+    chat-saved sources) passes a bare identifier with no path, since that's
+    what this module always accepted before OKF's mapping shape existed.
+    "chat" is the stable identifier for a non-file chat-synthesis origin, so it
+    is left as-is; anything else is an ingested document's filename, resolved
+    relative to the workspace root as `sources/<filename>`.
+    """
+    if raw == "chat" or raw.startswith("sources/"):
+        return raw
+    return f"sources/{raw}"
+
+
+def _normalize_source_entry(entry: object) -> dict[str, str] | None:
+    """Normalize one `sources` entry to this module's mapping shape {"resource": ...}.
+
+    Accepts both the legacy bare-string shape (every page written before OKF's
+    provenance-list shape existed — that's every page under examples/, and
+    every page any earlier build of create_page wrote) and the current mapping
+    shape (passed through, keeping only `resource` — the other OKF provenance
+    keys are optional and this module never writes them). Returns None for
+    anything a resource can't be recovered from, so callers can drop it.
+    """
+    if isinstance(entry, str):
+        if not entry:
+            return None
+        return {"resource": _resource_for_raw_source(entry)}
+    if isinstance(entry, dict):
+        resource = entry.get("resource")
+        if isinstance(resource, str) and resource:
+            return {"resource": resource}
+        return None
+    return None
+
+
+def _sources_from_fm_block(fm_block: str | None) -> list[dict[str, str]]:
+    """Parse and normalize the `sources` list out of a frontmatter block.
+
+    Migrates the legacy bare-string shape to the current mapping shape (see
+    `_normalize_source_entry`) so a read never re-introduces a mixed-type
+    list. Deduplicates on `resource`, keeping the first occurrence. Returns []
+    for anything not a list, or a wholly malformed frontmatter block.
+    """
+    if fm_block is None:
+        return []
+    try:
+        fields = parse_frontmatter(fm_block)
+    except ValueError:
+        return []
+    raw = fields.get("sources")
+    if not isinstance(raw, list):
+        return []
+    normalized: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for entry in raw:
+        norm = _normalize_source_entry(entry)
+        if norm is None or norm["resource"] in seen:
+            continue
+        seen.add(norm["resource"])
+        normalized.append(norm)
+    return normalized
+
+
+def _existing_sources(file_path: Path) -> list[dict[str, str]]:
+    """Read the (normalized) `sources` list from a page already on disk, or []
+    if absent/malformed.
+
+    Used so re-saving a page accumulates sources in code rather than asking the
+    LLM to remember and re-transcribe them.
+    """
+    if not file_path.exists():
+        return []
+    try:
+        old_text = file_path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    fm_block, _ = split_frontmatter(old_text)
+    return _sources_from_fm_block(fm_block)
+
+
+def _lookup_source_document_filename(conn: sqlite3.Connection, source_document_id: str) -> str | None:
+    """Look up a document's filename by id, for resolving the default `sources` value."""
+    row = conn.execute(
+        "SELECT filename FROM documents WHERE id = ?", (source_document_id,)
+    ).fetchone()
+    return row["filename"] if row else None
+
+
 def create_page(
     db_path: str,
     workspace: Path,
@@ -169,8 +268,40 @@ def create_page(
     tags: list[str],
     overwrite: bool = False,
     source_document_id: str | None = None,
+    sources: list[str] | None = None,
+    replace_sources: bool = False,
 ) -> dict:
     """Write a wiki page to disk and insert/update the DB record.
+
+    Frontmatter (`type`, `title`, `tags`, `sources`) is rendered here in code —
+    never trust the model to transcribe it. Any frontmatter already present in
+    `content` (e.g. leftover from an older prompt) is discarded, not duplicated.
+
+    `sources` follows OKF's provenance shape: a list of mappings, each with a
+    `resource` key (e.g. `{"resource": "sources/report.pdf"}`), never a bare
+    string. Callers still pass plain identifiers (an ingested filename, or the
+    "chat" sentinel) via the `sources=` param — `_resource_for_raw_source`
+    resolves those to the mapping shape. Reads of any existing `sources` (on
+    disk, or in `content`'s own frontmatter) accept both this mapping shape and
+    the legacy bare-string shape every page written before it existed — that's
+    every page under examples/, and every page an earlier build of this
+    function wrote — normalizing the legacy form so a save never produces a
+    mixed-type list.
+
+    `sources` accumulates across saves by default: an existing on-disk `sources`
+    list is unioned with the incoming one (existing first, then new entries not
+    already present, deduplicated on `resource`). When `sources` is not passed
+    and `source_document_id` is given, it resolves to that document's filename.
+
+    `replace_sources=True` makes the resolved `sources` authoritative instead of
+    unioned with disk. Resolution order in that mode: the explicit `sources=`
+    argument if given; otherwise the `sources` already recorded in `content`'s
+    own frontmatter; otherwise the key is omitted. This is what lets ingestion
+    rollback (`_rollback_wiki_pages`, pipeline.py) restore a page's prior
+    sources exactly, instead of inheriting the source the now-rolled-back run
+    wrote to disk — the prior DB snapshot it restores from already carries the
+    prior frontmatter, `sources` included (possibly in the legacy shape, which
+    this function migrates just like any other read).
 
     Returns {"id": doc_id, "path": relative_path}.
     Raises FileExistsError if the page exists and overwrite=False.
@@ -185,13 +316,64 @@ def create_page(
     if file_path.exists() and not overwrite:
         raise FileExistsError(f"Page already exists: {relative_path}")
 
-    # 3. Create any parent directories if they don't exist, and write file to disk
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(content, encoding="utf-8")
-
-    # 4. Open a database connection to synchronize the change
+    # 3. Open a database connection early — needed both for the source-filename
+    #    lookup below and for the DB sync later.
     conn = open_db(db_path)
     try:
+        # 4. Strip any frontmatter the caller (typically an LLM transcription,
+        #    or — for a rollback restore — the prior DB snapshot) already put
+        #    in `content`; it gets replaced wholesale, never merged. Keep the
+        #    stripped-off block too: replace_sources reads its `sources`.
+        #    render_frontmatter's own block already ends in a blank line, so
+        #    drop any leading blank line the body carries — otherwise
+        #    re-saving an already-fronted page would double it up.
+        incoming_fm_block, body = split_frontmatter(content)
+        body = body.lstrip("\n")
+
+        # 5/6. Resolve `sources` (list of {"resource": ...} mappings — see the
+        # docstring for the legacy-string migration and replace_sources rules).
+        if replace_sources:
+            # Authoritative — never unioned with what's on disk.
+            if sources is not None:
+                merged_sources = []
+                seen_resources: set[str] = set()
+                for raw in sources:
+                    resource = _resource_for_raw_source(raw)
+                    if resource not in seen_resources:
+                        seen_resources.add(resource)
+                        merged_sources.append({"resource": resource})
+            else:
+                merged_sources = _sources_from_fm_block(incoming_fm_block)
+        else:
+            # Accumulate: whatever is already on disk (already normalized —
+            # legacy bare strings included), plus any new ones not already
+            # present, existing entries first (order-stable), deduped on
+            # `resource`.
+            resolved_sources = sources
+            if resolved_sources is None and source_document_id is not None:
+                looked_up = _lookup_source_document_filename(conn, source_document_id)
+                resolved_sources = [looked_up] if looked_up else None
+            merged_sources = _existing_sources(file_path)
+            seen_resources = {s["resource"] for s in merged_sources}
+            for raw in (resolved_sources or []):
+                resource = _resource_for_raw_source(raw)
+                if resource not in seen_resources:
+                    seen_resources.add(resource)
+                    merged_sources.append({"resource": resource})
+
+        # 7. Derive the OKF `type` field from the target directory.
+        page_type = _PAGE_TYPE_BY_DIR.get(dir_path, "page")
+
+        # 8. Render the frontmatter block in code and prepend it to the body.
+        frontmatter_block = render_frontmatter({
+            "type": page_type, "title": title, "tags": tags, "sources": merged_sources,
+        })
+        final_content = frontmatter_block + body
+
+        # 9. Create any parent directories if they don't exist, and write file to disk
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(final_content, encoding="utf-8")
+
         user_id = _get_user_id(conn)
         # Check if the document already exists in our database
         existing = conn.execute(
@@ -207,13 +389,13 @@ def create_page(
                     conn.execute(
                         "UPDATE documents SET content=?, tags=?, title=?, source_document_id=?, "
                         "version=version+1, updated_at=datetime('now') WHERE id=?",
-                        (content, json.dumps(tags), title, source_document_id, doc_id),
+                        (final_content, json.dumps(tags), title, source_document_id, doc_id),
                     )
                 else:
                     conn.execute(
                         "UPDATE documents SET content=?, tags=?, title=?, "
                         "version=version+1, updated_at=datetime('now') WHERE id=?",
-                        (content, json.dumps(tags), title, doc_id),
+                        (final_content, json.dumps(tags), title, doc_id),
                     )
                 # Remove the document's outdated search chunks before re-inserting
                 conn.execute("DELETE FROM document_chunks WHERE document_id=?", (doc_id,))
@@ -227,11 +409,11 @@ def create_page(
                     "file_type, status, content, tags, document_number, source_document_id) "
                     "VALUES (?,?,?,?,?,?,'wiki','md','ready',?,?,?,?)",
                     (doc_id, user_id, filename, title, dir_path, relative_path,
-                     content, json.dumps(tags), doc_number, source_document_id),
+                     final_content, json.dumps(tags), doc_number, source_document_id),
                 )
 
             # Reconstruct and insert search chunks to match the new text content
-            _insert_chunks(conn, doc_id, content)
+            _insert_chunks(conn, doc_id, final_content)
     finally:
         # Always close connection to prevent database locks or memory leaks
         conn.close()

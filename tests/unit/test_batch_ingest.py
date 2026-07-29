@@ -76,14 +76,24 @@ def test_batch_ingest_creates_concept_pages(tmp_workspace: WorkspaceFixture) -> 
 
 
 def test_batch_ingest_single_overview_update(tmp_workspace: WorkspaceFixture) -> None:
+    """overview.md now carries a code-rendered `type: overview` frontmatter block
+    (update_overview, wiki_generator.py) — it doesn't go through create_page, and
+    isn't OKF-reserved like index.md/log.md, so it needs one of its own."""
+    from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
+
     p1, p2 = _copy_pdfs(tmp_workspace)
     _make_llm(tmp_workspace)
     batch_ingest([p1, p2], tmp_workspace.db_path,
                  tmp_workspace.workspace, tmp_workspace.llm, "fake")
     overview = (tmp_workspace.workspace / "wiki" / "overview.md").read_text()
     assert "Knowledge Base Overview" in overview
+    fm_block, body = split_frontmatter(overview)
+    assert fm_block is not None
+    fields = parse_frontmatter(fm_block)
+    assert fields["type"] == "overview"
+    assert fields["title"] == "Knowledge Base Overview"
     # Overview was updated exactly once (the FakeLLM has exactly 1 overview response)
-    assert overview.strip() == _OVERVIEW.strip()
+    assert body.strip() == _OVERVIEW.strip()
 
 
 def test_batch_ingest_single_log_entry(tmp_workspace: WorkspaceFixture) -> None:

@@ -278,6 +278,7 @@ def ingest_file(
                     concept_result = create_page(
                         db_path, workspace, "/wiki/concepts/", slug,
                         concept.name, concept_md, [concept.category], overwrite=True,
+                        sources=[file_path.name],
                     )
                     wiki_compensations.append({
                         "dir_path": "/wiki/concepts/", "slug": slug,
@@ -466,10 +467,17 @@ def _rollback_wiki_pages(
                     remove_index_entry(workspace, f"{category}/{slug}.md", category, language=language)
                     acted += 1
             else:
+                # replace_sources=True: prior["content"] is the pre-overwrite DB
+                # snapshot and already carries the prior frontmatter (sources
+                # included) — restore it authoritatively rather than unioning
+                # with whatever the now-rolled-back run wrote to disk. Without
+                # this, a failed ingest's filename would permanently stick to
+                # the page's `sources` even though its content was restored.
                 create_page(
                     db_path, workspace, dir_path, slug,
                     prior["title"], prior["content"], prior["tags"],
                     overwrite=True, source_document_id=prior["source_document_id"],
+                    replace_sources=True,
                 )
                 update_references(db_path, prior["id"], prior["content"], dir_path)
                 acted += 1

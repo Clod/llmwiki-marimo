@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 
 
+from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
 from domain.ingestion.pipeline import ingest_file
 from domain.ingestion.wiki_generator import make_wiki_slug
 from domain.tools.db import get_connection
@@ -253,13 +254,24 @@ def test_ingest_rolls_back_created_pages_on_failure(tmp_workspace: WorkspaceFixt
 
 def test_ingest_restores_overwritten_page_on_failure(tmp_workspace: WorkspaceFixture) -> None:
     """A failure after overwriting a pre-existing concept must restore the prior
-    content, not leave the half-merged version behind."""
+    content AND the prior sources, not leave the half-merged version — or a
+    provenance claim naming the failed run's file — behind.
+
+    create_page now always renders a frontmatter block in code (type/title/tags/
+    sources — see domain/tools/wiki_fs.py), so a byte-exact restore of a page
+    that predates that block is no longer the right bar. What must hold: the
+    restored title/tags/body match the pre-ingest page exactly, AND `sources`
+    is restored exactly too (rollback passes replace_sources=True so the prior
+    snapshot's sources are authoritative, not unioned with what the failed run
+    wrote to disk — see _rollback_wiki_pages in pipeline.py).
+    """
     pdf = _copy_pdf(tmp_workspace)
     slug = make_wiki_slug("Snow White")
     original = "# Snow White\n\nORIGINAL CONTENT FROM A PRIOR SOURCE.\n"
     create_page(
         tmp_workspace.db_path, tmp_workspace.workspace,
         "/wiki/concepts/", slug, "Snow White", original, ["entity"],
+        sources=["prior-document.pdf"],
     )
 
     # Snow White (call 2) overwrites the existing page, then Evil Queen (call 3) fails.
@@ -272,10 +284,20 @@ def test_ingest_restores_overwritten_page_on_failure(tmp_workspace: WorkspaceFix
     assert result.status == "failed"
     page = tmp_workspace.workspace / "wiki" / "concepts" / f"{slug}.md"
     assert page.exists()  # pre-existing page survives
-    assert page.read_text(encoding="utf-8") == original  # restored to prior content
+    restored = page.read_text(encoding="utf-8")
+    fm_block, body = split_frontmatter(restored)
+    assert fm_block is not None
+    fields = parse_frontmatter(fm_block)
+    assert fields["title"] == "Snow White"
+    assert fields["tags"] == ["entity"]
+    assert "ORIGINAL CONTENT FROM A PRIOR SOURCE." in body
+    # sources restored exactly (OKF mapping shape) — the failed ingest's own
+    # file must NOT appear.
+    assert fields["sources"] == [{"resource": "sources/prior-document.pdf"}]
+    assert not any(pdf.name in s["resource"] for s in fields["sources"])
     with get_connection(tmp_workspace.db_path) as conn:
         row = conn.execute(
             "SELECT content FROM documents WHERE relative_path=?",
             (f"wiki/concepts/{slug}.md",),
         ).fetchone()
-    assert row["content"] == original  # DB row restored too
+    assert "ORIGINAL CONTENT FROM A PRIOR SOURCE." in row["content"]  # DB row restored too
