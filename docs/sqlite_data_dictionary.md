@@ -134,7 +134,7 @@ Stores key metadata, raw text content, and extraction/indexing status of files i
 | `id` | `TEXT` | `PRIMARY KEY` | `(lower(hex(randomblob(16))))` | A custom 32-character hexadecimal UUID string generated natively by SQLite. |
 | `user_id` | `TEXT` | `NOT NULL` | None | The identifier of the user who owns or imported the document. |
 | `filename` | `TEXT` | `NOT NULL` | None | The literal name of the file (e.g., `federal-reserve.md`). |
-| `title` | `TEXT` | None | None | A clean, human-readable title extracted from frontmatter or metadata. |
+| `title` | `TEXT` | None | None | A clean, human-readable title. For a wiki page it is what `create_page` was given — the concept name, or a title derived from the filename — and the same value is written into the page's front-matter, so the row and the file agree by construction. For a source it comes from the file metadata. |
 | `path` | `TEXT` | `NOT NULL` | `'/'` | Folder path inside the workspace directory (e.g., `/wiki/concepts`). |
 | `relative_path` | `TEXT` | `NOT NULL`, `UNIQUE` | None | The unique relative path from the workspace root. Acts as the primary logical key to find the physical file on disk. |
 | `source_kind` | `TEXT` | `NOT NULL`, `CHECK(source_kind IN ('wiki', 'source', 'asset'))` | None | Categorizes the file's function: <br>• `'wiki'`: Generated markdown pages under `wiki/` (summaries/, concepts/).<br>• `'source'`: Read-only source references (like PDFs).<br>• `'asset'`: Accompanying attachments or media files. |

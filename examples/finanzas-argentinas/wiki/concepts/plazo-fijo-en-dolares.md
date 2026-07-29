@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Plazo fijo en dólares
 tags: [instrument]
-sources: [10 Plazos Fijos.docx]
+sources:
+  - resource: sources/10 Plazos Fijos.docx
 ---
 
 # Plazo fijo en dólares

@@ -1,3 +1,8 @@
+---
+type: summary
+title: 01 Acciones Locales
+---
+
 # 01 Acciones Locales
 
 **Fuente:** 01 Acciones Locales.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-19

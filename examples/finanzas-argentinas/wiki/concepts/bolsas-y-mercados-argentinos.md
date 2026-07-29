@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Bolsas y Mercados Argentinos
 tags: [entity]
-sources: [01 Acciones Locales.docx]
+sources:
+  - resource: sources/01 Acciones Locales.docx
 ---
 
 # Bolsas y Mercados Argentinos

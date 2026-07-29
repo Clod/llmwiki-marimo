@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Riesgo Inflacionario en Cauciones
 tags: [theme]
-sources: [12 Cauciones Bursátiles.docx]
+sources:
+  - resource: sources/12 Cauciones Bursátiles.docx
 ---
 
 # Riesgo Inflacionario en Cauciones

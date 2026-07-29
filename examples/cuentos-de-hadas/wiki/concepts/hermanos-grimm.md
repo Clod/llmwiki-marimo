@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Hermanos Grimm
 tags: [entity]
-sources: [Blancanieves.pdf]
+sources:
+  - resource: sources/Blancanieves.pdf
 ---
 
 # Hermanos Grimm

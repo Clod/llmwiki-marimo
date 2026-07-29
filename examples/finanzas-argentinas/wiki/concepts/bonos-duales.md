@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Bonos Duales
 tags: [instrumento]
-sources: [05 Bonos Dólar Linked y Duales.docx]
+sources:
+  - resource: sources/05 Bonos Dólar Linked y Duales.docx
 ---
 
 # Bonos Duales

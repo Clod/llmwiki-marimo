@@ -1,6 +1,9 @@
 ---
+type: concept
+title: El lobo en Caperucita Roja
 tags: [entity]
-sources: [Caperucita Roja.pdf]
+sources:
+  - resource: sources/Caperucita Roja.pdf
 ---
 
 # El lobo en Caperucita Roja

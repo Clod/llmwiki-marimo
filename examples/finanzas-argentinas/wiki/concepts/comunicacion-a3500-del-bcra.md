@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Comunicación A3500 del BCRA
 tags: [tema]
-sources: [05 Bonos Dólar Linked y Duales.docx]
+sources:
+  - resource: sources/05 Bonos Dólar Linked y Duales.docx
 ---
 
 # Comunicación A3500 del BCRA

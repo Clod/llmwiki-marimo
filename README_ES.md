@@ -450,6 +450,24 @@ suggested_prompts = [
 
 Copia `wiki_config.example.toml` desde la raíz del proyecto como punto de partida (o `wiki_config_es.example.toml` para un wiki en español — la misma estructura con `language = "es"` y prompts en español). Si el archivo está ausente, se usan valores por defecto genéricos.
 
+### Quién va a buscar: el interruptor de pre-retrieval
+
+Por defecto el modelo tiene las herramientas de búsqueda y decide cuáles usar.
+Una sección `[pre_retrieval] enabled = true` da vuelta eso: el código recupera
+*antes* de consultar al modelo y decide, en Python, si esta wiki cubre la
+pregunta — absteniéndose sin gastar un token cuando no.
+
+Es un canje, no una mejora. Ganás la garantía de que la recuperación ocurrió y
+una abstención predecible; perdés alcance, porque la cobertura sale de los
+nombres de tus páginas de concepto, así que una pregunta que no nombra ninguno
+queda afuera aunque una búsqueda hubiera encontrado algo. Dejalo apagado para
+una wiki de prosa; encendelo cuando una respuesta equivocada cueste plata, una
+dosis o un plazo legal. Los demos que vienen con el proyecto discrepan a
+propósito — `examples/cuentos-de-hadas` apagado, `examples/finanzas-argentinas`
+encendido — y [`docs/query_walkthrough.md`](docs/query_walkthrough.md) recorre
+los dos con salida capturada de cada uno. El template documenta la sección y las
+tres listas de alcance que la acompañan.
+
 ### Idioma de contenido de la wiki
 
 Agrega una sección `[wiki]` para generar toda la wiki — páginas, encabezados y etiquetas

@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Royal Ball
 tags: [theme]
-sources: [Cinderella.pdf]
+sources:
+  - resource: sources/Cinderella.pdf
 ---
 
 # Royal Ball

@@ -1,6 +1,9 @@
 ---
+type: concept
+title: BYMA
 tags: [entity]
-sources: [12 Cauciones Bursátiles.docx]
+sources:
+  - resource: sources/12 Cauciones Bursátiles.docx
 ---
 
 # BYMA

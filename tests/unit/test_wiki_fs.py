@@ -15,13 +15,21 @@ _CONTENT = (
 
 
 def test_create_page_writes_file(tmp_workspace: WorkspaceFixture) -> None:
+    """create_page now prepends a code-rendered frontmatter block (type/title/tags/
+    sources) — see domain/datasets/frontmatter.py:render_frontmatter — so the body
+    is checked via split_frontmatter rather than a byte-exact file match."""
     create_page(
         tmp_workspace.db_path, tmp_workspace.workspace,
         "/wiki/summaries/", "my-page", "My Page", _CONTENT, [],
     )
     expected = tmp_workspace.workspace / "wiki" / "summaries" / "my-page.md"
     assert expected.exists()
-    assert expected.read_text() == _CONTENT
+    text = expected.read_text()
+    assert text.startswith("---\n")
+    # split_frontmatter's own lines-based reconstruction drops a final trailing
+    # newline, so verify against the raw bytes on disk with endswith rather
+    # than round-tripping the body back through split_frontmatter.
+    assert text.endswith(_CONTENT)
 
 
 def test_create_page_db_row(tmp_workspace: WorkspaceFixture) -> None:
@@ -90,7 +98,7 @@ def test_create_page_overwrite_updates_content(tmp_workspace: WorkspaceFixture) 
         overwrite=True,
     )
     file_path = tmp_workspace.workspace / "wiki" / "summaries" / "my-page.md"
-    assert file_path.read_text() == new_content
+    assert file_path.read_text().endswith(new_content)
 
 
 def test_create_page_overwrite_increments_version(tmp_workspace: WorkspaceFixture) -> None:
@@ -174,7 +182,7 @@ def test_read_page_returns_content(tmp_workspace: WorkspaceFixture) -> None:
         "/wiki/summaries/", "my-page", "My Page", _CONTENT, [],
     )
     result = read_page(tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/summaries/", "my-page")
-    assert result == _CONTENT
+    assert result.endswith(_CONTENT)
 
 
 def test_read_page_nonexistent_returns_none(tmp_workspace: WorkspaceFixture) -> None:
@@ -188,7 +196,7 @@ def test_read_page_normalizes_dir_path(tmp_workspace: WorkspaceFixture) -> None:
         "wiki/summaries", "my-page", "My Page", _CONTENT, [],
     )
     result = read_page(tmp_workspace.db_path, tmp_workspace.workspace, "wiki/summaries", "my-page")
-    assert result == _CONTENT
+    assert result.endswith(_CONTENT)
 
 
 def test_append_to_page_updates_file(tmp_workspace: WorkspaceFixture) -> None:

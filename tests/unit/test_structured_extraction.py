@@ -309,7 +309,14 @@ def test_build_concept_page_handles_none_content() -> None:
 
 
 def test_update_overview_handles_none_content() -> None:
-    """update_overview must not crash when the model returns content=None."""
+    """update_overview must not crash when the model returns content=None.
+
+    The frontmatter block (type: overview + title) is rendered in code and
+    always present regardless of what the model returned — only the body
+    falls back to empty.
+    """
+    from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
+
     llm = FakeLLMClient(response_content=None)
     result = update_overview(
         current_overview="# Overview\n\nOld text.\n",
@@ -318,7 +325,11 @@ def test_update_overview_handles_none_content() -> None:
         client=llm,
         model="fake",
     )
-    assert result == ""
+    fm_block, body = split_frontmatter(result)
+    assert fm_block is not None
+    fields = parse_frontmatter(fm_block)
+    assert fields["type"] == "overview"
+    assert body == ""
 
 
 # ── extract_dataset_aliases (Piece 4: the dataset-alias LLM pass) ──────────────

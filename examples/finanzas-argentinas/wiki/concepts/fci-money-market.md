@@ -1,6 +1,9 @@
 ---
+type: concept
+title: FCI Money Market
 tags: [instrument]
-sources: [07 FCI Money Market.docx]
+sources:
+  - resource: sources/07 FCI Money Market.docx
 ---
 
 # FCI Money Market

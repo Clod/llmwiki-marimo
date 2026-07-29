@@ -198,7 +198,7 @@ llmwiki/
 │       │   └── reader.py               # read-only evidence gathering from a wiki DB
 │       ├── finance_argentina/           # Example domain overlay: investment advisory (§15)
 │       │   ├── requirements.py / .md   # manifest: what each category needs
-│       │   ├── concept_attrs.py        # finance attrs read from concept front-matter
+│       │   ├── instrument_attrs.py     # finance attrs read from DATASET front-matter
 │       │   ├── validator.py            # domain lint (datasets + attributes)
 │       │   ├── formulae.py             # deterministic TEA / gain math
 │       │   ├── advisory.py             # estimate_alternatives()
@@ -1063,7 +1063,11 @@ explicitly, and mock the network in tests.
      Re-extraction is the only step that reads the original file and it uses **no LLM**.
   3. Walk `wiki/**/*.md` → one `source_kind='wiki'` row per page; read title/tags from
      frontmatter and re-chunk the markdown into `document_chunks` (the FTS5 triggers
-     repopulate `chunks_fts`).
+     repopulate `chunks_fts`). This step used to be the weak one: front-matter was
+     written by the LLM, so the values might be missing, drifted, or — on summary
+     pages — absent entirely. `create_page` now writes the block from the values it
+     is given, which makes reading them back a sound way to rebuild rather than a
+     hopeful one.
   4. Once every node exists, run `update_references` per wiki page to rebuild
      `document_references` from the on-disk citations / wikilinks — already idempotent
      (§4, "Edges are rebuilt, never patched").
@@ -1091,7 +1095,7 @@ explicitly, and mock the network in tests.
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Source**                  | A raw, immutable file under `workspace/sources/` (PDF, DOCX). `source_kind='source'` in `documents`.                                                                                                                                |
 | **Summary page**            | 1-to-1 LLM-generated markdown reflection of a single source. Lives under `wiki/summaries/`. Carries `source_document_id`.                                                                                                           |
-| **Concept page**            | Topic-centric, multi-source markdown page under `wiki/concepts/`. Has YAML frontmatter. Does NOT carry `source_document_id` — derives from many sources.                                                                            |
+| **Concept page**            | Topic-centric, multi-source markdown page under `wiki/concepts/`. Carries YAML front-matter written by `create_page` (`type`, `title`, `tags`, `sources`) — the model returns the body only. Does NOT carry `source_document_id` — derives from many sources.                                                                            |
 | **`index.md`**              | Catalogue of every page in the wiki, organised by category. Deterministically updated by `index_manager.update_index`.                                                                                                              |
 | **`overview.md`**           | LLM-rewritten narrative synthesis of the wiki's evolving thesis.                                                                                                                                                                    |
 | **`log.md`**                | Append-only chronological audit trail. Prefix `## [YYYY-MM-DD]` makes it parseable with `grep "^## \["`.                                                                                                                            |
@@ -1335,13 +1339,13 @@ evidence it did retrieve (that needs answer-vs-source verification — deferred)
 ### 15.4 `finance_argentina` overlay (`base/domain/finance_argentina/`)
 
 Concrete domain logic (Argentine personal finance), Spanish-facing. Reads the
-engine's `DatasetSource` + concept front-matter; the engine never imports it.
+engine's `DatasetSource` + dataset-file front-matter; the engine never imports it.
 
 - **Requirements manifest** (`requirements.md` + `requirements.py`) — single
   source of truth: per category, which dataset `metricas` and concept
   `attributes` are required. Read by the validator (and, later, a producer).
 - **Concept attributes** (`concept_attrs.py`) — finance vocabulary read from the
-  concept page front-matter: `disponibilidad`, `plazos_dias`, `monto_minimo`,
+  dataset-file front-matter: `disponibilidad`, `plazos_dias`, `monto_minimo`,
   `moneda`, `metodo_calculo`, `metrica_tasa`, `depende_de` (the *factual* driver
   of variability for non-deterministic instruments — distinct from cited risk).
 - **Validator** (`validator.py`) — a domain lint check over **structured md only**

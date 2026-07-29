@@ -12,6 +12,32 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 ## [Unreleased]
 
 ### Added
+- **The pre-retrieval switch is documented where you would look for it.** Both
+  `wiki_config.example.toml` templates now carry the `[pre_retrieval]` section and
+  its three scope lists, commented out, and both READMEs explain the trade in the
+  chat-configuration section. The flag decides the entire shape of the read path,
+  and until now it appeared only in the manual, the walkthrough and the finance
+  demo's own config — so a user copying the template had no way to learn it exists.
+
+### Changed
+- **Wiki-page front-matter is written by code, not by the model, and follows the
+  [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog).**
+  The prompt templates used to show the LLM a `tags:`/`sources:` block and ask it to
+  reproduce values the code already held; on update the block round-tripped through
+  the model and could drift. `create_page` now renders it from what it is given, so
+  every page carries a `type` (`concept`, `summary`, `overview` — OKF's one mandatory
+  field), a `title`, its `tags`, and `sources` as OKF provenance mappings rather than
+  bare strings. Reading tolerates the old string form, so existing wikis keep working.
+
+### Fixed
+- **Summary pages had no front-matter at all.** `build_summary_page` is pure code and
+  never emitted a block, so every summary in every shipped wiki was missing one. They
+  have one now, which also makes a generated wiki OKF-conformant end to end.
+- **A rollback no longer claims a source it does not have.** Restoring a page after a
+  failed ingest used to keep the filename that ingest had added, because sources only
+  ever accumulated. Restores are now authoritative.
+- **Three prompts wrapped existing page content in `---` while that content itself
+  started with `---`**, leaving the model to guess where the delimiters ended.
 - **A ticked wiki can answer questions about itself.** With pre-retrieval on, a
   question about the collection as a whole — "what is in this wiki?", "compare all
   of them" — was refused, because coverage is derived from concept-page names and

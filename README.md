@@ -439,6 +439,23 @@ suggested_prompts = [
 
 Copy `wiki_config.example.toml` from the project root as a starting point (or `wiki_config_es.example.toml` for a Spanish wiki — same structure with `language = "es"` and Spanish prompts). If the file is absent, generic defaults are used.
 
+### Who goes looking: the pre-retrieval switch
+
+By default the model holds the search tools and decides what to call. A
+`[pre_retrieval] enabled = true` section flips that: code retrieves *before* the
+model is consulted and decides, in Python, whether this wiki covers the question
+at all — refusing without spending a token when it does not.
+
+It is a trade, not an upgrade. You gain a guarantee that retrieval happened and
+a refusal you can predict; you lose reach, because coverage is derived from your
+concept-page names, so a question naming no concept is turned away even when a
+search would have found something. Leave it off for a wiki of prose; turn it on
+when a wrong answer costs money, a dose or a legal date. The shipped demos
+disagree on purpose — `examples/fairy-tales` off, `examples/finanzas-argentinas`
+on — and [`docs/query_walkthrough.md`](docs/query_walkthrough.md) walks both with
+captured output from each. The template documents the section and the three
+scope lists that go with it.
+
 ### Wiki content language
 
 Add a `[wiki]` section to generate the whole wiki — pages, structural headers and

@@ -374,7 +374,7 @@ result = ingest_file(
 | Prompt               | Template constants                                                                             | Inputs                                                             | Output                                                               | Temperature |
 | -------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- | ----------- |
 | `extract_structured` | `_EXTRACT_SYSTEM` (L78), `_EXTRACT_USER_TEMPLATE` (L85)                                        | filename, file_type, page_count, content ≤80 KB                    | JSON `{document_summary, concepts:[{name,category,insight}]}`        | 0.2         |
-| `build_concept_page` | `_CONCEPT_SYSTEM` (L109) + `_CONCEPT_NEW_TEMPLATE` (L114) OR `_CONCEPT_UPDATE_TEMPLATE` (L143) | concept name/category/insight, filename, existing content (if any) | Markdown w/ frontmatter + Definition/Characteristics/Context/Sources | 0.3         |
+| `build_concept_page` | `_CONCEPT_SYSTEM` (L109) + `_CONCEPT_NEW_TEMPLATE` (L114) OR `_CONCEPT_UPDATE_TEMPLATE` (L143) | concept name/category/insight, filename, existing content (if any) | Markdown **body only** — Definition/Characteristics/Context/Sources. The YAML front-matter is written by `create_page`, not by the model | 0.3         |
 | `update_overview`    | `_OVERVIEW_SYSTEM` (L156), `_OVERVIEW_TEMPLATE` (L160)                                         | current overview, new summary, all concept names                   | 3–5 paragraph narrative                                              | 0.4         |
 
 > The legacy single-shot `build_wiki_page` (L331) is kept for backward  
@@ -881,7 +881,7 @@ The save flow:
 1. Slugify the title with `wiki_generator.make_wiki_slug` (NFKD-normalised — diacritics stripped, so "Política Común" → `politica-comun`).
 2. Pick directory by category: `concept` → `/wiki/concepts/`, `summary` → `/wiki/summaries/`.
 3. Read existing page content (if any) via `wiki_fs.read_page`.
-4. **LLM structuring pass** — call `wiki_generator.structure_chat_content(title, category, raw_content, existing, client, model)`. Returns properly structured markdown (YAML frontmatter + Definition / Key Characteristics / Context / Sources). The prompts (`_CONCEPT_SYSTEM` + chat templates) **preserve every inline citation verbatim** and build Sources from what was actually cited, and the output is run through `_strip_wrapping_fence` so a whole-page ```​markdown wrapper never reaches disk.
+4. **LLM structuring pass** — call `wiki_generator.structure_chat_content(title, category, raw_content, existing, client, model)`. Returns the structured markdown **body** (Definition / Key Characteristics / Context / Sources); the YAML front-matter is written by `create_page` from values the code holds, never by the model. The prompts (`_CONCEPT_SYSTEM` + chat templates) **preserve every inline citation verbatim** and build Sources from what was actually cited, and the output is run through `_strip_wrapping_fence` so a whole-page ```​markdown wrapper never reaches disk.
 5. **Deterministic See-also injection** — gather the existing wiki pages via `_related_pages_for(workspace, exclude_slug, current_dir)` and call `wiki_generator.inject_see_also(structured, related)`. It scans the structured markdown for **whole-word** mentions (`\b…\b`) of known page slugs and inserts a `## See also` section (before `## Sources`) linking each mentioned page that isn't already linked. This is why chat-sourced pages get cross-links even though the LLM is told never to invent links.
 6. Write with `create_page(overwrite=True)` if the page existed (LLM merge); `create_page(overwrite=False)` if new.
 7. Look up the doc id and call `references.update_references` to keep the citation graph in sync.
@@ -892,7 +892,7 @@ The save flow:
 
 | Prompt                              | Template constants                                         | Inputs                            | Output                                                               | Temperature |
 | ----------------------------------- | ---------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------- | ----------- |
-| `structure_chat_content` (new page) | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_NEW_TEMPLATE`    | title, category, raw content      | Markdown w/ frontmatter + Definition/Characteristics/Context/Sources | 0.3         |
+| `structure_chat_content` (new page) | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_NEW_TEMPLATE`    | title, category, raw content      | Markdown **body only** — front-matter added by `create_page` | 0.3         |
 | `structure_chat_content` (update)   | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_UPDATE_TEMPLATE` | title, raw content, existing page | Merged markdown, no duplication                                      | 0.3         |
 
 **`save_to_wiki` — client injection:** optional keyword-only `client=None, model=None`; builds `openai.OpenAI` from `config.settings` (`WIKI_LLM_*` falling  
