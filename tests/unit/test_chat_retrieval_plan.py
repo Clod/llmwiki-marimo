@@ -10,7 +10,7 @@ from domain.chat.preretrieval import plan_retrieval
 
 
 def _plan(question="q", off_limits=(), wiki_hits=(), doc_hits=(), has_data=False,
-          in_roster=True):
+          in_roster=True, collection_hits=()):
     return plan_retrieval(
         question,
         off_limits=off_limits,
@@ -18,6 +18,7 @@ def _plan(question="q", off_limits=(), wiki_hits=(), doc_hits=(), has_data=False
         doc_hits=list(doc_hits),
         has_data=has_data,
         in_roster=in_roster,
+        collection_hits=list(collection_hits),
     )
 
 
@@ -85,4 +86,46 @@ def test_data_question_beats_raw_docs():
 
 def test_nothing_found_refuses_without_model():
     plan = _plan(wiki_hits=[], doc_hits=[], has_data=False)
+    assert plan.action == "refuse"
+
+
+# ── collection_hits (the overview/index branch) ──────────────────────────────
+
+
+def test_collection_hits_invoke_curado_with_empty_roster():
+    # A collection question names no item, so in_roster is False by
+    # construction — the collection branch must still fire.
+    plan = _plan(wiki_hits=[], doc_hits=[], has_data=False, in_roster=False,
+                 collection_hits=["[wiki/overview.md]\nOverview text"])
+    assert plan.action == "invoke"
+    assert plan.tier == "curado"
+    assert plan.context == "[wiki/overview.md]\nOverview text"
+    assert plan.verify is False
+
+
+def test_named_roster_wiki_hits_win_over_collection_hits():
+    # "compare Cinderella and Snow White" is both collection-shaped AND names
+    # covered subjects — the named concept pages beat the overview.
+    plan = _plan(wiki_hits=["pagina de cinderella"], in_roster=True,
+                 collection_hits=["[wiki/overview.md]\nOverview text"])
+    assert plan.tier == "curado"
+    assert plan.context == "pagina de cinderella"
+
+
+def test_collection_hits_win_over_has_data():
+    # Collection sits BEFORE has_data: "what data do you have?" on a datasets
+    # wiki should reach the overview, not the tools-only branch.
+    plan = _plan(wiki_hits=[], doc_hits=[], has_data=True, in_roster=False,
+                 collection_hits=["[wiki/overview.md]\nOverview text"])
+    assert plan.action == "invoke"
+    assert plan.tier == "curado"
+    assert plan.context == "[wiki/overview.md]\nOverview text"
+
+
+def test_off_limits_refuses_even_when_collection_shaped():
+    # The blacklist check runs before the collection branch — a collection
+    # question naming a blacklisted term stays refused.
+    plan = _plan("what tales are in this wiki, cedears included?",
+                 off_limits={"cedear", "cedears"},
+                 collection_hits=["[wiki/overview.md]\nOverview text"])
     assert plan.action == "refuse"

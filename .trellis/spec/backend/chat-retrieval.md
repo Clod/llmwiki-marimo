@@ -68,14 +68,16 @@ concept-citation check false-failed a correctly cited answer. Tests:
 ## 3. Pre-retrieval plan order — both tiers gated on the roster
 
 **Contract.** `domain.chat.preretrieval.plan_retrieval(question, *, off_limits,
-wiki_hits, doc_hits, has_data, in_roster)` decides in this order:
+wiki_hits, doc_hits, has_data, in_roster, collection_hits=[])` decides in this
+order:
 
 1. `is_off_limits` → **refuse** (blacklist wins over any hit).
 2. `wiki_hits and in_roster` → **Tier-1 curated** (inject, no verify).
-3. `has_data` → **tools only** (no injected context; `query_dataset` /
+3. `collection_hits` → **Tier-1 curated** (inject the collection pages, no verify).
+4. `has_data` → **tools only** (no injected context; `query_dataset` /
    `estimar_alternativas`).
-4. `doc_hits and in_roster` → **Tier-2 raw doc** (inject, verify vs source + warn).
-5. else → **refuse** without invoking the model.
+5. `doc_hits and in_roster` → **Tier-2 raw doc** (inject, verify vs source + warn).
+6. else → **refuse** without invoking the model.
 
 **Both** tiers are gated on `in_roster` (the coverage *padrón*), because lexical
 FTS can match a curated or raw chunk on a shared word for an uncovered topic — so
@@ -83,11 +85,25 @@ the padrón, not the search hit, is the coverage authority. `has_data` is checke
 **before** Tier-2 so a data question (e.g. "¿a cuánto el billete verde?") reaches
 `query_dataset` instead of being answered from raw prose.
 
+**The collection branch is deliberately outside the padrón**, because the padrón
+cannot answer for it: a question about the collection as a whole ("what is in
+this wiki?", "compare all of them") names no item, so a roster of item names is
+the wrong instrument — widening it with summary and document titles was measured
+and leaves every such question uncovered. It sits **after** Tier 1 so a question
+that is both collection-shaped and names covered subjects gets those pages rather
+than the overview, and **before** `has_data` so "what data do you have?" reaches
+the overview rather than the tools. It cannot fire without something to inject:
+`retrieve_collection_pages` returns `[]` when the wiki has neither
+`wiki/overview.md` nor `wiki/index.md`, and the question then refuses as before.
+
 **Caller (`pre_retrieval_answer`) computes:**
 `has_data = mentions_known_data(q, vocab, aliases) or advisory_intent(q)` — the
 second disjunct routes a generic advisory question (an amount + horizon, no named
 instrument) to the tools instead of refusing. `in_roster = mentions_known_data(q,
-coverage, aliases)` where `coverage = dataset vocab ∪ concept page names`.
+coverage, aliases)` where `coverage = dataset vocab ∪ concept page names`, and
+`collection_hits = retrieve_collection_pages(workspace) if collection_intent(q)
+else []` — read off disk, since `overview.md` and `index.md` have no `documents`
+row and are invisible to FTS.
 
 Tests: `test_chat_retrieval_plan.py`, `test_chat_pre_retrieval_answer.py`,
 `test_chat_scope.py`.

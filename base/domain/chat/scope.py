@@ -86,6 +86,50 @@ def advisory_intent(question: str) -> bool:
     return bool(_MONEY_RE.search(q) or _HORIZON_RE.search(q))
 
 
+_COLLECTION_CUES = (
+    # English — the question is about the corpus as a whole, not one subject.
+    "this wiki", "the wiki", "each ", "all the ", "every ",
+    "what is in", "what's in", "how many", "in common", "list the",
+    # Spanish — same shape, same conservatism.
+    "este wiki", "esta wiki", "el wiki", "cada ", "todos los", "todas las",
+    "que hay en", "cuantos", "en comun", "comparten",
+)
+_SHARE_RE = re.compile(r"\bshares?\b")
+_SUMMARIZE_EACH_RE = re.compile(r"\bsummari[sz]e?\b.*\b(each|all)\b")
+_COMPARE_COLLECTIVE_RE = re.compile(
+    r"\bcompar\w*\b.*\b(each|all|both|tales?|stories|todos|todas|cuentos|historias)\b"
+)
+
+
+def collection_intent(question: str) -> bool:
+    """True if the question is about the WIKI AS A WHOLE rather than about any
+    one subject — "what tales are in this wiki?", "compare how each story
+    ends" — as opposed to a question that names a subject the roster can cover
+    ("what is a glass slipper?").
+
+    This exists because the roster (`in_roster`, built from concept-page and
+    dataset-term names) can only ever say yes to a question that NAMES an item;
+    a question about the collection names none, so by construction the roster
+    can never cover it, and the gate would refuse a newcomer's most natural
+    question ("what's in this wiki?") even though the wiki obviously has an
+    overview/index page that answers it. This function is the second, narrower
+    door for exactly that shape of question.
+
+    Kept as conservative as `advisory_intent`: a cue must name the collective
+    ("each", "all the", "this/the wiki", "share"/"comparten", "in common", …),
+    not just contain a number or a plural. It is better to miss a borderline
+    collection question and fall back to today's refusal than to fire on an
+    ordinary single-subject question and inject the overview where a concept
+    page was wanted.
+    """
+    q = _normalize(question)
+    if any(cue in q for cue in _COLLECTION_CUES):
+        return True
+    return bool(
+        _SHARE_RE.search(q) or _SUMMARIZE_EACH_RE.search(q) or _COMPARE_COLLECTIVE_RE.search(q)
+    )
+
+
 def drop_false_synonyms(
     question: str, proposals: Iterable[str], false_synonyms: Mapping[str, Iterable[str]]
 ) -> list[str]:

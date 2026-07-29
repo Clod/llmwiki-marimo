@@ -45,12 +45,13 @@ def _run(coro):
 
 
 def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(),
-            concepts=(), monkeypatch):
+            concepts=(), collection=(), monkeypatch):
     monkeypatch.setattr(preretrieval, "build_vocabulary", lambda src: set(vocab))
     monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda db, q, **k: list(wiki))
     monkeypatch.setattr(preretrieval, "retrieve_source_chunks", lambda db, q, **k: list(docs))
     monkeypatch.setattr(preretrieval, "LocalMarkdownSource", lambda p: object())
     monkeypatch.setattr(preretrieval, "concept_page_names", lambda db: list(concepts))
+    monkeypatch.setattr(preretrieval, "retrieve_collection_pages", lambda ws: list(collection))
     return _run(pre_retrieval_answer(
         question, config=CFG, db_path="db", workspace=Path("/tmp/wp"),
         history=[], language="es", run_agent=run_agent,
@@ -134,6 +135,49 @@ def test_data_question_invokes_tools_only_no_context(monkeypatch):
                   vocab={"dolar"}, monkeypatch=monkeypatch)
     assert "1180" in out
     assert agent.calls[0] == "¿a cuánto está el billete verde?"  # no context prepended
+
+
+def test_collection_question_injects_overview_context(monkeypatch):
+    # A collection-shaped question with no named subject (empty roster) still
+    # invokes, injecting the overview read from disk (via the monkeypatched
+    # retrieve_collection_pages) instead of refusing.
+    agent = _fake_agent("Cinderella, Snow White and Little Red Riding Hood. "
+                        "Referencia: wiki/overview.md")
+    out = _answer(
+        "What tales are in this wiki?", agent, wiki=[], docs=[], vocab=frozenset(),
+        collection=["[wiki/overview.md]\nCinderella, Snow White, Little Red Riding Hood."],
+        monkeypatch=monkeypatch,
+    )
+    assert "Cinderella" in out
+    assert "wiki/overview.md" in agent.calls[0]  # context was injected
+
+
+def test_collection_question_without_collection_pages_still_refuses(monkeypatch):
+    # No overview/index on disk -> retrieve_collection_pages returns [] -> the
+    # branch is a no-op and the question refuses exactly as it did before.
+    agent = _fake_agent("no debería llamarse")
+    out = _answer(
+        "What tales are in this wiki?", agent, wiki=[], docs=[], vocab=frozenset(),
+        collection=[], monkeypatch=monkeypatch,
+    )
+    assert out == REFUSAL_ES
+    assert agent.calls == []
+
+
+def test_collection_question_with_named_roster_hit_prefers_wiki_hit(monkeypatch):
+    # Collection-shaped AND names a covered subject: the named concept page
+    # (Tier 1 via wiki_hits/in_roster) beats the overview.
+    agent = _fake_agent("Ambas comparten un final feliz. Referencia: cinderella.md")
+    out = _answer(
+        "Compare Cinderella and Snow White, what do they share?", agent,
+        wiki=["[wiki/concepts/cinderella.md]\nCinderella page text"], docs=[],
+        vocab=frozenset(), concepts={"cinderella"},
+        collection=["[wiki/overview.md]\nOverview text"],
+        monkeypatch=monkeypatch,
+    )
+    assert "final feliz" in out
+    assert "wiki/concepts/cinderella.md" in agent.calls[0]
+    assert "wiki/overview.md" not in agent.calls[0]
 
 
 def test_advisory_intent_without_named_data_invokes_tools(monkeypatch):

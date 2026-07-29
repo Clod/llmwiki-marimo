@@ -141,8 +141,10 @@ def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
     """
     from domain.chat.config import load_config
     from domain.chat.preretrieval import (build_vocabulary, plan_retrieval,
+                                          retrieve_collection_pages,
                                           retrieve_source_chunks, retrieve_wiki)
-    from domain.chat.scope import advisory_intent, is_off_limits, mentions_known_data
+    from domain.chat.scope import (advisory_intent, collection_intent,
+                                   is_off_limits, mentions_known_data)
     from domain.datasets.source import LocalMarkdownSource
     from domain.tools.wiki_fs import concept_page_names
 
@@ -163,16 +165,21 @@ def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
         doc_hits = (retrieve_source_chunks(db_path, q)
                     if (not off and not wiki_hits and in_roster) else [])
         has_data = mentions_known_data(q, vocab, aliases) or advisory_intent(q)
+        collection_hits = ([] if off else
+                           retrieve_collection_pages(PLAIN_DEMO) if collection_intent(q) else [])
         plan = plan_retrieval(q, off_limits=cfg.off_limits, wiki_hits=wiki_hits,
-                              doc_hits=doc_hits, has_data=has_data, in_roster=in_roster)
-        rows.append((q, len(wiki_hits), in_roster, plan.action))
+                              doc_hits=doc_hits, has_data=has_data, in_roster=in_roster,
+                              collection_hits=collection_hits)
+        rows.append((q, len(wiki_hits), in_roster, len(collection_hits), plan.action))
     return rows
 
 
 def _gate(case: Case, cfg, db_path: str, vocab, coverage, aliases) -> Decision:
     """The deterministic half — no LLM, identical on every run."""
-    from domain.chat.preretrieval import plan_retrieval, retrieve_source_chunks, retrieve_wiki
-    from domain.chat.scope import advisory_intent, is_off_limits, mentions_known_data
+    from domain.chat.preretrieval import (plan_retrieval, retrieve_collection_pages,
+                                          retrieve_source_chunks, retrieve_wiki)
+    from domain.chat.scope import (advisory_intent, collection_intent,
+                                   is_off_limits, mentions_known_data)
 
     q = case.question
     d = Decision(case=case)
@@ -187,8 +194,11 @@ def _gate(case: Case, cfg, db_path: str, vocab, coverage, aliases) -> Decision:
     )
     d.wiki_hits, d.doc_hits = len(wiki_hits), len(doc_hits)
 
+    collection_hits = ([] if d.off_limits else
+                       retrieve_collection_pages(DEMO) if collection_intent(q) else [])
     plan = plan_retrieval(q, off_limits=cfg.off_limits, wiki_hits=wiki_hits,
-                          doc_hits=doc_hits, has_data=d.has_data, in_roster=d.in_roster)
+                          doc_hits=doc_hits, has_data=d.has_data, in_roster=d.in_roster,
+                          collection_hits=collection_hits)
     d.action, d.tier = plan.action, plan.tier or "—"
     return d
 
@@ -310,18 +320,19 @@ def _render(decisions: list[Decision], with_answers: bool,
             "its own `suggested_prompts` — the questions its author expects — run through",
             "the gate as if the box were ticked. Also pure code, also free to reproduce.",
             "",
-            "| Question | wiki | roster | plan if ticked |",
-            "|---|---|---|---|",
+            "| Question | wiki | roster | collection | plan if ticked |",
+            "|---|---|---|---|---|",
         ]
-        for q, hits, in_roster, action in plain:
-            out.append(f"| {q} | {hits} | {in_roster} | **{action}** |")
+        for q, hits, in_roster, coll, action in plain:
+            out.append(f"| {q} | {hits} | {in_roster} | {coll} | **{action}** |")
         refused = sum(1 for *_, a in plain if a == "refuse")
         out += [
             "",
-            f"{refused} of {len(plain)} would be refused, every one of them with wiki hits",
-            "to spare. Nothing names a concept page, so nothing is in the roster, and this",
-            "wiki has no dataset vocabulary to widen it with — which is the reason the box",
-            "ships unticked here and ticked on the finance demo.",
+            f"{refused} of {len(plain)} would be refused. Note the `roster` column: none of",
+            "these names a concept page, so the coverage roster does not cover any of them,",
+            "and it never will — a question about the collection names no item. What answers",
+            "them is the `collection` column: the pages whose job is to describe the whole",
+            "wiki, injected directly. Before that branch existed all four refused here.",
             "",
         ]
 

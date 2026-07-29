@@ -127,8 +127,7 @@ what matters here is what the model chose to do.
 question no page in the wiki answers, and the agent went and assembled it: three
 `search_wiki_fts` calls and eight `read_wiki_page` calls, **eleven tool calls in
 one turn**, ending in a comparison of stepmothers across Cinderella and Snow
-White with a citation on each claim. Nothing in the code planned that. Ticking
-the box would have refused the question outright.
+White with a citation on each claim. Nothing in the code planned that.
 
 **The guarantee, absent.** *What tales are in this wiki?* took a single
 `read_wiki_page` and produced a correct, complete inventory of three tales and
@@ -167,21 +166,32 @@ The trade is not a matter of opinion, and it does not need a model to measure.
 Running the same four suggested prompts through the pre-retrieval gate — pure
 code, no LLM, free to reproduce — gives this:
 
-| Question | wiki hits | in roster | plan if ticked |
-|---|---:|---|---|
-| What tales are in this wiki? | 6 | False | **refuse** |
-| Summarize the plot of each tale | 6 | False | **refuse** |
-| What characters and themes do the tales share? | 6 | False | **refuse** |
-| Compare how each story ends | 6 | False | **refuse** |
+| Question | wiki hits | in roster | collection | plan if ticked |
+|---|---:|---|---:|---|
+| What tales are in this wiki? | 6 | False | 2 | **invoke** |
+| Summarize the plot of each tale | 6 | False | 2 | **invoke** |
+| What characters and themes do the tales share? | 6 | False | 2 | **invoke** |
+| Compare how each story ends | 6 | False | 2 | **invoke** |
 
-Four out of four, each with six wiki hits sitting right there. The coverage
-roster is built from the wiki's **concept-page names**, so a question that names
-no concept is uncovered by construction — and a question *about the collection*
-never names one. Ticking the box on this wiki would refuse the four questions it
-puts in front of every new reader.
+Read the `roster` column first: not one of these is covered, and not one ever
+will be. The roster is built from the wiki's **concept-page names**, and a
+question about the collection names no concept — so no amount of widening that
+list reaches them. That was measured before it was believed: adding summary
+titles and source filenames leaves all four exactly as uncovered.
 
-That is why `fairy-tales` ships unticked, and it is the cleanest possible
-statement of what the setting is for. The table regenerates with
+What answers them is the last column. `wiki/overview.md` and `wiki/index.md`
+exist to describe the whole collection, and a question shaped like these gets
+them injected directly. Until that branch existed, **all four refused** — the
+four questions this demo puts in front of every new reader.
+
+**So the honest position on this page has changed, and it is worth saying so
+rather than quietly restating the table.** The cost of ticking the box used to
+include every question about the collection; it no longer does. What it still
+costs is a question about a *subject* the wiki does not cover, which is the
+refusal the setting exists to produce. Whether `fairy-tales` should still ship
+unticked is now a thinner argument than it was when this section was written.
+
+The table regenerates with
 `uv run python scripts/capture_query_walkthrough.py --plan-only`, which prints
 rather than writes.
 
@@ -222,7 +232,7 @@ stops being good enough, and the request has to become a branch.
 `preretrieval.plan_retrieval` is an `if`/`elif` chain checked in a fixed order,
 and the order itself is the design decision (§3 of the
 [contract](../.trellis/spec/backend/chat-retrieval.md)). In a wiki built out of
-documents alone — no `datasets/` folder — it has four branches:
+documents alone — no `datasets/` folder — it has five branches:
 
 ```mermaid
 flowchart TD
@@ -230,13 +240,15 @@ flowchart TD
     OFF -->|yes| R1["refuse<br/>no model call"]
     OFF -->|no| T1{"wiki_hits and in_roster?"}
     T1 -->|yes| TIER1["invoke - Tier 1 curado<br/>inject curated page, no verify"]
-    T1 -->|no| T2{"doc_hits and in_roster?"}
+    T1 -->|no| COL{"question about<br/>the collection?"}
+    COL -->|yes| TIERC["invoke - Tier 1 curado<br/>inject overview.md + index.md"]
+    COL -->|no| T2{"doc_hits and in_roster?"}
     T2 -->|yes| TIER2["invoke - Tier 2 crudo<br/>inject raw chunk, verify + warn"]
     T2 -->|no| R2["refuse<br/>no model call"]
 ```
 
 Two things about it are easy to miss reading the code once. First, **two of the
-four outcomes never reach the model at all** — a refusal costs no prompt and no
+five outcomes never reach the model at all** — a refusal costs no prompt and no
 completion, and is byte-identical on every run. Second, both tiers are gated on
 `in_roster`, the coverage roster built from the wiki's own concept-page names,
 and **not** on the FTS hit count. Lexical search happily returns a hit for an
