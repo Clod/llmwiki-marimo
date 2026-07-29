@@ -96,3 +96,51 @@ suggested_prompts = [
 #     "Compare the fees of the funds I've added",
 #     "Which instruments offer the highest stated returns?",
 # ]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pre-retrieval — optional, off by default
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Two ways to answer a question, and this flag picks between them.
+#
+#   Unticked (the default). The model holds the search tools and decides for
+#   itself what to call. It can answer about one page, about all of them, or
+#   about the shape of the collection — because it can go and look. What it
+#   cannot do is guarantee it looked: the instruction to search is a request the
+#   model may not honour, and it can build a confident answer on a paragraph
+#   that merely shares a word with the question.
+#
+#   Ticked. Code retrieves *before* the model is consulted, and decides in
+#   Python whether this wiki covers the question at all — refusing without
+#   spending a single token when it does not. Retrieval stops being skippable.
+#   The price is reach: it answers only what it recognises as covered, and
+#   coverage is derived from your concept-page names, so a question naming no
+#   concept ("what is in this wiki?", "compare all of them") is turned away
+#   even when a search would have found something.
+#
+# Rule of thumb: leave it off for a wiki of prose. Turn it on when a wrong
+# answer costs something — money, a dose, a legal date — and you would rather
+# have a refusal than a plausible guess. The shipped demos disagree on purpose:
+# examples/fairy-tales leaves it off, examples/finanzas-argentinas turns it on.
+#
+# docs/query_walkthrough.md walks both modes with captured output from each.
+#
+# [pre_retrieval]
+# enabled = true
+
+# The three lists below only matter when pre_retrieval is on.
+
+# BLACKLIST — subjects you know this wiki does not cover. Checked first, so a
+# match refuses immediately, before any document is read.
+# [fuera_de_alcance]
+# terminos = ["crypto", "bitcoin"]
+
+# WHITELIST — other names for data you do have (canonical -> aliases), so a
+# nickname reaches the right table instead of falling through.
+# [alias_datos]
+# dolar = ["billete verde", "greenback"]
+
+# FALSE SYNONYMS — pairs that look alike and are not. Never bridge these when
+# expanding a question's terms.
+# [falsos_sinonimos]
+# cedear = ["accion", "acciones"]

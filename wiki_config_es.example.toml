@@ -104,3 +104,52 @@ suggested_prompts = [
 #     "Compara las comisiones de los fondos que he añadido",
 #     "¿Qué instrumentos ofrecen los rendimientos declarados más altos?",
 # ]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pre-retrieval (recuperación previa) — opcional, apagado por defecto
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Hay dos formas de responder una pregunta, y este flag elige entre las dos.
+#
+#   Apagado (el default). El modelo tiene las herramientas de búsqueda y decide
+#   solo cuáles usar. Puede responder sobre una página, sobre todas, o sobre la
+#   forma de la colección — porque puede ir a mirar. Lo que no puede es
+#   garantizar que miró: la instrucción de buscar es un pedido que el modelo
+#   quizá no honre, y puede armar una respuesta convincente sobre un párrafo que
+#   apenas comparte una palabra con la pregunta.
+#
+#   Encendido. El código recupera *antes* de consultar al modelo, y decide en
+#   Python si este wiki cubre la pregunta — abstiéndose sin gastar un solo token
+#   cuando no. La recuperación deja de ser salteable. El precio es alcance:
+#   responde solo lo que reconoce como cubierto, y la cobertura sale de los
+#   nombres de tus páginas de concepto, así que una pregunta que no nombra
+#   ninguno ("¿qué hay en este wiki?", "compará todos") queda afuera aunque una
+#   búsqueda hubiera encontrado algo.
+#
+# Regla práctica: dejalo apagado para un wiki de prosa. Encendelo cuando una
+# respuesta equivocada cueste algo — plata, una dosis, un plazo legal — y
+# prefieras una abstención antes que una conjetura verosímil. Los demos que
+# vienen con el proyecto discrepan a propósito: examples/cuentos-de-hadas lo
+# deja apagado, examples/finanzas-argentinas lo enciende.
+#
+# docs/query_walkthrough.md recorre los dos modos con salida capturada de cada uno.
+#
+# [pre_retrieval]
+# enabled = true
+
+# Las tres listas de abajo solo importan con pre_retrieval encendido.
+
+# Lista NEGRA — temas que sabés que este wiki NO cubre. Se chequea primero, así
+# que una coincidencia se abstiene de inmediato, antes de leer ningún documento.
+# [fuera_de_alcance]
+# terminos = ["cedear", "cedears", "cripto", "bitcoin"]
+
+# Lista BLANCA — otros nombres de datos que SÍ tenés (canónico -> alias), para
+# que un apodo llegue a la tabla correcta en vez de caerse.
+# [alias_datos]
+# dolar = ["billete verde", "divisa"]
+
+# FALSOS sinónimos — pares que se parecen y no son lo mismo. Nunca cruzarlos al
+# expandir los términos de una pregunta.
+# [falsos_sinonimos]
+# cedear = ["accion", "acciones"]
