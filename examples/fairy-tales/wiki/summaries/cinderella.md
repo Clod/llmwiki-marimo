@@ -1,3 +1,8 @@
+---
+type: summary
+title: Cinderella
+---
+
 # Cinderella
 
 **Source:** Cinderella.pdf | **Type:** pdf | **Pages:** 5 | **Ingested:** 2026-07-08

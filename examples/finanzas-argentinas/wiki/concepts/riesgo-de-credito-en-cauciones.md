@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Riesgo de Crédito en Cauciones
 tags: [theme]
-sources: [12 Cauciones Bursátiles.docx]
+sources:
+  - resource: sources/12 Cauciones Bursátiles.docx
 ---
 
 # Riesgo de Crédito en Cauciones

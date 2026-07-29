@@ -7,6 +7,7 @@ LLM and is covered by manual / E2E testing.
 
 
 from domain.chat.wiki_tools import read_wiki_page, search_wiki_fts, save_to_wiki
+from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
 from domain.tools.wiki_fs import create_page
 from tests.helpers.fake_llm import FakeLLMClient
 from tests.helpers.workspace import WorkspaceFixture
@@ -18,11 +19,9 @@ _CONTENT = (
     "Key tools include interest rate adjustments and quantitative easing programs.\n"
 )
 
+# No frontmatter here — create_page (domain/tools/wiki_fs.py) renders that block
+# in code now, so the structuring pass only needs to produce the body sections.
 _STRUCTURED = (
-    "---\n"
-    "tags: [concept]\n"
-    "sources: [chat]\n"
-    "---\n\n"
     "# Federal Reserve\n\n"
     "## Definition\n\nThe Federal Reserve System is the central banking system of the US.\n\n"
     "## Key Characteristics\n\n- Monetary policy\n- Bank supervision\n\n"
@@ -274,7 +273,12 @@ def test_save_to_wiki_calls_structure_pass(tmp_workspace: WorkspaceFixture) -> N
 
 
 def test_save_to_wiki_structured_output_on_disk(tmp_workspace: WorkspaceFixture) -> None:
-    """YAML frontmatter and standard sections must reach disk."""
+    """YAML frontmatter and standard sections must reach disk.
+
+    The frontmatter itself is code-rendered by create_page (not the LLM's
+    responsibility any more — see domain/tools/wiki_fs.py), so this asserts on
+    what create_page actually wrote, parsed back via parse_frontmatter.
+    """
     fake = FakeLLMClient(response_content=_STRUCTURED)
     save_to_wiki(
         tmp_workspace.db_path, tmp_workspace.workspace,
@@ -282,6 +286,11 @@ def test_save_to_wiki_structured_output_on_disk(tmp_workspace: WorkspaceFixture)
         client=fake, model="fake",
     )
     text = (tmp_workspace.workspace / "wiki" / "concepts" / "my-concept.md").read_text()
-    assert "tags: [concept]" in text
-    assert "## Definition" in text
-    assert "## Sources" in text
+    fm_block, body = split_frontmatter(text)
+    assert fm_block is not None
+    fields = parse_frontmatter(fm_block)
+    assert fields["type"] == "concept"
+    assert fields["tags"] == ["concept"]
+    assert fields["sources"] == [{"resource": "chat"}]  # OKF provenance mapping shape
+    assert "## Definition" in body
+    assert "## Sources" in body

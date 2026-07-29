@@ -1,3 +1,8 @@
+---
+type: summary
+title: Blancanieves
+---
+
 # Blancanieves
 
 **Fuente:** Blancanieves.pdf | **Tipo:** pdf | **Páginas:** 9 | **Ingerido:** 2026-07-08

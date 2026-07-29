@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Cinderella
 tags: [entity]
-sources: [Cinderella.pdf]
+sources:
+  - resource: sources/Cinderella.pdf
 ---
 
 # Cinderella

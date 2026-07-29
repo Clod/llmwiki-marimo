@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Snow White
 tags: [entity]
-sources: [Snow White and the Seven Dwarfs.pdf]
+sources:
+  - resource: sources/Snow White and the Seven Dwarfs.pdf
 ---
 
 # Snow White

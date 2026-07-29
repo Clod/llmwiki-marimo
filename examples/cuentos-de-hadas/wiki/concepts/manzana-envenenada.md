@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Manzana envenenada
 tags: [instrument]
-sources: [Blancanieves.pdf]
+sources:
+  - resource: sources/Blancanieves.pdf
 ---
 
 # Manzana envenenada

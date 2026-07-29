@@ -1,3 +1,8 @@
+---
+type: overview
+title: Knowledge Base Overview
+---
+
 # Knowledge Base Overview
 
 Welcome to our vibrant knowledge base, an evolving tapestry where the timeless enchantment of fairy tales intertwines with the profound narratives of human experience. Our collection begins with the beloved tale of Cinderella, a narrative that has captivated generations with its themes of kindness, resilience, and transformative hope. Cinderella's journey of grace under adversity sets the stage for exploring the rich moral and cultural layers embedded within fairy tales.

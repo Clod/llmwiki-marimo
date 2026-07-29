@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Glass Slipper
 tags: [instrument]
-sources: [Cinderella.pdf]
+sources:
+  - resource: sources/Cinderella.pdf
 ---
 
 # Glass Slipper

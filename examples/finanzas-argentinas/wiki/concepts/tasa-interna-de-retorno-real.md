@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Tasa Interna de Retorno Real
 tags: [theme]
-sources: [04 Bonos CER y UVA.docx]
+sources:
+  - resource: sources/04 Bonos CER y UVA.docx
 ---
 
 # Tasa Interna de Retorno Real

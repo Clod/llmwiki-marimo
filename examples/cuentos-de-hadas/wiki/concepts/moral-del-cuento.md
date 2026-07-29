@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Moral del Cuento
 tags: [theme]
-sources: [La Cenicienta.pdf]
+sources:
+  - resource: sources/La Cenicienta.pdf
 ---
 
 # Moral del Cuento

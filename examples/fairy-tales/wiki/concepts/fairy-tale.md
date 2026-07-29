@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Fairy Tale
 tags: [theme]
-sources: [Little Red Riding Hood.pdf]
+sources:
+  - resource: sources/Little Red Riding Hood.pdf
 ---
 
 # Fairy Tale

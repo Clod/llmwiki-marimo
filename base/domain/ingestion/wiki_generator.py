@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from domain.datasets.frontmatter import render_frontmatter, split_frontmatter
 from domain.i18n import get_locale, with_content_directive
 
 logger = logging.getLogger(__name__)
@@ -135,11 +136,6 @@ New insight from document "{filename}": {insight}
 
 Produce a markdown page with this structure:
 
----
-tags: [{category}]
-sources: [{filename}]
----
-
 # {name}
 
 ## {h_definition}
@@ -179,11 +175,6 @@ Content synthesised from a chat conversation:
 ---
 
 Produce a markdown page with this structure:
-
----
-tags: [{category}]
-sources: [chat]
----
 
 # {name}
 
@@ -446,11 +437,16 @@ def build_concept_page(
     """
     loc = get_locale(language)
     if existing_content:
+        # Strip any frontmatter before handing the page to the model: it no
+        # longer needs to see (and possibly reproduce) that block, and
+        # _CONCEPT_UPDATE_TEMPLATE itself wraps {existing} in a `---` pair —
+        # a real delimiter collision if {existing} starts with its own `---`.
+        _, existing_body = split_frontmatter(existing_content)
         user_msg = _CONCEPT_UPDATE_TEMPLATE.format(
             name=concept.name,
             filename=filename,
             insight=concept.insight,
-            existing=existing_content,
+            existing=existing_body,
         )
     else:
         user_msg = _CONCEPT_NEW_TEMPLATE.format(
@@ -508,17 +504,22 @@ def structure_chat_content(
 ) -> str:
     """Apply an LLM structuring pass to chat-sourced content before saving to the wiki.
 
-    Returns structured markdown with YAML frontmatter and standard sections.
-    Raises on LLM failure — callers should catch and surface the error.
-    The content-language directive is appended to the system prompt so the page
-    is written in the wiki language.
+    Returns structured markdown with the standard sections. Frontmatter
+    (type/title/tags/sources) is no longer part of this output — create_page
+    (domain/tools/wiki_fs.py) renders it in code. Raises on LLM failure —
+    callers should catch and surface the error. The content-language directive
+    is appended to the system prompt so the page is written in the wiki language.
     """
     loc = get_locale(language)
     if existing_content:
+        # Strip any frontmatter before handing the page to the model — same
+        # reasoning as build_concept_page: the model shouldn't reproduce it,
+        # and _CHAT_CONCEPT_UPDATE_TEMPLATE wraps {existing} in a `---` pair.
+        _, existing_body = split_frontmatter(existing_content)
         user_msg = _CHAT_CONCEPT_UPDATE_TEMPLATE.format(
             name=title,
             content=raw_content,
-            existing=existing_content,
+            existing=existing_body,
         )
     else:
         user_msg = _CHAT_CONCEPT_NEW_TEMPLATE.format(
@@ -555,10 +556,23 @@ def update_overview(
 
     The content-language directive is appended to the system prompt so the
     narrative prose is written in the wiki language.
+
+    overview.md doesn't go through create_page (its caller, pipeline.py,
+    writes it directly) and isn't OKF-reserved like index.md/log.md, so it
+    needs its own frontmatter block — rendered here, the same "never trust the
+    model to transcribe it" rule as everywhere else. `title` comes from the
+    locale's `overview_title` (the same string the initial scaffold's `#`
+    heading uses — see pipeline.py), so the block's title always matches the
+    page's own heading in the wiki's language.
     """
     concept_list = ", ".join(all_concept_names) if all_concept_names else "none yet"
+    # Strip any frontmatter before handing the current overview to the model —
+    # same reasoning as build_concept_page: it shouldn't reproduce it, and
+    # _OVERVIEW_TEMPLATE wraps {current_overview} in a `---` pair, a real
+    # delimiter collision now that overview.md carries its own `---` block.
+    _, current_body = split_frontmatter(current_overview)
     user_msg = _OVERVIEW_TEMPLATE.format(
-        current_overview=current_overview,
+        current_overview=current_body,
         new_summary=new_summary,
         concept_list=concept_list,
     )
@@ -571,7 +585,10 @@ def update_overview(
         ],
         temperature=0.4,
     )
-    return _strip_wrapping_fence(response.choices[0].message.content)
+    body = _strip_wrapping_fence(response.choices[0].message.content)
+    loc = get_locale(language)
+    frontmatter_block = render_frontmatter({"type": "overview", "title": loc.overview_title})
+    return frontmatter_block + body
 
 
 # ── Legacy single-pass (kept for regenerate_wiki_pages) ──────────────────────

@@ -1,3 +1,8 @@
+---
+type: summary
+title: 12 Cauciones Bursátiles
+---
+
 # 12 Cauciones Bursátiles
 
 **Fuente:** 12 Cauciones Bursátiles.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-19

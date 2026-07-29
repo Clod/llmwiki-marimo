@@ -1,3 +1,8 @@
+---
+type: summary
+title: Little Red Riding Hood
+---
+
 # Little Red Riding Hood
 
 **Source:** Little Red Riding Hood.pdf | **Type:** pdf | **Pages:** 2 | **Ingested:** 2026-07-08

@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Zapatilla de Cristal
 tags: [instrument]
-sources: [La Cenicienta.pdf]
+sources:
+  - resource: sources/La Cenicienta.pdf
 ---
 
 # Zapatilla de Cristal

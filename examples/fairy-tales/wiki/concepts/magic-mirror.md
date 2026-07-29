@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Magic Mirror
 tags: [instrument]
-sources: [Snow White and the Seven Dwarfs.pdf]
+sources:
+  - resource: sources/Snow White and the Seven Dwarfs.pdf
 ---
 
 # Magic Mirror

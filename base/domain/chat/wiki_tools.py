@@ -281,11 +281,17 @@ def save_to_wiki(
 
     # 5. Write the file to disk, determining whether this is an Update or a fresh Creation
     if existing:
-        result = create_page(db_path, workspace, dir_path, slug, title, structured, [category], overwrite=True)
+        result = create_page(
+            db_path, workspace, dir_path, slug, title, structured, [category],
+            overwrite=True, sources=["chat"],
+        )
         page_path = result["path"]
         action = "Updated"
     else:
-        result = create_page(db_path, workspace, dir_path, slug, title, structured, [category])
+        result = create_page(
+            db_path, workspace, dir_path, slug, title, structured, [category],
+            sources=["chat"],
+        )
         page_path = result["path"]
         action = "Created"
 

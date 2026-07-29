@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Unidad de Valor Adquisitivo
 tags: [instrument]
-sources: [04 Bonos CER y UVA.docx]
+sources:
+  - resource: sources/04 Bonos CER y UVA.docx
 ---
 
 # Unidad de Valor Adquisitivo

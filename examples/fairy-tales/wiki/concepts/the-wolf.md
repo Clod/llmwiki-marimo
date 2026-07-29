@@ -1,6 +1,9 @@
 ---
+type: concept
+title: The Wolf
 tags: [entity]
-sources: [Little Red Riding Hood.pdf]
+sources:
+  - resource: sources/Little Red Riding Hood.pdf
 ---
 
 # The Wolf

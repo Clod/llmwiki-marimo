@@ -1,3 +1,8 @@
+---
+type: summary
+title: La Cenicienta
+---
+
 # La Cenicienta
 
 **Fuente:** La Cenicienta.pdf | **Tipo:** pdf | **Páginas:** 7 | **Ingerido:** 2026-07-08

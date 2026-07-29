@@ -1,6 +1,9 @@
 ---
+type: concept
+title: Riesgo de crédito
 tags: [theme]
-sources: [07 FCI Money Market.docx]
+sources:
+  - resource: sources/07 FCI Money Market.docx
 ---
 
 # Riesgo de crédito

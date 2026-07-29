@@ -1,3 +1,8 @@
+---
+type: summary
+title: 04 Bonos Cer Y Uva
+---
+
 # 04 Bonos Cer Y Uva
 
 **Fuente:** 04 Bonos CER y UVA.docx | **Tipo:** docx | **Páginas:** 3 | **Ingerido:** 2026-07-19
