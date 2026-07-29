@@ -35,6 +35,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   verification; and a live toggle in the read app.
 - **Pluggable citation/grounding guardrail** and an **opt-in JSONL chat trace**
   (one row per turn) for offline diagnosis.
+- **A tabbed read app ships alongside the grid one** (`marimo/read_app_tabs.py`).
+  It is **not the default and not yet documented**: `quickstart.py`, both READMEs
+  and the programmer manual still launch `marimo/read_app.py`, and the E2E suite
+  still covers that one. Both carry the same chat, including the pre-retrieval
+  toggle, so any change to the chat currently has to be made twice. Promotion —
+  and the removal of the grid app — waits on a parity test proving nothing was
+  lost in the move.
 - **Two walkthrough documents, generated from real runs.** The [ingestion
   walkthrough](docs/ingestion_walkthrough.md) follows one small corpus through
   its whole lifecycle — first document, second, a no-op re-ingest, an edited

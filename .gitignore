@@ -88,3 +88,6 @@ eval_reports/
 *.db-wal
 *.db-shm
 *.db-journal
+
+# Understand-Anything knowledge graph (regenerable)
+.ua/
