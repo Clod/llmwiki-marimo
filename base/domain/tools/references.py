@@ -117,6 +117,14 @@ def update_references(
                     if doc_base == base:
                         target = doc
                         break
+            # A citation records where a page's CONTENT came from, so its target
+            # must be a source document. Candidates are matched by filename and by
+            # title, and wiki pages carry both — so a bullet naming a wiki page
+            # (a "See also" link that drifted under "## Sources", say) would
+            # otherwise be stored as a citation. Deletion, lint and provenance all
+            # read these and all assume the target is a source.
+            if target and target["path"].startswith("/wiki/"):
+                continue
             if target and str(target["id"]) != document_id:
                 edges.append((str(target["id"]), "cites", page))
 

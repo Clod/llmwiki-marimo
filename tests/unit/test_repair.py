@@ -154,6 +154,91 @@ def test_repair_missing_xref_is_skipped(tmp_workspace: WorkspaceFixture) -> None
     assert result.action == "skipped"
 
 
+def test_repair_missing_xref_writes_under_see_also_not_under_sources(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """The new link must land in the See also section, wherever that sits.
+
+    Pages are generated with `## See also` BEFORE `## Sources`. Appending the
+    bullet to the end of the file therefore drops it under Sources, which is a
+    list of the documents the page was written from. A wiki page is not one, and
+    the reference parser reads everything under that heading as a citation — so
+    the misplaced bullet is recorded as "this page came from that page".
+
+    In the shipped fairy-tale demo this produced 13 such records out of 30.
+    """
+    body = (
+        "# A\n\n"
+        f"{_LONG}\n\n"
+        "## See also\n\n"
+        "- [Existing](existing.md)\n\n"
+        "## Sources\n"
+        "- Cinderella.pdf\n"
+    )
+    create_page(tmp_workspace.db_path, tmp_workspace.workspace,
+                "/wiki/concepts/", "a", "A", body, [])
+    create_page(tmp_workspace.db_path, tmp_workspace.workspace,
+                "/wiki/concepts/", "b", "Glass Slipper",
+                f"# Glass Slipper\n\n{_LONG}", [])
+
+    issue = LintIssue(
+        check="missing_xref", severity="info", page="/wiki/concepts/a.md",
+        related_page="/wiki/concepts/b.md",
+        description="'A' and 'Glass Slipper' share cited sources but don't link",
+        suggestion="",
+    )
+    result = repair_missing_xref(issue, tmp_workspace.db_path, tmp_workspace.workspace)
+    assert result.action == "xref_added", result.message
+
+    text = (tmp_workspace.workspace / "wiki" / "concepts" / "a.md").read_text(encoding="utf-8")
+    see_also_at = text.index("## See also")
+    sources_at = text.index("## Sources")
+    link_at = text.index("(b.md)")
+    assert see_also_at < link_at < sources_at, (
+        "the new link was written outside the See also section:\n" + text
+    )
+
+
+def test_a_cites_record_never_points_at_a_wiki_page(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """`cites` means "this page was written from that source document".
+
+    Nothing else is a valid target. The reference parser matches a citation
+    against every document by filename *and by title*, so a bullet naming a wiki
+    page — however it got there — used to resolve to that page and be stored as a
+    citation. Deletion, lint and provenance all read these records and all assume
+    the target is a source.
+    """
+    from domain.tools.references import update_references
+
+    create_page(tmp_workspace.db_path, tmp_workspace.workspace,
+                "/wiki/concepts/", "glass-slipper", "Glass Slipper",
+                f"# Glass Slipper\n\n{_LONG}", [])
+    body = (
+        "# A\n\n"
+        f"{_LONG}\n\n"
+        "## Sources\n"
+        "- [Glass Slipper](glass-slipper.md)\n"
+    )
+    create_page(tmp_workspace.db_path, tmp_workspace.workspace,
+                "/wiki/concepts/", "a", "A", body, [])
+
+    with get_connection(tmp_workspace.db_path) as conn:
+        doc_id = conn.execute(
+            "SELECT id FROM documents WHERE path||filename='/wiki/concepts/a.md'"
+        ).fetchone()["id"]
+    update_references(tmp_workspace.db_path, doc_id, body, "/wiki/concepts/")
+
+    with get_connection(tmp_workspace.db_path) as conn:
+        bad = conn.execute(
+            "SELECT count(*) AS n FROM document_references r "
+            "JOIN documents t ON t.id = r.target_document_id "
+            "WHERE r.reference_type = 'cites' AND t.source_kind = 'wiki'"
+        ).fetchone()["n"]
+    assert bad == 0, f"{bad} cites record(s) point at a wiki page"
+
+
 # ── repair_missing_concept ────────────────────────────────────────────────────
 
 def test_repair_missing_concept_creates_page(tmp_workspace: WorkspaceFixture) -> None:

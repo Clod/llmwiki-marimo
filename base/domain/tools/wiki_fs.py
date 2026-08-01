@@ -438,32 +438,30 @@ def read_page(
     return file_path.read_text(encoding="utf-8")
 
 
-def append_to_page(
+def write_page_content(
     db_path: str,
     workspace: Path,
     dir_path: str,
     slug: str,
-    content: str,
+    new_content: str,
 ) -> bool:
-    """Append content to an existing wiki page (disk + DB). Returns True on success."""
-    # 1. Locate the file
+    """Replace an existing wiki page's text (disk + DB). Returns True on success.
+
+    For edits that have to land somewhere other than the end of the file — adding
+    a link inside a section, for instance. `append_to_page` is the special case of
+    this that concatenates.
+    """
     dir_path = _normalize_dir_path(dir_path)
     filename = f"{slug}.md"
     relative_path = dir_path.lstrip("/") + filename
     file_path = workspace / relative_path
 
-    # If the file isn't there, we cannot append to it!
     if not file_path.exists():
         return False
 
-    # 2. Read the old text, format it cleanly with extra spacing, and append the new content
-    existing_content = file_path.read_text(encoding="utf-8")
-    new_content = existing_content.rstrip("\n") + "\n\n" + content
-
-    # Write the combined string back to disk
     file_path.write_text(new_content, encoding="utf-8")
 
-    # 3. Synchronize with the database
+    # Synchronize with the database
     conn = open_db(db_path)
     try:
         with conn:
@@ -488,6 +486,22 @@ def append_to_page(
         conn.close()
 
     return True
+
+
+def append_to_page(
+    db_path: str,
+    workspace: Path,
+    dir_path: str,
+    slug: str,
+    content: str,
+) -> bool:
+    """Append content to an existing wiki page (disk + DB). Returns True on success."""
+    file_path = workspace / (_normalize_dir_path(dir_path).lstrip("/") + f"{slug}.md")
+    if not file_path.exists():
+        return False
+    existing_content = file_path.read_text(encoding="utf-8")
+    new_content = existing_content.rstrip("\n") + "\n\n" + content
+    return write_page_content(db_path, workspace, dir_path, slug, new_content)
 
 
 def delete_page(
