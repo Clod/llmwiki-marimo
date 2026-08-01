@@ -25,8 +25,7 @@ The Blue Fairy Book is part of a series of fairy tale books edited by Andrew Lan
 - [Little Red Riding Hood](little-red-riding-hood.md)
 - [Fairy Tale](fairy-tale.md)
 - [Little Red Riding Hood](../summaries/little-red-riding-hood.md)
+- [The Wolf](the-wolf.md)
 
 ## Sources
 - Little Red Riding Hood.pdf
-
-- [The Wolf](the-wolf.md)

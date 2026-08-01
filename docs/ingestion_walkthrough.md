@@ -310,8 +310,8 @@ single row means** in each one:
   entries look like this:
 
   ```text
-  slipper     →  130, 117, 127, 126, 128, 116, 109, 113
-  Cinderella  →  138, 128, 130, 126, 135, 127, 117, 112, 111, 115, 109, 116, …
+  slipper     →  153, 117, 127, 151, 152, 116, 109, 113
+  Cinderella  →  138, 152, 153, 151, 146, 127, 117, 112, 111, 115, 109, 116, …
   ```
 
   Those numbers are `rowid`s — internal row numbers, reassigned whenever the
@@ -349,11 +349,11 @@ single row means** in each one:
 
   | fragment | mentions | tokens | rank |
   |---:|---:|---:|---:|
-  | 130 | 5 | 306 | −2.08 |
+  | 153 | 5 | 305 | −2.08 |
   | 117 | 7 | 519 | −1.98 |
   | 127 | 3 | 262 | −1.94 |
-  | 126 | 2 | 289 | −1.71 |
-  | 128 | 2 | 290 | −1.70 |
+  | 151 | 2 | 288 | −1.71 |
+  | 152 | 2 | 290 | −1.70 |
   | 116 | 3 | 471 | −1.58 |
   | 109 | 1 | 411 | −1.01 |
   | 113 | 1 | 481 | −0.91 |
@@ -368,8 +368,8 @@ single row means** in each one:
   **Length is taken into account.** Fragments 109 and 113 mention the word exactly
   once each, and the shorter one wins: one mention inside 411 tokens means the
   passage is more likely to be *about* the slipper than one mention spread across
-  481. The effect is very fine-grained — fragments 126 and 128 each have two
-  mentions and differ by a single token of length, and that one token changes
+  481. The effect is very fine-grained — fragments 151 and 152 each have two
+  mentions and differ by just two tokens of length, and those two tokens change
   their ranks by a hundredth.
 
   **Rare words count for more.** A word that appears in most fragments does not

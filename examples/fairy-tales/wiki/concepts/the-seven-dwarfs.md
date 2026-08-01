@@ -25,8 +25,7 @@ The Seven Dwarfs play a crucial role in the fairy tale "Snow White and the Seven
 - [Fairy Tale](fairy-tale.md)
 - [Snow White](snow-white.md)
 - [Snow White And The Seven Dwarfs](../summaries/snow-white-and-the-seven-dwarfs.md)
+- [The Wicked Queen](the-wicked-queen.md)
 
 ## Sources
 - Snow White and the Seven Dwarfs.pdf
-
-- [The Wicked Queen](the-wicked-queen.md)

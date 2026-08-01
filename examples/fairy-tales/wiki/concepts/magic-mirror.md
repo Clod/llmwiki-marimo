@@ -25,8 +25,7 @@ The Magic Mirror is a pivotal instrument in the fairy tale "Snow White and the S
 - [Snow White](snow-white.md)
 - [The Seven Dwarfs](the-seven-dwarfs.md)
 - [Snow White And The Seven Dwarfs](../summaries/snow-white-and-the-seven-dwarfs.md)
+- [The Wicked Queen](the-wicked-queen.md)
 
 ## Sources
 - Snow White and the Seven Dwarfs.pdf
-
-- [The Wicked Queen](the-wicked-queen.md)

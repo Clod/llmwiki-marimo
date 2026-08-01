@@ -23,12 +23,9 @@ Cinderella is a central figure in fairy tale literature, often symbolizing the t
 
 - [Cinderella](../summaries/cinderella.md)
 - [Fairy Tale](fairy-tale.md)
+- [Glass Slipper](glass-slipper.md)
+- [Royal Ball](royal-ball.md)
+- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)
 
 ## Sources
 - Cinderella.pdf
-
-- [Glass Slipper](glass-slipper.md)
-
-- [Royal Ball](royal-ball.md)
-
-- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)

@@ -25,8 +25,7 @@ In literature and storytelling, the royal ball often symbolizes opportunity and 
 
 - [Cinderella](cinderella.md)
 - [Cinderella](../summaries/cinderella.md)
+- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)
 
 ## Sources
 - Cinderella.pdf
-
-- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)

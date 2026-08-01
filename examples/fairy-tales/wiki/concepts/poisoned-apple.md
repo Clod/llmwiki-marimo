@@ -24,10 +24,8 @@ In the broader context of fairy tales, the Poisoned Apple is a classic example o
 - [Snow White](snow-white.md)
 - [The Seven Dwarfs](the-seven-dwarfs.md)
 - [Snow White And The Seven Dwarfs](../summaries/snow-white-and-the-seven-dwarfs.md)
+- [Magic Mirror](magic-mirror.md)
+- [The Wicked Queen](the-wicked-queen.md)
 
 ## Sources
 - Snow White and the Seven Dwarfs.pdf
-
-- [Magic Mirror](magic-mirror.md)
-
-- [The Wicked Queen](the-wicked-queen.md)
