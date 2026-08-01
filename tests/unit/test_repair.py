@@ -373,6 +373,64 @@ def test_repair_skips_advisory_vocab_checks_with_clear_message(
         assert "advisory" in r.message.lower()
 
 
+def test_repair_skips_thin_page_as_advisory_not_unknown(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """thin_page reports that the wiki under-covers a source. It has no automatic
+    repair on purpose: its own suggestion is "expand or regenerate the page, or
+    accept the Tier-2 fallback", and choosing between those is a human call that
+    would need the model to write new prose either way.
+
+    So it belongs with the other advisory checks. Labelling it "Unknown check
+    type" printed a bug report into the ingestion log of every run — including the
+    walkthrough appendix that ships with the project.
+    """
+    lint = LintReport(issues=[
+        LintIssue(
+            check="thin_page", severity="warning",
+            page="wiki/summaries/cinderella.md",
+            description="7 of 10 source chunks in 'Cinderella.pdf' aren't reflected "
+                        "in the wiki page(s) citing it",
+            suggestion="Expand or regenerate the page to cover the source",
+        ),
+    ])
+    report = repair_wiki(lint, tmp_workspace.db_path, tmp_workspace.workspace)
+
+    assert len(report.skipped) == 1
+    message = report.skipped[0].message.lower()
+    assert "unknown check type" not in message
+    assert "advisory" in message
+
+
+def test_every_lint_check_is_either_repairable_or_declared_advisory() -> None:
+    """No check lint can emit may fall through to "Unknown check type".
+
+    That label means "the repair layer has never heard of this", and it is the
+    right message for a typo or a stale issue record. It is the wrong message for
+    a check somebody added to lint and forgot to wire here — which is exactly how
+    `thin_page` ended up printing a bug report into every ingestion log.
+
+    Reads the check names out of the lint module's own source, so adding a new
+    check without deciding what repair should do about it fails here.
+    """
+    import re
+    from pathlib import Path
+
+    from domain.repair.runner import _ADVISORY_CHECKS, _DISPATCH
+
+    source = (Path(__file__).resolve().parents[2]
+              / "base" / "domain" / "lint" / "checks.py").read_text(encoding="utf-8")
+    emitted = set(re.findall(r'check="([a-z_]+)"', source))
+    assert emitted, "no check names found — did lint/checks.py move?"
+
+    unhandled = emitted - set(_DISPATCH) - _ADVISORY_CHECKS
+    assert not unhandled, (
+        f"lint emits {sorted(unhandled)}, which repair_wiki would report as "
+        f"'Unknown check type'. Add a handler to _DISPATCH, or list it in "
+        f"_ADVISORY_CHECKS if it is meant to be resolved by a human."
+    )
+
+
 def test_repair_genuinely_unknown_check_is_still_flagged(
     tmp_workspace: WorkspaceFixture,
 ) -> None:

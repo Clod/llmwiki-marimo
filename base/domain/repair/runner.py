@@ -35,7 +35,13 @@ _DISPATCH = {
 
 # Known checks that surface a finding for a human but have no automatic repair
 # (informational/warning only). They are skipped deliberately — NOT "unknown".
-_ADVISORY_CHECKS = {"vocab_stale", "vocab_covered", "vocab_ambiguous"}
+#
+# `thin_page` belongs here rather than in _DISPATCH: it reports that the wiki
+# under-covers a source, and its own suggestion offers two remedies — expand the
+# page, or accept the Tier-2 fallback for the uncovered part. Both are judgement
+# calls, and the first would need the model to write new prose, so there is
+# nothing safe to do automatically.
+_ADVISORY_CHECKS = {"vocab_stale", "vocab_covered", "vocab_ambiguous", "thin_page"}
 
 
 def repair_wiki(
