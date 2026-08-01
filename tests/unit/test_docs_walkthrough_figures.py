@@ -86,9 +86,9 @@ def test_every_rowid_named_in_the_prose_is_one_the_table_shows(doc, db):
     own table with every check passing.
     """
     prose = re.search(
-        # whitespace-tolerant: the paragraph is hand-wrapped, so a line break can
-        # fall anywhere in the closing phrase.
-        r"Three behaviours are legible.+?rarer terms in the same\s+query\.",
+        # whitespace-tolerant: the passage is hand-wrapped, so a line break can
+        # fall anywhere in the opening or closing phrase.
+        r"That last column shows three\s+behaviours.+?is a single\s+word\.",
         doc, re.S,
     )
     assert prose, "the BM25 explanation is gone from the walkthrough"

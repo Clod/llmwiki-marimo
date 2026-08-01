@@ -104,12 +104,25 @@ PLAIN_CASES = [
 
 @dataclass
 class PlainTurn:
-    """What the agentic path did with one of those questions."""
+    """What the agentic path did with one of those questions.
+
+    Captured with BOTH boxes unticked, deliberately: that isolates what the model
+    does when nothing checks it. The read app's default is stricter than this
+    (`Modo estricto` ships on), so the last three fields record what that default
+    would have done to this very answer — computed from the run's own messages by
+    the same functions the app calls, so it costs no second model call and cannot
+    drift from the app's behaviour.
+    """
 
     case: PlainCase
     answer: str = ""
     tool_calls: list[str] = field(default_factory=list)
     cited: bool = False
+    # What `Modo estricto` (guardrail.enforce_grounding + postprocess.ensure_citation)
+    # would have made of the same run.
+    grounded: bool = False
+    strict_refuses: bool = False
+    strict_adds: str = ""
 
 
 @dataclass
@@ -227,21 +240,39 @@ async def _answer(d: Decision, cfg, db_path: str, agent) -> None:
     d.cited = _looks_cited(d.answer)
 
 
-async def _answer_plain(turn: PlainTurn, db_path: str, agent) -> None:
+async def _answer_plain(turn: PlainTurn, db_path: str, agent, language: str) -> None:
     """The unticked path — the agent is handed the question and its own tools.
 
     No gate, no injection, no plan: this is the model deciding for itself what
     to search for, which is the whole of the mode Part 1 describes.
+
+    Then the same run is re-scored through the app's default post-processing,
+    without invoking the model again: both are pure functions of the message
+    history, so this reports what `Modo estricto` would have returned instead.
     """
+    from domain.chat.guardrail import has_grounding, refusal_for
+    from domain.chat.postprocess import ensure_citation
     from domain.chat.trace import _looks_cited
 
     result = await agent.run(turn.case.question, deps=db_path, message_history=[])
-    for msg in result.all_messages():
+    messages = result.all_messages()
+    for msg in messages:
         for part in getattr(msg, "parts", []):
             if getattr(part, "part_kind", None) == "tool-call":
                 turn.tool_calls.append(getattr(part, "tool_name", "?"))
     turn.answer = result.output
     turn.cited = _looks_cited(turn.answer)
+
+    # `Modo estricto`, replayed over this run. A run with no substantive tool
+    # return is replaced wholesale by the refusal; otherwise the answer stands and
+    # only a missing attribution line is appended.
+    turn.grounded = has_grounding(messages)
+    turn.strict_refuses = not turn.grounded
+    if turn.grounded:
+        strict = ensure_citation(turn.answer, messages)
+        turn.strict_adds = strict[len(turn.answer):].strip() if strict != turn.answer else ""
+    else:
+        turn.strict_adds = refusal_for(language)
 
 
 def _render_plain(turns: list[PlainTurn]) -> list[str]:
@@ -256,18 +287,32 @@ def _render_plain(turns: list[PlainTurn]) -> list[str]:
         "tools column is the point — nothing in the code decided to call those, the",
         "model did.",
         "",
+        "These were captured with **both** checkboxes unticked, which is not the read",
+        "app's default: `Modo estricto` ships on. The last two lines of each entry",
+        "replay that default over this same run — `guardrail.has_grounding` and",
+        "`postprocess.ensure_citation` are pure functions of the message history, so",
+        "the replay needs no second model call and cannot disagree with the app.",
+        "",
     ]
     for i, t in enumerate(turns, 1):
         answer = t.answer.strip()
         if len(answer) > _MAX_ANSWER_CHARS:
             answer = answer[:_MAX_ANSWER_CHARS].rstrip() + "\n…[truncated for the appendix]"
+        if t.strict_refuses:
+            strict = f"**replaces the whole answer** with `{t.strict_adds}`"
+        elif t.strict_adds:
+            strict = f"appends `{t.strict_adds}`"
+        else:
+            strict = "**leaves it exactly as it is**"
         out += [
             f"### P{i}. {t.case.act}", "",
             f"> {t.case.question}", "",
             f"*What it exercises:* {t.case.teaches}", "",
             f"- tools the model chose to call: "
             f"{', '.join(f'`{c}`' for c in t.tool_calls) or '— **none**'}",
-            f"- carries a citation: **{t.cited}**", "",
+            f"- carries a citation: **{t.cited}**",
+            f"- a tool returned real evidence (`has_grounding`): **{t.grounded}**",
+            f"- what `Modo estricto` would do to this answer: {strict}", "",
             "```text", answer, "```", "",
         ]
     return out
@@ -389,6 +434,7 @@ def main() -> int:
     coverage = set(vocab) | set(concept_page_names(db_path))
 
     plain_turns: list[PlainTurn] = []
+    plain_language = "en"
     decisions = [_gate(c, cfg, db_path, vocab, coverage, aliases) for c in CASES]
     for d in decisions:
         print(f"  {d.action:<7} {d.tier:<7} {d.case.question[:52]}")
@@ -429,14 +475,16 @@ def main() -> int:
                 workspace=PLAIN_DEMO, include_wiki_tools=True,
             )
             plain_turns = [PlainTurn(case=c) for c in PLAIN_CASES]
+            plain_language = plain_cfg.language
         else:
             print(f"! no index at {plain_db} — skipping the unticked capture")
 
         async def _run_all() -> None:
             for t in plain_turns:
                 print(f"\n→ [unticked] {t.case.question}")
-                await _answer_plain(t, plain_db, plain_agent)
-                print(f"   tools={t.tool_calls} cited={t.cited}")
+                await _answer_plain(t, plain_db, plain_agent, plain_language)
+                print(f"   tools={t.tool_calls} cited={t.cited} "
+                      f"strict={'refuses' if t.strict_refuses else (t.strict_adds or 'unchanged')}")
             for d in decisions:
                 print(f"\n→ [ticked] {d.case.question}")
                 await _answer(d, cfg, db_path, agent)

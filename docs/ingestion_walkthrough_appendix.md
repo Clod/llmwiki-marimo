@@ -23,7 +23,7 @@ uv run python scripts/capture_ingestion_walkthrough.py
 💡 Creating concept: Fairy Godmother
 💡 Creating concept: Glass Slipper
 💡 Creating concept: Royal Ball
-💡 Creating concept: Stepsisters
+💡 Creating concept: Prince
 📄 Writing summary page...
 🌐 Updating overview...
 ✅ Done: Cinderella.pdf (5 pages, 10 chunks)
@@ -34,25 +34,24 @@ uv run python scripts/capture_ingestion_walkthrough.py
 🔎 lint: gap-filled markers
 🔎 lint: vocabulary
 🔎 lint: thin pages
-🔧 11 issue(s) on ingested pages — repairing (deterministic)…
-🔧 Repairing 11 issue(s)...
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/stepsisters.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/stepsisters.md
+🔧 10 issue(s) on ingested pages — repairing (deterministic)…
+🔧 Repairing 10 issue(s)...
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/cinderella.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/glass-slipper.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/royal-ball.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/stepsisters.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/cinderella.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/stepsisters.md
-  ⏭️ [thin_page] skipped: Unknown check type: thin_page
-🏁 11 issue(s): 10 fixed, 1 skipped, 0 failed
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/glass-slipper.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/prince.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/cinderella.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/fairy-godmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/glass-slipper.md
+🏁 10 issue(s): 10 fixed, 0 skipped, 0 failed
 🔗 cross-linked wiki/concepts/cinderella.md
 🔗 cross-linked wiki/concepts/fairy-godmother.md
 🔗 cross-linked wiki/concepts/glass-slipper.md
 🔗 cross-linked wiki/concepts/royal-ball.md
-🔗 cross-linked wiki/concepts/stepsisters.md
+🔗 cross-linked wiki/concepts/prince.md
 🔗 Cross-linked 5 page(s)
 ```
 
@@ -80,8 +79,8 @@ uv run python scripts/capture_ingestion_walkthrough.py
 - `+` `wiki/concepts/cinderella.md`
 - `+` `wiki/concepts/fairy-godmother.md`
 - `+` `wiki/concepts/glass-slipper.md`
+- `+` `wiki/concepts/prince.md`
 - `+` `wiki/concepts/royal-ball.md`
-- `+` `wiki/concepts/stepsisters.md`
 - `+` `wiki/index.md`
 - `+` `wiki/log.md`
 - `+` `wiki/overview.md`
@@ -95,12 +94,13 @@ uv run python scripts/capture_ingestion_walkthrough.py
 
 [alias_datos]
 "Cinderella" = ["Cinderwench"]
+"Prince" = ["King's son"]
 ```
 
 **Wiki git history**
 
 ```text
-af33577 ingest: Cinderella.pdf
+6f84793 ingest: Cinderella.pdf
 ```
 
 ## Act 2 — second document
@@ -113,11 +113,12 @@ af33577 ingest: Cinderella.pdf
 ✅ Extracted 2 pages
 ✂️ Chunked into 2 chunks
 🤖 Extracting knowledge structure...
-📋 Found 4 concept(s)
+📋 Found 5 concept(s)
 💡 Creating concept: Little Red Riding Hood
 💡 Creating concept: The Wolf
-💡 Creating concept: Grandmother's House
-💡 Creating concept: Cautionary Tale
+💡 Creating concept: The Grandmother
+💡 Creating concept: The Red Riding Hood
+💡 Creating concept: Themes of Little Red Riding Hood
 📄 Writing summary page...
 🌐 Updating overview...
 ✅ Done: Little Red Riding Hood.pdf (2 pages, 2 chunks)
@@ -128,20 +129,25 @@ af33577 ingest: Cinderella.pdf
 🔎 lint: gap-filled markers
 🔎 lint: vocabulary
 🔎 lint: thin pages
-🔧 6 issue(s) on ingested pages — repairing (deterministic)…
-🔧 Repairing 6 issue(s)...
+🔧 10 issue(s) on ingested pages — repairing (deterministic)…
+🔧 Repairing 10 issue(s)...
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-wolf.md → /wiki/concepts/little-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/grandmothers-house.md → /wiki/concepts/little-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/grandmothers-house.md → /wiki/concepts/the-wolf.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cautionary-tale.md → /wiki/concepts/little-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cautionary-tale.md → /wiki/concepts/the-wolf.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cautionary-tale.md → /wiki/concepts/grandmothers-house.md
-🏁 6 issue(s): 6 fixed, 0 skipped, 0 failed
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-wolf.md → /wiki/concepts/the-grandmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-wolf.md → /wiki/concepts/the-red-riding-hood.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-wolf.md → /wiki/concepts/themes-of-little-red-riding-hood.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-grandmother.md → /wiki/concepts/little-red-riding-hood.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-grandmother.md → /wiki/concepts/the-red-riding-hood.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-red-riding-hood.md → /wiki/concepts/little-red-riding-hood.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/themes-of-little-red-riding-hood.md → /wiki/concepts/little-red-riding-hood.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/themes-of-little-red-riding-hood.md → /wiki/concepts/the-grandmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/themes-of-little-red-riding-hood.md → /wiki/concepts/the-red-riding-hood.md
+🏁 10 issue(s): 10 fixed, 0 skipped, 0 failed
 🔗 cross-linked wiki/concepts/little-red-riding-hood.md
 🔗 cross-linked wiki/concepts/the-wolf.md
-🔗 cross-linked wiki/concepts/grandmothers-house.md
-🔗 cross-linked wiki/concepts/cautionary-tale.md
-🔗 Cross-linked 4 page(s)
+🔗 cross-linked wiki/concepts/the-grandmother.md
+🔗 cross-linked wiki/concepts/the-red-riding-hood.md
+🔗 cross-linked wiki/concepts/themes-of-little-red-riding-hood.md
+🔗 Cross-linked 5 page(s)
 ```
 
 **Database**
@@ -149,24 +155,25 @@ af33577 ingest: Cinderella.pdf
 | table | rows | Δ |
 |---|---|---|
 | `documents (source)` | 2 | +1 |
-| `documents (wiki)` | 11 | +5 |
+| `documents (wiki)` | 12 | +6 |
 | `document_pages` | 7 | +2 |
-| `document_chunks` | 23 | +7 |
-| `chunks_fts` | 23 | +7 |
+| `document_chunks` | 24 | +8 |
+| `chunks_fts` | 24 | +8 |
 
 **Citation graph** (`document_references`)
 
 | reference_type | edges |
 |---|---|
-| `cites` | 11 |
-| `links_to` | 25 |
+| `cites` | 12 |
+| `links_to` | 30 |
 
 **Files**
 
-- `+` `wiki/concepts/cautionary-tale.md`
-- `+` `wiki/concepts/grandmothers-house.md`
 - `+` `wiki/concepts/little-red-riding-hood.md`
+- `+` `wiki/concepts/the-grandmother.md`
+- `+` `wiki/concepts/the-red-riding-hood.md`
 - `+` `wiki/concepts/the-wolf.md`
+- `+` `wiki/concepts/themes-of-little-red-riding-hood.md`
 - `+` `wiki/summaries/little-red-riding-hood.md`
 
 **`.llmwiki/aliases.generated.toml`**
@@ -177,13 +184,14 @@ af33577 ingest: Cinderella.pdf
 
 [alias_datos]
 "Cinderella" = ["Cinderwench"]
+"Prince" = ["King's son"]
 ```
 
 **Wiki git history**
 
 ```text
-f041d5c ingest: Little Red Riding Hood.pdf
-af33577 ingest: Cinderella.pdf
+85ca81d ingest: Little Red Riding Hood.pdf
+6f84793 ingest: Cinderella.pdf
 ```
 
 ## Act 3a — re-ingest, unchanged
@@ -201,17 +209,17 @@ af33577 ingest: Cinderella.pdf
 | table | rows | Δ |
 |---|---|---|
 | `documents (source)` | 2 | +0 |
-| `documents (wiki)` | 11 | +0 |
+| `documents (wiki)` | 12 | +0 |
 | `document_pages` | 7 | +0 |
-| `document_chunks` | 23 | +0 |
-| `chunks_fts` | 23 | +0 |
+| `document_chunks` | 24 | +0 |
+| `chunks_fts` | 24 | +0 |
 
 **Citation graph** (`document_references`)
 
 | reference_type | edges |
 |---|---|
-| `cites` | 11 |
-| `links_to` | 25 |
+| `cites` | 12 |
+| `links_to` | 30 |
 
 **Files**
 
@@ -225,13 +233,14 @@ af33577 ingest: Cinderella.pdf
 
 [alias_datos]
 "Cinderella" = ["Cinderwench"]
+"Prince" = ["King's son"]
 ```
 
 **Wiki git history**
 
 ```text
-f041d5c ingest: Little Red Riding Hood.pdf
-af33577 ingest: Cinderella.pdf
+85ca81d ingest: Little Red Riding Hood.pdf
+6f84793 ingest: Cinderella.pdf
 ```
 
 ## Act 3b — edited source re-ingested
@@ -245,11 +254,11 @@ af33577 ingest: Cinderella.pdf
 ✂️ Chunked into 13 chunks
 🤖 Extracting knowledge structure...
 📋 Found 5 concept(s)
-💡 Creating concept: The Sleeping Beauty
+💡 Creating concept: Sleeping Beauty
 💡 Creating concept: Fairy Godmothers
-💡 Creating concept: The Ogress Queen
-💡 Creating concept: The Hundred-Year Sleep
-💡 Creating concept: The Prince
+💡 Creating concept: Ogress Queen
+💡 Creating concept: Spindle Curse
+💡 Creating concept: Seven-League Boots
 📄 Writing summary page...
 🌐 Updating overview...
 ✅ Done: Cinderella.pdf (7 pages, 13 chunks)
@@ -267,56 +276,53 @@ af33577 ingest: Cinderella.pdf
   ⏭️ [stale] skipped: LLM client required for 'stale' repair — pass llm_client
   ⏭️ [stale] skipped: LLM client required for 'stale' repair — pass llm_client
   ⏭️ [stale] skipped: LLM client required for 'stale' repair — pass llm_client
-  ⏭️ [missing_xref] skipped: already linked
-  ⏭️ [missing_xref] skipped: already linked
-  ⏭️ [missing_xref] skipped: already linked
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/fairy-godmothers.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/the-prince.md
-  ⏭️ [missing_xref] skipped: already linked
-  ⏭️ [missing_xref] skipped: already linked
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-sleeping-beauty.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-sleeping-beauty.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-sleeping-beauty.md → /wiki/concepts/glass-slipper.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-sleeping-beauty.md → /wiki/concepts/royal-ball.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-sleeping-beauty.md → /wiki/concepts/stepsisters.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-sleeping-beauty.md → /wiki/concepts/fairy-godmothers.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-sleeping-beauty.md → /wiki/concepts/the-prince.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/spindle-curse.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/spindle-curse.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/spindle-curse.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/spindle-curse.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/seven-league-boots.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/spindle-curse.md
+  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/cinderella.md
+  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/fairy-godmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/glass-slipper.md
+  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/royal-ball.md
+  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/prince.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/cinderella.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/fairy-godmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/glass-slipper.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/royal-ball.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/stepsisters.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-ogress-queen.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-ogress-queen.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-ogress-queen.md → /wiki/concepts/glass-slipper.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-ogress-queen.md → /wiki/concepts/royal-ball.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-ogress-queen.md → /wiki/concepts/stepsisters.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-ogress-queen.md → /wiki/concepts/the-sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-ogress-queen.md → /wiki/concepts/fairy-godmothers.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-ogress-queen.md → /wiki/concepts/the-prince.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-hundred-year-sleep.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-hundred-year-sleep.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-hundred-year-sleep.md → /wiki/concepts/glass-slipper.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-hundred-year-sleep.md → /wiki/concepts/royal-ball.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-hundred-year-sleep.md → /wiki/concepts/stepsisters.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-hundred-year-sleep.md → /wiki/concepts/the-sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-hundred-year-sleep.md → /wiki/concepts/fairy-godmothers.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-hundred-year-sleep.md → /wiki/concepts/the-ogress-queen.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-hundred-year-sleep.md → /wiki/concepts/the-prince.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-prince.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-prince.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-prince.md → /wiki/concepts/royal-ball.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-prince.md → /wiki/concepts/stepsisters.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-prince.md → /wiki/concepts/fairy-godmothers.md
-🏁 45 issue(s): 35 fixed, 10 skipped, 0 failed
-🔗 cross-linked wiki/concepts/cinderella.md
-🔗 cross-linked wiki/concepts/royal-ball.md
-🔗 cross-linked wiki/summaries/cinderella.md
-🔗 cross-linked wiki/concepts/the-sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/prince.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/spindle-curse.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/seven-league-boots.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/cinderella.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/fairy-godmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/glass-slipper.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/royal-ball.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/prince.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/fairy-godmothers.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/spindle-curse.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/seven-league-boots.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/spindle-curse.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/cinderella.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/fairy-godmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/glass-slipper.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/prince.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/spindle-curse.md
+🏁 45 issue(s): 40 fixed, 5 skipped, 0 failed
+🔗 cross-linked wiki/concepts/sleeping-beauty.md
 🔗 cross-linked wiki/concepts/fairy-godmothers.md
-🔗 cross-linked wiki/concepts/the-ogress-queen.md
-🔗 cross-linked wiki/concepts/the-hundred-year-sleep.md
-🔗 cross-linked wiki/concepts/the-prince.md
-🔗 Cross-linked 8 page(s)
+🔗 cross-linked wiki/concepts/ogress-queen.md
+🔗 cross-linked wiki/concepts/spindle-curse.md
+🔗 cross-linked wiki/concepts/seven-league-boots.md
+🔗 Cross-linked 5 page(s)
 ```
 
 **Database**
@@ -324,25 +330,25 @@ af33577 ingest: Cinderella.pdf
 | table | rows | Δ |
 |---|---|---|
 | `documents (source)` | 2 | +0 |
-| `documents (wiki)` | 16 | +5 |
+| `documents (wiki)` | 17 | +5 |
 | `document_pages` | 9 | +2 |
-| `document_chunks` | 31 | +8 |
-| `chunks_fts` | 31 | +8 |
+| `document_chunks` | 32 | +8 |
+| `chunks_fts` | 32 | +8 |
 
 **Citation graph** (`document_references`)
 
 | reference_type | edges |
 |---|---|
-| `cites` | 16 |
-| `links_to` | 61 |
+| `cites` | 19 |
+| `links_to` | 80 |
 
 **Files**
 
 - `+` `wiki/concepts/fairy-godmothers.md`
-- `+` `wiki/concepts/the-hundred-year-sleep.md`
-- `+` `wiki/concepts/the-ogress-queen.md`
-- `+` `wiki/concepts/the-prince.md`
-- `+` `wiki/concepts/the-sleeping-beauty.md`
+- `+` `wiki/concepts/ogress-queen.md`
+- `+` `wiki/concepts/seven-league-boots.md`
+- `+` `wiki/concepts/sleeping-beauty.md`
+- `+` `wiki/concepts/spindle-curse.md`
 
 **`.llmwiki/aliases.generated.toml`**
 
@@ -353,16 +359,16 @@ af33577 ingest: Cinderella.pdf
 [alias_datos]
 "Cinderella" = ["Cinderwench"]
 "Fairy Godmothers" = ["Fairies"]
-"The Ogress Queen" = ["Queen Mother", "Ogress"]
-"The Sleeping Beauty" = ["Sleeping Beauty", "Briar Rose"]
+"Prince" = ["King's son"]
+"Sleeping Beauty" = ["The Sleeping Beauty in the Wood"]
 ```
 
 **Wiki git history**
 
 ```text
-9872eb8 ingest: Cinderella.pdf
-f041d5c ingest: Little Red Riding Hood.pdf
-af33577 ingest: Cinderella.pdf
+c91ec36 ingest: Cinderella.pdf
+85ca81d ingest: Little Red Riding Hood.pdf
+6f84793 ingest: Cinderella.pdf
 ```
 
 ## Act 3c — source deleted
@@ -370,7 +376,7 @@ af33577 ingest: Cinderella.pdf
 **Activity log**
 
 ```text
-🗑 deleted: Deleted source 'Little Red Riding Hood.pdf'; deleted 1 derived wiki page(s); marked 4 citing page(s) stale
+🗑 deleted: Deleted source 'Little Red Riding Hood.pdf'; deleted 1 derived wiki page(s); marked 5 citing page(s) stale
 ```
 
 **Database**
@@ -378,17 +384,17 @@ af33577 ingest: Cinderella.pdf
 | table | rows | Δ |
 |---|---|---|
 | `documents (source)` | 1 | -1 |
-| `documents (wiki)` | 15 | -1 |
+| `documents (wiki)` | 16 | -1 |
 | `document_pages` | 7 | -2 |
-| `document_chunks` | 28 | -3 |
-| `chunks_fts` | 28 | -3 |
+| `document_chunks` | 29 | -3 |
+| `chunks_fts` | 29 | -3 |
 
 **Citation graph** (`document_references`)
 
 | reference_type | edges |
 |---|---|
-| `cites` | 11 |
-| `links_to` | 57 |
+| `cites` | 13 |
+| `links_to` | 75 |
 
 **Files**
 
@@ -405,16 +411,16 @@ af33577 ingest: Cinderella.pdf
 [alias_datos]
 "Cinderella" = ["Cinderwench"]
 "Fairy Godmothers" = ["Fairies"]
-"The Ogress Queen" = ["Queen Mother", "Ogress"]
-"The Sleeping Beauty" = ["Sleeping Beauty", "Briar Rose"]
+"Prince" = ["King's son"]
+"Sleeping Beauty" = ["The Sleeping Beauty in the Wood"]
 ```
 
 **Wiki git history**
 
 ```text
-deff18c delete source: Little Red Riding Hood.pdf
-9872eb8 ingest: Cinderella.pdf
-f041d5c ingest: Little Red Riding Hood.pdf
-af33577 ingest: Cinderella.pdf
+3b6b3d0 delete source: Little Red Riding Hood.pdf
+c91ec36 ingest: Cinderella.pdf
+85ca81d ingest: Little Red Riding Hood.pdf
+6f84793 ingest: Cinderella.pdf
 ```
 
