@@ -74,7 +74,7 @@ one by one and marks each as done, partly done, or deliberately skipped. If what
 you want is the scorecard, read that instead of this.
 
 **This document does something different: it shows how the first row of that
-table turns into the second one.** How a PDF becomes those wiki pages, what gets
+table turns into the second one.** How a PDF or DOCX becomes those wiki pages, what gets
 stored along the way, and why each step happens in the order it does. The
 comparison with Karpathy's note comes back at the [end of the query
 walkthrough](query_walkthrough.md#what-this-adds-to-the-original-idea), once you
@@ -117,8 +117,57 @@ The rest of this document depends on that difference over and over. It is why
 "just delete the page and generate it again" is a safe thing to say, and why
 nothing described here can lose your data.
 
+**But safe is not the same as repeatable, and the difference matters.** Generating
+a page is an LLM call, and those calls run at a temperature between 0.2 and 0.4 —
+deliberately, so the prose reads naturally rather than mechanically. A temperature
+above zero means the model does not make the same choices twice. Regenerate the
+same wiki from the same untouched sources and you get:
+
+- **the same knowledge**, because it all came from sources that did not move;
+- **different wording**, because the sentences are written fresh;
+- and often **different concept pages**, because the model decides for itself
+  which topics deserve one.
+
+That last point surprises people. While this document was being written its
+appendix was regenerated three times from an identical corpus, and each run named
+the concepts differently — one run pulled a page called *Transformation* out of
+Cinderella, the next chose *Prince* instead. Neither is wrong. They are two
+readings of the same tale.
+
+Two practical consequences follow. **Anything you edited by hand is gone** when
+the page is regenerated, because nothing distinguishes your sentence from the
+model's. And **any figure you quoted from the wiki elsewhere may move** — page
+names, page counts, link counts. That is not a bug being described; it is what
+"derived" means when the deriving is done by a language model rather than a
+compiler.
+
 `datasets/` is the odd one out and gets its own [closing
 section](#wikis-whose-facts-change); ignore it until then if your wiki has none.
+
+### Three files in `wiki/` are not pages
+
+Most of what the pipeline writes into `wiki/` is a page about a topic. Three
+files are not, and the acts below refer to all three by name, so it is worth
+knowing what they are before you meet them:
+
+- **`index.md`** — the catalogue. One line per page, grouped into *Summaries* and
+  *Concepts*, each with a one-sentence description. It is how a reader — or a
+  model — finds out what exists without opening anything.
+- **`overview.md`** — the narrative. Several paragraphs describing the collection
+  as a whole and how its subjects relate. Unlike the catalogue, this one is
+  written by the LLM, and it is **rewritten from scratch on every ingest**, which
+  is why Act 2 can point at it as evidence that the wiki compounds.
+- **`log.md`** — the diary. An append-only, dated record of what was ingested
+  when. Nothing reads it; it exists so a human can answer "when did this arrive?"
+
+One structural fact about all three is easy to miss and explains a lot later:
+**none of them has a row in the database.** The demo has 17 wiki pages recorded
+in `documents`, and these three are not among them — they exist only as files on
+disk. That means they are not cut into fragments and not in the search index, so
+no search will ever return them. Anything that wants to use them has to read the
+file directly, which is exactly what the [query
+walkthrough](query_walkthrough.md#what-ticking-the-box-would-cost-here) describes
+happening for questions about the collection as a whole.
 
 Two applications drive it, both built with [marimo](https://marimo.io) (a Python
 notebook framework whose cells re-run automatically when their inputs change):
@@ -534,6 +583,8 @@ The alternate-names file tells the same story from the vocabulary side. Step 8b
 `"Cinderella" = ["Cinderwench"]` — a real alternate name the LLM found in the
 tale's own text.
 
+Clod: there is no .llmwiki/aliases.generated.toml in fairy-tales example.
+
 That one line matters more than its size suggests, because of *when* the work
 happens. Without it, somebody asking a question about "Cinderwench" would need
 the search layer, or the model, to guess that this is another name for Cinderella
@@ -631,10 +682,33 @@ for a model it had not been handed. **Nothing was spent that was not asked for**
 and nothing was invented to avoid reporting a gap.
 
 The wording matters as much as the count. A skip that says *"LLM client required
-for 'stale' repair"* tells you precisely what to supply if you want it fixed —
-run repair again with a model and those five become forty-five. A generic
-"skipped: could not repair" would tell you nothing, and you would have no way to
-know whether the work was impossible or merely unauthorised.
+for 'stale' repair"* tells you precisely what to supply if you want it fixed. A
+generic "skipped: could not repair" would tell you nothing, and you would have no
+way to know whether the work was impossible or merely unauthorised.
+
+**So how do you actually get those five repaired?** The message names what is
+missing — a model — and the ingest app gives you two ways to supply one:
+
+- **Afterwards, for the whole wiki.** The **Run Wiki Lint & Repair** button runs
+  the same two passes over every page, this time *with* a model. The five stale
+  pages get regenerated from their sources, and the two model-only repairs
+  (`stale` and `missing_concept`) become available.
+- **Up front, for this ingest only.** The ingest form has a checkbox, *"Also run
+  full LLM lint & repair after ingest (slower, uses tokens)"*. Ticked, the
+  post-ingest pass is the full one rather than the deterministic one, and those
+  five skips never happen — the pages are regenerated as part of the ingest.
+  Unticked is the default, which is why Act 3b looks the way it does.
+
+The parenthetical in the checkbox label is the whole trade, stated by the app
+itself: *slower, uses tokens*. The default is not a limitation someone forgot to
+lift — it is the pipeline declining to spend your money without being asked. One
+click says otherwise.
+
+The scope of the two differs, and it is worth knowing which you want. The
+post-ingest pass — either version — is **limited to the pages this ingest
+touched**: the summary pages of the documents just ingested, plus every wiki page
+that cites them. It never rewrites unrelated pages. The button is the wiki-wide
+sweep.
 
 Two other skip reasons exist and did not appear in this particular run. A
 `missing_xref` can be skipped as `already linked`, when an earlier fix in the
@@ -658,6 +732,8 @@ written from that document alone. The **5** concept pages that cite it
 (`little-red-riding-hood`, `the-wolf`, `the-grandmother`, `the-red-riding-hood`
 and `themes-of-little-red-riding-hood`) are *kept*, and marked stale rather than
 deleted.
+
+Clod: what happens with stale pages? Do they stay forever in the wiki? Can we delete them? (I guess we can from the gui). In case of deteltion we should run lint and repair, right? This needs elaboration in the doc.
 
 `cites` drops **19 → 13**: every link pointing at the now-deleted source row goes
 with it. But `links_to` drops only **80 → 75**, because the only ones removed are
