@@ -394,6 +394,74 @@ def test_delete_page_removes_the_entry_from_index_md(
     )
 
 
+# ── stale_since lifecycle ─────────────────────────────────────────────────────
+
+def test_regenerating_a_page_clears_its_stale_mark(tmp_workspace: WorkspaceFixture) -> None:
+    """`stale_since` says "a source this page cited was deleted — review it".
+
+    Once the page has been rewritten from the sources that remain, that is no
+    longer true and the mark has to go. Nothing cleared it before, so a page
+    marked once stayed marked forever, and any list built from the flag would
+    fill up with pages that had already been dealt with.
+    """
+    page = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "revisited", "Revisited", f"# Revisited\n\n{_LONG}\n", [],
+    )
+    with get_connection(tmp_workspace.db_path) as conn:
+        with conn:
+            conn.execute(
+                "UPDATE documents SET stale_since=datetime('now') WHERE id=?", (page["id"],)
+            )
+
+    create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "revisited", "Revisited",
+        f"# Revisited\n\nRewritten from what is left.\n\n{_LONG}\n", [],
+        overwrite=True, clear_stale=True,
+    )
+
+    with get_connection(tmp_workspace.db_path) as conn:
+        row = conn.execute(
+            "SELECT stale_since FROM documents WHERE id=?", (page["id"],)
+        ).fetchone()
+    assert row["stale_since"] is None, "the page was regenerated but is still marked stale"
+
+
+def test_an_edit_that_is_not_a_regeneration_leaves_the_stale_mark(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """Not every rewrite means the page was reviewed.
+
+    repair_gap_filled swaps a TODO marker for a link, and repair_missing_xref
+    appends a See-also entry. Neither revisits the prose, so neither answers the
+    question the mark is asking. Clearing it on any `overwrite=True` would drop
+    the flag on those, which is why clearing is opt-in.
+    """
+    page = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "touched", "Touched", f"# Touched\n\n{_LONG}\n", [],
+    )
+    with get_connection(tmp_workspace.db_path) as conn:
+        with conn:
+            conn.execute(
+                "UPDATE documents SET stale_since=datetime('now') WHERE id=?", (page["id"],)
+            )
+
+    create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "touched", "Touched",
+        f"# Touched\n\n{_LONG}\n\n## See also\n\n- [Other](other.md)\n", [],
+        overwrite=True,
+    )
+
+    with get_connection(tmp_workspace.db_path) as conn:
+        row = conn.execute(
+            "SELECT stale_since FROM documents WHERE id=?", (page["id"],)
+        ).fetchone()
+    assert row["stale_since"] is not None, "a non-regenerating edit cleared the mark"
+
+
 def test_delete_page_strips_absolute_wiki_links(tmp_workspace: WorkspaceFixture) -> None:
     result_a = create_page(
         tmp_workspace.db_path, tmp_workspace.workspace,

@@ -296,6 +296,7 @@ def create_page(
     source_document_id: str | None = None,
     sources: list[str] | None = None,
     replace_sources: bool = False,
+    clear_stale: bool = False,
 ) -> dict:
     """Write a wiki page to disk and insert/update the DB record.
 
@@ -422,6 +423,15 @@ def create_page(
                         "UPDATE documents SET content=?, tags=?, title=?, "
                         "version=version+1, updated_at=datetime('now') WHERE id=?",
                         (final_content, json.dumps(tags), title, doc_id),
+                    )
+                # A page regenerated from its surviving sources is no longer
+                # awaiting review, so drop the mark a source deletion left on it.
+                # Opt-in, because not every overwrite is a regeneration: swapping a
+                # TODO marker for a link or appending a See-also entry rewrites the
+                # page without revisiting the prose the mark is asking about.
+                if clear_stale:
+                    conn.execute(
+                        "UPDATE documents SET stale_since=NULL WHERE id=?", (doc_id,)
                     )
                 # Remove the document's outdated search chunks before re-inserting
                 conn.execute("DELETE FROM document_chunks WHERE document_id=?", (doc_id,))

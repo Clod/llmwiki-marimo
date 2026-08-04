@@ -153,6 +153,7 @@ def repair_stale(
         result = create_page(
             db_path, workspace, "/wiki/summaries/", wiki_slug,
             name, summary_md, [], overwrite=True, source_document_id=src_id,
+            clear_stale=True,
         )
         update_references(db_path, result["id"], summary_md, "/wiki/summaries/")
 
