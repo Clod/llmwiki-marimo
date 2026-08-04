@@ -11,8 +11,13 @@ This module contains the core functions to create, read, append, and delete wiki
 while ensuring disk and database are kept in perfect harmony.
 """
 
+# Structured logging for best-effort steps that must not break a delete
+import logging
+
 # Standard JSON encoder/decoder to pack and unpack tag arrays
 import json
+# '/'-separated path arithmetic, used to resolve markdown link hrefs
+import posixpath
 # Regular expression library to match and replace dead links
 import re
 # Standard SQLite database library
@@ -26,6 +31,8 @@ from pathlib import Path
 from domain.tools.db import open_db
 # Frontmatter writer/parser shared with dataset files — see module docstring
 from domain.datasets.frontmatter import parse_frontmatter, render_frontmatter, split_frontmatter
+
+logger = logging.getLogger(__name__)
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
@@ -120,22 +127,41 @@ def _strip_dead_links(
     if not refs:
         return
 
-    # 2. Create a Regular Expression pattern that matches markdown links
-    #    pointing to our specific path (both relative e.g. 'wiki/x.md' and absolute '/wiki/x.md')
-    escaped = re.escape(relative_path)
-    if relative_path.startswith("wiki/"):
-        path_pat = f"(?:/{escaped}|{escaped})"
-    else:
-        path_pat = escaped
+    # 2. Match EVERY markdown link, then decide per link whether it resolves to the
+    #    page being deleted. Matching a fixed spelling of the path does not work:
+    #    pages link by relative href — `[Title](other.md)` between neighbours,
+    #    `[Title](../summaries/other.md)` across folders — which is what
+    #    inject_see_also and repair_missing_xref emit. A pattern built from the
+    #    full 'wiki/concepts/x.md' form never matches any of them, so deleting a
+    #    page used to leave a broken link in every page that pointed at it.
+    any_link = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+    target = posixpath.normpath(relative_path)
 
-    # Matches: [Link Text](relative_path) or [Link Text](/relative_path)
-    dead_link = re.compile(r"\[([^\]]+)\]\(" + path_pat + r"\)")
+    def _resolves_to_target(href: str, from_dir: str) -> bool:
+        """True if `href`, written inside a page in `from_dir`, points at the target.
+
+        Two readings are accepted. Page-relative is the correct one and the only
+        one the pipeline emits. Workspace-root-relative ("wiki/concepts/x.md",
+        with or without a leading slash) is what older pages carry, and this is a
+        cleanup pass — matching both leaves fewer broken links behind.
+        """
+        clean = href.split("#", 1)[0].split("?", 1)[0].strip()
+        if not clean or "://" in clean:
+            return False
+        readings = {
+            posixpath.normpath(posixpath.join(from_dir, clean)),  # page-relative
+            posixpath.normpath(clean.lstrip("/")),                # workspace-root
+        }
+        return target in readings
 
     # 3. Iterate through each referencing document, clean the text, and save
     for ref in refs:
         content = ref["content"] or ""
-        # Replace the link markdown with just the inner text (represented by group '\1')
-        new_content = dead_link.sub(r"\1", content)
+        from_dir = posixpath.dirname(ref["relative_path"] or "")
+        new_content = any_link.sub(
+            lambda m: m.group(1) if _resolves_to_target(m.group(2), from_dir) else m.group(0),
+            content,
+        )
 
         # If no replacement was actually made (already clean), skip updating
         if new_content == content:
@@ -553,7 +579,24 @@ def delete_page(
     finally:
         conn.close()
 
-    # 4. Remove the physical file LAST, once the DB is consistent.
+    # 4. Drop the page from wiki/index.md, the catalogue a reader browses.
+    #    Nothing else prunes it: index.md has no row in `documents`, so no foreign
+    #    key cascade reaches it, and an entry pointing at a file that is gone is a
+    #    broken link in the one page whose whole job is to list what exists.
+    #    Best-effort — a missing or hand-edited index must not block the delete.
+    try:
+        from domain.ingestion.index_manager import remove_index_entry
+        from domain.wiki_settings import load_wiki_language
+        category = dir_path.strip("/").rsplit("/", 1)[-1]  # '/wiki/concepts/' → 'concepts'
+        # The section header is localized, so a Spanish wiki files entries under
+        # "## Conceptos" — look for the right one or nothing is removed.
+        remove_index_entry(
+            workspace, relative_path, category, language=load_wiki_language(workspace)
+        )
+    except Exception:  # noqa: BLE001 — the page itself is still deleted below
+        logger.warning("could not remove %s from index.md", relative_path, exc_info=True)
+
+    # 5. Remove the physical file LAST, once the DB is consistent.
     if file_path.exists():
         file_path.unlink()
 

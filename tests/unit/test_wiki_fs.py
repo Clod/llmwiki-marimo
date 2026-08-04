@@ -6,6 +6,8 @@ from domain.tools.db import get_connection
 from domain.tools.wiki_fs import create_page, delete_page, read_page
 from tests.helpers.workspace import WorkspaceFixture
 
+_LONG = "word " * 50  # padding to exceed MIN_CHUNK_TOKENS
+
 _CONTENT = (
     "# My Page\n\n"
     "This page covers important financial concepts related to investment strategies "
@@ -308,6 +310,88 @@ def test_delete_page_strips_dead_links_from_referencing_page(tmp_workspace: Work
         ).fetchone()
     assert "wiki/summaries/target.md" not in row["content"]
     assert "Target Page" in row["content"]
+
+
+def test_delete_page_strips_links_written_the_way_pages_actually_write_them(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """Generated pages link by *relative* href, not by full path.
+
+    Two pages in the same folder link to each other as `[Title](other.md)`, and
+    across folders as `[Title](../summaries/other.md)` — that is what
+    `inject_see_also` and `repair_missing_xref` emit, and what all 26 links in the
+    fairy-tale demo look like. The full `wiki/...` form the other tests use is
+    never produced by the pipeline.
+
+    Matching only the full form meant deleting a page left a broken link in every
+    page that pointed at it.
+    """
+    target = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "target", "Target Page",
+        f"# Target Page\n\n{_LONG}\n", [],
+    )
+    # same folder → bare basename
+    sibling = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "sibling", "Sibling",
+        f"# Sibling\n\n{_LONG}\n\n## See also\n\n- [Target Page](target.md)\n", [],
+    )
+    # other folder → ../concepts/…
+    cousin = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/summaries/", "cousin", "Cousin",
+        f"# Cousin\n\n{_LONG}\n\n## See also\n\n- [Target Page](../concepts/target.md)\n", [],
+    )
+    with get_connection(tmp_workspace.db_path) as conn:
+        with conn:
+            for src in (sibling["id"], cousin["id"]):
+                conn.execute(
+                    "INSERT INTO document_references "
+                    "(source_document_id, target_document_id, reference_type) "
+                    "VALUES (?, ?, 'links_to')",
+                    (src, target["id"]),
+                )
+
+    delete_page(tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "target")
+
+    same_dir = read_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "sibling")
+    cross_dir = read_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/summaries/", "cousin")
+
+    assert "(target.md)" not in same_dir, f"same-folder link survived:\n{same_dir}"
+    assert "(../concepts/target.md)" not in cross_dir, f"cross-folder link survived:\n{cross_dir}"
+    # the label text stays, so the sentence still reads
+    assert "Target Page" in same_dir and "Target Page" in cross_dir
+
+
+def test_delete_page_removes_the_entry_from_index_md(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """index.md is the catalogue a reader browses; a deleted page must leave it.
+
+    Nothing else prunes it — index.md has no row in `documents`, so no cascade
+    reaches it — and an entry pointing at a file that is gone is a broken link in
+    the one page whose whole job is to list what exists.
+    """
+    from domain.ingestion.index_manager import update_index
+
+    page = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "doomed", "Doomed Page",
+        f"# Doomed Page\n\n{_LONG}\n", [],
+    )
+    update_index(tmp_workspace.workspace, page["path"], "A page about to go", "concepts")
+    index_path = tmp_workspace.workspace / "wiki" / "index.md"
+    assert "doomed.md" in index_path.read_text(encoding="utf-8")
+
+    delete_page(tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "doomed")
+
+    assert "doomed.md" not in index_path.read_text(encoding="utf-8"), (
+        "the deleted page is still listed in index.md:\n"
+        + index_path.read_text(encoding="utf-8")
+    )
 
 
 def test_delete_page_strips_absolute_wiki_links(tmp_workspace: WorkspaceFixture) -> None:
