@@ -25,26 +25,48 @@ The authoritative contract for everything below is
 [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
 — prefer it over this document wherever the two seem to disagree.
 
-## The thesis
+## The question this document answers
 
-The ingestion walkthrough's thesis was that the wiki compounds. This one is
-narrower, and it is a question rather than a claim:
+The ingestion walkthrough ended on one idea: every document you add improves the
+pages that were already there. The wiki gets more useful as it grows, not just
+bigger.
 
-> **What do you want to be true when the system does not know?**
+Reading raises a different problem. The wiki is already built, somebody types a
+question — and sooner or later they type one the wiki cannot answer. That is not
+a defect. No wiki covers everything, and this one only knows what was ingested
+into it. So the interesting question is not *can it answer?* but:
 
-Answering it means deciding *when code is allowed to step in and check the
-model*. There are exactly three possible moments, and this project can be
-configured to use any of them:
+> **What do you want to happen when the wiki does not have the answer?**
 
-**Never.** Give the model the search tools and trust it. It decides what to look
-for, when it has seen enough, and what to say. This handles the widest range of
-questions and gives you no guarantees at all.
+The obvious answer — "it should say it does not know" — is exactly the thing a
+language model is bad at. Asked something outside what it was shown, a model
+will usually produce a fluent, confident, wrong answer instead of admitting the
+gap. So *the model saying it does not know* cannot be the mechanism. Some code
+has to check.
+
+That turns the question into a narrower one: **when does that code get to
+intervene?** There are exactly three answers — never, after the model has
+finished, or before it is ever called — and this project can be configured for
+any of them.
+
+**Never.** Hand the model the search tools and trust it. (A *tool* is simply a
+function the model is allowed to call — it asks for a search, the code runs it,
+and the results come back into the conversation. [Part 1](#part-1--the-model-goes-looking)
+lists the three this project provides.) The model decides what to look for, when
+it has seen enough, and what to say. This handles the widest range of questions
+and gives you no guarantees at all.
 
 **Afterwards.** Let the model work exactly as above, then have code examine the
-finished conversation before the answer is shown. Did any tool actually return
-evidence? Is there a citation? This still handles the same wide range of
-questions and catches the most obvious failures — but it can only judge the
-*shape* of what happened, never whether the answer matches what was found.
+finished conversation before the answer reaches the user. Two things are cheap
+to check: did any tool actually return something, and does the answer name a
+source? This still handles the same wide range of questions, and it catches the
+case that matters most — a model that answered without looking anything up.
+
+What it cannot catch is the answer being wrong. Both checks are about the
+*procedure*, not the content: code can confirm that a search ran and that a page
+is cited, but not that the cited page says what the answer claims. A model that
+searched, got three fragments back, and then wrote a sentence none of them
+support passes every check here.
 
 **Before.** Have code do the searching, decide in advance whether this wiki
 covers the question at all, and refuse — without ever calling the model — when it
@@ -56,9 +78,22 @@ None of the three is a broken version of the others. Each is a real choice with 
 real cost, and this document is arranged so you can disagree with me about which
 one you want.
 
-One thing is true in all three, and is not configurable: **any number that
-appears in an answer was calculated by code, never by the model.** The model is
-only allowed to describe it in words.
+There is a fourth idea worth naming here, though it is not one of the three:
+**numbers are the thing the model is least trusted with.** When a wiki carries
+structured data — currency rates, interest rates, prices — a tool reads the
+values straight out of the data files and returns them unchanged, and for the
+investment advisory the whole comparison table is computed in Python and pasted
+below the model's prose whether or not the model copied it correctly. The
+model's job is to explain figures in words, not to arrive at them.
+
+Two qualifications, so this is not oversold. First, it does not come free with
+any of the three positions above: it applies to wikis that have a `datasets/`
+folder, and `fairy-tales` — the wiki behind every transcript in Part 1 — has
+none, so nothing of this appears until
+[Part 2, Act 6](#6-deterministic-advisory). Second, what the code guarantees is
+that the authoritative figures *reach* the user; that the model does not also
+write an invented number into its own sentences is asked for in the system
+prompt, not enforced.
 
 ## The two checkboxes
 
