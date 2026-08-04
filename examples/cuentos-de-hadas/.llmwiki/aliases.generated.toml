@@ -1,0 +1,6 @@
+# Generated at ingest — do not edit by hand.
+# Hand overrides live in wiki_config.toml [alias_datos]; this file is merged UNDER them.
+
+[alias_datos]
+"Cenicienta" = ["Culocenizón"]
+"Hermanos Grimm" = ["Jacob Grimm", "Wilhelm Grimm"]

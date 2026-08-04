@@ -583,7 +583,9 @@ The alternate-names file tells the same story from the vocabulary side. Step 8b
 `"Cinderella" = ["Cinderwench"]` — a real alternate name the LLM found in the
 tale's own text.
 
-Clod: there is no .llmwiki/aliases.generated.toml in fairy-tales example.
+You can open the same file in the bundled demo — `examples/fairy-tales/.llmwiki/
+aliases.generated.toml` — where three tales rather than two produce one more
+entry, `"The Wicked Queen" = ["The Queen"]`.
 
 That one line matters more than its size suggests, because of *when* the work
 happens. Without it, somebody asking a question about "Cinderwench" would need

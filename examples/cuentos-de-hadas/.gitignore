@@ -1,3 +1,14 @@
-.llmwiki/
+# The generated wiki IS this example — its artifacts are tracked on purpose, so
+# a reader can open index.db and the alias file without running anything.
+# Overrides the repo-wide `.llmwiki/` rule, which is meant for working wikis.
+!.llmwiki/
+
+# Local or transient, never part of the example:
+.llmwiki/cache/
+.llmwiki/chat_trace.jsonl
+.llmwiki/*.db-wal
+.llmwiki/*.db-shm
+
+.DS_Store
 *.pyc
 __pycache__/
