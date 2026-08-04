@@ -254,6 +254,7 @@ def op_state(mo):
     lo_visible, set_lo_visible = mo.state(True)
     get_last_handled_event, set_last_handled_event = mo.state(0)
     get_last_lint_event, set_last_lint_event = mo.state(0)
+    get_last_stale_event, set_last_stale_event = mo.state(0)
     running_op, set_running_op = mo.state(None)
     return (
         log_lines, set_log_lines,
@@ -263,6 +264,7 @@ def op_state(mo):
         lo_visible, set_lo_visible,
         get_last_handled_event, set_last_handled_event,
         get_last_lint_event, set_last_lint_event,
+        get_last_stale_event, set_last_stale_event,
         running_op, set_running_op,
     )
 
@@ -718,6 +720,52 @@ def lint_repair_widget_cell(mo):
 
 
 @app.cell
+def stale_pages_widget_cell(mo, DB_PATH, running_op):
+    """Delete-stale-pages widget — its own cell so confirming it never re-runs
+    the lint panel, and so the count can refresh after an ingest or a delete.
+
+    A page is marked stale when a source it cited was deleted: the page is kept,
+    because it may still rest on other sources, and flagged for a human. The mark
+    is cleared when the page is regenerated, so what remains here is pages that
+    lost evidence and were never revisited.
+    """
+    import sys as _sys
+    from pathlib import Path as _Path
+    _widgets_dir = str(_Path(__file__).parent / "widgets")
+    if _widgets_dir not in _sys.path:
+        _sys.path.insert(0, _widgets_dir)
+    from delete_confirm import DeleteConfirmWidget as _StaleConfirmWidget
+
+    running_op()  # dependency only — recount once an operation finishes
+
+    try:
+        from domain.tools.references import find_stale_pages as _find_stale
+        _stale = _find_stale(DB_PATH)
+    except Exception:  # noqa: BLE001 — a broken count must not break the panel
+        _stale = []
+
+    _names = ", ".join(p["filename"] for p in _stale[:5])
+    if len(_stale) > 5:
+        _names += f", … (+{len(_stale) - 5} more)"
+
+    stale_pages_widget = mo.ui.anywidget(_StaleConfirmWidget(
+        button_label=f"Delete {len(_stale)} Stale Page(s)" if _stale else "No Stale Pages",
+        message=(
+            f"Permanently delete {len(_stale)} page(s) whose cited source was removed "
+            f"and which have not been regenerated since: {_names}. "
+            "Their sources are untouched, so anything still covered can be rebuilt by "
+            "re-ingesting. Continue?"
+        ),
+        disabled=not _stale,
+    ))
+    mo.vstack([
+        mo.md("**Stale pages** — kept when their source was deleted, awaiting review."),
+        stale_pages_widget,
+    ])
+    return (stale_pages_widget,)
+
+
+@app.cell
 def debug_panel(mo, ingest_form, scan_btn, upload, DB_PATH, debug_mode, logger):
     """Debug panel — only visible when WIKI_DEBUG=1."""
     from domain.ingestion.pipeline import open_db
@@ -866,6 +914,54 @@ def delete_runner(
 
     _icon = "✅" if _result.success else "❌"
     set_log_lines([f"{_icon} {_result.message}"])
+
+
+@app.cell
+def stale_pages_runner(
+    mo, stale_pages_widget,
+    get_last_stale_event, set_last_stale_event,
+    WORKSPACE, DB_PATH,
+    set_log_lines, set_running_op, logger,
+):
+    """Fires when the delete-stale-pages widget is confirmed.
+
+    Deletes each page through delete_page, which also strips the inbound links
+    other pages carry to it and drops its entry from index.md — so no lint pass
+    is needed afterwards.
+    """
+    _event_id = stale_pages_widget.event_id
+    mo.stop(_event_id <= get_last_stale_event())
+    set_last_stale_event(_event_id)
+
+    from domain.tools.references import find_stale_pages as _find_stale_pages
+    from domain.tools.wiki_fs import delete_page as _delete_page
+
+    _pages = _find_stale_pages(DB_PATH)
+    if not _pages:
+        set_log_lines(["✅ No stale pages to delete."])
+        mo.stop(True)
+
+    set_running_op("delete_stale")
+    _lines: list[str] = []
+    try:
+        with mo.status.spinner(title=f"Deleting {len(_pages)} stale page(s)…"):
+            for _p in _pages:
+                _slug = _p["filename"].removesuffix(".md")
+                try:
+                    _gone = _delete_page(DB_PATH, WORKSPACE, _p["path"], _slug)
+                    _lines.append(
+                        f"{'🗑' if _gone else '⚠️'} {_p['path']}{_p['filename']}"
+                        f"{'' if _gone else ' — not found on disk'}"
+                    )
+                except Exception as _e:  # noqa: BLE001 — one bad page must not stop the rest
+                    logger.warning("delete stale page failed: %s", _p, exc_info=True)
+                    _lines.append(f"❌ {_p['filename']} — {_e}")
+    finally:
+        set_running_op(None)
+
+    _ok = sum(1 for line in _lines if line.startswith("🗑"))
+    set_log_lines([f"🏁 Deleted {_ok} of {len(_pages)} stale page(s).", *_lines])
+    return
 
 
 @app.cell

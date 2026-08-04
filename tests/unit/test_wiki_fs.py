@@ -462,6 +462,60 @@ def test_an_edit_that_is_not_a_regeneration_leaves_the_stale_mark(
     assert row["stale_since"] is not None, "a non-regenerating edit cleared the mark"
 
 
+def test_deleting_every_stale_page_leaves_the_wiki_consistent(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """The sequence behind the ingest app's "Delete Stale Page(s)" button.
+
+    The button is two marimo cells that do exactly this: list the marked pages,
+    delete each one, report. The cells cannot be unit-tested, so the sequence is —
+    it is where a mistake would actually cost something, since it deletes.
+
+    What must hold afterwards: the marked pages are gone, the unmarked one is
+    untouched, nothing still links to what was deleted, the catalogue no longer
+    lists it, and the list of marked pages is empty.
+    """
+    from domain.ingestion.index_manager import update_index
+    from domain.tools.references import find_stale_pages
+
+    keep = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "keeper",
+        "Keeper", f"# Keeper\n\n{_LONG}\n\n## See also\n\n- [Doomed](doomed.md)\n", [],
+    )
+    doomed = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "doomed",
+        "Doomed", f"# Doomed\n\n{_LONG}\n", [],
+    )
+    update_index(tmp_workspace.workspace, doomed["path"], "About to go", "concepts")
+    with get_connection(tmp_workspace.db_path) as conn:
+        with conn:
+            conn.execute(
+                "UPDATE documents SET stale_since=datetime('now') WHERE id=?", (doomed["id"],))
+            conn.execute(
+                "INSERT INTO document_references "
+                "(source_document_id, target_document_id, reference_type) "
+                "VALUES (?,?, 'links_to')", (keep["id"], doomed["id"]))
+
+    stale = find_stale_pages(tmp_workspace.db_path)
+    assert [p["filename"] for p in stale] == ["doomed.md"]
+
+    for page in stale:
+        delete_page(tmp_workspace.db_path, tmp_workspace.workspace,
+                    page["path"], page["filename"].removesuffix(".md"))
+
+    assert not (tmp_workspace.workspace / "wiki" / "concepts" / "doomed.md").exists()
+    assert (tmp_workspace.workspace / "wiki" / "concepts" / "keeper.md").exists()
+
+    survivor = read_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "keeper")
+    assert "(doomed.md)" not in survivor, f"survivor still links to the deleted page:\n{survivor}"
+    assert "Doomed" in survivor, "the link label should survive as plain text"
+
+    index_text = (tmp_workspace.workspace / "wiki" / "index.md").read_text(encoding="utf-8")
+    assert "doomed.md" not in index_text
+    assert find_stale_pages(tmp_workspace.db_path) == []
+
+
 def test_delete_page_strips_absolute_wiki_links(tmp_workspace: WorkspaceFixture) -> None:
     result_a = create_page(
         tmp_workspace.db_path, tmp_workspace.workspace,
