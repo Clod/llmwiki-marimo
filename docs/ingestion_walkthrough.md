@@ -733,7 +733,48 @@ written from that document alone. The **5** concept pages that cite it
 and `themes-of-little-red-riding-hood`) are *kept*, and marked stale rather than
 deleted.
 
-Clod: what happens with stale pages? Do they stay forever in the wiki? Can we delete them? (I guess we can from the gui). In case of deteltion we should run lint and repair, right? This needs elaboration in the doc.
+### What happens to a page once it is marked stale
+
+"Marked stale" is a flag on the page (`stale_since`) that means one thing: *a
+source this page was written from is gone — someone should look at it.* It is
+not a verdict. The page may still rest on two other sources and be perfectly
+good; the pipeline has no way to judge that, so it refuses to guess and says so
+instead.
+
+Three things can happen next, and you choose which.
+
+**Ingest something that covers the topic again.** When a later ingest rewrites
+that concept page, the page is built fresh from the sources that now exist — and
+because rewriting is exactly what the mark was asking for, it is cleared
+automatically. Nothing else clears it: appending a See-also link or resolving a
+`TODO` marker leaves the page flagged, because neither revisits the prose.
+
+**Delete it.** The ingest app has a **Delete Stale Page(s)** button that lists
+every marked page and removes them together. It is disabled when there are none.
+Deleting is safe in the same sense as everything else here: the sources are
+untouched, so anything still covered comes back by ingesting again.
+
+**Leave it.** A marked page keeps working — it is still searched, still cited,
+still answers questions. The flag is a note to a human, not a quarantine.
+
+**You do not need to run lint and repair afterwards if you delete.** Deleting a
+page also strips the links other pages carried to it (leaving the link text as
+plain words, so the sentence still reads) and removes its entry from `index.md`.
+There is no debris to sweep up.
+
+**And running lint and repair will not fix these pages either**, which is worth
+being clear about because the word is the same in both places. Lint has a `stale`
+check, but it works differently: it compares each page against a source it still
+cites, and reports pages whose source was edited more recently. These five have
+no such source — it was deleted, and its citations went with it — so the check
+cannot see them at all. On top of that, the automatic `stale` repair only
+regenerates **summary** pages, the ones written from a single document. A concept
+page combines several sources, and there is no mechanical way to rewrite it from
+"whatever is left" without deciding what it should now say.
+
+So the two marks share a name and nothing else. Lint's `stale` means *your source
+moved on*; this one means *your source is gone*. The first is repairable
+automatically; the second is a decision.
 
 `cites` drops **19 → 13**: every link pointing at the now-deleted source row goes
 with it. But `links_to` drops only **80 → 75**, because the only ones removed are
