@@ -558,7 +558,7 @@ desyncs whenever cells are added):
 | — (logic only)        | `delete_runner`            | Calls `wiki_fs.delete_page`, rescans page list, clears selection                                       |
 | Middle                | `middle_panel`             | Renders the selected page as markdown + nav links                                                      |
 | Right                 | `chat_panel`               | PydanticAI agent + suggested prompts; grounding guardrail (§15) — strict → buffered + gated, off → streamed |
-| Right                 | `guardrail_flag`, `guardrail_toggle` | "Modo estricto" switch flips grounding; the flag is a plain dict read live inside `respond`, so toggling never rebuilds the chat |
+| Right                 | `guardrail_flag`, `guardrail_toggle` | "Strict mode" switch flips grounding; the flag is a plain dict read live inside `respond`, so toggling never rebuilds the chat |
 | Right (below chat)    | `save_form`, `save_action` | Saves the last assistant reply to the wiki via `save_to_wiki` with LLM structuring pass                |
 
 Two rendering details in this app:
@@ -1325,7 +1325,7 @@ A deterministic post-check: a run is *grounded* iff some tool returned
 substantive content (`has_grounding`); otherwise `enforce_grounding` replaces the
 answer with a language-appropriate refusal (`REFUSAL_ES`/`REFUSAL_EN`). It catches
 answers the model leaks despite the system prompt (general knowledge on "related"
-topics). Wired in `read_app.respond`, toggled by the "Modo estricto" GUI switch:
+topics). Wired in `read_app.respond`, toggled by the "Strict mode" GUI switch:
 
 - **ON** → run to completion, then gate (refuse if ungrounded). Cannot stream —
   you can't retract text already shown.

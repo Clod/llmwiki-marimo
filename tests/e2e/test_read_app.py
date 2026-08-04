@@ -340,7 +340,7 @@ async def test_chat_panel_renders(page: Page) -> None:
 # drive an actual chat turn through marimo/read_app.py's `respond` handler and
 # assert on the grounding guardrail (base/domain/chat/guardrail.py), which is
 # the one piece of behavior in `respond` that is deterministic enough to test
-# reliably: with the "Modo estricto" toggle ON (the default), an off-corpus
+# reliably: with the "Strict mode" toggle ON (the default), an off-corpus
 # question must come back as the exact refusal phrase, because
 # enforce_grounding() replaces the model's output whenever no tool call
 # returned substantive evidence — irrespective of what the model itself said.
@@ -364,7 +364,7 @@ async def test_chat_strict_mode_refuses_off_corpus_question(chat_page: Page) -> 
     _require_llm_configured()
 
     toggle = chat_page.locator(
-        "marimo-checkbox", has=chat_page.get_by_text("Modo estricto", exact=False)
+        "marimo-checkbox", has=chat_page.get_by_text("Strict mode", exact=False)
     ).get_by_role("checkbox")
     await toggle.wait_for(state="visible", timeout=5_000)
     assert await toggle.get_attribute("aria-checked") == "true", (
@@ -393,13 +393,13 @@ async def test_chat_relaxed_mode_answers_off_corpus_question(chat_page: Page) ->
     _require_llm_configured()
 
     toggle = chat_page.locator(
-        "marimo-checkbox", has=chat_page.get_by_text("Modo estricto", exact=False)
+        "marimo-checkbox", has=chat_page.get_by_text("Strict mode", exact=False)
     ).get_by_role("checkbox")
     await toggle.wait_for(state="visible", timeout=5_000)
     await toggle.click()
     await chat_page.wait_for_timeout(300)
     assert await toggle.get_attribute("aria-checked") == "false", (
-        "Toggling 'Modo estricto' should flip grounding_flag['strict'] to False"
+        "Toggling 'Strict mode' should flip grounding_flag['strict'] to False"
     )
 
     await _send_chat_message(chat_page, _OFF_CORPUS_QUESTION)

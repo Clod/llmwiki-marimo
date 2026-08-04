@@ -51,7 +51,7 @@ any of them.
 
 **Never.** Hand the model the search tools and trust it. (A *tool* is simply a
 function the model is allowed to call — it asks for a search, the code runs it,
-and the results come back into the conversation. [Part 1](#part-1--the-model-goes-looking)
+and the results come back into the conversation. [Part 1](#part-1--the-model-does-the-searching)
 lists the three this project provides.) The model decides what to look for, when
 it has seen enough, and what to say. This handles the widest range of questions
 and gives you no guarantees at all.
@@ -105,11 +105,11 @@ almost everything below is a consequence of which one is set.
 flowchart TD
     Q["a question arrives"] --> PRE{"<b>Pre-retrieval</b><br/>ticked?"}
 
-    PRE -->|yes| C1["<b>Code goes looking.</b><br/>It retrieves, then decides in a fixed<br/>branch order whether this wiki covers<br/>the question — and may refuse<br/>without calling the model at all"]
-    PRE -->|no| STRICT{"<b>Modo estricto</b><br/>ticked?<br/><i>(on by default)</i>"}
+    PRE -->|yes| C1["<b>Code does the searching.</b><br/>It retrieves, then decides in a fixed<br/>branch order whether this wiki covers<br/>the question — and may refuse<br/>without calling the model at all"]
+    PRE -->|no| STRICT{"<b>Strict mode</b><br/>ticked?<br/><i>on by default</i>"}
 
-    STRICT -->|yes| C2["<b>The model goes looking,<br/>code checks afterwards.</b><br/>Agent runs with its search tools;<br/>then code asks: did any tool return<br/>real evidence? is there a citation?"]
-    STRICT -->|no| C3["<b>The model goes looking,<br/>nothing checks.</b><br/>Agent runs and its output is streamed<br/>to the user verbatim"]
+    STRICT -->|yes| C2["<b>The model does the searching,<br/>code checks afterwards.</b><br/>Agent runs with its search tools;<br/>then code asks: did any tool return<br/>real evidence? is there a citation?"]
+    STRICT -->|no| C3["<b>The model does the searching,<br/>nothing checks.</b><br/>Agent runs and its output is streamed<br/>to the user verbatim"]
 
     C1 --> A(["an answer, or a refusal"])
     C2 --> A
@@ -123,15 +123,13 @@ flowchart TD
 | | Who retrieves | What code guarantees | Where it is |
 |---|---|---|---|
 | **Pre-retrieval** ticked | code | the wiki's coverage decides whether the model is called at all | `preretrieval.pre_retrieval_answer` |
-| **Modo estricto** only *(the default)* | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
+| **Strict mode** only *(the default)* | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
 | neither | the model | nothing | streamed straight from the agent |
 
-Two notes on the labels. `Modo estricto` is Spanish for *strict mode* — the read
-app's interface is in Spanish, and the checkbox reads "Modo estricto: responder
-solo con fuentes del wiki" (*strict mode: answer only from wiki sources*). And
-ticking **Pre-retrieval supersedes it**: its own flow is already gated, so the
-after-the-fact check has nothing left to add. The default is the middle row —
-`grounding_flag = {"strict": True, "pre_retrieval": False}` in
+One note on the labels. The checkbox reads, in full, "Strict mode: answer only
+from wiki sources". Ticking **Pre-retrieval supersedes it**: its own flow is
+already gated, so the after-the-fact check has nothing left to add. The default
+is the middle row — `grounding_flag = {"strict": True, "pre_retrieval": False}` in
 `marimo/read_app_tabs.py`, with the pre-retrieval box re-seeded per wiki from
 that wiki's `wiki_config.toml`.
 
@@ -177,7 +175,7 @@ replays two deterministic functions over an already-captured conversation. It
 needs no second model call and cannot drift from the app's behaviour, but it is
 derived from one live run rather than being a live run of its own.
 
-## Part 1 — the model goes looking
+## Part 1 — the model does the searching
 
 This is the mode a wiki of plain documents runs in.
 
@@ -264,7 +262,7 @@ the same as the answer.
 ### What the default configuration does to those same three answers
 
 The three transcripts above were captured with nothing checking the model. That
-is not how the app ships: `Modo estricto` is on by default, and it runs two
+is not how the app ships: `Strict mode` is on by default, and it runs two
 deterministic passes over the finished conversation before the user sees
 anything. Both are pure functions of the run's own message history, so their
 effect on these exact three answers can be worked out without asking the model
@@ -278,14 +276,14 @@ ASK the model to answer only from the wiki, but it cannot GUARANTEE it."
 
 **`postprocess.ensure_citation`** collects the sources the run *deliberately
 used* — the wiki pages actually opened with `read_wiki_page`, the dataset files
-actually queried — and appends a `Referencia:` line if the answer does not
-already carry that attribution. Pages that merely turned up in a search are
+actually queried — and appends a `Referencia:` (*reference*) line if the answer
+does not already carry that attribution. Pages that merely turned up in a search are
 excluded on purpose: searching is not the same as using.
 
 Applied to the three runs above — these are the values the capture measured, not
 a hand-derivation:
 
-| | what the raw model produced | what `Modo estricto` does to it |
+| | what the raw model produced | what `Strict mode` does to it |
 |---|---|---|
 | the inventory | correct, **no citation** | a tool returned real content, so the answer stands — and the page it opened is appended: **`Referencia: index.md`**. The failure is repaired. |
 | the synthesis | 11 tool calls, cited inline | grounded, and it already names the pages it read. **Leaves it exactly as it is.** |
@@ -379,7 +377,7 @@ often. It would still fail without warning, which is the part that does not go
 away by upgrading — and the Snow White row is the shape of failure that survives
 both a better model and a stricter checkbox.
 
-## Part 2 — code goes looking
+## Part 2 — code does the searching
 
 Everything from here on runs on `examples/finanzas-argentinas`, with the
 pre-retrieval box **ticked**. The reason that wiki makes the opposite choice is
@@ -567,7 +565,8 @@ the model **still called `query_dataset`**. The answer: *"El dólar MEP tiene un
 cotización de compra de 1180.0 ARS y una cotización de venta de 1185.0 ARS, según
 los datos del 25 de junio de 2026."* (*the MEP dollar has a buy quote of 1180.0
 and a sell quote of 1185.0 Argentine pesos, per the data of 25 June 2026*),
-followed by `Fuente: ambito.com` and `Referencia: dolar.md`.
+followed by `Fuente: ambito.com` (*source* — where the figure originally came
+from) and `Referencia: dolar.md` (the file inside the wiki it was read out of).
 
 This act is worth studying closely, because it is easy to assume that injecting a
 Tier-1 page *replaces* the tools. It does not. A curated page can explain what

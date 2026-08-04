@@ -365,7 +365,7 @@ def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, 
     last_response, set_last_response = mo.state("")
 
     async def respond(messages, config):
-        # The "Modo estricto" toggle (grounding_flag["strict"], read live at
+        # The "Strict mode" toggle (grounding_flag["strict"], read live at
         # call-time) controls two coupled behaviors:
         #   ON  -> strict: run to completion so the guardrail can inspect the
         #          tool history, then gate the answer (refuse if ungrounded).
@@ -494,14 +494,14 @@ def guardrail_toggle(grounding_flag, wiki_chat_config):
     shared grounding_flag dict via on_change and never read `.value`, so clicking
     them doesn't re-run this cell (state persists) nor rebuild the chat. The chat
     handler reads the flag live. Pre-retrieval seeds from the wiki's config
-    default and, when ON, supersedes 'Modo estricto' (its flow is already gated)."""
+    default and, when ON, supersedes 'Strict mode' (its flow is already gated)."""
     def _on_strict(checked):
         grounding_flag["strict"] = checked
 
     _strict = mo.ui.checkbox(
         value=grounding_flag["strict"],
         on_change=_on_strict,
-        label="Modo estricto: responder solo con fuentes del wiki",
+        label="Strict mode: answer only from wiki sources",
     )
 
     _pre_default = bool(wiki_chat_config.pre_retrieval) if wiki_chat_config else False
@@ -513,7 +513,7 @@ def guardrail_toggle(grounding_flag, wiki_chat_config):
     _pre = mo.ui.checkbox(
         value=_pre_default,
         on_change=_on_pre,
-        label="Pre-retrieval: el código recupera el wiki (sustituye al modo estricto)",
+        label="Pre-retrieval: code retrieves from the wiki (supersedes strict mode)",
     )
     mo.hstack([_strict, _pre], justify="start", gap=2)
     return

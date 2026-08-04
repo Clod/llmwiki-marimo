@@ -13,8 +13,8 @@
 LLMWiki Read App — TABS VARIANT (experimental)
 ----------------------------------------------
 Same app as read_app.py, but the 3-panel grid is reorganised into two tabs:
-  📖 Lectura  — wiki picker + page navigator + reader
-  💬 Diálogo  — the chat, FULL WIDTH (so advisory tables/long answers breathe)
+  📖 Read     — wiki picker + page navigator + reader
+  💬 Chat     — the chat, FULL WIDTH (so advisory tables/long answers breathe)
 
 Why a separate file: easy rollback. read_app.py + layouts/read_app.grid.json are
 left untouched; this is purely additive. Launch this one to try tabs; delete it
@@ -24,7 +24,7 @@ Reactivity notes (the reason this is safe):
   - The tabs are CONTROLLED: the active tab lives in `mo.state` and is passed back
     as `value=`, so when the assembly cell re-runs (page nav, save, end of a chat
     turn) it rebuilds with the SAME active tab — you are never bounced out of
-    Diálogo mid-conversation.
+    Chat tab mid-conversation.
   - The chat body is `mo.ui.chat` (a stable, self-streaming element). Streaming
     yields tokens INTO that element client-side; it never reassigns `chat_view`,
     so the assembly cell does NOT re-run per token.
@@ -98,7 +98,7 @@ def styles():
     .prose span.paragraph { display: block; margin-top: 0.2em; margin-bottom: 0.2em; }
     .prose h1, .prose h2, .prose h3 { margin-top: 0.6em; margin-bottom: 0.2em; }
     .prose li { margin-top: 0.1em; margin-bottom: 0.1em; }
-    /* Tabs Lectura: flex columns may shrink -> wide table scrolls in-column. */
+    /* Read tab: flex columns may shrink -> wide table scrolls in-column. */
     [style*="flex"] { min-width: 0; }
     /* Wide markdown tables (e.g. the advisory's 7 columns) scroll horizontally
        inside their chat bubble instead of clipping the rightmost column (fuente).
@@ -171,7 +171,7 @@ def left_panel(
     selected_page,
     set_page_list,
 ):
-    """Navigation sidebar view (composed into the Lectura tab).
+    """Navigation sidebar view (composed into the Read tab).
 
     Tabs variant: the sidebar sits BESIDE the reader in a flex row, so the page
     table must stay narrow or it overflows the reader column. We therefore show
@@ -261,7 +261,7 @@ def delete_runner(
 ):
     """Executes wiki page deletion when delete_trigger fires. Unlike the grid
     version this uses a conditional (not mo.stop) so `delete_result` is always
-    defined and can be composed into the Lectura tab."""
+    defined and can be composed into the Read tab."""
     from domain.tools.wiki_fs import delete_page as _delete_page
 
     if delete_trigger() is None:
@@ -344,7 +344,7 @@ def page_links_nav(
 
 @app.cell
 def middle_panel(current_content, nav_widget, selected_stem):
-    """Content viewer view (composed into the Lectura tab)."""
+    """Content viewer view (composed into the Read tab)."""
     _title = selected_stem.rsplit("/", 1)[-1].replace("-", " ").title() if selected_stem else "No page selected"
     _header = mo.md(f"## {_title}")
 
@@ -376,14 +376,14 @@ def guardrail_flag():
 @app.cell
 def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, wiki_db_path):
     """AI chat assistant with FTS5 retrieval. Produces `chat_view` (a stable
-    layout wrapping mo.ui.chat) for the Diálogo tab; streaming updates happen
+    layout wrapping mo.ui.chat) for the Chat tab; streaming updates happen
     inside that element, so this view object never churns per token."""
     from pydantic_ai.messages import ModelRequest, UserPromptPart, ModelResponse, TextPart
 
     last_response, set_last_response = mo.state("")
 
     async def respond(messages, config):
-        # The "Modo estricto" toggle (grounding_flag["strict"], read live at
+        # The "Strict mode" toggle (grounding_flag["strict"], read live at
         # call-time) controls two coupled behaviors:
         #   ON  -> strict: run to completion so the guardrail can inspect the
         #          tool history, then gate the answer (refuse if ungrounded).
@@ -494,14 +494,14 @@ def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, 
             set_last_response(full_text)
 
     if wiki_agent is None:
-        _body = mo.md("*Select a wiki (in the Lectura tab) to start chatting.*")
+        _body = mo.md("*Select a wiki (in the Read tab) to start chatting.*")
     else:
         _body = mo.ui.chat(
             respond,
             prompts=(wiki_chat_config.suggested_prompts if wiki_chat_config else []),
             max_height=720,
         )
-    chat_view = mo.vstack([mo.md("### 💬 Chat con tu Wiki"), _body], gap=2)
+    chat_view = mo.vstack([mo.md("### 💬 Chat with your Wiki"), _body], gap=2)
     return chat_view, last_response
 
 
@@ -516,7 +516,7 @@ def guardrail_toggle(grounding_flag):
     _strict = mo.ui.checkbox(
         value=grounding_flag["strict"],
         on_change=_on_change,
-        label="Modo estricto: responder solo con fuentes del wiki",
+        label="Strict mode: answer only from wiki sources",
     )
     strict_view = mo.vstack([_strict])
     return (strict_view,)
@@ -528,7 +528,7 @@ def pre_retrieval_toggle(grounding_flag, wiki_chat_config):
     the strict toggle) so flipping it never rebuilds the chat: respond() reads the
     flag live and picks the matching PRE-BUILT agent. Seeds from the wiki's config
     default (re-seeds on wiki switch). Takes effect on the NEXT message. NOTE: when
-    ON, pre-retrieval supersedes 'Modo estricto' (its flow is already gated)."""
+    ON, pre-retrieval supersedes 'Strict mode' (its flow is already gated)."""
     _default = bool(wiki_chat_config.pre_retrieval) if wiki_chat_config else False
     grounding_flag["pre_retrieval"] = _default
 
@@ -538,7 +538,7 @@ def pre_retrieval_toggle(grounding_flag, wiki_chat_config):
     _pre = mo.ui.checkbox(
         value=_default,
         on_change=_on_change,
-        label="Pre-retrieval: el código recupera el wiki (sustituye al modo estricto)",
+        label="Pre-retrieval: code retrieves from the wiki (supersedes strict mode)",
     )
     pre_retrieval_view = mo.vstack([_pre])
     return (pre_retrieval_view,)
@@ -755,8 +755,8 @@ def tab_switch():
     server callback ("Could not find function ... send_prompt"). This selector has
     no deps, so it runs once and is stable; its value drives the two cells below."""
     tab_choice = mo.ui.radio(
-        options=["📖 Lectura", "💬 Diálogo"],
-        value="📖 Lectura",
+        options=["📖 Read", "💬 Chat"],
+        value="📖 Read",
         inline=True,
     )
     tab_choice
@@ -785,7 +785,7 @@ def tab_body(
     and the chat is never re-parented mid-conversation. The chat is (re)built only
     on a tab switch or a wiki switch — each a fresh render the frontend adopts
     cleanly. Streaming happens inside the stable mo.ui.chat element regardless."""
-    if tab_choice.value == "💬 Diálogo":
+    if tab_choice.value == "💬 Chat":
         _body = mo.vstack(
             [mo.hstack([strict_view, pre_retrieval_view], justify="start", gap=2), chat_view],
             gap=2,
@@ -802,13 +802,13 @@ def tab_body(
 
 @app.cell
 def save_area(tab_choice, form, save_notice_view):
-    """The "save last response" accordion, shown only under the Diálogo tab. Kept
+    """The "save last response" accordion, shown only under the Chat tab. Kept
     in its OWN cell (separate from tab_body) so that a chat turn — which reassigns
     `form` via last_response — re-runs only THIS cell, re-parenting the little
     form/notice but never the chat rendered by tab_body above it."""
-    if tab_choice.value == "💬 Diálogo":
+    if tab_choice.value == "💬 Chat":
         _out = mo.accordion(
-            {"💾 Guardar la última respuesta en el wiki": mo.vstack([form, save_notice_view], gap=1)}
+            {"💾 Save the last response to the wiki": mo.vstack([form, save_notice_view], gap=1)}
         )
     else:
         _out = mo.md("")

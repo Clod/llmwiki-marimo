@@ -20,6 +20,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   demo's own config — so a user copying the template had no way to learn it exists.
 
 ### Changed
+- **The read app's interface is entirely in English.** It was already English
+  almost everywhere — "Refresh", "Save to wiki", "Category", "is not a
+  directory" — but a handful of Spanish labels had drifted in with the tabs
+  variant and stayed: the two chat checkboxes (`Modo estricto`,
+  `Pre-retrieval: el código recupera…`), the tab names (`📖 Lectura`,
+  `💬 Diálogo`), the chat heading and the save accordion. `read_app.py` already
+  said "Chat with your Wiki" while `read_app_tabs.py` said "Chat con tu Wiki",
+  which is what gave the drift away. Wiki *content* remains per-wiki
+  multilingual and the Spanish system prompts are untouched — this is the
+  chrome only.
 - **Both walkthroughs are rewritten for a reader who has never seen the project.**
   They no longer assume you can read a schema, and every term borrowed from the
   LLM and search worlds — *token*, *embedding*, *RAG*, *chunk*, *agentic*,
@@ -31,7 +41,7 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   the two chat checkboxes, and the chat-to-wiki save flow.
 - **The query walkthrough describes the mode the app actually ships in.** It was
   built around a single pre-retrieval toggle, but the read app has two independent
-  checkboxes, and `Modo estricto` is **on by default** — so the "unticked mode" it
+  checkboxes, and `Strict mode` is **on by default** — so the "unticked mode" it
   documented was a configuration nobody runs. Its two showcased failures are now
   measured against that default: a missing citation is repaired by
   `ensure_citation`, while a passage retrieved for a question it does not answer

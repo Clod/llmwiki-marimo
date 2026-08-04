@@ -108,7 +108,7 @@ class PlainTurn:
 
     Captured with BOTH boxes unticked, deliberately: that isolates what the model
     does when nothing checks it. The read app's default is stricter than this
-    (`Modo estricto` ships on), so the last three fields record what that default
+    (`Strict mode` ships on), so the last three fields record what that default
     would have done to this very answer — computed from the run's own messages by
     the same functions the app calls, so it costs no second model call and cannot
     drift from the app's behaviour.
@@ -118,7 +118,7 @@ class PlainTurn:
     answer: str = ""
     tool_calls: list[str] = field(default_factory=list)
     cited: bool = False
-    # What `Modo estricto` (guardrail.enforce_grounding + postprocess.ensure_citation)
+    # What `Strict mode` (guardrail.enforce_grounding + postprocess.ensure_citation)
     # would have made of the same run.
     grounded: bool = False
     strict_refuses: bool = False
@@ -248,7 +248,7 @@ async def _answer_plain(turn: PlainTurn, db_path: str, agent, language: str) -> 
 
     Then the same run is re-scored through the app's default post-processing,
     without invoking the model again: both are pure functions of the message
-    history, so this reports what `Modo estricto` would have returned instead.
+    history, so this reports what `Strict mode` would have returned instead.
     """
     from domain.chat.guardrail import has_grounding, refusal_for
     from domain.chat.postprocess import ensure_citation
@@ -263,7 +263,7 @@ async def _answer_plain(turn: PlainTurn, db_path: str, agent, language: str) -> 
     turn.answer = result.output
     turn.cited = _looks_cited(turn.answer)
 
-    # `Modo estricto`, replayed over this run. A run with no substantive tool
+    # `Strict mode`, replayed over this run. A run with no substantive tool
     # return is replaced wholesale by the refusal; otherwise the answer stands and
     # only a missing attribution line is appended.
     turn.grounded = has_grounding(messages)
@@ -288,7 +288,7 @@ def _render_plain(turns: list[PlainTurn]) -> list[str]:
         "model did.",
         "",
         "These were captured with **both** checkboxes unticked, which is not the read",
-        "app's default: `Modo estricto` ships on. The last two lines of each entry",
+        "app's default: `Strict mode` ships on. The last two lines of each entry",
         "replay that default over this same run — `guardrail.has_grounding` and",
         "`postprocess.ensure_citation` are pure functions of the message history, so",
         "the replay needs no second model call and cannot disagree with the app.",
@@ -312,7 +312,7 @@ def _render_plain(turns: list[PlainTurn]) -> list[str]:
             f"{', '.join(f'`{c}`' for c in t.tool_calls) or '— **none**'}",
             f"- carries a citation: **{t.cited}**",
             f"- a tool returned real evidence (`has_grounding`): **{t.grounded}**",
-            f"- what `Modo estricto` would do to this answer: {strict}", "",
+            f"- what `Strict mode` would do to this answer: {strict}", "",
             "```text", answer, "```", "",
         ]
     return out

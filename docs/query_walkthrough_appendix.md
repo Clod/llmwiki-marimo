@@ -55,7 +55,7 @@ tools column is the point — nothing in the code decided to call those, the
 model did.
 
 These were captured with **both** checkboxes unticked, which is not the read
-app's default: `Modo estricto` ships on. The last two lines of each entry
+app's default: `Strict mode` ships on. The last two lines of each entry
 replay that default over this same run — `guardrail.has_grounding` and
 `postprocess.ensure_citation` are pure functions of the message history, so
 the replay needs no second model call and cannot disagree with the app.
@@ -69,7 +69,7 @@ the replay needs no second model call and cannot disagree with the app.
 - tools the model chose to call: `read_wiki_page`
 - carries a citation: **False**
 - a tool returned real evidence (`has_grounding`): **True**
-- what `Modo estricto` would do to this answer: appends `Referencia: index.md`
+- what `Strict mode` would do to this answer: appends `Referencia: index.md`
 
 ```text
 The wiki contains summaries and concepts related to the following fairy tales:
@@ -94,7 +94,7 @@ These entries provide detailed insights into the characters, plot elements, and 
 - tools the model chose to call: `read_wiki_page`, `search_wiki_fts`, `search_wiki_fts`, `search_wiki_fts`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`
 - carries a citation: **True**
 - a tool returned real evidence (`has_grounding`): **True**
-- what `Modo estricto` would do to this answer: **leaves it exactly as it is**
+- what `Strict mode` would do to this answer: **leaves it exactly as it is**
 
 ```text
 The classic fairy tales "Cinderella," "Snow White and the Seven Dwarfs," and "Little Red Riding Hood" share several characters and themes:
@@ -119,7 +119,7 @@ The classic fairy tales "Cinderella," "Snow White and the Seven Dwarfs," and "Li
 - tools the model chose to call: `search_wiki_fts`, `search_wiki_fts`, `search_wiki_fts`, `read_wiki_page`, `search_source_chunks`, `search_source_chunks`, `search_source_chunks`
 - carries a citation: **True**
 - a tool returned real evidence (`has_grounding`): **True**
-- what `Modo estricto` would do to this answer: **leaves it exactly as it is**
+- what `Strict mode` would do to this answer: **leaves it exactly as it is**
 
 ```text
 Here's a comparison of how each story ends based on the available information:

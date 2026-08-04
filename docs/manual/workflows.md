@@ -809,7 +809,7 @@ enabled = true
 
 `chat/config.py` reads it into `WikiAssistantConfig.pre_retrieval` (default
 `False`, so a workspace that says nothing keeps the mode above). The read app
-also exposes it as a live checkbox beside "Modo estricto", which picks between
+also exposes it as a live checkbox beside "Strict mode", which picks between
 two agents built up front, so toggling takes effect on the next message without
 rebuilding the chat.
 
