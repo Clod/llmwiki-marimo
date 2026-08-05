@@ -9,8 +9,7 @@ instead of) invoking the model:
     (a dataset category or key, or a whitelisted alias like "billete verde")?
     This is the "chequeo contra la lista de datos".
   - `drop_false_synonyms`: filter a model's proposed synonyms against known
-    FALSE synonyms (e.g. CEDEAR ≠ acción), so the synonym-rescue step can't
-    bridge two different instruments.
+    FALSE synonyms (e.g. CEDEAR ≠ acción). NOT WIRED — see its own docstring.
 
 Matching is accent- and case-insensitive, treats `_` as a space, and is by
 WHOLE WORD so short keys ("cer", "mep") don't match inside other words. The
@@ -135,7 +134,26 @@ def drop_false_synonyms(
 ) -> list[str]:
     """Filter `proposals` (the model's synonym suggestions), dropping any that a
     term present in the question forbids (e.g. question mentions "cedear" and
-    `false_synonyms["cedear"]` lists "accion")."""
+    `false_synonyms["cedear"]` lists "accion").
+
+    **NOT WIRED — kept deliberately.** Nothing in the production path calls this;
+    its only caller is `test_chat_scope.py`. It was written in 6e95b8f alongside
+    the rest of the scope gate, for a query-time "synonym rescue" step (widen a
+    question's terms when the first search comes back empty, then ask again)
+    that was never built. Retained because the step is still a plausible
+    addition and this is the piece that would keep it safe: without it, a rescue
+    pass would happily bridge `cedear` → `accion` and reintroduce exactly the
+    leak the roster gate closes.
+
+    `[falsos_sinonimos]` itself IS live, via a different route:
+    `vocabulary.merge_aliases` uses it as a delete filter when the generated and
+    hand-written alias maps are merged. So the config section does real work
+    today; this particular consumer of it does not.
+
+    If a synonym-rescue step is ever added, call this on the model's proposals
+    before searching with them. If it is decided against, delete this function
+    and its tests rather than leaving it to rot.
+    """
     q = _normalize(question)
     forbidden: set[str] = set()
     for term, bad_targets in false_synonyms.items():
