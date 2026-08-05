@@ -156,6 +156,50 @@ fast, so the callback mostly matters in full-LLM mode.
 - `vocab_ambiguous` (**warning**) — one alias mapping to two canonicals
 - `vocab_covered` (**info**) — a `[fuera_de_alcance]` term that now has a page/dataset
 
+#### Maintaining the vocabulary lists
+
+There is **no GUI for this and no plan for one**, and the reason is a design
+rule worth stating outright: *the pipeline never rewrites a file a human wrote.*
+The two vocabulary files have different owners and the boundary is enforced in
+code, not by convention.
+
+| File | Owner | Written by | Editable by hand |
+|---|---|---|---|
+| `.llmwiki/aliases.generated.toml` | the machine | ingestion step 8b, and `repair_vocab_collision` | no — its own header says so |
+| `wiki_config.toml` `[alias_datos]`, `[falsos_sinonimos]`, `[fuera_de_alcance]` | you | nothing, ever | yes — this is the only way |
+
+Nothing in `base/` or `marimo/` writes `wiki_config.toml`. `load_config` and
+`load_wiki_language` read it; there is no writer. So maintenance is a text
+editor, and the loop is:
+
+1. **Ingest, or press "Run Wiki Lint & Repair".** `vocabulary_check` compares
+   both alias sources against the live coverage roster.
+2. **Read the findings.** Each carries a `suggestion` naming the fix — e.g.
+   *"List 'X' under 'Y' in `[falsos_sinonimos]`, or remove it"*, or *"Remove it
+   from the blacklist — it's covered now"*.
+3. **One of them repairs itself, conditionally.** `vocab_collision` is the only
+   vocabulary finding in `repair/runner.py:_DISPATCH`. It drops the offending
+   alias — **but only if it lives in the generated artifact**. When the collision
+   comes from your `[alias_datos]`, the repair refuses and says so: *"is a hand
+   override in wiki_config.toml … resolve it by hand"*. The other three
+   (`vocab_stale`, `vocab_ambiguous`, `vocab_covered`) are in `_ADVISORY_CHECKS`:
+   reported, never touched.
+4. **Edit `wiki_config.toml`** for everything left.
+5. **Re-run lint** to confirm the finding is gone.
+
+**These lists go stale on their own as the wiki grows**, which is why the loop
+is not a one-time setup. `vocab_covered` exists precisely for that: it fires
+when a term you blacklisted *now has a page*, which can only happen after you
+ingest something new. `vocab_stale` is the mirror image — aliases still pointing
+at a concept whose page no longer exists, which regeneration alone can cause,
+since concept page names are model-chosen and vary between runs. Reading the
+lint output after an ingest is the only mechanism that surfaces either.
+
+Also worth knowing before you invest effort in these lists: **they are read only
+by the pre-retrieval path.** With `[pre_retrieval] enabled = false` — the
+default — nothing consults them; the model does its own searching and no scope
+check runs in front of it. `vocabulary_check` still lints them either way.
+
 `thin_page_check`'s ruler is **orphan chunks, not page size** (a good summary is
 deliberately short) — it reuses the same `chat/overlap.py:coverage` that verifies
 Tier-2 chat answers. Coverage = the pages that **cite** the source plus the
