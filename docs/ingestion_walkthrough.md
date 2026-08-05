@@ -87,12 +87,13 @@ subject. Point the app at it and that is the wiki you are working on. Nothing is
 global — you can have as many workspaces as you have subjects, and they share
 nothing.
 
-Inside one, four things matter:
+Inside one, five things matter:
 
 ```mermaid
 flowchart TD
     SRC["<b>sources/</b> — the PDFs and DOCX you dropped in<br/><i>durable prose: what a thing IS</i><br/>YOURS · never modified"]
     DS["<b>datasets/</b> <i>(optional)</i> — markdown tables you maintain<br/><i>facts that expire: what it is WORTH today</i><br/>YOURS · never modified"]
+    CFG["<b>wiki_config.toml</b> <i>(optional)</i> — the only file<br/>you write in your own words<br/><i>language · the assistant's instructions ·<br/>a list of topics this wiki refuses</i><br/>YOURS · never modified"]
     WIKI["<b>wiki/</b> — the markdown pages an LLM wrote<br/>DERIVED · safe to delete and rebuild<br/><i>a git repository in its own right</i>"]
     DB[("<b>.llmwiki/index.db</b> — one SQLite file<br/>DERIVED · full-text index<br/><i>over sources AND wiki alike</i>")]
     NOTE["<b>never ingested.</b> No LLM, no generated page,<br/>no database row — read straight off disk, fresh,<br/>each time a question needs one"]
@@ -101,17 +102,75 @@ flowchart TD
     SRC -.->|indexed for search| DB
     WIKI -.->|indexed for search| DB
     DS --> NOTE
+    CFG -.->|"sets the language<br/>the pages are written in"| WIKI
 
     style SRC fill:#e8f4ea,stroke:#2d6a4f
     style DS fill:#e8f4ea,stroke:#2d6a4f
+    style CFG fill:#e8f4ea,stroke:#2d6a4f
     style WIKI fill:#eef2ff,stroke:#3b4d9b
     style DB fill:#f5f0e6,stroke:#8a6d3b
     style NOTE fill:#fff,stroke:#999,stroke-dasharray: 4 3
 ```
 
-Read the labels, not the shapes. The two green boxes are **yours**, and the
+Read the labels, not the shapes. The three green boxes are **yours**, and the
 pipeline never writes to them. The blue and brown ones are **derived**: they can
 be thrown away and rebuilt from the green ones at any time.
+
+**`wiki_config.toml` deserves a closer look**, because it is the one place where
+you tell the system something it could not work out on its own. Every key in it
+is optional, and so is the file — a wiki with no config runs on defaults. What
+you can put there:
+
+| Section | What it does |
+|---|---|
+| `[wiki] language` | `"en"` or `"es"`. Governs the language of every generated page **and** of the chat's answers, independently of what language the sources are in — so an English wiki and a Spanish wiki can sit side by side |
+| `[assistant]` | the system prompt sent at the start of every conversation, and the suggested questions shown as buttons in the chat |
+| `[fuera_de_alcance]` | *out of scope* — a **blacklist**: topics you know this wiki does not cover and never should answer about. The finance demo lists `cedear`, `cripto`, `bitcoin` |
+| `[alias_datos]`, `[falsos_sinonimos]` | other names for things you do cover, and pairs of words that must **not** be treated as the same thing |
+| `[pre_retrieval]` | whether questions are routed through code before the model sees them — the subject of the [query walkthrough](query_walkthrough.md) |
+
+**Those last three lists only do anything when `[pre_retrieval]` is on.** That is
+worth knowing before you write one: they are read by the code that decides, ahead
+of the model, whether a question is answerable — and if that code never runs,
+nothing reads them. Write `bitcoin` into the blacklist of a wiki running the
+default configuration and the assistant will still answer about bitcoin, because
+in that configuration the model does its own searching and no scope check stands
+in front of it. The lists are not decoration in that case; they are simply not
+consulted. (`wiki_config.example.toml` says the same thing above the three
+sections, which is the other place you might read it.) The linter is the
+exception — it checks these lists for staleness and contradictions regardless of
+the setting.
+
+The blacklist is worth pausing on. Everything else the system uses to judge "do
+I cover this?" is read back out of the wiki's own contents — page titles,
+dataset categories. The blacklist is derived from nothing: it is you saying, in
+advance, *people will ask about this, we have nothing real to say, do not try.*
+On the query side it is checked **first**, before any search runs, so a
+blacklisted question is refused without the wiki ever being touched.
+
+**Alternate names come from two places, and yours win.** Step 8b of the pipeline
+(described in Act 1) has an LLM read each document and propose other names for
+the concepts it found, writing them to `.llmwiki/aliases.generated.toml`. That
+file learns the names *the documents* use. `[alias_datos]` is the other list,
+the one you write, for the names the documents never mention — the finance demo
+records `dolar = ["billete verde", "divisa"]`, everyday Argentine slang for the
+US dollar that appears in no table of exchange rates. The two are merged when
+the config is read (`vocabulary.merge_aliases`): the generated file is the base,
+your entries are layered on top, and where both name the same concept your
+spelling of it wins. The generated file says so in its own first line — *do not
+edit by hand; hand overrides live in wiki_config.toml*.
+
+**`[falsos_sinonimos]` is the opposite instruction: two words that must never be
+treated as the same thing.** The finance demo records one, `cedear =
+["accion", "acciones"]` — a CEDEAR is a certificate representing a *foreign*
+company's share, so answering a question about one with material about the other
+is wrong in a way that reads as fluent and correct. The list acts as a delete
+filter when the two alias sources are merged: any alias a canonical must never
+have is removed from the result, so a generated alias that wrongly bridges the
+two never reaches the query path at all. Alias lists widen what the wiki will
+match; this one narrows it back where widening would do damage. The lint pass
+also uses it as its suggested remedy — when it finds an alias that is really
+another concept's name, what it tells you to do is add the pair here.
 
 The rest of this document depends on that difference over and over. It is why
 "just delete the page and generate it again" is a safe thing to say, and why
@@ -134,12 +193,27 @@ the concepts differently — one run pulled a page called *Transformation* out o
 Cinderella, the next chose *Prince* instead. Neither is wrong. They are two
 readings of the same tale.
 
-Two practical consequences follow. **Anything you edited by hand is gone** when
+Three practical consequences follow. **Anything you edited by hand is gone** when
 the page is regenerated, because nothing distinguishes your sentence from the
-model's. And **any figure you quoted from the wiki elsewhere may move** — page
+model's. **Any figure you quoted from the wiki elsewhere may move** — page
 names, page counts, link counts. That is not a bug being described; it is what
 "derived" means when the deriving is done by a language model rather than a
 compiler.
+
+And the third one is easy to miss. The titles of those concept pages are not
+only titles: taken together they are the **coverage roster** — the list of
+subjects this wiki considers itself to cover. Nothing stores that list; it is
+read back out of the page titles whenever it is needed. So a run that names a
+page *Prince* instead of *Transformation* has not merely renamed a file, it has
+edited that list.
+
+In practice this matters less than it sounds, because concepts overlap: a
+question about Cinderella still finds the *Cinderella* page whatever the sibling
+pages ended up called. It bites only a question that names **just** the renamed
+concept and nothing else. But the direction is worth knowing, and it only
+applies to wikis that opt into the coverage gate at all. Why a wiki would want
+such a list, what it does with it, and where the idea shows its limits are the
+[query walkthrough](query_walkthrough.md)'s subject.
 
 `datasets/` is the odd one out and gets its own [closing
 section](#wikis-whose-facts-change); ignore it until then if your wiki has none.

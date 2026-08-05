@@ -51,7 +51,7 @@ any of them.
 
 **Never.** Hand the model the search tools and trust it. (A *tool* is simply a
 function the model is allowed to call — it asks for a search, the code runs it,
-and the results come back into the conversation. [Part 1](#part-1--the-model-does-the-searching)
+and the results come back into the conversation. [Part 1](#part-1--the-model-decides-what-to-look-up)
 lists the three this project provides.) The model decides what to look for, when
 it has seen enough, and what to say. This handles the widest range of questions
 and gives you no guarantees at all.
@@ -68,11 +68,15 @@ is cited, but not that the cited page says what the answer claims. A model that
 searched, got three fragments back, and then wrote a sentence none of them
 support passes every check here.
 
-**Before.** Have code do the searching, decide in advance whether this wiki
-covers the question at all, and refuse — without ever calling the model — when it
-does not. This gives you guarantees, and you pay for them by answering fewer
-questions: one that mentions nothing the wiki knows about is turned away, even
-when a search would have found something.
+**Before.** Have code do the searching — the same SQLite full-text index the
+ingestion walkthrough built, no embeddings involved — and decide from what it
+finds whether this wiki covers the question at all. If it does not, refuse without ever
+calling the model. If it does — the ordinary case — call the model as usual, but
+with the retrieved pages already sitting in its context and no search tools of
+its own: it still writes the answer, it just never chose what to read. This
+gives you guarantees, and you pay for them by answering fewer questions: one
+that mentions nothing the wiki knows about is turned away, even when a search
+would have found something.
 
 None of the three is a broken version of the others. Each is a real choice with a
 real cost, and this document is arranged so you can disagree with me about which
@@ -105,26 +109,33 @@ almost everything below is a consequence of which one is set.
 flowchart TD
     Q["a question arrives"] --> PRE{"<b>Pre-retrieval</b><br/>ticked?"}
 
-    PRE -->|yes| C1["<b>Code does the searching.</b><br/>It retrieves, then decides in a fixed<br/>branch order whether this wiki covers<br/>the question — and may refuse<br/>without calling the model at all"]
+    PRE -->|yes| C1["<b>Code searches first.</b><br/><i>plain SQLite full-text search —<br/>no embeddings, no vector database</i><br/>then it decides in a fixed branch<br/>order whether this wiki covers<br/>the question"]
     PRE -->|no| STRICT{"<b>Strict mode</b><br/>ticked?<br/><i>on by default</i>"}
 
-    STRICT -->|yes| C2["<b>The model does the searching,<br/>code checks afterwards.</b><br/>Agent runs with its search tools;<br/>then code asks: did any tool return<br/>real evidence? is there a citation?"]
-    STRICT -->|no| C3["<b>The model does the searching,<br/>nothing checks.</b><br/>Agent runs and its output is streamed<br/>to the user verbatim"]
+    C1 --> COV{"covered?"}
+    COV -->|yes| C1A["<b>the model is called</b><br/>— with the retrieved pages already<br/>in its context, and no search tools<br/>of its own. It writes the answer,<br/>it just did not do the looking"]
+    COV -->|no| C1B["<b>the model is never called</b><br/>refused outright"]
 
-    C1 --> A(["an answer, or a refusal"])
+    STRICT -->|yes| C2["<b>The model asks for the searches,<br/>code checks afterwards.</b><br/>It decides which search tool to call,<br/>code runs it and hands back the results;<br/>then code asks: did any tool return<br/>real evidence? is there a citation?"]
+    STRICT -->|no| C3["<b>The model asks for the searches,<br/>nothing checks.</b><br/>Same loop, and its output is streamed<br/>to the user verbatim"]
+
+    C1A --> A(["an answer, or a refusal"])
+    C1B --> A
     C2 --> A
     C3 --> A
 
     style C1 fill:#e8f4ea,stroke:#2d6a4f
+    style C1A fill:#e8f4ea,stroke:#2d6a4f
+    style C1B fill:#e8f4ea,stroke:#2d6a4f
     style C2 fill:#fdf6e3,stroke:#b58900
     style C3 fill:#fdeaea,stroke:#a33
 ```
 
-| | Who retrieves | What code guarantees | Where it is |
-|---|---|---|---|
-| **Pre-retrieval** ticked | code | the wiki's coverage decides whether the model is called at all | `preretrieval.pre_retrieval_answer` |
-| **Strict mode** only *(the default)* | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
-| neither | the model | nothing | streamed straight from the agent |
+| | The idea, in one sentence | Who decides what to look up | What code guarantees | Where it is |
+|---|---|---|---|---|
+| **Pre-retrieval** ticked | *Know what you cover.* If the question is not about something this wiki holds, do not spend a model call on it — and when it is, hand the model the relevant pages rather than let it hunt for them. | code, via SQLite full-text search | the wiki's coverage decides whether the model is called at all | `preretrieval.pre_retrieval_answer` |
+| **Strict mode** only *(the default)* | *Let it work, then audit it.* The model researches however it likes; code refuses to show an answer it cannot see any evidence behind. | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
+| neither | *Trust the model.* Whatever it produces is what the user reads. | the model | nothing | **streamed** straight from the agent |
 
 One note on the labels. The checkbox reads, in full, "Strict mode: answer only
 from wiki sources". Ticking **Pre-retrieval supersedes it**: its own flow is
@@ -150,13 +161,27 @@ The appendix is deliberately generated in two passes, and the split matters
 enough to explain before reading either half — because the two halves deserve
 very different amounts of trust.
 
-The **routing table** — `off_limits`, `data`, `roster`, the `wiki`/`docs` search
-hit counts, and the resulting `plan` — is pure code: `scope.is_off_limits`,
-`scope.mentions_known_data`, `scope.advisory_intent` and
-`preretrieval.plan_retrieval`. No model runs to produce it. It is deterministic
-and identical on every run, which is exactly what makes it the more useful of the
-two halves for judging whether the system is correct: you can read it, compare it
-across commits, and reproduce it for the cost of a SQLite query.
+The **routing table** is pure code. For each question it records five things:
+
+| Column | What it means |
+|---|---|
+| `off_limits` | the question names something on the wiki's **blacklist** — the hand-written `[fuera_de_alcance]` list in its `wiki_config.toml` ([explained here](ingestion_walkthrough.md#the-pieces-before-anything-moves)), where its owner records topics the wiki should never answer about. The finance demo lists `cedear`, `cripto`, `bitcoin`. Every other row is read out of the wiki's own contents; this one is a standalone declaration |
+| `data` | the question names a value kept in the `datasets/` folder, or asks for an estimate |
+| `roster` | the question names something on the **coverage roster**: the subjects this wiki considers itself to cover. Nothing stores it — it is assembled fresh on every question, from the titles of the wiki's own concept pages plus, in a wiki with datasets, the dataset vocabulary. It is the wiki's answer to "what am I about?" — and, as later acts show with numbers, it is what decides coverage, *not* the number of search hits |
+| `wiki` / `docs` | how many hits the full-text search returned, in the curated pages and in the raw documents respectively |
+| `plan` | the resulting decision: call the model, or refuse |
+
+Behind them are `scope.is_off_limits`, `scope.mentions_known_data`,
+`scope.advisory_intent` and `preretrieval.plan_retrieval` — every one of them
+living inside the pre-retrieval path and nowhere else. That is worth saying
+plainly, because the blacklist and the alias lists sit in a config file that
+looks like it governs the whole wiki: **untick the box and none of them are
+read.** The model then does its own searching, and no scope check stands in
+front of it. No model runs to produce any of this table, so it is deterministic
+and identical on every run — which is
+exactly what makes it the more useful of the two halves for judging whether the
+system is correct: you can read it, compare it across commits, and reproduce it
+for the cost of a SQLite query.
 `scripts/capture_query_walkthrough.py --plan-only` captures *only* this half — no
 model client is even constructed.
 
@@ -175,7 +200,7 @@ replays two deterministic functions over an already-captured conversation. It
 needs no second model call and cannot drift from the app's behaviour, but it is
 derived from one live run rather than being a live run of its own.
 
-## Part 1 — the model does the searching
+## Part 1 — the model decides what to look up
 
 This is the mode a wiki of plain documents runs in.
 
@@ -328,12 +353,10 @@ code, no LLM, free to reproduce — gives this:
 | What characters and themes do the tales share? | 6 | False | 2 | **invoke** |
 | Compare how each story ends | 6 | False | 2 | **invoke** |
 
-Three of those columns need naming before the table means anything. **wiki hits**
-is how many curated pages the full-text index returned for the question. **in
-roster** is whether the question named something on the wiki's *coverage
-roster* — the closed list of terms this wiki considers itself to cover, built
-from the names of its own concept pages. **collection** counts the pages whose
-job is to describe the whole wiki rather than one subject (`wiki/overview.md` and
+**wiki hits** and **in roster** are the columns defined above: how many curated
+pages the full-text search returned, and whether the question named anything on
+the coverage roster. **collection** is new here — it counts the pages whose job
+is to describe the whole wiki rather than one subject (`wiki/overview.md` and
 `wiki/index.md`).
 
 Read the `roster` column first: not one of these is covered, and not one ever
@@ -350,9 +373,61 @@ That is worth stating as a general lesson rather than a fixed bug: a coverage
 gate is only as good as the thing it is built from, and a roster built out of
 *subjects* is structurally unable to recognise a question about the *collection*.
 The fix was not a wider roster, it was a separate branch. The cost of ticking the
-box used to include every question about the collection; it no longer does. What
-it still costs is a question about a subject the wiki does not cover — which is
-precisely the refusal the setting exists to produce.
+box used to include every question about the collection; it no longer does.
+
+### Where the roster shows its limits
+
+The same lesson has a second half, and it is fair to know it before ticking the
+box. The match is literal: `scope.mentions_known_data` asks whether one of those
+page titles appears **as a phrase, word for word**, inside the question — case
+and accents ignored, nothing else. Not the reverse, and not word by word.
+
+That works when a page is named after the thing it is about. `fairy-tales` names
+its pages *Cinderella*, *Glass Slipper*, *The Wolf* — anyone asking about them
+types those words, so the gate does its job.
+
+It gets thinner when a page is named after a *statement* rather than a subject.
+The finance demo has three pages about the risks of a `caución` (a short-term
+secured loan traded on the exchange): `Caución Bursátil`,
+`Riesgo Inflacionario en Cauciones` and `Riesgo de Crédito en Cauciones`. Ask it
+the obvious question and watch:
+
+| Question | In roster? | What matched |
+|---|---|---|
+| *"¿las cauciones tienen riesgo de inflación?"* | yes | the page `Riesgo de inflación` |
+| *"¿me conviene esperar a que se mueva el dólar?"* | yes | the dataset category `dolar` |
+| *"¿las cauciones son riesgosas?"* | **no** | — |
+
+The third is the honest one. Three pages in this wiki are about exactly that
+question, and it is turned away, because not one of them is titled *Cauciones*:
+the gate needs a whole title inside the question, and *"Riesgo Inflacionario en
+Cauciones"* is not a phrase anybody types. (These three rows were measured by
+calling `scope.mentions_known_data` against the demo's real roster — 65 covered
+terms and 17 aliases — not worked out on paper.)
+
+Notice also *why* the first two passed: not because the page you would expect was
+found, but because some *other*, more plainly named page or dataset category
+happened to be mentioned. Coverage here is a lucky overlap of vocabularies, not a
+judgment about meaning.
+
+And nothing chose those titles deliberately — a language model did, while writing
+the pages, at a temperature above zero. The gate's reach is therefore decided by
+how the model happened to name things, which is also why regenerating a wiki can
+change which questions it answers (the ingestion walkthrough raises this as a
+[consequence of regeneration](ingestion_walkthrough.md#the-pieces-before-anything-moves)).
+
+Two things keep this from being worse than it is. The generated **aliases** exist
+precisely to widen the roster with the other names a concept goes by. And nothing
+of this applies unless pre-retrieval is ticked — the ordinary wiki never consults
+a roster at all.
+
+Stated plainly: this gate trades recall for precision, and the trade is not free.
+It stops the leak the next act demonstrates, and it will also turn away real
+questions whose wording happens to miss every page title. What it still costs, by
+design, is a question about a subject the wiki does not cover — which is
+precisely the refusal the setting exists to produce. What it costs by accident is
+a question about a subject the wiki *does* cover, asked in words no page title
+contains.
 
 The table regenerates with
 `uv run python scripts/capture_query_walkthrough.py --plan-only`, which prints
@@ -377,7 +452,7 @@ often. It would still fail without warning, which is the part that does not go
 away by upgrading — and the Snow White row is the shape of failure that survives
 both a better model and a stricter checkbox.
 
-## Part 2 — code does the searching
+## Part 2 — code decides what to look up
 
 Everything from here on runs on `examples/finanzas-argentinas`, with the
 pre-retrieval box **ticked**. The reason that wiki makes the opposite choice is
@@ -618,14 +693,35 @@ exchange rates, the one used to move money abroad) plus an honest *"No se
 encontraron datos para el dólar oficial."* (*no data found for the official
 dollar*), all closing with `Referencia: dolar.md`.
 
-The alias itself is not invented at query time — it is looked up. The
-vocabulary that makes "billete verde" resolve was built during ingestion, by
-the same mechanism that produced `"Cinderella" = ["Cinderwench"]` in the
-[ingestion walkthrough, Act 1](ingestion_walkthrough.md#act-1--one-document-lands-in-an-empty-wiki):
-a generated-alias pass that runs once, at ingest time, so the retrieval
-layer never has to guess a nickname on the fly. This is the same argument as
-that document's alternate-name file, seen from the other side of the pipeline:
-work done once at ingest time is work the query path never has to redo.
+The alias is not invented at query time — it is looked up. Where it was looked
+up from is worth being exact about, because a wiki draws aliases from two
+places, and this one comes from the half a machine could not have produced.
+"billete verde" is written by hand, in the demo's own `wiki_config.toml`:
+
+```toml
+[alias_datos]
+dolar = ["billete verde", "divisa"]
+```
+
+Nothing in the wiki could have derived it. Its sources are documents about
+financial instruments and its datasets are tables of quotes; neither records that
+Argentines call the dollar *the green note*. Somebody who lives there knew, and
+wrote it down.
+
+The other half **is** generated, by the same pass that produced
+`"Cinderella" = ["Cinderwench"]` in the
+[ingestion walkthrough, Act 1](ingestion_walkthrough.md#act-1--one-document-lands-in-an-empty-wiki).
+Here it contributes 13 entries pulled out of the documents themselves —
+including `"Coeficiente de Estabilización de Referencia" = ["CER"]`, the
+acronym anybody would actually type instead of that mouthful. At load time the
+two lists are merged, with the hand-written one winning
+(`vocabulary.merge_aliases`).
+
+So the division of labour is: the pipeline learns the names the documents use,
+and you supply the names *people* use that the documents never mention. Either
+way the knowing happens once, before any question arrives, which is the argument
+of the whole project seen from the query side — work done at ingest time is work
+the query path never has to redo.
 
 #### 6. Deterministic advisory
 
