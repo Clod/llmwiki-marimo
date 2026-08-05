@@ -12,6 +12,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 ## [Unreleased]
 
 ### Added
+- **`ROADMAP.md`** — what is planned next, and what is built but known to be
+  imperfect. The second half is the point: the coverage gate matching page
+  titles literally, a documentation check that cannot see a link cut in two, a
+  guard written for a step that was never built, and the vocabulary lists having
+  no interface by design. These were tracked in a working file outside version
+  control, which meant the only copy lived on one machine. Four entries turned
+  out to be already fixed and were closed rather than published, and one lost
+  its rationale to an earlier PR and was dropped. Linked from both READMEs and
+  covered by the docs link checker.
 - **The pre-retrieval switch is documented where you would look for it.** Both
   `wiki_config.example.toml` templates now carry the `[pre_retrieval]` section and
   its three scope lists, commented out, and both READMEs explain the trade in the

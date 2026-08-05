@@ -615,6 +615,10 @@ click — so the human-in-the-loop step is post-hoc rather than during ingestion
 The rationale for each cut and the revisit plan live in  
 [`docs/programmer_manual.md`](docs/programmer_manual.md) §12.
 
+Those are the deliberate omissions. For what is planned next, and for the
+things that are built but known to be imperfect — measured rather than
+suspected — see [`ROADMAP.md`](ROADMAP.md).
+
 ---
 
 ## Contributing & security

@@ -23,7 +23,7 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Markdown that we promise to keep honest.
-_ROOT_DOCS = ("README.md", "README_ES.md", "CONTRIBUTING.md", "SECURITY.md")
+_ROOT_DOCS = ("README.md", "README_ES.md", "CONTRIBUTING.md", "SECURITY.md", "ROADMAP.md")
 _DOC_TREES = ("docs", ".trellis/spec")
 _EXTRA_DOCS = (".trellis/workflow.md",)
 _EXCLUDED_DIRS = {"archive", "node_modules", ".venv"}

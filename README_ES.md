@@ -626,6 +626,10 @@ ingesta.
 El fundamento de cada recorte y el plan para revisitarlos viven en  
 [`docs/programmer_manual.md`](docs/programmer_manual.md) §12.
 
+Esas son las omisiones deliberadas. Para lo que viene, y para lo que está
+construido pero se sabe imperfecto — medido, no sospechado — ver
+[`ROADMAP.md`](ROADMAP.md).
+
 ---
 
 ## Contribuir y seguridad
