@@ -487,7 +487,7 @@ flowchart TD
     Q["question"] --> OFF{"is_off_limits?<br/><i>on the wiki's own blacklist</i>"}
     OFF -->|yes| R1["<b>refuse</b><br/>no model call"]
     OFF -->|no| T1{"wiki_hits <b>and</b> in_roster?"}
-    T1 -->|yes| TIER1["<b>invoke</b> — Tier 1 <i>curado</i> (curated)<br/>inject the curated page, no verification"]
+    T1 -->|yes| TIER1["<b>invoke</b> — Tier 1 <i>curado</i> (curated)<br/>inject the top curated passages, no verification"]
     T1 -->|no| COL{"question about<br/>the collection itself?"}
     COL -->|yes| TIERC["<b>invoke</b> — Tier 1 <i>curado</i><br/>inject overview.md + index.md"]
     COL -->|no| T2{"doc_hits <b>and</b> in_roster?"}
@@ -518,6 +518,29 @@ search will happily return a hit for a topic the wiki does not cover, just
 because it shares a word with one that it does. The roster, not the search
 engine, decides what the wiki covers. The third act below shows this happening
 for real, with numbers.
+
+**What gets injected is passages, not whole pages.** Tier 1 takes the six
+best-ranked curated passages and Tier 2 the four best raw ones, each labelled
+with the page or file it came from and stripped of its YAML front-matter — that
+block is metadata, not text to answer from. A passage is a chunk in the sense
+the ingestion walkthrough describes, so *in these two demos* it happens to be a
+whole page: every wiki page in both fits inside one chunk, the longest reaching
+about 400 of the 512-token budget. A page much longer than that would arrive in
+pieces, and only the first piece would carry the heading. What the model sees is
+this, six times over:
+
+```
+[/wiki/concepts/glass-slipper.md]
+# Glass Slipper
+
+## Definition
+The glass slipper is a magical item left behind by Cinderella at the ball,
+which becomes the key to her identity and eventual marriage to the prince
+(Cinderella.pdf).
+```
+
+The label is the only thing distinguishing one block from the next, which is why
+it names the page rather than the folder it sits in.
 
 A wiki that also keeps facts that expire adds one more branch to this chain.
 Where it goes, and why its position matters, is covered in [the second half of

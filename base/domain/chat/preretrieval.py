@@ -55,13 +55,29 @@ def build_vocabulary(source: DatasetSource) -> set[str]:
 
 
 def _format_hits(rows: list[dict]) -> list[str]:
-    """Turn search_chunks rows into injectable, attributed text blocks."""
+    """Turn search_chunks rows into injectable, attributed text blocks.
+
+    The label is `path + filename` — the page, not its directory. `path` alone
+    is `/wiki/concepts/` for *every* concept page, so labelling by it handed the
+    model six blocks it could not tell apart, in a mode whose prompt asks it to
+    cite. `filename` was already in the row and unused.
+
+    Front-matter is stripped, for the reason `retrieve_collection_pages` gives
+    for stripping it there: the model is being handed context to answer FROM,
+    not page metadata. It was ~8% of the injected context on the shipped demo.
+    The two changes belong together — the `sources:` line inside that
+    front-matter was, in practice, what the model cited from, so removing it
+    without first making the label identify the page would have taken away the
+    attribution and put nothing back.
+    """
     blocks: list[str] = []
     for row in rows:
-        content = (row.get("content") or "").strip()
-        if not content:
+        raw = (row.get("content") or "").strip()
+        if not raw:
             continue
-        label = row.get("path") or row.get("filename") or ""
+        _, body = split_frontmatter(raw)
+        content = body.strip() or raw  # a chunk that is *only* front-matter keeps it
+        label = f"{row.get('path') or ''}{row.get('filename') or ''}"
         blocks.append(f"[{label}]\n{content}" if label else content)
     return blocks
 

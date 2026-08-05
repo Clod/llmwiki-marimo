@@ -67,6 +67,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   bare strings. Reading tolerates the old string form, so existing wikis keep working.
 
 ### Fixed
+- **Injected passages are labelled by page, and their front-matter is dropped.**
+  With pre-retrieval on, every curated block reaching the model was labelled
+  `[/wiki/concepts/]` — the folder, identical for all six — so in the one mode
+  whose prompt asks the model to cite, it could not tell the blocks apart.
+  `filename` was already in the search row and unused. Each block also carried
+  its YAML front-matter (`type`, `tags`, `sources`) as if it were prose: 8% of
+  the injected context on the shipped demo, and metadata rather than text to
+  answer from — the reason `retrieve_collection_pages` already stripped it on
+  its own path. The two are fixed together on purpose: that front-matter's
+  `sources:` line was in practice what the model cited from, so removing it
+  before the label identified the page would have taken the attribution away and
+  put nothing back. Four tests; the existing fixture had folded `path` and
+  `filename` into one string, which is why the suite never saw the defect.
 - **Stop words are per language, which unblocks the Tier-2 fallback.** The list
   of ubiquitous words dropped before building the full-text query
   (`preretrieval.py`) held only Spanish entries. In an English wiki `the` — three

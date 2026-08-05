@@ -219,3 +219,67 @@ def test_unknown_language_falls_back_to_english(monkeypatch):
     seen = _capture_query(monkeypatch)
     retrieve_wiki("db", "What is the capital of France?")  # no language at all
     assert '"the"' not in seen["query"]
+
+
+# ── injected blocks: label and front-matter ─────────────────────────────────
+# Real search_chunks rows split the location in two: `path` is the DIRECTORY
+# ("/wiki/concepts/") and `filename` the page. Fixtures that fold them into one
+# string hid the defect below, which is why the suite stayed green through it.
+
+def _row(filename, content, path="/wiki/concepts/"):
+    """A row shaped like the ones search_chunks actually returns."""
+    return {"content": content, "path": path, "filename": filename}
+
+
+_PAGE = """---
+type: concept
+title: Glass Slipper
+tags: [instrument]
+sources:
+  - resource: sources/Cinderella.pdf
+---
+
+# Glass Slipper
+
+The slipper left on the staircase (Cinderella.pdf).
+"""
+
+
+def test_injected_block_is_labelled_by_page_not_directory(monkeypatch):
+    """Every concept page shares one `path`, so labelling by it gave the model
+    several blocks it could not tell apart — in the one mode whose prompt asks
+    it to cite."""
+    rows = [_row("glass-slipper.md", _PAGE), _row("royal-ball.md", _PAGE)]
+    monkeypatch.setattr(preretrieval, "search_chunks", lambda *a, **k: rows)
+    labels = [h.splitlines()[0] for h in retrieve_wiki("db", "slipper")]
+    assert labels == ["[/wiki/concepts/glass-slipper.md]", "[/wiki/concepts/royal-ball.md]"]
+    assert len(set(labels)) == 2, "blocks must be distinguishable by their label"
+
+
+def test_injected_block_drops_front_matter(monkeypatch):
+    """Metadata is not text to answer from — the same reason
+    retrieve_collection_pages strips it."""
+    monkeypatch.setattr(preretrieval, "search_chunks",
+                        lambda *a, **k: [_row("glass-slipper.md", _PAGE)])
+    block = retrieve_wiki("db", "slipper")[0]
+    for meta in ("type: concept", "tags:", "sources:", "resource:"):
+        assert meta not in block, f"front-matter leaked into injected context: {meta!r}"
+    assert "# Glass Slipper" in block and "left on the staircase" in block
+
+
+def test_chunk_that_is_only_front_matter_keeps_it(monkeypatch):
+    """Stripping must never yield an empty block: something is better than a
+    label with nothing under it."""
+    monkeypatch.setattr(preretrieval, "search_chunks",
+                        lambda *a, **k: [_row("x.md", "---\ntype: concept\n---\n")])
+    hits = retrieve_wiki("db", "x")
+    assert len(hits) == 1 and "type: concept" in hits[0]
+
+
+def test_block_without_front_matter_is_untouched(monkeypatch):
+    """Source chunks (Tier 2) carry no front-matter; they must pass through."""
+    monkeypatch.setattr(preretrieval, "search_chunks",
+                        lambda *a, **k: [_row("Cinderella.pdf", "Once upon a time",
+                                              path="/sources/")])
+    block = retrieve_source_chunks("db", "cinderella")[0]
+    assert block == "[/sources/Cinderella.pdf]\nOnce upon a time"

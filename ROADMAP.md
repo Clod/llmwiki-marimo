@@ -54,6 +54,22 @@ translated once, after the open branches merge, rather than twice.
 
 Things measured and found wanting, kept here rather than quietly carried.
 
+**Citation is guaranteed on one path and merely requested on the other.**
+`postprocess.ensure_citation` appends attribution the answer is missing by
+reading which tools the run actually used. With pre-retrieval enabled the model
+is given no wiki tools at all — the passages arrive in the prompt — so for the
+curated and raw-source tiers it finds no tool returns and does nothing. What
+makes those answers cite is the injected prompt asking them to, plus whatever
+attribution the passages happen to carry inline. Dataset answers are unaffected,
+because `query_dataset` *is* a tool and its returns are visible.
+
+The project states the principle it is departing from, in
+`guardrail.enforce_grounding`'s own docstring: a system prompt "can ASK the
+model to answer only from the wiki, but it cannot GUARANTEE it." The same
+reasoning applies to asking it to cite. Deciding this means choosing what a
+guaranteed citation would name — the passages injected, or only those the answer
+demonstrably used — which is the same open question as the fit check below.
+
 **The raw-source fallback is reachable but structurally rare.** With
 pre-retrieval enabled, the last resort before refusing is to answer from a
 fragment of the original document. It runs only when the question names
