@@ -174,8 +174,8 @@ def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
     for q in list(cfg.suggested_prompts or []):
         off = is_off_limits(q, cfg.off_limits)
         in_roster = mentions_known_data(q, coverage, aliases)
-        wiki_hits = [] if off else retrieve_wiki(db_path, q)
-        doc_hits = (retrieve_source_chunks(db_path, q)
+        wiki_hits = [] if off else retrieve_wiki(db_path, q, language=cfg.language)
+        doc_hits = (retrieve_source_chunks(db_path, q, language=cfg.language)
                     if (not off and not wiki_hits and in_roster) else [])
         has_data = mentions_known_data(q, vocab, aliases) or advisory_intent(q)
         collection_hits = ([] if off else
@@ -200,9 +200,9 @@ def _gate(case: Case, cfg, db_path: str, vocab, coverage, aliases) -> Decision:
     d.has_data = mentions_known_data(q, vocab, aliases) or advisory_intent(q)
     d.in_roster = mentions_known_data(q, coverage, aliases)
 
-    wiki_hits = [] if d.off_limits else retrieve_wiki(db_path, q)
+    wiki_hits = [] if d.off_limits else retrieve_wiki(db_path, q, language=cfg.language)
     doc_hits = (
-        retrieve_source_chunks(db_path, q)
+        retrieve_source_chunks(db_path, q, language=cfg.language)
         if (not d.off_limits and not wiki_hits and d.in_roster) else []
     )
     d.wiki_hits, d.doc_hits = len(wiki_hits), len(doc_hits)

@@ -873,6 +873,22 @@ answer, and verify the answer against it.
 | Cost of a refusal | a completion | nothing — the model is never called |
 | Reach | any question, including about the collection | only what the coverage roster recognises |
 
+**The lexical query is built per language.** A question is tokenized to word
+characters; tokens of 1–2 characters and the wiki language's stop words are
+dropped; the rest are quoted and OR-joined into an FTS5 `MATCH`
+(`preretrieval.py:_fts_query`). The stop-word sets live in `_STOPWORDS`, keyed
+by ISO code, and **a new wiki language needs a new entry there.** Without one it
+falls back to English, which filters little in another language.
+
+That is not a tidiness point. The sets were Spanish-only until 2026-08-05, so in
+an English wiki `the` — three characters, past the length filter — reached FTS
+and matched nearly every chunk. `wiki_hits` was therefore never empty; and since
+`doc_hits` is computed only when `wiki_hits` **is** empty, the Tier-2 raw-source
+branch could not be reached at all. An off-topic question also got six unrelated
+curated chunks injected instead of none. The gate still refused such questions,
+because `in_roster` is the coverage authority — but for the right answer by
+luck rather than by design.
+
 **Where the authority is.** The order of those branches and the citation format
 are contracts, specified in
 [`.trellis/spec/backend/chat-retrieval.md`](../../.trellis/spec/backend/chat-retrieval.md);

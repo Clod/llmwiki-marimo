@@ -54,6 +54,37 @@ translated once, after the open branches merge, rather than twice.
 
 Things measured and found wanting, kept here rather than quietly carried.
 
+**The raw-source fallback is reachable but structurally rare.** With
+pre-retrieval enabled, the last resort before refusing is to answer from a
+fragment of the original document. It runs only when the question names
+something the wiki covers *and* the search over the generated pages returns
+nothing — and those two conditions work against each other. What the wiki
+"covers" is mostly the titles of its own pages, so naming one all but
+guarantees the search finds it. Measured across both shipped demos: of 43
+concept-page titles, **0** fail to find their own page; of 17 ingest-generated
+aliases, **3** do.
+
+Those three are the whole reachable domain, and they share a shape: a name the
+wiki *recognises* but never *wrote*. Ingestion found "Cinderwench" in the tale
+and recorded it as another name for Cinderella; the generated page says
+Cinderella throughout. So the search finds nothing, the fallback fires, and the
+original text — the one place that word appears — is where it looks.
+
+The consequence is narrower reach than the design reads as offering. A detail
+question about a covered subject, whose answer is in the source and not in the
+generated page, still goes to the curated tier, because the subject's name finds
+its page. The model is handed pages that do not contain the answer, and the
+branch that would have gone looking is never evaluated.
+
+The gate asks *did I find anything?* rather than *does what I found answer
+this?* — the same distinction that made the stop-word defect possible one level
+down. Deliberate as a safety property (a question about an uncovered subject
+must not be able to pull a tangential fragment as cover) but the effect on reach
+looks like a consequence rather than a decision. The machinery to judge fit
+already exists in `chat/overlap.py`, used today to verify fallback answers
+*after* they are produced. No change proposed yet; the trade needs measuring
+first.
+
 **The coverage gate matches page titles literally.** With pre-retrieval enabled,
 whether a wiki answers a question depends on whether one of its concept-page
 titles appears word-for-word in that question. Page titles are chosen by a

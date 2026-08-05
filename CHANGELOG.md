@@ -67,6 +67,23 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   bare strings. Reading tolerates the old string form, so existing wikis keep working.
 
 ### Fixed
+- **Stop words are per language, which unblocks the Tier-2 fallback.** The list
+  of ubiquitous words dropped before building the full-text query
+  (`preretrieval.py`) held only Spanish entries. In an English wiki `the` — three
+  characters, past the length filter — reached FTS5 and matched nearly every
+  chunk, so `wiki_hits` was never empty; and because `doc_hits` is computed only
+  when `wiki_hits` **is** empty, the raw-source tier could not be reached at all.
+  An off-topic question also had six unrelated curated chunks injected rather
+  than none. Now `_STOPWORDS` is keyed by ISO code and the wiki's language
+  selects the set; **adding a language means adding an entry**, documented at the
+  constant and in `workflows.md` §6.7. The sets stay separate rather than merged
+  on purpose: Spanish `son` is an English content word appearing in six chunks of
+  the fairy-tale corpus, and one shared list would drop the key word of "Who is
+  the king's son?". Measured on the shipped demo: *"What is the capital of
+  France?"* went from 6 injected chunks to 0, and *"Tell me about Cinderwench"* —
+  an ingest-generated alias no curated page mentions — now reaches Tier 2 with 4
+  source fragments, which was unreachable before.
+
 - **`thin_page` findings were reported as `Unknown check type`.** The check has no
   automatic repair on purpose — it says the wiki under-covers a source, and the
   choice between expanding the page and accepting the Tier-2 fallback is a human

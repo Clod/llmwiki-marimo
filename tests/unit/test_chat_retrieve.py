@@ -109,7 +109,7 @@ def test_retrieve_wiki_drops_stopwords_and_short_tokens(monkeypatch):
     gate. Only content tokens survive.
     """
     seen = _capture_query(monkeypatch)
-    retrieve_wiki("db", "¿Qué es la capital de Francia?")
+    retrieve_wiki("db", "¿Qué es la capital de Francia?", language="es")
     q = seen["query"]
     for junk in ('"es"', '"la"', '"de"', '"Qué"', '"qué"'):
         assert junk not in q, f"stopword leaked into FTS query: {junk} in {q!r}"
@@ -119,7 +119,7 @@ def test_retrieve_wiki_drops_stopwords_and_short_tokens(monkeypatch):
 def test_retrieve_wiki_all_stopwords_query_is_empty(monkeypatch):
     """A question made only of stopwords sanitizes to '' (nothing to match on)."""
     seen = _capture_query(monkeypatch)
-    retrieve_wiki("db", "¿Qué es esto?")
+    retrieve_wiki("db", "¿Qué es esto?", language="es")
     assert seen["query"] == ""
 
 
@@ -166,3 +166,56 @@ def test_retrieve_collection_pages_only_overview_present(tmp_path):
 
 def test_retrieve_collection_pages_empty_when_neither_exists(tmp_path):
     assert retrieve_collection_pages(tmp_path) == []
+
+
+# ── stop words are per language ─────────────────────────────────────────────
+# Regression tests for the defect that made Tier 2 unreachable in English: the
+# stop-word set was Spanish-only, so "the" (3 chars, past the length filter)
+# reached FTS and matched nearly every chunk. `wiki_hits` was then never empty,
+# and `doc_hits` is computed only when it IS empty.
+
+def test_english_function_words_do_not_reach_fts(monkeypatch):
+    """"the"/"what"/"is" must be filtered for an English wiki, as "qué"/"la" are
+    for a Spanish one. Before this, they were not, because the only set was
+    Spanish."""
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "What is the capital of France?", language="en")
+    q = seen["query"]
+    for junk in ('"What"', '"the"', '"is"', '"of"'):
+        assert junk not in q, f"English stop word leaked into FTS query: {junk} in {q!r}"
+    assert '"capital"' in q and '"France"' in q
+
+
+def test_english_question_of_only_function_words_matches_nothing(monkeypatch):
+    """The shape of the original bug: a question carrying no content word must
+    sanitize to '' so `wiki_hits` comes back empty and Tier 2 stays reachable."""
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "What are these?", language="en")
+    assert seen["query"] == ""
+
+
+def test_stopword_sets_are_language_specific_not_merged(monkeypatch):
+    """A function word in one language is a content word in another.
+
+    Spanish "son" (they are) is English "son", which appears in the fairy-tale
+    corpus. One merged set would drop the key word of "Who is the king's son?".
+    """
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "Who is the king's son?", language="en")
+    assert '"son"' in seen["query"], "English content word dropped by the Spanish set"
+
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "¿Cuáles son las cauciones?", language="es")
+    assert '"son"' not in seen["query"], "Spanish function word survived"
+
+
+def test_unknown_language_falls_back_to_english(monkeypatch):
+    """`load_wiki_language` resolves an absent or unknown value to "en", so the
+    stop-word lookup matches what such a wiki actually generates."""
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "What is the capital of France?", language="it")
+    assert '"the"' not in seen["query"]
+
+    seen = _capture_query(monkeypatch)
+    retrieve_wiki("db", "What is the capital of France?")  # no language at all
+    assert '"the"' not in seen["query"]
