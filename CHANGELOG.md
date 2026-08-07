@@ -112,6 +112,26 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   bare strings. Reading tolerates the old string form, so existing wikis keep working.
 
 ### Fixed
+- **The read-app E2E was broken by this release's own label translation.** The
+  strict-mode toggle was located by `get_by_text("Strict mode")`, and the
+  pre-retrieval checkbox beside it now reads "…(supersedes strict mode)" — a
+  case-insensitive match hits both, so the locator failed with a strict-mode
+  violation. Invisible until someone ran it, which the parity work below finally
+  did. Both suites now anchor on the unique tail of the label
+  (`answer only from wiki sources`). The Spanish labels did not collide only
+  because the second said "modo estricto" in lower case.
+
+### Added
+- **`tests/e2e/test_read_app_tabs.py` — the parity gate for promoting the tabs
+  read app.** A copy of `test_read_app.py` with the **assertions untouched**:
+  both files' `assert` lines and test names are byte-identical, so passing one
+  and passing the other is the same claim. Every mechanical difference follows
+  from one fact — the tabs app renders only the active tab — so chat tests
+  switch to 💬 Chat first, where the grid app shows every panel at once. Both
+  suites now pass 7/7 against a live LLM. That clears the gate ROADMAP.md set
+  for deleting `marimo/read_app.py` and its suite.
+
+### Fixed
 - **The "needs a model" skip message speaks to whoever reads it.** When lint
   finds a `stale` or `missing_concept` issue and the repair pass was given no
   model — the default after every ingest — it logs a skip. That skip used to read
