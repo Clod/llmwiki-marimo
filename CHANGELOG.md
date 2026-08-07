@@ -29,6 +29,25 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   demo's own config — so a user copying the template had no way to learn it exists.
 
 ### Changed
+- **The programmer manual is four files, and gained a layer map.** It had grown
+  to 1227 lines on top of the 1090 already split into `workflows.md`. Now:
+  `programmer_manual.md` keeps orientation (§1 §2 §3 §10 §11 §13, 421 lines),
+  `manual/internals.md` takes schema, tool layer and tracing (§4 §5 §14),
+  `manual/apps.md` takes the Marimo apps, configuration, testing and datasets
+  (§7 §8 §9 §15), and `manual/workflows.md` stays as §6. **Section numbers stay
+  global** — a `§N` means the same section wherever cited, which is what keeps
+  ~190 cross-references between these documents valid.
+
+  §2 now carries the nine architectural layers, derived from the project's own
+  knowledge graph (449 nodes, 975 edges) rather than drawn by hand, with the two
+  boundaries that are decisions rather than folder consequences: lint and repair
+  are one layer because they are a producer/consumer pair, and datasets plus the
+  finance overlay sit outside the engine because they are inactive on most wikis.
+
+  Two tests now guard the arrangement, both verified failing: every `§N` cited
+  anywhere in the maintained docs must be defined by one of the four files, and
+  no two files may define the same number. The first immediately found two
+  CODEMAPS still citing `§12`, orphaned when that section moved to the roadmap.
 - **Pending work lives in one place.** The programmer manual carried §11 "Pending
   Work / Roadmap" and §12 "Future Enhancements"; `ROADMAP.md` arrived three days
   ago and made a third. Three lists of the same thing diverge, so §11 and §12

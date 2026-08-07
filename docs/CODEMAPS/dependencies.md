@@ -27,7 +27,7 @@ LLM API        OpenAI-compatible (base_url + api_key from settings).
                Used by: ingestion (extract_structured, build_*_page),
                lint (contradiction_check, data_gap_check),
                repair (stale, missing_concept), chat (agent + structure_chat_content).
-Web search     NOT integrated — RAG Phase 4, deferred future enhancement (§12).
+Web search     NOT integrated — RAG Phase 4, deliberately not built (see ROADMAP.md).
                If added: async tool in chat/tools.py; candidates Tavily/Brave/DDG.
 ```
 
