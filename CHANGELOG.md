@@ -112,6 +112,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   bare strings. Reading tolerates the old string form, so existing wikis keep working.
 
 ### Fixed
+- **Two Spanish column headers survived the interface translation.** The read
+  app's page table rendered `Título` / `Ruta` against an English wiki — missed by
+  the sweep in this release because they are dictionary *keys* built in
+  `_page_row`, not `label=` arguments, so the grep that found the checkboxes and
+  tab names did not reach them. Found by looking at a screenshot.
 - **The read-app E2E was broken by this release's own label translation.** The
   strict-mode toggle was located by `get_by_text("Strict mode")`, and the
   pre-retrieval checkbox beside it now reads "…(supersedes strict mode)" — a
@@ -122,6 +127,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   because the second said "modo estricto" in lower case.
 
 ### Added
+- **`scripts/capture_screenshots.py`** — regenerates the README screenshots by
+  driving the running read app with Playwright. The images in `docs/assets/` went
+  stale because taking them was a manual ceremony; this makes it one command. Two
+  images rather than one, because the tabs app renders only the active tab and no
+  single frame shows both halves. The chat capture makes a real model call, so
+  the answer in the picture has real citations — and **a failed turn aborts
+  rather than writing**: the first run against an exhausted key produced a
+  perfectly convincing screenshot of marimo's red error box, which quoted the
+  provider's response back, including a key-management URL carrying the key's
+  identifier. It was caught by looking, which is not a control. Now it is one.
 - **`tests/e2e/test_read_app_tabs.py` — the parity gate for promoting the tabs
   read app.** A copy of `test_read_app.py` with the **assertions untouched**:
   both files' `assert` lines and test names are byte-identical, so passing one

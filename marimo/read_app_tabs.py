@@ -175,28 +175,28 @@ def left_panel(
 
     Tabs variant: the sidebar sits BESIDE the reader in a flex row, so the page
     table must stay narrow or it overflows the reader column. We therefore show
-    only Título + Ruta (no wide Excerpt/keyword-preview column, and no DB query
+    only Title + Path (no wide Excerpt/keyword-preview column, and no DB query
     to build it) and cap the table height. Selection is driven by the exact stem
-    in the "Ruta" column, so it stays unambiguous."""
+    in the "Path" column, so it stays unambiguous."""
     pages = page_list()
     _current = selected_page()
 
     def _page_row(p):
         slug = p.rsplit("/", 1)[-1]
         title = slug.replace("-", " ").replace("_", " ").title()
-        return {"Título": title, "Ruta": p}
+        return {"Title": title, "Path": p}
 
-    _table_data = [_page_row(p) for p in pages] if pages else [{"Título": "(sin páginas)", "Ruta": ""}]
+    _table_data = [_page_row(p) for p in pages] if pages else [{"Title": "(no pages)", "Path": ""}]
 
     _current_idx = next(
-        (i for i, r in enumerate(_table_data) if r["Ruta"] == _current),
+        (i for i, r in enumerate(_table_data) if r["Path"] == _current),
         None,
     )
 
     def _on_select(rows):
         if not rows:
             return
-        stem = rows[0].get("Ruta")
+        stem = rows[0].get("Path")
         if stem:
             navigate_to(stem)
 
