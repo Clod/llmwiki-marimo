@@ -215,8 +215,8 @@ checks only when a `client` is passed (`lint/runner.py:lint_wiki`).
 
 | Prompt                | Template                                                         | Input                                              | Output                                                  | Temperature |
 | --------------------- | ---------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------- | ----------- |
-| `contradiction_check` | `_CONTRADICTION_SYSTEM` (L155), `_CONTRADICTION_TEMPLATE` (L159) | path_a, content_a≤2000ch, path_b, content_b≤2000ch | `"CONTRADICTION: <desc>"` or `"NO CONTRADICTION"`       | 0.1         |
-| `data_gap_check`      | `_GAP_TEMPLATE` (L232)                                           | bullet list of all concept titles                  | `"GAP: <topic> — <suggestion>"` per line or `"NO GAPS"` | 0.3         |
+| `contradiction_check` | `_CONTRADICTION_SYSTEM`, `_CONTRADICTION_TEMPLATE` | path_a, content_a≤2000ch, path_b, content_b≤2000ch | `"CONTRADICTION: <desc>"` or `"NO CONTRADICTION"`       | 0.1         |
+| `data_gap_check`      | `_GAP_TEMPLATE`                                           | bullet list of all concept titles                  | `"GAP: <topic> — <suggestion>"` per line or `"NO GAPS"` | 0.3         |
 
 **Report shape (`lint/report.py`):**
 
@@ -298,8 +298,8 @@ print(repair_report.summary())   # "4 issue(s): 2 fixed, 1 skipped, 1 failed"
 
 | Issue type        | Function (line)                 | Action                                                                                                                                                             | Needs LLM                                                 | Status    |
 | ----------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- | --------- |
-| `orphan`          | `repair_orphan` (L30)           | Delete the orphan concept page (file + DB row + chunks + references)                                                                                               | No                                                        | ✅         |
-| `stale`           | `repair_stale` (L55)            | Reload page text from `document_pages` → re-run `extract_structured` + `build_summary_page` → `create_page(overwrite=True)` → `update_references`                  | Yes                                                       | ✅         |
+| `orphan`          | `repair_orphan`           | Delete the orphan concept page (file + DB row + chunks + references)                                                                                               | No                                                        | ✅         |
+| `stale`           | `repair_stale`            | Reload page text from `document_pages` → re-run `extract_structured` + `build_summary_page` → `create_page(overwrite=True)` → `update_references`                  | Yes                                                       | ✅         |
 | `missing_xref`    | `repair_missing_xref`           | Append `## See also` bullet linking A→B; call `update_references` to record the `links_to` edge. Idempotent.                                                        | No                                                        | ✅         |
 | `missing_concept` | `repair_missing_concept`        | Parse filename out of the issue description; gather context via `search_chunks`; LLM writes new concept page; `create_page` + `update_references` + `update_index` | Yes (inline f-string prompt, temperature 0.3)             | ✅         |
 | `contradiction`   | `repair_contradiction`          | Append idempotent `<!-- CONTRADICTION: path_b -->` + `⚠️` callout to page A; call `update_references`. Needs a human to resolve; repair only flags.                | No                                                        | ✅         |
@@ -400,15 +400,15 @@ result = ingest_file(
 | ----- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | 1     | Validate file (exists, supported extension)                                                               | `pipeline.py`                                       |
 | 2     | Hash + mtime change detection                                                                             | `detector.py:needs_ingestion`                       |
-| 3     | Extract `(page_number, markdown)` pairs                                                                   | `extractor.py:extract` (PDF / DOCX-via-LibreOffice) |
-| 4     | Chunk pages into FTS5 units                                                                               | `chunker.py:chunk_pages`                            |
-| 5     | Atomic DB write: `documents` + `document_pages` + `document_chunks`                                       | `pipeline.py`                                       |
-| **6** | **Commit `status='ready'**` — readers can now see the source                                              | `pipeline.py`                                       |
-| 7     | LLM: structured extraction → `ExtractionResult(document_summary, concepts[])`                             | `wiki_generator.py:extract_structured` (line 189)   |
-| 8     | For each concept: build page (LLM) → `create_page(overwrite=True)` → `update_references` → `update_index` | `wiki_generator.build_concept_page` (270)           |
+| 3     | Upsert the source `documents` row, `status='processing'` — provisional, filtered out of every read        | `pipeline.py`                                       |
+| 4     | Extract `(page_number, markdown)` pairs                                                                   | `extractor.py:extract` (PDF / DOCX-via-LibreOffice) |
+| 5     | Chunk pages into FTS5 units **in memory**                                                                 | `chunker.py:chunk_pages`                            |
+| **6** | **One transaction:** flip the row to `status='ready'` **and** write `document_pages` + `document_chunks` — from here the source is visible to every reader | `pipeline.py`                                       |
+| 7     | LLM: structured extraction → `ExtractionResult(document_summary, concepts[])`                             | `wiki_generator.py:extract_structured`              |
+| 8     | For each concept: build page (LLM) → `create_page(overwrite=True)` → `update_references` → `update_index` | `wiki_generator.py:build_concept_page`              |
 | **8b** | Update the generated alias artifact (best-effort, deterministic)                                          | `alias_generation.py:update_generated_aliases`      |
-| 9     | Build summary page (deterministic) → `create_page` with `source_document_id`                              | `wiki_generator.build_summary_page` (238)           |
-| 10    | LLM: rewrite `wiki/overview.md`                                                                           | `wiki_generator.update_overview` (304)              |
+| 9     | Build summary page (deterministic) → `create_page` with `source_document_id`                              | `wiki_generator.py:build_summary_page`              |
+| 10    | LLM: rewrite `wiki/overview.md`                                                                           | `wiki_generator.py:update_overview`                 |
 | 11    | Append `## [date] Ingested | filename` to `wiki/log.md`                                                   | `wiki_fs.append_to_page`                            |
 | 12    | `auto_commit("ingest: ...")`                                                                              | `git_ops.auto_commit`                               |
 | 13    | Optional deterministic lint pass (if `lint_after_ingest=True`)                                            | `lint/runner.lint_wiki`                             |
@@ -417,11 +417,11 @@ result = ingest_file(
 
 | Prompt               | Template constants                                                                             | Inputs                                                             | Output                                                               | Temperature |
 | -------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- | ----------- |
-| `extract_structured` | `_EXTRACT_SYSTEM` (L78), `_EXTRACT_USER_TEMPLATE` (L85)                                        | filename, file_type, page_count, content ≤80 KB                    | JSON `{document_summary, concepts:[{name,category,insight}]}`        | 0.2         |
-| `build_concept_page` | `_CONCEPT_SYSTEM` (L109) + `_CONCEPT_NEW_TEMPLATE` (L114) OR `_CONCEPT_UPDATE_TEMPLATE` (L143) | concept name/category/insight, filename, existing content (if any) | Markdown **body only** — Definition/Characteristics/Context/Sources. The YAML front-matter is written by `create_page`, not by the model | 0.3         |
-| `update_overview`    | `_OVERVIEW_SYSTEM` (L156), `_OVERVIEW_TEMPLATE` (L160)                                         | current overview, new summary, all concept names                   | 3–5 paragraph narrative                                              | 0.4         |
+| `extract_structured` | `_EXTRACT_SYSTEM`, `_EXTRACT_USER_TEMPLATE`                                        | filename, file_type, page_count, content ≤80 KB                    | JSON `{document_summary, concepts:[{name,category,insight}]}`        | 0.2         |
+| `build_concept_page` | `_CONCEPT_SYSTEM` + `_CONCEPT_NEW_TEMPLATE` OR `_CONCEPT_UPDATE_TEMPLATE` | concept name/category/insight, filename, existing content (if any) | Markdown **body only** — Definition/Characteristics/Context/Sources. The YAML front-matter is written by `create_page`, not by the model | 0.3         |
+| `update_overview`    | `_OVERVIEW_SYSTEM`, `_OVERVIEW_TEMPLATE`                                         | current overview, new summary, all concept names                   | 3–5 paragraph narrative                                              | 0.4         |
 
-> The legacy single-shot `build_wiki_page` (L331) is kept for backward  
+> The legacy single-shot `build_wiki_page` is kept for backward  
 > compatibility but is no longer on the ingest path.
 
 **Triggers:**
@@ -952,8 +952,8 @@ The save flow:
 
 | Prompt                              | Template constants                                         | Inputs                            | Output                                                               | Temperature |
 | ----------------------------------- | ---------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------- | ----------- |
-| `structure_chat_content` (new page) | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_NEW_TEMPLATE`    | title, category, raw content      | Markdown **body only** — front-matter added by `create_page` | 0.3         |
-| `structure_chat_content` (update)   | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_UPDATE_TEMPLATE` | title, raw content, existing page | Merged markdown, no duplication                                      | 0.3         |
+| `structure_chat_content` (new page) | `_CONCEPT_SYSTEM` + `_CHAT_CONCEPT_NEW_TEMPLATE`    | title, category, raw content      | Markdown **body only** — front-matter added by `create_page` | 0.3         |
+| `structure_chat_content` (update)   | `_CONCEPT_SYSTEM` + `_CHAT_CONCEPT_UPDATE_TEMPLATE` | title, raw content, existing page | Merged markdown, no duplication                                      | 0.3         |
 
 **`save_to_wiki` — client injection:** optional keyword-only `client=None, model=None`; builds `openai.OpenAI` from `config.settings` (`WIKI_LLM_*` falling  
 back to `LLM_*`) when omitted, allowing tests to inject `FakeLLMClient` directly.
