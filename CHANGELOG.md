@@ -138,6 +138,18 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   tabs. `docs/assets/read_app.png` is removed as superseded.
 
 ### Added
+- **`scripts/record_demo.py`** — records the demo video by driving the read app,
+  replacing a rig that lived in `/tmp` and did not survive. The previous demo
+  outlived its accuracy with no way to regenerate it; this is one command in
+  version control. It shows what the tabbed interface can and the three-column
+  one could not: both tabs, both mode checkboxes, a real cited cross-document
+  answer — and then the same off-corpus question under **Pre-retrieval**,
+  refused in 1.2s against the 9s the model-backed answer took. Not because the
+  model is fast: because it was never called. The waits are sped up rather than
+  cut, so the work is still visibly work. A failed turn aborts instead of
+  recording an error, same guard as the screenshots. The `.mp4` is gitignored —
+  the READMEs point at YouTube, which GitHub will not play from a repo path
+  anyway.
 - **`scripts/capture_screenshots.py`** — regenerates the README screenshots by
   driving the running read app with Playwright. The images in `docs/assets/` went
   stale because taking them was a manual ceremony; this makes it one command. Two
