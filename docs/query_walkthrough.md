@@ -56,17 +56,21 @@ lists the three this project provides.) The model decides what to look for, when
 it has seen enough, and what to say. This handles the widest range of questions
 and gives you no guarantees at all.
 
+Clod: this is the standard agentic behavior, right?
+
 **Afterwards.** Let the model work exactly as above, then have code examine the
 finished conversation before the answer reaches the user. Two things are cheap
 to check: did any tool actually return something, and does the answer name a
 source? This still handles the same wide range of questions, and it catches the
-case that matters most — a model that answered without looking anything up.
+case that matters most — a model that answered without looking anything up (therfore, the anwser came from model's internal knowledge, which we want to avoid for this project).
 
 What it cannot catch is the answer being wrong. Both checks are about the
 *procedure*, not the content: code can confirm that a search ran and that a page
 is cited, but not that the cited page says what the answer claims. A model that
 searched, got three fragments back, and then wrote a sentence none of them
 support passes every check here.
+
+Clod: shouldn't we mention here that lexical token overlap is in the roadmap?
 
 **Before.** Have code do the searching — the same SQLite full-text index the
 ingestion walkthrough built, no embeddings involved — and decide from what it

@@ -271,11 +271,11 @@ uv run python scripts/capture_ingestion_walkthrough.py
 🔎 lint: thin pages
 🔧 45 issue(s) on ingested pages — repairing (deterministic)…
 🔧 Repairing 45 issue(s)...
-  ⏭️ [stale] skipped: LLM client required for 'stale' repair — pass llm_client
-  ⏭️ [stale] skipped: LLM client required for 'stale' repair — pass llm_client
-  ⏭️ [stale] skipped: LLM client required for 'stale' repair — pass llm_client
-  ⏭️ [stale] skipped: LLM client required for 'stale' repair — pass llm_client
-  ⏭️ [stale] skipped: LLM client required for 'stale' repair — pass llm_client
+  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
+  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
+  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
+  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
+  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/sleeping-beauty.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/spindle-curse.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/sleeping-beauty.md

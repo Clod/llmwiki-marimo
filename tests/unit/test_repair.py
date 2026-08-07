@@ -525,3 +525,42 @@ def test_repair_genuinely_unknown_check_is_still_flagged(
     report = repair_wiki(lint, tmp_workspace.db_path, tmp_workspace.workspace)
     assert len(report.skipped) == 1
     assert "unknown check type" in report.skipped[0].message.lower()
+
+
+# ── the skip message speaks to the person reading it ────────────────────────
+
+def test_needs_llm_skip_message_names_the_two_buttons_that_supply_a_model() -> None:
+    """The message is read in the ingest app's Activity Log, not in a traceback.
+
+    It used to say "pass llm_client" — accurate, and useless to the only audience
+    that ever sees it: somebody looking at a log in an app, where there is no
+    argument to pass and two buttons that do the job. A skip should name what is
+    missing in the reader's own terms.
+    """
+    from domain.repair.runner import _NEEDS_LLM, _NEEDS_LLM_MESSAGE
+
+    rendered = _NEEDS_LLM_MESSAGE.format(check="stale")
+    assert "llm_client" not in rendered, "API-level wording leaked back into a user-facing message"
+    assert "Also run full LLM lint & repair after ingest" in rendered
+    assert "Run Wiki Lint & Repair" in rendered
+    assert _NEEDS_LLM == {"stale", "missing_concept"}, (
+        "the message promises these two are fixable by supplying a model"
+    )
+
+
+def test_skip_message_button_names_match_the_ingest_app() -> None:
+    """Guard against the two drifting apart.
+
+    The message tells the user to press specific controls. If either is renamed
+    in the app and not here, the log sends them looking for something that does
+    not exist — a failure nothing else would catch, since no code reads these
+    strings.
+    """
+    from pathlib import Path
+
+    from domain.repair.runner import _NEEDS_LLM_MESSAGE
+
+    app = (Path(__file__).resolve().parents[2] / "marimo" / "ingest_app.py").read_text()
+    for control in ("Also run full LLM lint & repair after ingest", "Run Wiki Lint & Repair"):
+        assert control in _NEEDS_LLM_MESSAGE, f"message no longer names {control!r}"
+        assert control in app, f"{control!r} is named in the skip message but gone from the app"

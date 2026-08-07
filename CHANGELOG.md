@@ -67,6 +67,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   bare strings. Reading tolerates the old string form, so existing wikis keep working.
 
 ### Fixed
+- **The "needs a model" skip message speaks to whoever reads it.** When lint
+  finds a `stale` or `missing_concept` issue and the repair pass was given no
+  model — the default after every ingest — it logs a skip. That skip used to read
+  *"LLM client required for 'stale' repair — pass llm_client"*: accurate, and no
+  use to its only audience, who is looking at the ingest app's Activity Log where
+  there is no argument to pass and two buttons that do the job. It now names
+  those buttons. Two tests pin it, one of them checking the button names against
+  `ingest_app.py` itself, since nothing in code reads those strings and they
+  could otherwise drift apart unnoticed.
 - **Injected passages are labelled by page, and their front-matter is dropped.**
   With pre-retrieval on, every curated block reaching the model was labelled
   `[/wiki/concepts/]` — the folder, identical for all six — so in the one mode

@@ -43,6 +43,17 @@ _DISPATCH = {
 # nothing safe to do automatically.
 _ADVISORY_CHECKS = {"vocab_stale", "vocab_covered", "vocab_ambiguous", "thin_page"}
 
+# Shown in the ingest app's Activity Log, which is where a human actually reads
+# it — so it names the two buttons that supply a model, not the keyword argument
+# that does. The previous wording ("pass llm_client") was accurate and useless:
+# nobody reading a log has an argument to pass. A skip message should name what
+# is missing in the reader's own terms.
+_NEEDS_LLM_MESSAGE = (
+    "'{check}' repair needs a model, and none was supplied. To fix these: tick "
+    "\"Also run full LLM lint & repair after ingest\" before ingesting, or press "
+    "\"Run Wiki Lint & Repair\" to sweep the whole wiki now."
+)
+
 
 def repair_wiki(
     lint_report: LintReport,
@@ -102,7 +113,7 @@ def repair_wiki(
             result = RepairResult(
                 check=issue.check, page=issue.page,
                 action="skipped", success=True,
-                message=f"LLM client required for '{issue.check}' repair — pass llm_client",
+                message=_NEEDS_LLM_MESSAGE.format(check=issue.check),
             )
         elif issue.check in _NEEDS_LLM:
             _lang_kw = {"language": language} if issue.check in _NEEDS_LANG else {}

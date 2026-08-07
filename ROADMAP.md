@@ -146,9 +146,26 @@ It is documented in
 
 Recorded so the absence reads as a decision rather than an oversight.
 
-- **Embeddings and vector search.** Retrieval is SQLite FTS5 throughout. The
-  argument for the curated-wiki approach is that a page written once beats a
-  fragment retrieved every time; adding a vector store would not change that and
-  would add an index to keep in sync.
+- **Embeddings and vector search — as a *retrieval* mechanism.** Retrieval is
+  SQLite FTS5 throughout. The argument for the curated-wiki approach is that a
+  page written once beats a fragment retrieved every time; adding a vector store
+  would not change that and would add an index to keep in sync.
+
+  **Using an embedding model at *ingest* time is a separate question, and it is
+  open.** Today the alias lists exist precisely because there are no embeddings:
+  keyword search cannot connect *the central bank* to a corpus that only says
+  *the Fed*, so ingestion asks an LLM to write down the alternate names it finds,
+  and a human adds the ones the documents never use. An embedding model could
+  propose those pairings instead, or check the ones already proposed — and
+  crucially, its output would still be a plain TOML file a person can read and
+  edit, not an index to keep in sync. That is compatible with everything above.
+
+  What is not obvious is whether it would be *better*. The current pass is
+  auditable end to end: you can open `aliases.generated.toml`, disagree with a
+  line, and delete it. Similarity scores are not auditable in that way, and the
+  failure this list guards against — bridging two instruments that are not the
+  same thing, `cedear` ≟ `acción` — is exactly the kind of near-synonym an
+  embedding model is most likely to get wrong. Anyone taking this on should start
+  by measuring the current pass's misses rather than assuming they exist.
 - **Multi-user or hosted operation.** A workspace is a folder on one machine.
   See "Limitations & non-goals" in the [README](README.md#limitations--non-goals).
