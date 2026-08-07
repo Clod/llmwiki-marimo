@@ -24,14 +24,14 @@ Each workflow below follows the same template:
 
 | #    | Workflow           | Status | Entry                                                                | Pending                                                |
 | ---- | ------------------ | ------ | -------------------------------------------------------------------- | ------------------------------------------------------ |
-| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; `vocabulary` + `thin_page` checks added; auto-tail done for ingest; scan/regenerate pending (§11.11) |
+| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; `vocabulary` + `thin_page` checks added; auto-tail done for ingest; scan/regenerate pending |
 | 6.2  | Repair             | ✅      | `repair/runner.py:repair_wiki`                                                | All eight deterministic repairs implemented             |
-| 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:ingest_file`                                           | Lint+repair tail opt-in today (§11.11)                 |
-| 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:batch_ingest`                                   | Lint+repair tail opt-in today (§11.11)                 |
-| 6.5  | Scan sources       | ✅      | `ingestion/pipeline.py:scan_and_ingest`                                          | Should chain into lint+repair (§11.11)                 |
-| 6.6  | Regenerate         | ✅      | `ingestion/pipeline.py:regenerate_wiki_pages`                                          | Should chain into lint+repair (§11.8)                  |
-| 6.7  | Chat / RAG         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Two modes: agent-driven (default) and opt-in pre-retrieval. Phases 1–3 (wiki + sources) complete; web search (Phase 4) is a future enhancement (§12) |
-| 6.8  | Chat → Wiki        | ✅      | `read_app.py` Save form → `chat/wiki_tools.py:save_to_wiki` (user-driven; agent has no write tool) | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred (§12) |
+| 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:ingest_file`                                           | Lint+repair tail opt-in today                 |
+| 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:batch_ingest`                                   | Lint+repair tail opt-in today                 |
+| 6.5  | Scan sources       | ✅      | `ingestion/pipeline.py:scan_and_ingest`                                          | Should chain into lint+repair                 |
+| 6.6  | Regenerate         | ✅      | `ingestion/pipeline.py:regenerate_wiki_pages`                                          | Should chain into lint+repair                  |
+| 6.7  | Chat / RAG         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Two modes: agent-driven (default) and opt-in pre-retrieval. Phases 1–3 (wiki + sources) complete; web search (Phase 4) is deliberately not built — see the ROADMAP |
+| 6.8  | Chat → Wiki        | ✅      | `read_app.py` Save form → `chat/wiki_tools.py:save_to_wiki` (user-driven; agent has no write tool) | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred — see the ROADMAP |
 | 6.9  | Source deletion    | ✅      | `tools/deletion.py:delete_source`                                               | —                                                      |
 | 6.10 | Wiki page deletion | ✅      | `tools/wiki_fs.py:delete_page`                               | —                                                     |
 
@@ -47,10 +47,10 @@ for whatever lint still flags. The steady-state success criterion for any ingest
 is therefore *"lint comes back clean."*
 
 **Two-column convention.** Each workflow below is described as **Today** (what the
-code does now) and **Target** (the intended end state, tracked in §11). The status
+code does now) and **Target** (the intended end state, tracked in the [ROADMAP](../../ROADMAP.md)). The status
 legend (✅ implemented · 🟡 partial · ❌ missing) still applies per workflow.
 
-**Plan note (§11.11).** The app has a wiki-wide "Run Wiki Lint & Repair" button
+**Plan note** (tracked in the [ROADMAP](../../ROADMAP.md)). The app has a wiki-wide "Run Wiki Lint & Repair" button
 (`lint_repair_widget_cell` + `lint_repair_runner`), and the ingest runner closes
 every ingest with a scoped lint+repair tail (deterministic by default, full-LLM
 via the form checkbox). The remaining Target is auto-tails for scan and regenerate,
@@ -246,11 +246,11 @@ class LintReport:
 - `batch_ingest(..., run_lint=True)` — same, once per batch. Default is `False`.
 - Manual function call from a notebook cell.
 - No standalone "Run Lint" button — the combined wiki-wide "Run Wiki Lint & Repair" button covers it.
-- `data_gap_check` is intentionally shallow — it only sees titles (§11.7).
+- `data_gap_check` is intentionally shallow — it only sees titles — deepening it is on the [ROADMAP](../../ROADMAP.md).
 
 **Target:** lint runs automatically at the end of every ingest, scan, and
 regenerate (not opt-in), plus an explicit "Run Lint" button. Deepen `data_gap`
-beyond titles (§11.7). Tracked in §11.11.
+beyond titles. Both are on the [ROADMAP](../../ROADMAP.md).
 
 ---
 
@@ -337,7 +337,7 @@ class RepairReport:
 in the post-ingest tail (§6.3) and after chat→wiki save (§6.8).
 
 **Target:** repair runs automatically after lint at the end of every ingest,
-scan, and regenerate, with an explicit "Run Repair" button. Tracked in §11.11.
+scan, and regenerate, with an explicit "Run Repair" button — on the [ROADMAP](../../ROADMAP.md).
 
 **Verification:** `tests/unit/test_repair_*.py`.
 
@@ -447,10 +447,10 @@ result = ingest_file(
   ingest reconciles only its own document and never rewrites unrelated pages (the
   manual "Run Wiki Lint & Repair" button does the wiki-wide sweep). The `orphan`
   check is excluded so pages created by *this* run aren't deleted for lacking inbound
-  links yet. Remaining: extend the same auto-close to scan and regenerate (§11.11).
+  links yet. Remaining: extend the same auto-close to scan and regenerate — on the [ROADMAP](../../ROADMAP.md).
 - **Duplicate handling.** Today an unchanged file returns `status="skipped"`
   silently (`detector.needs_ingestion`). **Target:** the GUI warns "already
-  ingested" rather than skipping quietly (§11.13).
+  ingested" rather than skipping quietly — on the [ROADMAP](../../ROADMAP.md).
 
 `status='ready'` is set at step 6 (before the LLM work in steps 7–9), see §10.
 
@@ -548,9 +548,9 @@ of an existing concept hits the `_CONCEPT_UPDATE_TEMPLATE` branch in step 8.
   one optional deterministic lint pass (`run_lint=True`, default `False`); repair
   never runs. **Target:** the batch closes with a single lint **and** repair pass
   over the whole wiki — *including the pages just created in this batch* — so newly
-  related concepts get cross-linked and lint comes back clean (§11.11).
+  related concepts get cross-linked and lint comes back clean.
 - **Duplicate handling.** Like §6.3, unchanged files are skipped silently today;
-  **Target** warns when any uploaded file is already ingested (§11.13).
+  **Target** warns when any uploaded file is already ingested — on the [ROADMAP](../../ROADMAP.md).
 
 **Triggers:** currently invoked through `ingest_app.py` "Ingest" button when  
 multiple files are uploaded (the underlying widget supports multi-select).
@@ -627,10 +627,10 @@ lint+repair to bring the wiki back into a consistent state.**
   does **not** run lint+repair afterwards, so stale dependents are detected but
   not fixed in the same pass. The per-file overview rewrite is also wasteful for
   large scans — treat scan as "pick up the one or two files I dropped"; for bulk
-  imports call `batch_ingest` directly (§11.9).
+  imports call `batch_ingest` directly.
 - **Target:** scan closes with a single lint **and** repair pass so a modified
   source's stale pages are regenerated automatically and lint comes back clean
-  (§11.11).
+  (on the [ROADMAP](../../ROADMAP.md)).
 
 ---
 
@@ -677,7 +677,7 @@ re-extraction), and re-runs:
   sources are skipped silently.
 - **Target:** regenerate rebuilds concept pages and overview too, then closes with
   a lint **and** repair pass so a regenerate never leaves stale concept/overview
-  pages behind and lint comes back clean (§11.8, §11.11).
+  pages behind and lint comes back clean — on the [ROADMAP](../../ROADMAP.md).
 
 ---
 
@@ -698,7 +698,7 @@ flowchart TD
     P2 -->|enough| ANS["answer + cite source/page"]
     P2 -->|not enough| P3["Phase 3 · search_source_chunks 🔎 (sources)"]
     P3 --> ANS
-    P3 -. deferred .-> P4["Phase 4 · web search ❌ §12"]
+    P3 -. deferred .-> P4["Phase 4 · web search ❌<br/>not built — see ROADMAP"]
     ANS -->|worth keeping| CAP["user saves via form → §6.8"]
 ```
 
@@ -730,7 +730,7 @@ and higher-signal than re-deriving knowledge from raw chunks on every query.
 | `search_source_chunks(query, limit=10)`  | `chat/tools.py:search_source_chunks` (async) | `source_kind='source'` | Last-resort lookup into raw PDFs/DOCXs    |
 | `query_dataset(...)`                     | `chat/dataset_tools.py`    | `workspace/datasets/`  | Only registered when the workspace has datasets — a current value with its `as_of` date |
 | *domain overlay* (e.g. `estimar_alternativas`) | passed in as `extra_tools` | overlay-defined   | Only when an overlay activates for this workspace (§6.11) |
-| Web search                               | —                          | —                      | ❌ **NOT YET IMPLEMENTED** (Pending §11.5) |
+| Web search                               | —                          | —                      | ❌ **NOT BUILT** — deliberately; see the ROADMAP |
 
 The agent receives `db_path` as `deps_type=str`. Every tool derives the  
 workspace from it via `workspace = Path(db_path).parent.parent` (because the  
@@ -769,7 +769,7 @@ The intended retrieval flow is staged — *wiki first, raw sources second, web*
 3. **Phase 3 — Fall back to raw sources.** Only call `search_source_chunks`
   when the wiki results don't contain enough detail.
 4. **Phase 4 — Web search.** Only when phases 1–3 returned nothing useful.
-  **Not implemented yet** — track in §11.5 and §11.6.
+  **Not built**, deliberately — see [`ROADMAP.md`](../../ROADMAP.md).
 5. **Capture.** When the agent produces a comparison/analysis/summary worth
   keeping, it proposes a title + category and directs the user to the Save form;
   the user saves it (`save_to_wiki`, §6.8). The agent does not write.
@@ -829,14 +829,14 @@ rebuilt by the `wiki_context` cell whenever the active wiki changes (§7.1).
 
 **Gaps:**
 
-- **Web search (Phase 4) is intentionally deferred** — see §12 for the
+- **Web search (Phase 4) is intentionally deferred** — see [`ROADMAP.md`](../../ROADMAP.md) for the
   rationale. Phases 1–3 (wiki index → wiki FTS → raw source chunks) are fully
   implemented and cover the project's core thesis: answer from your own curated
   corpus. Phase 4 is the only workflow that reaches outside it.
 - The "always check index first" rule is advisory — there's no programmatic  
 guarantee the LLM does it. Track regressions via the E2E suite.
 - Phases are not numbered explicitly in the prompt today; tightening them to
-  "Phase 1 / Phase 2 / Phase 3" labels would only matter once Phase 4 lands (§12).
+  "Phase 1 / Phase 2 / Phase 3" labels would only matter once Phase 4 lands, which is not planned.
 
 #### Pre-retrieval: the other mode
 
@@ -984,7 +984,7 @@ saves a chat reply, the LLM structures it into a proper page (step 4),
   link and records the `links_to` edge). Verified end-to-end by
   `tests/unit/test_lint_repair_after_save.py::test_save_to_wiki_auto_cross_links_shared_source`.
 
-**Two known limitations (both deferred to §12, acceptable for a PoC):**
+**Two known limitations (both deferred — see [`ROADMAP.md`](../../ROADMAP.md) — acceptable for a PoC):**
 
 1. *Cross-linking is directional.* `missing_xref_check` emits one issue per pair,
    keyed on `path_a` (the page whose id sorts lower). The post-save filter only

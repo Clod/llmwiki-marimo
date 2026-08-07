@@ -48,6 +48,59 @@ undone. Design lives in [PR #7](https://github.com/Clod/llmwiki/pull/7).
 `base/domain/i18n.py`. Scheduled last on purpose — the user-facing docs get
 translated once, after the open branches merge, rather than twice.
 
+**Rebuild the index from disk, without the model.** Today the only way to
+repopulate a lost or corrupt `index.db` is to re-run ingestion — which re-invokes
+the LLM, so pages, document IDs and chunk boundaries all differ run to run, and
+it *overwrites* the on-disk markdown, destroying manual edits. It cannot rebuild
+a page at all once its source file is gone. That contradicts the principle the
+rest of the project rests on: the durable layer is the markdown plus the sources,
+and the database should be rebuildable from them **mechanically**.
+
+`reindex_from_disk(workspace, db_path)` would be that complement:
+
+1. Apply the schema to a fresh DB and re-create the `workspace` row.
+2. Walk `sources/*` → one `source_kind='source'` row per file (recompute
+   `content_hash` / `mtime_ns` / `file_size`), re-extract pages with the existing
+   deterministic extractor, re-chunk, fill `document_pages` + `document_chunks`.
+   Re-extraction is the only step that reads the original file, and it uses no
+   LLM.
+3. Walk `wiki/**/*.md` → one `source_kind='wiki'` row per page; read title and
+   tags from front-matter and re-chunk the markdown (the FTS triggers repopulate
+   `chunks_fts`). This step used to be the weak one — front-matter was written by
+   the model, so values could be missing or drifted. `create_page` now writes it
+   from the values it is given, which makes reading it back sound rather than
+   hopeful.
+4. Run `update_references` per wiki page to rebuild `document_references` from
+   the on-disk citations and wikilinks — already idempotent.
+5. Re-derive each summary's `source_document_id` by matching its slug back to the
+   source whose `make_wiki_slug(filename)` equals it.
+
+**Recovered exactly, every run:** all `documents` rows, `document_chunks` +
+`chunks_fts`, the reference graph, and `index.md` / `overview.md` / `log.md`
+(read back verbatim — they are just files). **Cannot come from disk:** internal
+counters (`version`, `document_number`) reset and `created_at` becomes "now".
+**Caveats:** `document_pages` repopulates only while the source files are still
+there to re-extract; a wiki page whose source was deleted re-registers fine but
+its `cites` edge stays dangling, exactly as today.
+
+**Smaller items**, each a real gap rather than a nicety:
+
+- **Deepen `data_gap`.** The check only reads concept *titles*, and its repair
+  inserts a generic TODO into the most-related page. Deepening it to read page
+  bodies, and having the repair name specific sub-questions, is the open work.
+- **Give scan and regenerate the same automatic tail as ingest.** Ingestion now
+  closes with a lint+repair pass scoped to the pages it touched. `scan_and_ingest`
+  and `regenerate_wiki_pages` still do not reconcile afterwards.
+- **Warn on duplicate upload.** A file already ingested and unchanged is silently
+  skipped; the interface should say so.
+- **Document `scan_and_ingest` for end users** — what it touches, and when
+  `batch_ingest` is the better call.
+- **OCR for scanned PDFs.** `pdf_extract.py` extracts text only, so an image-only
+  PDF yields nothing. Any fix should stay provider-agnostic: a local engine
+  (Tesseract via ocrmypdf, docTR, Surya, RapidOCR, Docling) fits the local-first
+  ethos with no extra key, or page images could go to the vision-capable model
+  already configured through `LLM_*`.
+
 ---
 
 ## Known limits and open questions
@@ -169,3 +222,26 @@ Recorded so the absence reads as a decision rather than an oversight.
   by measuring the current pass's misses rather than assuming they exist.
 - **Multi-user or hosted operation.** A workspace is a folder on one machine.
   See "Limitations & non-goals" in the [README](README.md#limitations--non-goals).
+- **Web search, at query time or as an ingest loop.** The chat agent's cascade is
+  wiki index → wiki full-text → raw source chunks. A fourth step that reaches the
+  web is deliberately absent: the project's claim is about answering from a
+  *curated, local corpus*, and those three steps exercise it fully. Web search is
+  also the only workflow with a recurring external cost and a network dependency
+  that complicates testing. The same reasoning covers the richer version — lint
+  finds a gap, a tool searches the web, and on approval the result is ingested as
+  a new source. Today you do that by hand: run the search, drop the finding into
+  `sources/`. The corpus still compounds; only the automation is missing.
+- **Review the extraction before it is written.** Ingestion is one shot: a
+  document goes in and pages come out, with no chance to edit the model's
+  extraction in between. Splitting it into `extract_only` and
+  `commit_to_wiki(edited)` would give that chance. Not planned, because the
+  correction path already exists on the other side — discuss the document in
+  chat, then save a corrected page through the **Save to wiki** form. Post-hoc
+  rather than mid-ingest, but the human still shapes the wiki.
+- **Output formats beyond markdown** — slide decks, Obsidian Canvas files, an
+  interactive graph rendering of `document_references`. Each is a plausible thing
+  to build on top of the wiki, and none of them tests the idea the project exists
+  to test.
+- **Image handling.** Ingestion is text-only; images embedded in a document are
+  skipped rather than described. Storing them under `sources/assets/` and passing
+  them to a vision-capable model is the obvious extension, and is not on the path.

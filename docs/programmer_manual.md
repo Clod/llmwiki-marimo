@@ -26,8 +26,7 @@
 8. [Configuration](#8-configuration)
 9. [Testing](#9-testing)
 10. [Known Constraints & Gotchas](#10-known-constraints--gotchas)
-11. [Pending Work / Roadmap](#11-pending-work--roadmap)
-12. [Future Enhancements](#12-future-enhancements)
+11. [Pending Work & Future Enhancements](#11-pending-work--future-enhancements)
 13. [Glossary](#13-glossary)
 14. [Tracing & Observability](#14-tracing--observability)
 15. [Datasets, Grounding Guardrail & the `finance_argentina` Overlay](#15-datasets-grounding-guardrail--the-finance_argentina-overlay)
@@ -74,7 +73,7 @@ Two operating principles flow from this:
 ### Karpathy coverage matrix
 
 Which ideas from Karpathy's original note this project implements. ✅ done ·
-✅➕ done + goes beyond the concept doc · 🟡 partial · ❌ deferred (→ §12) · N/A.
+✅➕ done + goes beyond the concept doc · 🟡 partial · ❌ deferred (→ [ROADMAP](../ROADMAP.md)) · N/A.
 
 | Karpathy concept | | Notes |
 | --- | --- | --- |
@@ -87,11 +86,11 @@ Which ideas from Karpathy's original note this project implements. ✅ done ·
 | Auto-repair of flagged issues | ✅➕ | §6.2 — the concept doc only *flags* |
 | `index.md` catalog · `log.md` timeline · git repo | ✅ | §3, §13 |
 | Search engine over the wiki | 🟡 | SQLite FTS5 (`search_chunks`); no vector/rerank/MCP — [why partial](#why-the-wiki-search-engine-is-partial) |
-| Interactive / HITL ingest ("discuss, then write") | 🟡 | auto today; post-ingest read-app chat + save-to-wiki partly compensates → §12 |
-| Web search (query Phase 4 + data-gap fill) | ❌ | external search + manual add compensates → §12 |
-| Image handling (download + vision) | ❌ | → §12 |
-| Alternate outputs: Marp decks · charts · canvas | ❌ | → §12 |
-| Graph visualization | ❌ | the graph exists in `document_references`; just not rendered → §12 |
+| Interactive / HITL ingest ("discuss, then write") | 🟡 | auto today; post-ingest read-app chat + save-to-wiki partly compensates → ROADMAP |
+| Web search (query Phase 4 + data-gap fill) | ❌ | external search + manual add compensates → ROADMAP |
+| Image handling (download + vision) | ❌ | → ROADMAP |
+| Alternate outputs: Marp decks · charts · canvas | ❌ | → ROADMAP |
+| Graph visualization | ❌ | the graph exists in `document_references`; just not rendered → ROADMAP |
 | Obsidian web-clipper · graph view · Dataview | N/A | this is a marimo project, not Obsidian |
 
 ### Why the wiki search engine is partial
@@ -702,7 +701,7 @@ WIKI_LLM_MODEL=
 ```
 
 PDF extraction uses opendataloader-pdf (text-based PDFs only; no OCR backend yet
-— see §12). There is no PDF-backend selector setting today.
+— see the [ROADMAP](../ROADMAP.md)). There is no PDF-backend selector setting today.
 
 ### `workspace/wiki_config.toml` (optional, per-workspace)
 
@@ -910,182 +909,30 @@ surfaces this as `status='failed'`.
 
 ---
 
-## 11. Pending Work / Roadmap
+## 11. Pending Work & Future Enhancements
 
-All §6 workflows are now ✅. The items below are incremental improvements to
-those working workflows (auto-triggering lint+repair, UI buttons, duplicate
-warnings, etc.); completed items are marked ✅. Larger out-of-scope features live
-in §12.
+**Both now live in [`ROADMAP.md`](../ROADMAP.md)**, which is versioned, linked
+from the READMEs and checked by the docs link test. This section used to hold two
+lists — near-term work and aspirational features — and a third appeared when the
+roadmap was written. Three lists of the same thing diverge; one does not.
 
-1. ✅ **LLM structuring pass on chat-to-wiki save** (§6.8). Implemented:
-  `wiki_generator.structure_chat_content()` with `_CHAT_CONCEPT_NEW_TEMPLATE`  
-   / `_CHAT_CONCEPT_UPDATE_TEMPLATE` (both use `_CONCEPT_SYSTEM`). Applied in  
-   `save_to_wiki`; `create_page(overwrite=True)` replaces  
-   blind `append_to_page` for existing pages. `save_to_wiki` accepts optional  
-   `client`/`model` keyword args. `make_wiki_slug` now normalises diacritics  
-   via NFKD.
-2. ✅ **Chat→Wiki post-save lint+repair trigger** (§6.8). Implemented:
-  `_lint_and_repair_after_save(db_path, workspace, page_path, client, model)`  
-   in `chat/wiki_tools.py`. Runs deterministic `lint_wiki`, filters issues to  
-   the saved page, excludes the `orphan` check (would delete the new page), then  
-   calls `repair_wiki`. `save_to_wiki` appends a  
-   `🔧 Post-save repair: …` line to its return message when repairs occur.
-3. ✅ **Source deletion** (§6.9). `delete_source(db_path, workspace, doc_id, ...)` in
-  `tools/deletion.py`. FK cascade cleans up chunks, references, and FTS; 1-to-1  
-   summary pages are deleted while citing concept pages are marked `stale_since`  
-   (see §6.9, M2). UI: dropdown + confirm checkbox + `delete_runner` cell in  
-   `marimo/ingest_app.py`.
-4. ✅ **Wiki page deletion UI button** (§6.10). `DeleteConfirmWidget`
-  (`marimo/widgets/delete_confirm.py`) — anywidget-based delete button  
-   with inline JS confirmation panel. Wired into `read_app.py` via  
-   `delete_widget_cell` + `delete_event_cell`. Dead-link cleanup and full DB  
-   teardown happen inside `wiki_fs.delete_page` automatically.
-5. **Web search tool for the chat agent** (§6.7). New async tool alongside
-  `search_wiki_fts` / `search_source_chunks`, backed by a search API.  
-   **Intentionally deferred for the PoC — rationale and revisit plan in §12.**
-6. **Explicit multi-phase RAG labels in the agent system prompt**
-  (`chat/config.py`). Rename the prompt sections to "Phase 1 / … / Phase 4"  
-   for clearer routing. Only meaningful once §11.5 lands — deferred with it (§12).
-7. **Deepen & promote `data_gap`** (§6.1–§6.2). The `data_gap` lint check is
-  shallow — it only sees concept *titles*. The repair exists
-  (`repair/actions.py:repair_data_gap`) but only inserts a generic TODO note into
-  the most-related wiki page. The open work is deepening the check to read page
-  bodies and making the repair suggest specific web searches or sub-questions per
-  gap.
-8. **`regenerate_wiki_pages` should auto-run lint+repair** afterwards
-  (§6.6) so a regenerate doesn't leave stale concept/overview pages. Subsumed by
-   §11.11.
-9. ✅ **Grid column for wiki page title** in `read_app.py:left_panel` — the
-  sources table shows Title + Directory + Slug + Excerpt.
-10. **Document `scan_and_ingest` precisely** for end users (§6.5 — what it
-  touches, when to prefer `batch_ingest` instead).
-11. 🟡 **Lint+repair always close every ingest, scan, and regenerate** (§6.1–§6.6).
-  **Done for ingest:** the `ingest_app` ingest form (`ingest_form_cell` +  
-   `ingest_runner`) now auto-runs a lint **and** repair pass after every ingest —  
-   **deterministic by default**, or **full LLM** when the form checkbox is ticked —  
-   with the `orphan` check excluded so just-created pages survive. The manual "Run  
-   Wiki Lint & Repair" button (`lint_repair_widget` + `lint_repair_runner`) remains  
-   for an on-demand **wiki-wide** sweep — the automatic post-ingest pass is instead  
-   **scoped to the pages the ingest touched** so it never rewrites unrelated pages.  
-   **Remaining:** give **scan** (§6.5) and **regenerate** (§6.6) the same automatic  
-   tail (today they still don't reconcile afterwards), and optionally surface the  
-   same checkbox on those actions.
-12. ✅ **Finish the skipped repairs** (§6.2). Implemented `repair_missing_xref`
-  (appends `## See also` + records `links_to` edge), `repair_contradiction`  
-   (idempotent `⚠️` callout), and `repair_data_gap` (inserts `<!-- DATA_GAP -->`  
-   TODO note), plus a new `gap_filled` check+repair that replaces a resolved TODO  
-   note with a link. All deterministic; see `repair/actions.py` and  
-   `tests/unit/test_repair_finish.py`.
-13. **Warn on duplicate upload** (§6.3–§6.4). When an uploaded or dropped file is
-  already ingested and unchanged, surface a GUI warning instead of the current  
-   silent `status="skipped"`.
+What moved there: the deterministic `reindex_from_disk` design, deepening
+`data_gap`, giving scan and regenerate the same lint tail ingestion already has,
+the duplicate-upload warning, OCR — and, under *Not planned* with the reasoning
+intact, web search at query time and as an ingest loop, two-step reviewed
+ingestion, image handling, and output formats beyond markdown.
 
-### Open bugs
+**Where the completed items went.** Chat-to-wiki structuring, the post-save
+lint+repair hook, source deletion, the page-deletion widget, and the finished
+repairs are all shipped; each is described where it belongs rather than in a
+changelog-shaped list — §6.8, §6.9, §6.10 of
+[Workflows](manual/workflows.md), and §7 here for the interface. The directory
+map in §3 names every module involved.
 
-None currently tracked.
-
-> Earlier the read-app E2E tests appeared to fail (the chat panel "never
-> rendered"). On a clean run — with **nothing else listening on the E2E ports**
-> (2719/2720) — the full suite is green. The failures were port contention: the
-> test connected to a *separate* marimo instance already on the port (e.g. a dev
-> app) whose workspace/state differed, not a `read_app` bug. See §9's note on
-> running E2E with the ports free.
-
----
-
-## 12. Future Enhancements
-
-Aspirational features from Karpathy's note not yet on the roadmap:
-
-- **Two-step HITL ingestion.** Decouple ingestion into `extract_only(file)`  
-and `commit_to_wiki(edited_json)` so the user can review and edit the LLM's  
-extraction before it's written. *Today's partial compensation:* ingestion is
-automated, but after it you can discuss the document in the read-app chat and
-correct/refine the resulting pages via the **Save to wiki** form (`save_to_wiki`,
-§6.8) — post-hoc rather than mid-ingest, but the human still gets to shape the wiki.
-- **Web search → ingest loop.** When lint reveals a gap, a tool can search the  
-web, present candidate articles, and on approval ingest the content as a new  
-source. (Distinct from §11.5 web search at query time.) *Today's manual
-compensation:* run the search yourself and drop the finding into `sources/` (or
-paste it into the chat and save via the form) — the corpus still compounds, just
-without the in-loop automation.
-- **OCR for scanned / image-only PDFs.** Today `pdf_extract.py` uses only
-opendataloader-pdf, which extracts *text*; image-only PDFs yield empty/garbled
-output. Add a pluggable OCR path in `extractor._extract_pdf`. Keep it
-**provider-agnostic** (don't hardcode a vendor): the most on-brand options are a
-**local OCR engine** (Tesseract via ocrmypdf, docTR, Surya, RapidOCR, or Docling
-— fits the local-first ethos, no extra key) or **reusing a vision-capable LLM
-through the already-configured OpenAI-compatible endpoint** (send page images to
-the same `LLM_*`/`WIKI_LLM_*` model — no new provider). A hosted document-OCR
-API is a third option but adds a vendor + key.
-- **Image handling.** Store images from clipped articles in `sources/assets/`;  
-optionally pass them to a vision-capable LLM during ingestion.
-- **Knowledge graph visualisation.** Render `document_references` as an  
-interactive D3.js / Mermaid graph in marimo.
-- **Marp slide-deck generation.** `generate_marp_deck(topic, pages)` with a  
-template under `wiki/templates/`, integrated with `marp-cli`.
-- **Obsidian Canvas output.** Generate `.canvas` JSON for spatial layouts of  
-related concepts.
-- **Deeper post-save reconciliation** (§6.8). The chat→wiki post-save hook today  
-runs only deterministic lint checks, and cross-linking is directional. Two  
-optional upgrades, deferred as the project is a proof of concept: (a) pass an  
-LLM client to the post-save `lint_wiki` so `contradiction` and `data_gap` also  
-fire on save — at the cost of extra LLM calls and latency per save; and (b) make  
-post-save cross-linking direction-independent, so the saved page is linked  
-regardless of how its id sorts in `missing_xref_check` (e.g. emit both pair  
-directions, or match the saved page as either `path_a` or `path_b`).
-- **Web search as Phase 4 of chat/RAG** (§6.7). The agent's retrieval cascade  
-implements Phases 1–3 (wiki index → wiki FTS → raw source chunks); Phase 4 (web  
-search) is intentionally **not** built. Rationale: the project's thesis is  
-answering from a *curated, local corpus* — Phases 1–3 fully exercise that.  
-Web search is the only workflow that reaches outside your own data and is the  
-only one with a recurring external cost (API key + per-query billing) and a  
-network dependency that complicates testing. For a PoC that tradeoff isn't  
-worth it. If revisited: add an async tool in `chat/tools.py` alongside  
-`search_source_chunks`, pick a provider (e.g. Tavily/Brave free tiers, both  
-RAG-oriented; DuckDuckGo keyless but weaker), number the prompt phases  
-explicitly, and mock the network in tests.
-- **Non-LLM reindex from disk (`reindex_from_disk`).** Today the only way to
-  repopulate a lost or corrupt `index.db` is to re-run the LLM ingestion pipeline
-  (`scan_and_ingest`). That path is **non-deterministic** — it re-invokes the model,
-  so regenerated wiki pages, document IDs, and chunk boundaries all differ run to run —
-  and it **overwrites** the on-disk wiki markdown, destroying any manual edits (and it
-  can't reconstruct a page at all once its source file is gone). That contradicts the
-  derived-state principle in [`sqlite_data_dictionary.md`](sqlite_data_dictionary.md) §1
-  and the Two-Layers framing in §1 here: the durable layer is the **Encyclopedia**
-  (`wiki/**/*.md`) plus the sources, and the **Filing Cabinet** (the DB) should be
-  rebuildable from them *mechanically, without the LLM*. `reindex_from_disk(workspace,
-  db_path)` would be that deterministic complement:
-  1. Apply the schema to a fresh DB (`open_db`) and re-create the `workspace` row.
-  2. Walk `sources/*` → one `source_kind='source'` `documents` row per file (recompute
-     `content_hash` / `mtime_ns` / `file_size`), **re-extract** pages with the existing
-     deterministic extractor, re-chunk, and fill `document_pages` + `document_chunks`.
-     Re-extraction is the only step that reads the original file and it uses **no LLM**.
-  3. Walk `wiki/**/*.md` → one `source_kind='wiki'` row per page; read title/tags from
-     frontmatter and re-chunk the markdown into `document_chunks` (the FTS5 triggers
-     repopulate `chunks_fts`). This step used to be the weak one: front-matter was
-     written by the LLM, so the values might be missing, drifted, or — on summary
-     pages — absent entirely. `create_page` now writes the block from the values it
-     is given, which makes reading them back a sound way to rebuild rather than a
-     hopeful one.
-  4. Once every node exists, run `update_references` per wiki page to rebuild
-     `document_references` from the on-disk citations / wikilinks — already idempotent
-     (§4, "Edges are rebuilt, never patched").
-  5. Re-derive `source_document_id` for each `wiki/summaries/<slug>.md` by matching
-     `<slug>` back to the source whose `make_wiki_slug(filename)` equals it (a
-     deterministic heuristic — the link itself is never written to disk).
-
-  **Recovered deterministically (identical every run, no LLM):** all `documents` rows,
-  `document_chunks` + `chunks_fts`, the `document_references` graph, and
-  `index.md` / `overview.md` / `log.md` (read back verbatim — they are just files).
-  **Cannot come from disk alone:** internal counters (`version`, `document_number`)
-  reset, and `created_at` resets to "now" (git history could backfill it — out of
-  scope). **Caveats:** `document_pages` / `elements` repopulate only while the source
-  files are still present to re-extract — a "metadata-only" fast mode could skip that
-  and leave `regenerate_wiki_pages` degraded until a real ingest; and a wiki page whose
-  source was deleted re-registers fine but its `cites` edge stays dangling, exactly as
-  today. Net: same index end-state as `scan_and_ingest`, but it treats the
-  human-readable markdown as the source of truth and never rewrites it.
+**On "no open bugs".** This section used to say none were tracked. That was true
+of *bugs*; it was never true of known limits, and
+[`ROADMAP.md`](../ROADMAP.md#known-limits-and-open-questions) now records five —
+measured, reproduced, and deliberately not fixed yet.
 
 ---
 
@@ -1102,7 +949,7 @@ explicitly, and mock the network in tests.
 | **Slug**                    | `make_wiki_slug(name)` — NFKD-normalise → strip combining marks → lowercase → spaces/underscores → hyphens → remove non-`[a-z0-9-]` chars. Used as the filename of every wiki page. Example: `"Política Común"` → `politica-comun`. |
 | **Filing Cabinet**          | The SQLite + FTS5 layer (`workspace/.llmwiki/index.db`).                                                                                                                                                                            |
 | **Encyclopedia**            | The human-readable markdown layer (`workspace/wiki/`).                                                                                                                                                                              |
-| **Phase 1 / 2 / 3 / 4 RAG** | The agent's routing cascade: index → wiki search → raw chunks → web search (Phase 4 pending §11.5).                                                                                                                                 |
+| **Phase 1 / 2 / 3 / 4 RAG** | The agent's routing cascade: index → wiki search → raw chunks → web search (Phase 4 deliberately not built — see the [ROADMAP](../ROADMAP.md)).                                                                                                                                 |
 | **Trace (ingestion)**       | Opt-in (`WIKI_TRACE=1`) write-only JSONL record of every LLM exchange + the data-flow path of an ingestion run, correlated to DB rows via a `db_join_map` header. For debugging, not replay. See §14.                                |
 | **Sidecar**                 | A content-addressed file under a trace's `payloads/<sha256>.<ext>` holding one heavy payload (prompt, response, extracted text, chunks, or a generated page), referenced from the event by `ref` + `sha256` + `bytes`. See §14.4.     |
 

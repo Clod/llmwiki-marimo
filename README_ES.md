@@ -494,7 +494,7 @@ desconocido recae en inglés. Ver [`docs/programmer_manual.md`](docs/programmer_
 
 **Solo PDFs basados en texto.** Los PDFs escaneados / solo-imagen aún no pasan por OCR —  
 se ingieren como texto vacío o ininteligible. El OCR para PDFs escaneados está en la hoja  
-de ruta (ver [`docs/programmer_manual.md`](docs/programmer_manual.md) §12).
+de ruta (ver [`ROADMAP.md`](ROADMAP.md)).
 
 ---
 
@@ -624,7 +624,7 @@ guardado es tu clic explícito — así que el paso con humano en el bucle es po
 ingesta.
 
 El fundamento de cada recorte y el plan para revisitarlos viven en  
-[`docs/programmer_manual.md`](docs/programmer_manual.md) §12.
+[`ROADMAP.md`](ROADMAP.md).
 
 Esas son las omisiones deliberadas. Para lo que viene, y para lo que está
 construido pero se sabe imperfecto — medido, no sospechado — ver

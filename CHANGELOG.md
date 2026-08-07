@@ -29,6 +29,17 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   demo's own config — so a user copying the template had no way to learn it exists.
 
 ### Changed
+- **Pending work lives in one place.** The programmer manual carried §11 "Pending
+  Work / Roadmap" and §12 "Future Enhancements"; `ROADMAP.md` arrived three days
+  ago and made a third. Three lists of the same thing diverge, so §11 and §12
+  moved wholesale into the roadmap — including the full five-step
+  `reindex_from_disk` design, and the deliberate deferrals with their reasoning
+  intact (web search at query time and as an ingest loop, two-step reviewed
+  ingestion, image handling, output formats). The manual keeps a pointer and is
+  178 lines shorter. Its "no open bugs" line was true of *bugs* and never of
+  known limits, of which the roadmap now records five. 27 dangling `§11.N` / `§12`
+  cross-references across both READMEs, `workflows.md` and the data dictionary
+  were repointed.
 - **The read app's interface is entirely in English.** It was already English
   almost everywhere — "Refresh", "Save to wiki", "Category", "is not a
   directory" — but a handful of Spanish labels had drifted in with the tabs

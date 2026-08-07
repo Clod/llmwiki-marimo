@@ -482,7 +482,7 @@ falls back to English. See [`docs/programmer_manual.md`](docs/programmer_manual.
 
 **Text-based PDFs only.** Scanned / image-only PDFs are not OCR'd yet — they  
 ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap  
-(see [`docs/programmer_manual.md`](docs/programmer_manual.md) §12).
+(see [`ROADMAP.md`](ROADMAP.md)).
 
 ---
 
@@ -613,7 +613,7 @@ answer back as a wiki page via the read app's **Save to wiki** form
 click — so the human-in-the-loop step is post-hoc rather than during ingestion.
 
 The rationale for each cut and the revisit plan live in  
-[`docs/programmer_manual.md`](docs/programmer_manual.md) §12.
+[`ROADMAP.md`](ROADMAP.md).
 
 Those are the deliberate omissions. For what is planned next, and for the
 things that are built but known to be imperfect — measured rather than
