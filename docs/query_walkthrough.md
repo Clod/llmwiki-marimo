@@ -49,6 +49,10 @@ intervene?** There are exactly three answers — never, after the model has
 finished, or before it is ever called — and this project can be configured for
 any of them.
 
+Those three are what this document calls the **positions** — the position being
+where the checking code sits relative to the model's run. They are named
+*never*, *afterwards* and *before*, and they are the next three paragraphs.
+
 **Never.** Hand the model the search tools and trust it. (A *tool* is simply a
 function the model is allowed to call — it asks for a search, the code runs it,
 and the results come back into the conversation. [Part 1](#part-1--the-model-decides-what-to-look-up)
@@ -75,7 +79,10 @@ is cited, but not that the cited page says what the answer claims. A model that
 searched, got three fragments back, and then wrote a sentence none of them
 support passes every check here.
 
-Clod: shouldn't we mention here that lexical token overlap is in the roadmap?
+Checking that is a different kind of test — comparing the answer's words against
+the source's — and the project already has the machinery for it
+(`chat/overlap.py`, used today on a different path). Whether to wire it in here
+is [open](../ROADMAP.md).
 
 **Before.** Have code do the searching — the same SQLite full-text index the
 ingestion walkthrough built, no embeddings involved — and decide from what it
@@ -96,8 +103,8 @@ There is a fourth idea worth naming here, though it is not one of the three:
 structured data — currency rates, interest rates, prices — a tool reads the
 values straight out of the data files and returns them unchanged, and for the
 investment advisory the whole comparison table is computed in Python and pasted
-below the model's prose whether or not the model copied it correctly. The
-model's job is to explain figures in words, not to arrive at them.
+below the model's prose whether or not the model copied it correctly. **The
+model's job is to explain figures in words, not to arrive at them.**
 
 Two qualifications, so this is not oversold. First, it does not come free with
 any of the three positions above: it applies to wikis that have a `datasets/`
@@ -106,13 +113,26 @@ none, so nothing of this appears until
 [Part 2, Act 6](#6-deterministic-advisory). Second, what the code guarantees is
 that the authoritative figures *reach* the user; that the model does not also
 write an invented number into its own sentences is asked for in the system
-prompt, not enforced.
+prompt, and today nothing checks it.
+
+That gap is closable, and worth saying so rather than leaving it sounding
+inherent. Numbers are the one class of claim that compares exactly — the
+authoritative set already exists typed, not scraped — so code could read the
+figures out of the model's prose and reject any that the tools did not produce.
+What stops it is not the check but a decision about rounding: the data says
+`1187.5`, the model writes "about 1,200", and that is good prose rather than an
+invention. [Open, with the trade written out](../ROADMAP.md).
 
 ## The two checkboxes
 
-Those three positions are not an abstraction — they are two checkboxes in the
-read app's chat panel, and it is worth seeing them before any transcript, because
-almost everything below is a consequence of which one is set.
+Those three positions are not a taxonomy invented for this document: they are
+**two checkboxes** in the read app's chat panel. Three positions out of two
+boxes, because one overrides the other. Tick **Pre-retrieval** and you get
+*before*, whatever else is set. Leave it unticked, and **Strict mode** chooses
+between *afterwards* (ticked — and it is ticked by default) and *never*.
+
+Every transcript below is a consequence of how those two were set, which is why
+they come before any of them.
 
 ```mermaid
 flowchart TD

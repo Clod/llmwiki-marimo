@@ -123,6 +123,45 @@ reasoning applies to asking it to cite. Deciding this means choosing what a
 guaranteed citation would name — the passages injected, or only those the answer
 demonstrably used — which is the same open question as the fit check below.
 
+**A number invented in the model's own prose is asked against, not blocked.**
+The project's rule is that the model explains figures and never arrives at them:
+`query_dataset` returns values read straight out of the data files, and the
+advisory's whole comparison table is computed in Python and appended by
+`postprocess.answer_with_table` whether or not the model reproduced it. What
+none of that covers is the model writing a *different* number into the sentences
+around the table. The system prompt asks it not to. Nothing checks.
+
+Unlike the fit check below, this one is exactly checkable. Numbers are a closed
+class and compare exactly, where a paraphrase does not, and the authoritative
+set already exists typed rather than scraped — `DatasetRow.valor`, plus the
+figures in the computed advisory block. The shape is the one `postprocess.py`
+already uses: a pure function over the run's message log, reading `ToolReturnPart`
+contents.
+
+```python
+authorised = {norm(v) for v in dataset_values(messages)} | numbers_in(advisory_table)
+invented   = {n for n in numbers_in(answer_prose) if norm(n) not in authorised}
+```
+
+Two decisions block it, and neither is technical:
+
+**Rounding.** The data says `1187.5`, the model writes "cerca de 1.200". That is
+good prose, not an invention, and an exact match rejects it. Admitting a
+tolerance (±x%) reopens the hole the check exists to close; refusing one forbids
+rounding outright. The project's own stance narrows this more than it would
+narrow elsewhere — under "the model does not arrive at figures", a computed
+number *is* the violation — but the rounding case still has to be decided rather
+than assumed away. Numbers appearing inside a page the answer legitimately read
+also have to be admitted into the authorised set.
+
+**What happens on a hit.** Reject and regenerate, strike the sentence, or
+annotate. The existing precedent is to append rather than rewrite
+(`answer_with_table` never edits the model's text), but only rejection is
+actually a guarantee.
+
+Stated as a limit in
+[`docs/query_walkthrough.md`](docs/query_walkthrough.md#the-question-this-document-answers).
+
 **The raw-source fallback is reachable but structurally rare.** With
 pre-retrieval enabled, the last resort before refusing is to answer from a
 fragment of the original document. It runs only when the question names
