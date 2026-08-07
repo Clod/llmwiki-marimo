@@ -172,9 +172,48 @@ Page titles are chosen by a language model at a temperature above zero, and it
 named statements rather than subjects. Regenerating a wiki therefore also edits
 the list of subjects it will answer about.
 Measured and written up in
-[`docs/query_walkthrough.md`](docs/query_walkthrough.md#where-the-roster-shows-its-limits);
-no fix proposed yet, because widening the match risks reopening the leak the gate
-exists to close.
+[`docs/query_walkthrough.md`](docs/query_walkthrough.md#where-the-roster-shows-its-limits).
+
+**The sharpest way to state it: one system holds two different notions of "the
+same word".**
+
+| | how it compares | `caución` ≟ `cauciones` |
+|---|---|---|
+| the search index (`chunks_fts`) | `porter unicode61` — stems | **yes** — identical rows, verified |
+| the coverage gate (`scope._normalize`) | lowercase, strip accents, whole word | **no** |
+
+This is solvable, and there are three routes out. They are not equivalent, and
+the obvious one is the dangerous one.
+
+**A — Stem the gate the way the index already stems.** The narrowest change:
+`caución` and `cauciones` unify and the two halves of the system stop disagreeing
+about what a word is. It does *not* fix multi-word titles — `Riesgo Inflacionario
+en Cauciones` still fits inside no question anyone would type. Low risk, because
+it loosens nothing semantically. One caveat worth knowing before adopting it:
+`porter` is an *English* stemmer applied to Spanish. It happens to unify this
+pair; adopting it means adopting its arbitrariness too.
+
+**B — Match on the title's content words with a threshold**, instead of requiring
+the whole phrase. `Riesgo Inflacionario en Cauciones` → `{riesgo, inflacionario,
+cauciones}`, and a question supplying `{cauciones, riesgosas}` scores 1 of 3.
+This fixes the case above **and reopens the CEDEARs leak** — the exact failure the
+gate exists to prevent, where a question about one instrument matches a page about
+another because both say *riesgo*. Recorded here because it is what everyone
+proposes first, and the reason to refuse it should be written down rather than
+rediscovered.
+
+**C — Have ingestion declare what each page is about.** Today the roster is
+*inferred* from whatever title the model chose in passing. But ingestion already
+extracts, per concept, a name **and its aliases** — that machinery exists and
+ships (see `alias_generation.py`). Extending it to record *"this page covers:
+cauciones, credit risk, short-dated placements"* turns the roster into **declared
+data** instead of a by-product of page naming. This is the one that addresses the
+cause: the problem is not that the match is strict, it is that the list it
+matches against was assembled by accident.
+
+**Recommendation: C as the direction, A as an interim, B refused with the reason
+kept.** None of the three has been built; this entry exists so the next person
+does not have to re-derive the trade.
 
 **"Regenerate and diff" is a weaker check than the ingestion walkthrough claims.**
 That document says a disagreement between its prose and a regenerated appendix

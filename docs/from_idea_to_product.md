@@ -101,9 +101,18 @@ deliberately: a language model named the pages while writing them, and it named
 The hand-written blacklist that complements the roster has the same shape:
 `cripto` is listed and does not catch `criptomonedas`.
 
-Both are written up in [`ROADMAP.md`](../ROADMAP.md#known-limits-and-open-questions).
-Neither has a fix proposed, because loosening the match is exactly how the leak
-this whole point is about gets back in.
+The clearest way to put it is that **one system holds two notions of "the same
+word"**: the search index stems, so `caución` and `cauciones` are identical to
+it; the coverage gate does not, so they are two different terms.
+
+This is solvable and the routes are written down —
+[`ROADMAP.md`](../ROADMAP.md#known-limits-and-open-questions) lays out three,
+with the reason the most obvious one is refused: matching on shared *words*
+instead of whole titles would let a question about one instrument match a page
+about another because both say *riesgo*, which is precisely the leak this point
+is about. The direction that treats the cause rather than the symptom is to have
+ingestion declare what each page covers, instead of inferring it from whatever
+title the model happened to choose.
 
 ---
 
