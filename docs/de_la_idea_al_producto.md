@@ -2,6 +2,14 @@
 
 ### Los puntos de fuga de la wiki-LLM y cómo se sellan
 
+> ⚠️ **Esta versión quedó atrasada.** La canónica es
+> [`from_idea_to_product.md`](from_idea_to_product.md), en inglés, verificada
+> contra el código el 2026-08-07. Este texto es de julio y varios de sus estados
+> ya no son ciertos — en particular el punto 10 ("la configuración se pudre"),
+> que figuraba como *diseñado, sin construir* y hoy está construido, y el punto
+> 11, que habla de seis chequeos cuando son nueve. Se conserva hasta que se
+> retraduzca desde el inglés; no lo enlaces como referencia.
+
 > **Cómo leer este documento.** Cada punto describe *una forma en que la idea
 > hace agua* cuando se la lleva a la práctica con un agente genérico, un ejemplo
 > concreto, y cómo este proyecto lo sella. La línea gris de `Estado` es doble

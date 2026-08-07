@@ -12,6 +12,21 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 ## [Unreleased]
 
 ### Added
+- **`docs/from_idea_to_product.md`, linked from the top of the README.** Seventeen
+  ways the LLM-wiki idea leaks when a generic agent is pointed at a folder, each
+  with a real example and what this project does about it — the answer to the
+  obvious question, "why not just use Claude Code on my notes?". It existed in
+  Spanish since July, unlinked from either README, gated behind its own rule that
+  it would not be published until every point was green. Reviewed against the
+  code, and that gate turns out to be all but met: point 10 ("the configuration
+  itself rots") shipped as *designed, unbuilt* and is now built — vocabulary is
+  generated at ingest and watched by four lint checks — point 11 counted six
+  checks where there are nine, the thin-page detector it listed as pending
+  exists, and the live validation point 2 was waiting on happened on 2026-07-19.
+  Rewritten in English with those corrections, plus two limits measured this week
+  that the July text could not have known: the coverage roster matches page
+  titles literally, and the blacklist does not stem. The Spanish original is
+  marked stale and kept until it is re-translated from the English.
 - **`ROADMAP.md`** — what is planned next, and what is built but known to be
   imperfect. The second half is the point: the coverage gate matching page
   titles literally, a documentation check that cannot see a link cut in two, a

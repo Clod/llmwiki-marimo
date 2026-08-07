@@ -25,6 +25,13 @@ The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas 
 
 ## Highlights
 
+> **Why not just point Claude Code at a folder of notes?** That is the honest
+> question, and it has a long answer:
+> **[From Idea to Product](docs/from_idea_to_product.md)** — seventeen ways the
+> LLM-wiki idea leaks when a generic agent is pointed at it, each with a real
+> example and what this project does about it — including the three where the
+> answer is a deliberate trade rather than a fix.
+
 **A self-contained, agentic LLM-wiki.** Most takes on Karpathy's idea point an
 *external* agent — Claude Desktop, Cursor, an MCP client — at an Obsidian vault.
 This one ships its own embedded agent: ingestion, agentic retrieval (the chat
