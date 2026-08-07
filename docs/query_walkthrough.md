@@ -56,7 +56,12 @@ lists the three this project provides.) The model decides what to look for, when
 it has seen enough, and what to say. This handles the widest range of questions
 and gives you no guarantees at all.
 
-Clod: this is the standard agentic behavior, right?
+This is the ordinary **agentic** arrangement — a loop in which the model holds
+some functions, chooses which to call and when, reads what they return, and keeps
+going until it is ready to answer. It is what Claude Code, Cursor or any MCP
+client is doing when you point one at a folder. Nothing in it is particular to
+this project: it is what you get for free, and the two positions below are what
+it costs to do better.
 
 **Afterwards.** Let the model work exactly as above, then have code examine the
 finished conversation before the answer reaches the user. Two things are cheap
@@ -208,10 +213,10 @@ derived from one live run rather than being a live run of its own.
 
 This is the mode a wiki of plain documents runs in.
 
-First, a definition. An **agent** is a loop: the model is given a set of
-functions it is allowed to call, it decides for itself which ones to call and
-when, it reads what they return, and it keeps going until it is ready to answer.
-The functions are called **tools**. Here the agent gets three of them:
+The agent loop was described [at the top](#the-question-this-document-answers):
+the model holds some functions, picks which to call, reads what comes back, and
+keeps going until it is ready to answer. Those functions are its **tools**, and
+here it gets three:
 
 | Tool | What it does |
 |---|---|
