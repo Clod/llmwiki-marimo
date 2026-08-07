@@ -548,8 +548,8 @@ own — every value in it was copied out of a source file, or derived from a wik
 page that exists on disk — but it is what turns a folder of files into something
 you can ask questions of.
 
-Four tables do that work. The clearest way to tell them apart is to ask **what a
-single row means** in each one:
+Four tables do that work, plus the search index built over one of them. The
+clearest way to tell them apart is to ask **what a single row means** in each:
 
 Clod: a diagram showing how a source feeds the different tables would be great
 
