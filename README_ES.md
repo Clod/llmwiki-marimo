@@ -17,9 +17,13 @@ Inspirada en [la idea de la «LLM Wiki» de Karpathy](https://x.com/karpathy/sta
 La extracción de PDF y algunas piezas de bajo nivel de la ingesta están adaptadas de [la LLM Wiki de código abierto de Lucas Astorian](https://github.com/lucasastorian/llmwiki)
 (Apache-2.0); el resto es una construcción *local-first* independiente sobre Marimo + SQLite. Ver [`NOTICE`](NOTICE).
 
-![La app de lectura sobre la wiki de ejemplo incluida: navegación de páginas a la izquierda, una página de concepto generada en el centro y el asistente de chat a la derecha respondiendo una pregunta que cruza varios documentos, con una cita para cada hecho](docs/assets/read_app.png)
+![La pestaña de lectura de la app sobre la wiki de ejemplo: a la izquierda una tabla buscable de páginas generadas, y a la derecha la página de concepto seleccionada con su definición, características, contexto y enlaces a páginas relacionadas](docs/assets/read_app_read_tab.png)
 
-*La app de lectura sobre la wiki de ejemplo incluida — navegación, una página de concepto generada y una respuesta de chat donde cada hecho cita su página de origen. Debajo del chat: el formulario **Save to wiki**, el paso con humano en el bucle que convierte una buena respuesta en una página permanente.*
+*La pestaña **Read** sobre la wiki de ejemplo incluida — cada página de la tabla la escribió el modelo a partir de un PDF, y los enlaces "See also" entre ellas los agregó el pase de reparación, no una persona.*
+
+![La pestaña de chat de la app: dos casillas eligen el modo de respuesta, y el asistente responde "¿Qué tienen en común Cenicienta y Blancanieves?" cruzando dos documentos, citando una página concreta del wiki para cada una de las tres afirmaciones que hace. Debajo, un formulario desplegado ofrece guardar la respuesta como página nueva](docs/assets/read_app_chat_tab.png)
+
+*La pestaña **Chat**, la misma wiki, una respuesta real. Tres afirmaciones, cinco citas, cada una nombrando la página de la que salió. Las dos casillas son el argumento de diseño completo: **Strict mode** audita al modelo después de que responde; **Pre-retrieval** hace que el código recupere primero y pueda abstenerse antes de llamarlo ([cuál elegir, y por qué](docs/query_walkthrough.md)). Debajo: el formulario **Save to wiki** — el agente no tiene herramienta de escritura, así que una buena respuesta se vuelve página permanente sólo con tu clic.*
 
 ▶ **[Mira la demo de 1 minuto](https://youtu.be/qXaPycsGXHw)** — un PDF ingerido en una wiki nueva (páginas de concepto, resumen, auto-reparación del lint), y luego una respuesta de chat donde cada hecho cita su fuente.
 
@@ -74,7 +78,7 @@ vivos y calcula asesoramiento con fundamento sobre ellos.*
 
 - **Pruebas en tres capas, ≈1:1 prueba-a-código** (núcleo agnóstico del framework en `base/`, ejercitado sin navegador) — pruebas unitarias deterministas con LLM falso (sin claves, sin red); una regresión de *caracterización* sobre un corpus dorado congelado que vuelve a comprobar la columna vertebral de la ingesta real sin volver a llamar al modelo; y E2E con Playwright sobre las apps en vivo.
 - **Núcleo agnóstico del framework** — toda la lógica vive en `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo es solo la UI en los bordes, así que el motor se ejercita con pruebas unitarias sin navegador.
-- **UI maleable** — como la interfaz son notebooks de marimo, las tres columnas de la app de lectura son simples anotaciones `@app.cell(column=N)`: abre la app con `marimo edit` y reorganiza o re-columna las celdas según tu flujo, gusto o monitor — sin tocar código de frontend.
+- **UI maleable** — como la interfaz son notebooks de marimo, la disposición de la app de lectura son simples anotaciones `@app.cell`: ábrela con `marimo edit` y reorganiza las celdas en columnas o pestañas según tu flujo, gusto o monitor — sin tocar código de frontend. Ambas disposiciones se distribuyen, desde el mismo motor: una con pestañas y una grilla de tres columnas.
 - **Consciente de la seguridad** — un guardia contra *path-traversal* en el lector de páginas invocable por el LLM, un modelo de amenazas explícito de inyección de prompts y un [`SECURITY.md`](SECURITY.md) documentado.
 - **Local-first y privada** — corre íntegramente en el dispositivo; cada wiki es su propio repositorio git solo-local (historial de versiones gratis); los archivos de origen nunca se modifican y nada se sube a ningún lado.
 - **Consciente de la escala** — la re-ingesta omite archivos sin cambios por hash de contenido, el lint compara solo pares de páginas que comparten una fuente (no N²), y la síntesis del *overview* es incremental.
@@ -207,7 +211,8 @@ base/                   # Pipeline de ingesta + agente de chat (Python autoconte
 
 marimo/                # Apps de notebook de Marimo
 ├── ingest_app.py          # UI de subida → ingesta → generación de la wiki
-├── read_app.py            # Visor de solo lectura + chat (grilla de 3 columnas)
+├── read_app_tabs.py       # Visor de solo lectura + chat (pestañas 📖 Read · 💬 Chat)
+├── read_app.py            # la misma app como grilla de 3 columnas — en retirada
 └── trace_report_app.py    # Visor de trazas de ingesta (ejecuciones con WIKI_TRACE=1)
 
 database/
@@ -321,7 +326,7 @@ Abre [http://localhost:2718](http://localhost:2718), suelta tus PDFs o DOCXs, ha
 #### 4. Leer y conversar
 
 ```bash
-uv run marimo run marimo/read_app.py --no-sandbox --port 2720
+uv run marimo run marimo/read_app_tabs.py --no-sandbox --port 2720
 ```
 
 Abre [http://localhost:2720](http://localhost:2720). Selecciona una página a la izquierda, léela en el centro, conversa a la derecha.
@@ -519,7 +524,7 @@ vertebral se comprueba contra una ingesta real sin volver a llamar al modelo.
 ```bash
 uv run playwright install chromium                            # una vez
 HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s  # pipeline de ingesta
-HEADLESS=1 uv run pytest tests/e2e/test_read_app.py  -v -s    # app de lectura (usa el workspace del paso 1)
+HEADLESS=1 uv run pytest tests/e2e/test_read_app_tabs.py -v -s  # app de lectura (usa el workspace del paso 1)
 ```
 
 **3. Aceptación y comprobación del modelo (manual)** — la pasada de juicio humano para lo

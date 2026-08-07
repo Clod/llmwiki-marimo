@@ -126,6 +126,17 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   (`answer only from wiki sources`). The Spanish labels did not collide only
   because the second said "modo estricto" in lower case.
 
+### Changed
+- **The README screenshots show the tabs read app, and there are two of them.**
+  The old hero image showed the three-column grid doing everything at once,
+  which the tabs app cannot: it renders only the active tab. So one image per
+  tab — the page table with a generated concept page, and a real chat answer
+  making three claims with five citations, above an expanded **Save to wiki**
+  form. Both READMEs' alt text rewritten to match, and with them the quick-start
+  command, the project-structure listing, the E2E command and the "malleable UI"
+  bullet, which still described three columns while the picture above it showed
+  tabs. `docs/assets/read_app.png` is removed as superseded.
+
 ### Added
 - **`scripts/capture_screenshots.py`** — regenerates the README screenshots by
   driving the running read app with Playwright. The images in `docs/assets/` went
