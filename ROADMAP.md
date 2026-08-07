@@ -156,10 +156,21 @@ first.
 
 **The coverage gate matches page titles literally.** With pre-retrieval enabled,
 whether a wiki answers a question depends on whether one of its concept-page
-titles appears word-for-word in that question. Page titles are chosen by a
-language model at a temperature above zero, so a wiki with three pages about the
-risks of an instrument can still refuse a plainly-worded question about those
-risks, and regenerating a wiki edits the list of subjects it will answer about.
+titles appears word-for-word *inside that question* — the test runs in that
+direction, not the reverse. On the shipped finance demo:
+
+```
+pages:     Caución Bursátil · Riesgo Inflacionario en Cauciones
+           Riesgo de Crédito en Cauciones
+question:  "¿las cauciones son riesgosas?"          →  not covered
+```
+
+Three pages about exactly that, and the question is turned away, because no whole
+title fits inside the sentence — and the bare `caución` from the dataset misses
+too, since matching is by whole word and `caución` is not one inside `cauciones`.
+Page titles are chosen by a language model at a temperature above zero, and it
+named statements rather than subjects. Regenerating a wiki therefore also edits
+the list of subjects it will answer about.
 Measured and written up in
 [`docs/query_walkthrough.md`](docs/query_walkthrough.md#where-the-roster-shows-its-limits);
 no fix proposed yet, because widening the match risks reopening the leak the gate

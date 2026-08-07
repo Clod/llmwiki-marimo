@@ -80,11 +80,30 @@ does get through from a raw document, a second check compares the **answer
 against the source** it came from: if the answer does not actually follow from
 it, it is not shown.
 
-**Honest limits, both measured.** The roster matches page titles *literally*, so
-a wiki with three pages about an instrument's risks can still turn away a plainly
-worded question about them. And the hand-written blacklist that complements it
-matches whole words only: `cripto` is listed and does not catch `criptomonedas`.
+**Honest limits, both measured on the shipped demo.**
+
+The roster test runs in the direction nobody expects: it asks *is one of my page
+titles contained in this question?* — not *does this question mention a word from
+one of my titles?* The finance wiki has three pages about the risks of a
+`caución` (a short-dated secured loan traded on the exchange):
+
+```
+Caución Bursátil · Riesgo Inflacionario en Cauciones · Riesgo de Crédito en Cauciones
+```
+
+Ask it *"¿las cauciones son riesgosas?"* — "are cauciones risky?" — and it is
+turned away, because no whole title fits inside that sentence. Even the bare
+`caución` from the dataset misses, because the match is by whole word and
+`caución` is not a whole word inside `cauciones`. Nothing chose those titles
+deliberately: a language model named the pages while writing them, and it named
+*statements* rather than *subjects*.
+
+The hand-written blacklist that complements the roster has the same shape:
+`cripto` is listed and does not catch `criptomonedas`.
+
 Both are written up in [`ROADMAP.md`](../ROADMAP.md#known-limits-and-open-questions).
+Neither has a fix proposed, because loosening the match is exactly how the leak
+this whole point is about gets back in.
 
 ---
 
