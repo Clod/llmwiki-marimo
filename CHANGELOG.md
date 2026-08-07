@@ -127,6 +127,12 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   because the second said "modo estricto" in lower case.
 
 ### Changed
+- **The demo video is the new interface, and the README says what it shows.**
+  `https://youtu.be/VLX5kLczQbk` replaces a recording of the three-column app. The
+  blurb changed with it, because the video did: the old one walked an ingest, the
+  new one reads a generated wiki and then contrasts the two answering modes — a
+  cited cross-document answer in 9s against the same kind of question refused in
+  1.2s, which is the design argument and was not demonstrable before.
 - **The README screenshots show the tabs read app, and there are two of them.**
   The old hero image showed the three-column grid doing everything at once,
   which the tabs app cannot: it renders only the active tab. So one image per

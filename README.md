@@ -23,7 +23,7 @@ The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas 
 
 *The **Chat** tab, same wiki, one real answer. Three claims, five citations, each naming the page it came from. The two checkboxes are the whole design argument — **Strict mode** audits the model after it answers; **Pre-retrieval** has code retrieve first and refuse before the model is ever called ([which to pick, and why](docs/query_walkthrough.md)). Below: the **Save to wiki** form — the agent has no write tool, so a good answer becomes a permanent page only on your click.*
 
-▶ **[Watch the 1-minute demo](https://youtu.be/qXaPycsGXHw)** — a PDF ingested into a fresh wiki (concept pages, summary, lint auto-repair), then a chat answer where every fact cites its source.
+▶ **[Watch the 1-minute demo](https://youtu.be/VLX5kLczQbk)** — reading a generated wiki, then one cross-document answer citing a page for every claim (9s), then the same kind of question refused **in 1.2s because the model was never called**.
 
 ---
 

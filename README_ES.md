@@ -25,7 +25,7 @@ La extracción de PDF y algunas piezas de bajo nivel de la ingesta están adapta
 
 *La pestaña **Chat**, la misma wiki, una respuesta real. Tres afirmaciones, cinco citas, cada una nombrando la página de la que salió. Las dos casillas son el argumento de diseño completo: **Strict mode** audita al modelo después de que responde; **Pre-retrieval** hace que el código recupere primero y pueda abstenerse antes de llamarlo ([cuál elegir, y por qué](docs/query_walkthrough.md)). Debajo: el formulario **Save to wiki** — el agente no tiene herramienta de escritura, así que una buena respuesta se vuelve página permanente sólo con tu clic.*
 
-▶ **[Mira la demo de 1 minuto](https://youtu.be/qXaPycsGXHw)** — un PDF ingerido en una wiki nueva (páginas de concepto, resumen, auto-reparación del lint), y luego una respuesta de chat donde cada hecho cita su fuente.
+▶ **[Mirá la demo de 1 minuto](https://youtu.be/VLX5kLczQbk)** — recorrer una wiki generada, después una respuesta que cruza dos documentos citando una página por cada afirmación (9 s), y después la misma clase de pregunta rechazada **en 1,2 s porque nunca se llamó al modelo**.
 
 ---
 
