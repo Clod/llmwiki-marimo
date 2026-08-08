@@ -247,9 +247,11 @@ The **answers** need a live model, and vary in wording from run to run: differen
 phrasing, different ordering of a table's ties, occasionally a different sentence
 structure. Read them for *behaviour* — does it cite? does it refuse? does it call
 the tool it should? — never for exact prose. That is also why this document
-quotes them rather than describing them from memory: the quotes are the only
-honest way to show what a live run produced, short of pasting the whole appendix
-or asserting something that might not survive the next regeneration.
+quotes them instead of summarising them. Both alternatives are worse: describing
+an answer in my own words asserts something the next regeneration may quietly
+contradict, and reprinting the appendix in full would bury the one line each
+quote exists to make. A quote is the smallest excerpt that still comes from the
+capture rather than from me.
 
 There is one hybrid case, and it is flagged where it appears. The table in [What
 the default configuration does to those same three
