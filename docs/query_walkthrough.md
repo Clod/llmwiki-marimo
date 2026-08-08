@@ -215,11 +215,27 @@ do not have.
 
 ## How the appendix is generated
 
-The appendix is deliberately generated in two passes, and the split matters
-enough to explain before reading either half — because the two halves deserve
-very different amounts of trust.
+**What the appendix is.**
+[`query_walkthrough_appendix.md`](query_walkthrough_appendix.md) is the raw
+evidence behind this document. Eleven questions were put to the two demo wikis;
+for every one of them it records how the code routed the question, and for ten it
+also records the answer that came back, verbatim. Nothing in it is written by
+hand — the file is produced
+by `scripts/capture_query_walkthrough.py`, carries a `do not edit` banner, and is
+overwritten each time that script runs. Every figure and every quotation in the
+rest of this walkthrough is taken from it.
 
-The **routing table** is pure code. For each question it records five things:
+**Why its two halves are not equally trustworthy.** The file is produced by two
+separate passes:
+
+1. a **routing table**, produced by code alone, and
+2. the **answers**, produced by a live model.
+
+The difference matters enough to explain before you read either one.
+
+**The routing table.** One line per question asked of a demo wiki. Each line
+records what the code decided about that question — and since no model takes part
+in any of it, the same question always produces the same line. Five columns:
 
 | Column | What it means |
 |---|---|
@@ -229,21 +245,21 @@ The **routing table** is pure code. For each question it records five things:
 | `wiki` / `docs` | how many hits the full-text search returned, in the curated pages and in the raw documents respectively |
 | `plan` | the resulting decision: call the model, or refuse |
 
-Behind them are `scope.is_off_limits`, `scope.mentions_known_data`,
-`scope.advisory_intent` and `preretrieval.plan_retrieval` — every one of them
-living inside the pre-retrieval path and nowhere else. That is worth saying
-plainly, because the blacklist and the alias lists sit in a config file that
-looks like it governs the whole wiki: **untick the box and none of them are
-read.** The model then does its own searching, and no scope check stands in
-front of it. No model runs to produce any of this table, so it is deterministic
-and identical on every run — which is
-exactly what makes it the more useful of the two halves for judging whether the
-system is correct: you can read it, compare it across commits, and reproduce it
-for the cost of a SQLite query.
-`scripts/capture_query_walkthrough.py --plan-only` captures *only* this half — no
+Those five values are computed by four functions: `scope.is_off_limits`,
+`scope.mentions_known_data`, `scope.advisory_intent` and
+`preretrieval.plan_retrieval`. All four live inside the pre-retrieval path and
+are called from nowhere else. That is worth stating plainly, because the
+blacklist and the alias lists sit in a config file that looks as though it
+governs the whole wiki: **untick the box and none of those four functions runs.**
+The model does its own searching instead, and nothing reads the config file.
+
+Because the table is deterministic, it is the more useful half for judging
+whether the system is correct: you can read it, compare it across commits, and
+reproduce it for the cost of a SQLite query.
+`scripts/capture_query_walkthrough.py --plan-only` captures this half alone — no
 model client is even constructed.
 
-The **answers** need a live model, and vary in wording from run to run: different
+**The answers.** These need a live model, and they vary in wording from run to run: different
 phrasing, different ordering of a table's ties, occasionally a different sentence
 structure. Read them for *behaviour* — does it cite? does it refuse? does it call
 the tool it should? — never for exact prose. That is also why this document
@@ -308,9 +324,12 @@ The prompt asks, and asks firmly, but asking is all it can do.
 
 ### What the raw model does, with nothing checking it
 
-Three of those suggested prompts were put to the live agent with **both boxes
-unticked** — the bottom row of the table above, deliberately chosen to isolate
-what the model does when no code is watching. The full transcripts are in the
+Three of the four suggested prompts — questions 1, 3 and 4; *Summarize the plot
+of each tale* was left out — were put to the live agent with **both boxes
+unticked**. That is the *never* position: no pre-retrieval, no strict mode, and
+nothing examining the answer between the model and the user. The setting was
+chosen deliberately, to record what the model does when no code constrains it.
+The full transcripts are in the
 [appendix](query_walkthrough_appendix.md#the-unticked-mode-answering-live-model);
 what matters here is what the model chose to do.
 
@@ -406,27 +425,34 @@ of them is derived by hand.
 | **2 · the inventory**<br>*What tales are in this wiki?* | correct, **no citation** | a tool returned real content, so the answer stands — and the page it opened is appended: **`Referencia: index.md`**. The failure is repaired. |
 | **3 · Snow White**<br>*Compare how each story ends* | a mid-tale passage narrated as the ending, **with a real citation** | the searches returned real text, so `has_grounding` is true; the answer already names a page it read, so nothing is appended. **Leaves it exactly as it is.** |
 
-The last row is worth pausing on, because it nearly went the other way. Nothing
-is appended only because the model happened to cite
-`wiki/summaries/cinderella.md` inline, in the *Cinderella* row of the same table
-the wrong Snow White row sits in. Had it not, `ensure_citation` would have
-attached a `Referencia:` line to an answer containing a false claim — dressing it
-up rather than catching it. The check is about attribution, and attribution is
-indifferent to whether the sentence above it is true.
+Row 3 deserves closer attention, because an accident decided its outcome.
+`ensure_citation` appends nothing to it for one reason: the answer already
+contains an inline citation — `wiki/summaries/cinderella.md`, in the *Cinderella*
+row of the same table whose Snow White row is wrong. Had the model omitted that
+citation, the function would have appended a `Referencia:` line to an answer
+containing a false statement, leaving the statement untouched and making it
+appear better attributed than before. The function tests whether attribution is
+present. It does not compare the attribution against the claim it accompanies.
 
-That last row is the point of this whole section, and it is worth being blunt
-about it: **the default configuration repairs the missing-citation failure and is
-structurally blind to the wrong-answer failure.** This is not an oversight, it is
-stated in the guardrail's source — *"this catches answers with NO grounding
+Row 3 is the point of this section. **The default configuration repairs one of
+the two failures and cannot detect the other.** It repairs the missing citation,
+because whether a citation is present is a property of the answer's own text and
+can be tested directly. It does not detect the incorrect statement, because
+neither function reads the retrieved passage at all: `enforce_grounding` counts
+tool returns, and `ensure_citation` lists which tools were used. Neither one
+compares the answer against what those tools returned. This is not an oversight —
+the guardrail's source says so: *"this catches answers with NO grounding
 evidence… It does not catch an answer that ignored a result it did retrieve; that
 needs answer-vs-source verification."*
 
-The two failures are different in kind. A missing citation is a defect in the
-*shape* of an answer, and shape is exactly what code can check after the fact. A
-passage retrieved for a question it does not answer is a defect in *meaning*, and
-no amount of inspecting the run's structure will reveal it — the run looks
-perfect. Something has to intervene earlier, or read the answer against its
-source. That is Part 2.
+The two failures differ in kind. A missing citation is a defect in the *form* of
+the answer, and form can be tested after the fact from the text and the message
+log. A passage retrieved for a question it does not answer is a defect in
+*content*, and the run that produced it is structurally indistinguishable from a
+correct one: the right tools were called, real results came back, and a real page
+was cited. Detecting it requires either intervening before the model is called,
+or comparing the finished answer against the passage it was given. Part 2 does
+the first, and does the second where it falls back to raw text.
 
 For a wiki of fairy tales, this is still a fair trade. Nobody is harmed by a
 misremembered ending, and the range of questions it handles is worth having. Part 2 is about what changes
@@ -434,9 +460,10 @@ when that stops being true.
 
 ### What ticking the box would cost here
 
-The trade is not a matter of opinion, and it does not need a model to measure.
-Running the same four suggested prompts through the pre-retrieval gate — pure
-code, no LLM, free to reproduce — gives this:
+What ticking **Pre-retrieval** would cost on this wiki can be measured rather
+than argued about, and measuring it needs no model. Running the same four
+suggested prompts through the pre-retrieval gate — pure code, no LLM, free to
+reproduce — gives this:
 
 | Question | wiki hits | in roster | collection | plan if ticked |
 |---|---:|---|---:|---|
@@ -469,8 +496,9 @@ box used to include every question about the collection; it no longer does.
 
 ### Where the roster shows its limits
 
-The same lesson has a second half, and it is fair to know it before ticking the
-box. The match is literal: `scope.mentions_known_data` asks whether one of those
+The previous section showed a roster failing to recognise questions about the
+*collection*. It has a second limitation, affecting questions about *subjects*,
+and it is fair to know both before ticking the box. The match is literal: `scope.mentions_known_data` asks whether one of those
 page titles appears **as a phrase, word for word**, inside the question — case
 and accents ignored, nothing else. Not the reverse, and not word by word.
 
@@ -481,8 +509,8 @@ types those words, so the gate does its job.
 It gets thinner when a page is named after a *statement* rather than a subject.
 The finance demo has three pages about the risks of a `caución` (a short-term
 secured loan traded on the exchange): `Caución Bursátil`,
-`Riesgo Inflacionario en Cauciones` and `Riesgo de Crédito en Cauciones`. Ask it
-the obvious question and watch:
+`Riesgo Inflacionario en Cauciones` and `Riesgo de Crédito en Cauciones`. Three
+questions, run against that wiki's real roster:
 
 | Question | In roster? | What matched |
 |---|---|---|
@@ -490,17 +518,18 @@ the obvious question and watch:
 | *"¿me conviene esperar a que se mueva el dólar?"* | yes | the dataset category `dolar` |
 | *"¿las cauciones son riesgosas?"* | **no** | — |
 
-The third is the honest one. Three pages in this wiki are about exactly that
-question, and it is turned away, because not one of them is titled *Cauciones*:
-the gate needs a whole title inside the question, and *"Riesgo Inflacionario en
-Cauciones"* is not a phrase anybody types. (These three rows were measured by
+The third row is where the limit shows. Three pages in this wiki are about
+exactly that question, and the gate turns it away, because no page is titled
+*Cauciones*: the gate requires a complete title to appear inside the question,
+and *"Riesgo Inflacionario en Cauciones"* is not a phrase anybody types. (These three rows were measured by
 calling `scope.mentions_known_data` against the demo's real roster — 65 covered
 terms and 17 aliases — not worked out on paper.)
 
-Notice also *why* the first two passed: not because the page you would expect was
-found, but because some *other*, more plainly named page or dataset category
-happened to be mentioned. Coverage here is a lucky overlap of vocabularies, not a
-judgment about meaning.
+The first two rows deserve as much attention as the third. Neither passed because
+the gate found the page a reader would expect. Each passed because the question
+happened to contain the title of some *other*, more plainly named page, or a
+dataset category. What the gate measures is whether the question and the roster
+share a string — not whether the wiki has anything to say about the subject.
 
 And nothing chose those titles deliberately — a language model did, while writing
 the pages, at a temperature above zero. The gate's reach is therefore decided by
@@ -514,8 +543,11 @@ of this applies unless pre-retrieval is ticked — the ordinary wiki never consu
 a roster at all.
 
 Stated plainly: this gate trades recall for precision, and the trade is not free.
-It stops the leak the next act demonstrates, and it will also turn away real
-questions whose wording happens to miss every page title. What it still costs, by
+It prevents the failure demonstrated in [Part 2, Act
+2](#2-in-scope-but-not-covered) — a question about an instrument the wiki has no
+page for, answered out of a fragment that merely shares vocabulary with it — and
+it will also turn away real questions whose wording happens to miss every page
+title. What it still costs, by
 design, is a question about a subject the wiki does not cover — which is
 precisely the refusal the setting exists to produce. What it costs by accident is
 a question about a subject the wiki *does* cover, asked in words no page title
@@ -555,12 +587,13 @@ sentence about a glass slipper costs nothing. A badly sourced sentence about wha
 a financial instrument pays, or whether an investment is safe, costs something
 real.
 
-And it is the *same* failure. A loosely related passage, dressed up as a
-confident answer with a genuine-looking citation, is exactly what neither the
-plain agent nor the after-the-fact check can catch — and exactly what does damage
-here. When the consequences change like that, "the prompt asks the model to
-search" stops being good enough. The request has to become a rule the code
-enforces.
+And it is the *same* failure: a loosely related passage, presented as a confident
+answer and carrying a real citation. Neither the plain agent nor the
+after-the-fact check detects it, for the reason the previous section gave —
+nothing compares the answer against the passage. In this domain that is the
+failure that does damage. Once the consequences change, "the system prompt asks
+the model to search" is no longer sufficient: the request has to become a rule
+the code enforces.
 
 **A note on the language.** This demo is an Argentine finance wiki, so its pages,
 its questions and its answers are in Spanish, and they are quoted below exactly
@@ -599,7 +632,7 @@ The two tiers are named in Spanish in the code: **Tier 1 *curado*** means
 document, which is why only that tier gets verified afterwards and carries a
 warning.
 
-Two things about this chain are easy to miss when reading the code once.
+Three things about this chain are easy to miss when reading the code once.
 
 **Two of the five outcomes never reach the model at all.** A refusal costs
 nothing: no prompt, and no **completion** — the model's generated reply, which is
@@ -662,10 +695,11 @@ curated page and put its text into the prompt (`preretrieval.retrieve_wiki` →
 `_INJECT_TEMPLATE`). The model's only job was to write prose using the text it
 was handed, not to decide what to look for.
 
-That is the whole point. Searching is not a tool the model can choose to skip,
-so it cannot skip it by accident. The agent from Part 1 *could* have answered
-this question correctly by calling `search_wiki_fts` itself — but "could" is the
-weak word there, and this design removes it for the common case.
+That is the point of this position. Retrieval is no longer a tool call the model
+may or may not make, so it cannot be omitted. The agent in Part 1 was perfectly
+capable of answering this question correctly by calling `search_wiki_fts` on its
+own — but whether it did so on any given run was determined by the model, not by
+the code. Here it is determined by the code.
 
 #### 2. In scope, but not covered
 
@@ -678,25 +712,28 @@ completion, no token spent. The `docs=0` is not "the search came back empty";
 it's that the raw-source search never ran at all. Looking at
 `preretrieval.pre_retrieval_answer`, `retrieve_source_chunks` is only called when
 `wiki_hits` is empty **and** `in_roster` is true — and here `in_roster` is false,
-so the raw-source lookup is skipped outright. There is no tangential source
-fragment sitting around for a leaky prompt to dress up as a general-knowledge
-answer, because the code never went looking for one.
+so the raw-source lookup is skipped outright. No tangentially matching fragment
+is available, because the code never retrieved one — and with no retrieved
+fragment, there is nothing an answer drawn from the model's own knowledge could
+be attributed to.
 
 This is the fix for what the contract calls the **CEDEARs leak** (§3). CEDEARs
 are Argentine certificates representing shares in foreign companies; the wiki has
 pages about them, and a question about some *other* instrument would share enough
-vocabulary with those pages to score a lexical hit. That tangential match used to
-be enough to smuggle the model's general knowledge past the wiki-only
-instruction — the answer looked sourced, and was not. Gating Tier 2 on the
-roster rather than on the hit count closes that path before the model ever sees
-the question.
+vocabulary with those pages to score a lexical hit. That tangential match was
+previously enough to satisfy the gate: the fragment was injected, the model
+answered from its own general knowledge, and the answer carried a citation to a
+page that did not support it. Gating Tier 2 on the roster rather than on the hit
+count removes that path before the model is ever called.
 
 #### 3. Off topic
 
 *"¿Cuál es la capital de Francia?"* — *what is the capital of France?*
 
-The most instructive row in the whole appendix, and the one that most directly
-earns the thesis: `off_limits=False`, `data=False`, `roster=False` — but
+This is the most instructive row in the whole appendix, and the clearest evidence
+for the claim this document has been building — that coverage has to be decided
+by something other than the number of search hits.
+`off_limits=False`, `data=False`, `roster=False` — but
 `wiki=6`. The full-text query genuinely matched 6 fragments in the curated wiki
 (some word shared between the question and unrelated financial prose). If the
 plan were driven by the hit count alone, this would be Tier 1: inject those 6
