@@ -53,10 +53,16 @@ Those three are what this document calls the **positions** — the position bein
 where the checking code sits relative to the model's run. They are named
 *never*, *afterwards* and *before*, and they are the next three paragraphs.
 
-**Never.** Hand the model the search tools and trust it. (A *tool* is simply a
-function the model is allowed to call — it asks for a search, the code runs it,
-and the results come back into the conversation. [Part 1](#part-1--the-model-decides-what-to-look-up)
-lists the three this project provides.) The model decides what to look for, when
+They also determine how this document is divided. **Part 1** covers *never* and
+*afterwards*: both leave the searching to the model, and differ only in whether
+code inspects the result. **Part 2** covers *before*, where code does the
+searching.
+
+**Never.** Hand the model the search tools and trust it. (A *tool* is a function
+the model is allowed to call: it asks for a search, the code runs it, and the
+results come back into the conversation. This project provides three, listed at
+the start of [Part 1](#part-1--the-model-decides-what-to-look-up).) The model
+decides what to look for, when
 it has seen enough, and what to say. This handles the widest range of questions
 and gives you no guarantees at all.
 
