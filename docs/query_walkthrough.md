@@ -85,10 +85,37 @@ is cited, but not that the cited page says what the answer claims. A model that
 searched, got three fragments back, and then wrote a sentence none of them
 support passes every check here.
 
-Checking that is a different kind of test — comparing the answer's words against
-the source's — and the project already has the machinery for it
-(`chat/overlap.py`, used today on a different path). Whether to wire it in here
-is [open](../ROADMAP.md).
+A test that compared the answer against the source would be a different kind of
+test, and the project contains one: `chat/overlap.py`. It computes *coverage* —
+the fraction of the answer's content words that also occur in the source text —
+and rejects the answer when coverage falls below a deliberately low threshold.
+In the answering path it runs in one place, described in Part 2: when an answer
+was written from a single fragment of a raw document, that answer is compared
+against that fragment before the user sees it
+(`preretrieval.py:354`). The lint pass uses the same function for an unrelated
+purpose: comparing a source document's fragments against the wiki pages built
+from it, to find documents whose content largely failed to reach any page
+(`lint/checks.py:486`).
+
+It is not applied in this position, for two reasons.
+
+**It needs one identified source to compare against.** In the case where it runs,
+the code injected exactly one fragment and knows the answer can have come from
+nowhere else. Here the model chose what to read, the conversation may contain
+several tool returns, and nothing records which return any given sentence came
+from. Comparing the answer against all of them concatenated raises coverage
+mechanically, because the more text on the right-hand side, the more of the
+answer's words are found in it.
+
+**It measures a different failure.** Coverage asks whether the answer draws on
+the source. It does not ask whether the source answers the question. The Snow
+White example below is a faithful narration of the fragment it cites — the
+fragment does describe the dwarfs finding Snow White on the floor — so its
+coverage would be high and this test would accept it. What went wrong there is
+that the fragment is not about the ending, and no word-comparison detects that.
+
+Both problems are recorded in [`ROADMAP.md`](../ROADMAP.md), which also states
+what a test of the second kind would require.
 
 **Before.** Have code do the searching — the same SQLite full-text index the
 ingestion walkthrough built, no embeddings involved — and decide from what it
