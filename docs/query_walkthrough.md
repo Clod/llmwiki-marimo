@@ -183,6 +183,32 @@ of documents and nothing else, which ships with pre-retrieval **unticked**. Part
 with it **ticked**. That the two demos ship on different settings is the argument
 of this document in miniature.
 
+**Where "ships with" lives.** It is three lines in the wiki's own
+`wiki_config.toml`, next to the vocabulary lists the ingestion walkthrough
+covered:
+
+```toml
+[pre_retrieval]
+enabled = true
+```
+
+`finanzas-argentinas` has that block; `fairy-tales` has no `[pre_retrieval]`
+section at all, and its absence is the default —
+`config.py:225` reads `data.get("pre_retrieval", {}).get("enabled", False)`, so a
+wiki that never heard of the setting gets the agentic path. Nothing else in the
+file changes: the same wiki, with that one block deleted, answers through
+the model's own searching instead.
+
+The checkbox is seeded from it every time you switch wikis, and un-ticking it
+overrides the file for that session only — the file is read, never written.
+
+**Strict mode is not configurable this way**, which is worth knowing before you
+go looking. There is no TOML key for it: it starts `True`
+(`marimo/read_app_tabs.py:372`) for every wiki, and the only way to change it is
+the checkbox. The asymmetry is deliberate — whether a wiki knows its own
+coverage well enough to gate on it is a property of that wiki, while "audit the
+answer before showing it" is a default nobody should have to opt into.
+
 If you are building the ordinary kind of wiki, **Part 1 is the whole document for
 you** — Part 2 describes a setting you have no reason to turn on, on a corpus you
 do not have.
