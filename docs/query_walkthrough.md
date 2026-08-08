@@ -214,9 +214,19 @@ flowchart TD
 | **Strict mode** only *(the default for a wiki that does not enable pre-retrieval)*<br>→ ***afterwards*** | *Let it work, then audit it.* The model researches however it likes; code refuses to show an answer it cannot see any evidence behind. | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
 | neither<br>→ ***never*** | *Trust the model.* Whatever it produces is what the user reads. | the model | nothing | **streamed** straight from the agent |
 
-One note on the labels. The checkbox reads, in full, "Strict mode: answer only
-from wiki sources". Ticking **Pre-retrieval supersedes it**: its own flow is
-already gated, so the after-the-fact check has nothing left to add.
+**What the two labels say, and why one of them overrides the other.** The first
+checkbox reads "Strict mode: answer only from wiki sources"; the second reads
+"Pre-retrieval: code retrieves from the wiki (supersedes strict mode)". That
+precedence is literal in the code: the pre-retrieval branch answers and returns
+before the strict branch is reached (`read_app_tabs.py:443` and `:465`), so with
+pre-retrieval ticked, `enforce_grounding` and `ensure_citation` never run,
+whatever the strict checkbox shows.
+
+The reason they are not needed there is that the pre-retrieval path has already
+done more than they check for. It refused the question outright if the wiki does
+not cover it, and it chose the passages itself instead of leaving the model to
+search — so a check asking "did any tool return content?" has nothing left to
+decide.
 
 **Which row you start on depends on the wiki.**
 `marimo/read_app_tabs.py:372` initialises `grounding_flag = {"strict": True,
