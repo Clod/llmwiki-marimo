@@ -292,8 +292,13 @@ about all of them, or about the collection as a whole — because it is holding 
 search tool and can go and find out.
 
 The `fairy-tales` demo suggests four questions to new users, and all four are of
-that kind: *What tales are in this wiki?* · *Summarize the plot of each tale* ·
-*What characters and themes do the tales share?* · *Compare how each story ends*.
+that kind: 
+
+1. *What tales are in this wiki?*
+2. *Summarize the plot of each tale* ·
+3. *What characters and themes do the tales share?* ·
+4. *Compare how each story ends*.
+
 Not one of them names a specific topic. All four are normal things to ask an
 encyclopedia, and all four need an agent that is free to look around.
 
@@ -309,23 +314,27 @@ what the model does when no code is watching. The full transcripts are in the
 [appendix](query_walkthrough_appendix.md#the-unticked-mode-answering-live-model);
 what matters here is what the model chose to do.
 
-**The range, demonstrated.** *What characters and themes do the tales share?* is
+**Run 1, the synthesis — the range, demonstrated.** *What characters and themes
+do the tales share?* is
 a question no single page in the wiki answers, and the agent went and built the
 answer itself: three `search_wiki_fts` calls and eight `read_wiki_page` calls —
 **eleven tool calls in one turn** — ending in a comparison of the stepmothers in
 Cinderella and Snow White, with a citation on each claim. Nothing in the code
 planned any of that.
 
-**A citation simply missing.** *What tales are in this wiki?* took a single
+**Run 2, the inventory — a citation simply missing.** *What tales are in this
+wiki?* took a single
 `read_wiki_page` and produced a correct, complete inventory of three tales and
 their concepts — **carrying no citation at all**, in a wiki whose system prompt
 says citations are "mandatory, not optional" and that every factual statement
 must carry one. The answer happens to be right; the point is that its being right
 is not something the model established.
 
-**And the failure no amount of checking catches, in the open.** *Compare how each
-story ends* went seven calls deep, exhausted the curated pages, and fell through
+**Run 3, Snow White — the failure no amount of checking catches, in the open.**
+*Compare how each story ends* went seven calls deep, exhausted the curated pages, and fell through
 to `search_source_chunks` three times. What came back:
+
+The answer came back as a table, one row per tale. This is the Snow White row:
 
 > | Snow White | The wicked Queen is initially happy believing she is the
 > fairest, but the Seven Dwarfs find Snow White dead on the floor, suggesting a
@@ -337,12 +346,24 @@ at simply is not the ending. This is the whole risk in one sentence: a raw
 fragment retrieved for a question it does not answer, narrated confidently, and
 **stamped with a citation that makes it look grounded**.
 
-The same answer gets Cinderella right, citing the curated page
-`wiki/summaries/cinderella.md`, and declines honestly on Little Red Riding
-Hood — *"I couldn't find that in your wiki."* That mixture is what makes the Snow
-White row instructive rather than merely wrong. The model is not being reckless,
-and it is not incapable of saying no. It found something, and something is not
-the same as the answer.
+**The other two rows of that same table came out differently, and the difference
+is visible in what each one cites.** Cinderella is correct, and it cites
+`wiki/summaries/cinderella.md` — a wiki page, written during ingestion by a model
+that had the whole tale in front of it. Little Red Riding Hood is not answered at
+all: *"I couldn't find that in your wiki."* Snow White is the only row citing a
+raw PDF page, and the only row that is wrong.
+
+One answer is a pattern, not a proof, but it is the pattern the rest of this
+document is about. A wiki page has already been read and summarised by something
+that saw the entire document. A raw fragment is a few hundred words that matched
+the query, and *matching* is not *answering* — nothing between the search and the
+sentence checked which one it was. The row that went wrong is the row where the
+agent had run out of pages and started reading source text.
+
+That mixture — one right, one refused, one wrong — is what makes this run
+instructive rather than merely bad. The model is not being reckless, and it is
+not incapable of saying no: it said no about Little Red Riding Hood in the same
+answer. It found something, and something is not the same as the answer.
 
 ### What the default configuration does to those same three answers
 
@@ -374,14 +395,16 @@ exclusion is deliberate. Asking "what have you got on Cinderella?" and being
 handed five titles is not the same as reading one of them; crediting all five
 would make the answer look better sourced than it is.
 
-Applied to the three runs above — these are the values the capture measured, not
-a hand-derivation:
+So: run those same two functions over runs 1, 2 and 3 — the three transcripts
+from the section above, unchanged — and this is what the default configuration
+would have shown the user instead. The capture script measures these values; none
+of them is derived by hand.
 
-| | what the raw model produced | what `Strict mode` does to it |
+| The run | what the raw model produced | what `Strict mode` does to it |
 |---|---|---|
-| the inventory | correct, **no citation** | a tool returned real content, so the answer stands — and the page it opened is appended: **`Referencia: index.md`**. The failure is repaired. |
-| the synthesis | 11 tool calls, cited inline | grounded, and it already names the pages it read. **Leaves it exactly as it is.** |
-| Snow White | a mid-tale passage narrated as the ending, **with a real citation** | the searches returned real text, so `has_grounding` is true; the answer already names a page it read, so nothing is appended. **Leaves it exactly as it is.** |
+| **1 · the synthesis**<br>*What characters and themes do the tales share?* | 11 tool calls, cited inline | grounded, and it already names the pages it read. **Leaves it exactly as it is.** |
+| **2 · the inventory**<br>*What tales are in this wiki?* | correct, **no citation** | a tool returned real content, so the answer stands — and the page it opened is appended: **`Referencia: index.md`**. The failure is repaired. |
+| **3 · Snow White**<br>*Compare how each story ends* | a mid-tale passage narrated as the ending, **with a real citation** | the searches returned real text, so `has_grounding` is true; the answer already names a page it read, so nothing is appended. **Leaves it exactly as it is.** |
 
 The last row is worth pausing on, because it nearly went the other way. Nothing
 is appended only because the model happened to cite
