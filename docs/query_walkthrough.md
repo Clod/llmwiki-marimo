@@ -132,7 +132,10 @@ boxes, because one overrides the other. Tick **Pre-retrieval** and you get
 between *afterwards* (ticked — and it is ticked by default) and *never*.
 
 Every transcript below is a consequence of how those two were set, which is why
-they come before any of them.
+they come before any of them. Twice over: the diagram traces how a question is
+routed, and **the table under it puts the three positions side by side** — what
+each one is for, who chooses what gets read, what you are actually guaranteed,
+and the function that does it.
 
 ```mermaid
 flowchart TD
@@ -160,11 +163,11 @@ flowchart TD
     style C3 fill:#fdeaea,stroke:#a33
 ```
 
-| | The idea, in one sentence | Who decides what to look up | What code guarantees | Where it is |
+| Checkboxes → position | The idea, in one sentence | Who decides what to look up | What code guarantees | Where it is |
 |---|---|---|---|---|
-| **Pre-retrieval** ticked | *Know what you cover.* If the question is not about something this wiki holds, do not spend a model call on it — and when it is, hand the model the relevant pages rather than let it hunt for them. | code, via SQLite full-text search | the wiki's coverage decides whether the model is called at all | `preretrieval.pre_retrieval_answer` |
-| **Strict mode** only *(the default)* | *Let it work, then audit it.* The model researches however it likes; code refuses to show an answer it cannot see any evidence behind. | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
-| neither | *Trust the model.* Whatever it produces is what the user reads. | the model | nothing | **streamed** straight from the agent |
+| **Pre-retrieval** ticked<br>→ ***before*** | *Know what you cover.* If the question is not about something this wiki holds, do not spend a model call on it — and when it is, hand the model the relevant pages rather than let it hunt for them. | code, via SQLite full-text search | the wiki's coverage decides whether the model is called at all | `preretrieval.pre_retrieval_answer` |
+| **Strict mode** only *(the default)*<br>→ ***afterwards*** | *Let it work, then audit it.* The model researches however it likes; code refuses to show an answer it cannot see any evidence behind. | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
+| neither<br>→ ***never*** | *Trust the model.* Whatever it produces is what the user reads. | the model | nothing | **streamed** straight from the agent |
 
 One note on the labels. The checkbox reads, in full, "Strict mode: answer only
 from wiki sources". Ticking **Pre-retrieval supersedes it**: its own flow is
