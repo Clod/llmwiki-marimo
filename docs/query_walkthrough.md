@@ -99,13 +99,17 @@ from it, to find documents whose content largely failed to reach any page
 
 It is not applied in this position, for two reasons.
 
-**It needs one identified source to compare against.** In the case where it runs,
-the code injected exactly one fragment and knows the answer can have come from
-nowhere else. Here the model chose what to read, the conversation may contain
-several tool returns, and nothing records which return any given sentence came
-from. Comparing the answer against all of them concatenated raises coverage
-mechanically, because the more text on the right-hand side, the more of the
-answer's words are found in it.
+**It assumes one identified source.** In the case where it runs, the code
+injected exactly one fragment, and the answer can have come from nowhere else.
+Here the model chose what to read, the conversation may hold several tool
+returns, and nothing records which return a given sentence came from. Reusing
+the function unchanged would mean comparing the answer against all of them
+joined together, and that does not work: the more text on the right-hand side,
+the more of the answer's words occur in it, so coverage rises without the answer
+being any better supported. The established alternative is to score each
+sentence against each passage separately and keep the highest score, which
+avoids that effect. So this is an obstacle to reusing the existing function, not
+a reason the check cannot be built.
 
 **It measures a different failure.** Coverage asks whether the answer draws on
 the source. It does not ask whether the source answers the question. The Snow
@@ -114,8 +118,10 @@ fragment does describe the dwarfs finding Snow White on the floor — so its
 coverage would be high and this test would accept it. What went wrong there is
 that the fragment is not about the ending, and no word-comparison detects that.
 
-Both problems are recorded in [`ROADMAP.md`](../ROADMAP.md), which also states
-what a test of the second kind would require.
+The failure the second paragraph describes — a passage that does not answer the
+question — is normally addressed at retrieval time rather than after the answer
+exists, which is the position Part 2 takes. [`ROADMAP.md`](../ROADMAP.md) records
+both problems and the established techniques for each.
 
 **Before.** Have code do the searching — the same SQLite full-text index the
 ingestion walkthrough built, no embeddings involved — and decide from what it

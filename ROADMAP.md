@@ -188,10 +188,68 @@ The gate asks *did I find anything?* rather than *does what I found answer
 this?* — the same distinction that made the stop-word defect possible one level
 down. Deliberate as a safety property (a question about an uncovered subject
 must not be able to pull a tangential fragment as cover) but the effect on reach
-looks like a consequence rather than a decision. The machinery to judge fit
-already exists in `chat/overlap.py`, used today to verify fallback answers
-*after* they are produced. No change proposed yet; the trade needs measuring
-first.
+looks like a consequence rather than a decision.
+
+`chat/overlap.py` does not answer this question, although it runs on that same
+path. It measures whether the answer draws on the fragment, not whether the
+fragment answers the question — a faithful narration of an irrelevant passage
+scores high. Judging fit requires one of the techniques in the entry below. No
+change proposed yet; the trade needs measuring first.
+
+**Verifying an answer against its source: the established techniques.** Two
+distinct problems are involved, and this project currently addresses neither.
+They are recorded together because the entry above and
+[`docs/query_walkthrough.md`](docs/query_walkthrough.md#the-question-this-document-answers)
+both refer to them.
+
+*Problem 1 — which passage supports which sentence.* `overlap.is_supported`
+takes one answer and one source. Where it runs, the code injected exactly one
+fragment, so there is nothing to attribute. In the agentic path the model chose
+what to read and several tool returns may exist, with no record of which one a
+sentence came from. Joining them and comparing against the whole does not work:
+coverage rises with the length of the right-hand side. The established approach
+is to score each sentence against each passage independently and keep the
+highest score. The stronger variant is to record attribution during generation —
+require a citation per claim naming the passage — which is what the **ALCE**
+benchmark (Gao et al., 2023) evaluates, using entailment to compute citation
+precision and recall.
+
+*Problem 2 — whether the passage answers the question.* Two families, differing
+in where they act:
+
+| What is verified | Technique | Acts |
+|---|---|---|
+| the answer follows from the passage | **textual entailment (NLI)**: the pair (premise = passage, hypothesis = sentence) is classified as entailed / neutral / contradicted. DeBERTa-v3-MNLI, AlignScore, MiniCheck, Vectara HHEM | after the answer |
+| the passage is relevant to the question | **cross-encoder reranking**: the pair (question, passage) is scored by a model that reads both together. monoT5, BGE-reranker, Cohere Rerank | at retrieval |
+
+The Snow White failure written up in the query walkthrough is the second kind,
+not the first: the fragment is described accurately and the answer narrates it
+faithfully; what fails is that the fragment is not about the ending. Reranking
+at retrieval addresses it. A post-hoc verifier does not.
+
+Costlier families, for completeness: atomic-claim decomposition and per-claim
+verification (**FactScore**, **SAFE**, Chain-of-Verification), and
+model-as-judge with a rubric (**RAGAS** faithfulness and context
+precision/recall, the **TruLens** RAG triad, **DeepEval**, **Arize Phoenix**).
+
+**What adopting any of them costs here.** All are models producing a score
+against a threshold, not a branch in Python. Two consequences specific to this
+project:
+
+- The document argues that the *before* position gives guarantees because no
+  decision is left to a model. An NLI verifier or a reranker puts a model back
+  into that chain. NLI models are small, run locally and are deterministic at
+  temperature zero, so the claim survives with qualification — but the wording
+  has to change.
+- Embeddings were refused for retrieval. A cross-encoder is also a neural model,
+  though a different one: it reads question and passage together instead of
+  comparing vectors. Adopting it is an explicit exception to that decision, not
+  a continuation of it.
+
+**Where to put them first.** `base/domain/eval/` already holds a rubric and an
+LLM judge, with `graders.py` as its deterministic pre-screen. RAGAS-style
+metrics or an NLI verifier belong there as offline measurement. Only with that
+measurement in hand is there a basis for moving one into the answering path.
 
 **The coverage gate matches page titles literally.** With pre-retrieval enabled,
 whether a wiki answers a question depends on whether one of its concept-page
