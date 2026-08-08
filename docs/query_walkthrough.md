@@ -319,15 +319,31 @@ reproduce it for the cost of a SQLite query.
 `scripts/capture_query_walkthrough.py --plan-only` captures this half alone — no
 model client is even constructed.
 
-**The answers.** These need a live model, and they vary in wording from run to run: different
-phrasing, different ordering of a table's ties, occasionally a different sentence
-structure. Read them for *behaviour* — does it cite? does it refuse? does it call
-the tool it should? — never for exact prose. That is also why this document
-quotes them instead of summarising them. Both alternatives are worse: describing
-an answer in my own words asserts something the next regeneration may quietly
-contradict, and reprinting the appendix in full would bury the one line each
-quote exists to make. A quote is the smallest excerpt that still comes from the
-capture rather than from me.
+**The answers.** These require a live model, and their wording varies from one
+run to the next: different phrasing, a different order among rows that rank
+equally, sometimes a different sentence structure. Read them for what the model
+did — whether it cited a source, whether it refused, which tools it called — and
+not for the exact words, which the next capture will change.
+
+The same variation determines how this document reports them. Take Act 7, where
+the model is asked what it would earn on YPF shares. Two ways of reporting what
+came back:
+
+- **Described:** the model explained that a return on shares cannot be
+  estimated in advance.
+- **Quoted:** *"No es posible estimar cuánto ganarías con acciones de YPF, ya
+  que las acciones son un instrumento de renta variable…"*
+
+The description is not in the appendix — no search of that file finds those
+words, so a reader cannot confirm it, and neither can a test. Worse, it survives
+being wrong: if a later capture had the model refuse the question outright
+instead of explaining the limit, the description would still read as plausible
+while no longer matching anything. The quotation would fail to match, and the
+mismatch would be visible.
+
+Reproducing the whole appendix instead would put every line that matters inside
+pages of material unrelated to it. Quoting is the option between the two: the
+shortest form a reader can still find, word for word, in the capture.
 
 There is one hybrid case, and it is flagged where it appears. The table in [What
 the default configuration does to those same three
