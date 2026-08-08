@@ -211,15 +211,20 @@ flowchart TD
 | Checkboxes → position | The idea, in one sentence | Who decides what to look up | What code guarantees | Where it is |
 |---|---|---|---|---|
 | **Pre-retrieval** ticked<br>→ ***before*** | *Know what you cover.* If the question is not about something this wiki holds, do not spend a model call on it — and when it is, hand the model the relevant pages rather than let it hunt for them. | code, via SQLite full-text search | the wiki's coverage decides whether the model is called at all | `preretrieval.pre_retrieval_answer` |
-| **Strict mode** only *(the default)*<br>→ ***afterwards*** | *Let it work, then audit it.* The model researches however it likes; code refuses to show an answer it cannot see any evidence behind. | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
+| **Strict mode** only *(the default for a wiki that does not enable pre-retrieval)*<br>→ ***afterwards*** | *Let it work, then audit it.* The model researches however it likes; code refuses to show an answer it cannot see any evidence behind. | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
 | neither<br>→ ***never*** | *Trust the model.* Whatever it produces is what the user reads. | the model | nothing | **streamed** straight from the agent |
 
 One note on the labels. The checkbox reads, in full, "Strict mode: answer only
 from wiki sources". Ticking **Pre-retrieval supersedes it**: its own flow is
-already gated, so the after-the-fact check has nothing left to add. The default
-is the middle row — `grounding_flag = {"strict": True, "pre_retrieval": False}` in
-`marimo/read_app_tabs.py`, with the pre-retrieval box re-seeded per wiki from
-that wiki's `wiki_config.toml`.
+already gated, so the after-the-fact check has nothing left to add.
+
+**Which row you start on depends on the wiki.**
+`marimo/read_app_tabs.py:372` initialises `grounding_flag = {"strict": True,
+"pre_retrieval": False}`, but that is only the state before a wiki is loaded.
+Selecting one re-seeds the pre-retrieval box from that wiki's `wiki_config.toml`
+(line 532); strict mode has no such key and always starts ticked. So a wiki
+whose configuration does not enable pre-retrieval opens on the middle row, and
+one that enables it opens on the first.
 
 **The corpus follows the setting.** Part 1 runs on `examples/fairy-tales`, a wiki
 of documents and nothing else, which ships with pre-retrieval **unticked**. Part
