@@ -132,9 +132,9 @@ none of that covers is the model writing a *different* number into the sentences
 around the table. The system prompt asks it not to. Nothing checks.
 
 Unlike the fit check below, this one is exactly checkable. Numbers are a closed
-class and compare exactly, where a paraphrase does not, and the authoritative
-set already exists typed rather than scraped — `DatasetRow.valor`, plus the
-figures in the computed advisory block. The shape is the one `postprocess.py`
+class and compare exactly, where a paraphrase does not, and the figures the tools
+returned are already held as typed values rather than as text to be parsed back
+out — `DatasetRow.valor`, plus the figures in the computed advisory block. The shape is the one `postprocess.py`
 already uses: a pure function over the run's message log, reading `ToolReturnPart`
 contents.
 

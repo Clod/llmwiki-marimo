@@ -153,17 +153,18 @@ any of the three positions above: it applies to wikis that have a `datasets/`
 folder, and `fairy-tales` — the wiki behind every transcript in Part 1 — has
 none, so nothing of this appears until
 [Part 2, Act 6](#6-deterministic-advisory). Second, what the code guarantees is
-that the authoritative figures *reach* the user; that the model does not also
+that the figures read out of the data files *reach* the user; that the model does not also
 write an invented number into its own sentences is asked for in the system
 prompt, and today nothing checks it.
 
-That gap is closable, and worth saying so rather than leaving it sounding
-inherent. Numbers are the one class of claim that compares exactly — the
-authoritative set already exists typed, not scraped — so code could read the
-figures out of the model's prose and reject any that the tools did not produce.
-What stops it is not the check but a decision about rounding: the data says
-`1187.5`, the model writes "about 1,200", and that is good prose rather than an
-invention. [Open, with the trade written out](../ROADMAP.md).
+That gap can be closed. Numbers are the one class of claim that compares
+exactly, and the figures the tools returned are already held as typed values
+rather than as text that would have to be parsed back out, so code could extract
+the figures from the model's prose and reject any the tools did not produce. What prevents it is not the check but an
+unresolved decision about rounding: the data says `1187.5`, the model writes
+"about 1,200", and that is correct prose rather than an invention.
+[`ROADMAP.md`](../ROADMAP.md) records the design and the two decisions it waits
+on.
 
 ## The two checkboxes
 
