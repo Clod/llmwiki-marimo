@@ -353,17 +353,26 @@ anything. Both are pure functions of the run's own message history, so their
 effect on these exact three answers can be worked out without asking the model
 anything again — and the capture script now records it alongside each transcript.
 
-**`guardrail.enforce_grounding`** asks one question: did *any* tool in this run
-return something substantive — not empty, and not one of the tools' own
-"nothing found" messages? If not, the answer is thrown away and replaced
-wholesale with the refusal. As its own docstring puts it, a system prompt "can
-ASK the model to answer only from the wiki, but it cannot GUARANTEE it."
+**`guardrail.enforce_grounding` asks: did this run look anything up?** It goes
+through the tool calls looking for one that came back with actual content — an
+empty result does not count, and neither does a tool's own polite "nothing
+found". If none did, the model's answer is not edited or flagged, it is thrown
+out and the refusal is shown in its place. The function's docstring says why it
+has to exist at all: a system prompt "can ASK the model to answer only from the
+wiki, but it cannot GUARANTEE it."
 
-**`postprocess.ensure_citation`** collects the sources the run *deliberately
-used* — the wiki pages actually opened with `read_wiki_page`, the dataset files
-actually queried — and appends a `Referencia:` (*reference*) line if the answer
-does not already carry that attribution. Pages that merely turned up in a search are
-excluded on purpose: searching is not the same as using.
+**`postprocess.ensure_citation` asks: does the answer say where it came from?**
+It lists what the run actually used — pages opened with `read_wiki_page`,
+datasets queried with `query_dataset` — and if the answer names none of them, it
+adds a line at the bottom. Two labels, chosen independently, because there are
+two different things to credit: `Referencia:` for something inside the wiki (the
+page, the dataset file), `Fuente:` for where a dataset's figures originally came
+from. An answer can end up with both.
+
+A page that merely showed up in a search result does not count as used, and that
+exclusion is deliberate. Asking "what have you got on Cinderella?" and being
+handed five titles is not the same as reading one of them; crediting all five
+would make the answer look better sourced than it is.
 
 Applied to the three runs above — these are the values the capture measured, not
 a hand-derivation:
