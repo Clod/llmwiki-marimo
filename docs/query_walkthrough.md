@@ -124,14 +124,17 @@ exists, which is the position Part 2 takes. [`ROADMAP.md`](../ROADMAP.md) record
 both problems and the established techniques for each.
 
 **Before.** Have code do the searching — the same SQLite full-text index the
-ingestion walkthrough built, no embeddings involved — and decide from what it
-finds whether this wiki covers the question at all. If it does not, refuse without ever
-calling the model. If it does — the ordinary case — call the model as usual, but
-with the retrieved pages already sitting in its context and no search tools of
-its own: it still writes the answer, it just never chose what to read. This
-gives you guarantees, and you pay for them by answering fewer questions: one
-that mentions nothing the wiki knows about is turned away, even when a search
-would have found something.
+ingestion walkthrough built, no embeddings involved — and then decide whether
+this wiki covers the question. The search result is not what decides it. The
+code also reads two lists the wiki carries: one names topics it must refuse
+outright and is checked before any search runs; the other names the subjects it
+does cover, together with the alternate names people use for them, and a
+question naming none of them is refused even when the search returned matches.
+If the question is not covered, the model is never called. If it is — the
+ordinary case — the model is called as usual, but with the retrieved pages
+already in its context and no search tools of its own: it still writes the
+answer, it just never chose what to read. This gives you guarantees, and you pay
+for them by answering fewer questions.
 
 None of the three is a broken version of the others. Each is a real choice with a
 real cost, and this document is arranged so you can disagree with me about which
