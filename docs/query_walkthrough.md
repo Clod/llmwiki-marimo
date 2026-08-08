@@ -168,17 +168,19 @@ on.
 
 ## The two checkboxes
 
-Those three positions are not a taxonomy invented for this document: they are
-**two checkboxes** in the read app's chat panel. Three positions out of two
-boxes, because one overrides the other. Tick **Pre-retrieval** and you get
+Those three positions are not a classification written for this document. Each
+one is a setting you can select in the running application: **two checkboxes**
+in the read app's chat panel. Three positions out of two boxes, because one
+overrides the other. Tick **Pre-retrieval** and you get
 *before*, whatever else is set. Leave it unticked, and **Strict mode** chooses
 between *afterwards* (ticked — and it is ticked by default) and *never*.
 
-Every transcript below is a consequence of how those two were set, which is why
-they come before any of them. Twice over: the diagram traces how a question is
-routed, and **the table under it puts the three positions side by side** — what
-each one is for, who chooses what gets read, what you are actually guaranteed,
-and the function that does it.
+Every transcript in this document was produced with these two checkboxes in one
+particular state, so the checkboxes are explained before any transcript appears.
+Two views of them follow. The diagram shows how a question is routed under each
+setting. The table below the diagram compares the three positions: what each one
+is for, who decides what gets read, what the code guarantees, and which function
+implements it.
 
 ```mermaid
 flowchart TD
