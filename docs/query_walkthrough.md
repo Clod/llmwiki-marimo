@@ -474,17 +474,33 @@ that had the whole tale in front of it. Little Red Riding Hood is not answered a
 all: *"I couldn't find that in your wiki."* Snow White is the only row citing a
 raw PDF page, and the only row that is wrong.
 
-One answer is a pattern, not a proof, but it is the pattern the rest of this
-document is about. A wiki page has already been read and summarised by something
-that saw the entire document. A raw fragment is a few hundred words that matched
-the query, and *matching* is not *answering* — nothing between the search and the
-sentence checked which one it was. The row that went wrong is the row where the
-agent had run out of pages and started reading source text.
+This is a single answer, so it shows a pattern rather than proving one. But it is
+the pattern the rest of this document is about. A wiki page has already been read
+and summarised by a model that had the whole document in front of it. A raw
+fragment is a few hundred words that matched the query — and matching is not
+answering. Nothing between the search and the sentence checked which of the two
+it was. The row that went wrong is the row where the agent had exhausted the
+pages and started reading source text.
 
 That mixture — one right, one refused, one wrong — is what makes this run
 instructive rather than merely bad. The model is not being reckless, and it is
 not incapable of saying no: it said no about Little Red Riding Hood in the same
 answer. It found something, and something is not the same as the answer.
+
+**A source that declared its own structure would have caught this one.** What
+makes the Snow White row undetectable is that nothing in this system compares a
+statement against anything except the words it was retrieved from — and those
+words do support it. But the question asked how the tale *ends*, and the
+fragment came from the middle. Had the source carried headings — an
+introduction, a middle, an ending — the fragment would have arrived labelled
+with the section it came from, and a fragment from the middle offered as the
+ending is a mismatch code can see.
+
+Note what that requires. Not a declaration of *what* the ending is, which nobody
+is going to write for every tale, but only of *which part* is the ending. The
+[section on structured sources](#what-structured-sources-make-checkable) covers
+both this and the stronger form, where declared fields let an answer be
+contradicted outright.
 
 ### What the default configuration does to those same three answers
 
@@ -1130,6 +1146,33 @@ That is a narrower problem than the one recorded in
 [`ROADMAP.md`](../ROADMAP.md), which is about matching prose figures against a
 set of authorised values, because a recomputed number needs no set to match
 against.
+
+**A weaker declaration buys something too, and it is nearly free.** Everything
+above declares *facts*: a field states that an instrument is low-risk. A source
+can instead declare only its own *shape* — that it has an introduction, a middle
+and an ending; that a manual has an installation section and a troubleshooting
+one; that a paper follows introduction, method, results, discussion. That says
+nothing about what is true. It says which part of the document a passage came
+from.
+
+The Snow White row is what that catches. The question asked how the tale ends
+and the answer came from the middle of it, which is a mismatch between two
+labels, not a judgement about content.
+
+**The evidence side of this already exists and is unused.** The chunker records
+the heading hierarchy above every fragment in `header_breadcrumb`
+(`ingestion/chunker.py:63`), ingestion stores it on the `document_chunks` row
+(`ingestion/pipeline.py:242`), `search_chunks` returns it
+(`tools/search.py:27`), and `search_wiki_fts` even prints it to the model
+(`chat/wiki_tools.py:118`). Every retrieved fragment already knows which section
+it came from. Nothing compares that against the question.
+
+What is missing is the other half: deciding that *"how does it end"* is a
+question about the ending. That mapping has to come from somewhere — a list
+declared per corpus, in the manner of the alias lists, or a model call — so this
+is not free either. But it needs no domain model, no typed facts and no
+maintenance of values that change: only headings in the source, which many
+corpora already have. Recorded in [`ROADMAP.md`](../ROADMAP.md); nothing is built.
 
 **What it does not reach.** Explanatory claims stay outside. A `riesgo` (Spanish for risk) field can
 contradict *"these are low-risk"*; nothing can check *"because the exchange

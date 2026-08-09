@@ -227,6 +227,31 @@ not the first: the fragment is described accurately and the answer narrates it
 faithfully; what fails is that the fragment is not about the ending. Reranking
 at retrieval addresses it. A post-hoc verifier does not.
 
+**A third route, cheaper than either, when the source declares its own
+structure.** A neural reranker judges relevance by reading question and passage
+together. A document that carries headings has already stated which part it is:
+introduction, method, results; installation, troubleshooting; beginning, middle,
+ending. Comparing *the section a fragment came from* against *the section the
+question asks about* is a string comparison, not a model.
+
+Half of it is built and unused. `chunker.py:63` computes `header_breadcrumb` for
+every chunk, `pipeline.py:242` stores it on the `document_chunks` row,
+`search_chunks` returns it (`tools/search.py:27`), and `wiki_tools.py:118`
+renders it into what the model sees. Every retrieved fragment already carries
+the section it came from; no code compares it with anything.
+
+The missing half is the mapping from a question to a section — deciding that
+"how does it end" is about the ending. Options, in the project's existing idiom:
+a per-corpus declared list, like the alias lists in `wiki_config.toml`; or a
+model call, which reintroduces the cost the route was chosen to avoid. The
+mapping is also the part that fails silently on a corpus whose headings are
+idiosyncratic.
+
+Scope, stated honestly: it applies only where sources are structured, it checks
+*which part* rather than *what is true*, and it does not subsume the entailment
+check above — an answer can quote the right section and still misstate it.
+Nothing is built.
+
 Costlier families, for completeness: atomic-claim decomposition and per-claim
 verification (**FactScore**, **SAFE**, Chain-of-Verification), and
 model-as-judge with a rubric (**RAGAS** faithfulness and context
