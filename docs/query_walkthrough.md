@@ -436,12 +436,20 @@ Cinderella and Snow White, with a citation on each claim. Nothing in the code
 planned any of that.
 
 **Run 2, the inventory — a citation simply missing.** *What tales are in this
-wiki?* took a single
-`read_wiki_page` and produced a correct, complete inventory of three tales and
-their concepts — **carrying no citation at all**, in a wiki whose system prompt
+wiki?* took a single `read_wiki_page` call, on `wiki/index.md` — the page
+ingestion writes to list what the wiki holds — and produced a correct, complete
+inventory of three tales and their concepts — **carrying no citation at all**, in a wiki whose system prompt
 says citations are "mandatory, not optional" and that every factual statement
 must carry one. The answer happens to be right; the point is that its being right
 is not something the model established.
+
+**And nothing happens to it.** In this configuration the answer reaches the user
+exactly as the model wrote it, uncited. That is what the *never* position means:
+the system prompt is the only thing that asked for a citation, a system prompt is
+a request, and the request was not honoured. No code looks at the answer, so
+nothing notices. The [next section](#what-the-default-configuration-does-to-those-same-three-answers)
+takes this same answer and shows what the configuration the app actually ships
+with does with it.
 
 **Run 3, Snow White — the failure no amount of checking catches, in the open.**
 *Compare how each story ends* went seven calls deep, exhausted the curated pages, and fell through
