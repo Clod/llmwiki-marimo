@@ -1032,6 +1032,88 @@ So the system can tell the difference between "I can calculate this"
 (fixed-income instruments, Act 6) and "this cannot be calculated" (shares, here)
 — and it says the second one out loud, instead of quietly declining, or guessing.
 
+### What structured sources make checkable
+
+Act 6 produced a claim of a kind nothing else in this document can verify. Its
+answer carries a second table headed **Renta variable** (*variable income*) —
+*no estimable*, listing the instruments whose gain the system will not project.
+That refusal is not a judgement the model made, and it is not read out of any
+page's prose. It comes from a field: each dataset file declares
+`metodo_calculo`, and a category declaring `no_deterministico` is routed into
+that table by `advisory.py:105` instead of into the ranked one.
+
+It is worth generalising, because it is the one place in this project where a
+*qualitative* statement — this cannot be estimated — is decided by code rather
+than written by a model.
+
+**The schema that makes it possible.** `datasets/<categoria>.md` carries YAML
+front-matter, and `finance_argentina/instrument_attrs.py` is the only module
+that knows what its keys mean:
+
+| Key | Values |
+|---|---|
+| `disponibilidad` | `inmediata` · `a_plazo` |
+| `metodo_calculo` | `interes_simple_vencimiento` · `capitalizacion_diaria` · `no_deterministico` |
+| `plazos_dias` · `monto_minimo` · `moneda` · `metrica_tasa` · `depende_de` | numbers, strings, lists |
+
+The first two are closed enumerations. That is what makes them checkable rather
+than merely present: there is a fixed set of values an answer can be compared
+against.
+
+**What a schema of this kind permits.** None of these checks needs a model, and
+none of them is about attribution:
+
+| Check | Example |
+|---|---|
+| unit | the answer says "1180 dollars" where `unidad` is `ARS` |
+| referential existence | the answer names an instrument no row declares |
+| freshness | the answer says "today" about a row whose `as_of` is six weeks old |
+| range | a figure outside the historical range of that `(categoria, clave, metrica)` series |
+| cross-field invariant | a buy quote above the matching sell quote |
+| declared attribute | the answer calls an instrument low-risk where a `riesgo` field says otherwise |
+
+The last row is the one that carries the argument, and it is hypothetical: there
+is no `riesgo` field today. But adding one means adding a key with an
+enumeration, exactly like `disponibilidad` — and once it exists, *"las cauciones
+son de bajo riesgo"* is as checkable as *"el MEP está a 1180"*. **The boundary is
+not numeric against qualitative. It is declared against undeclared.**
+
+**Half of this already exists, on the input side.**
+`finance_argentina/validator.py` checks each category against a requirements
+manifest before the advisory trusts it: every required metric present, every
+required attribute declared and well typed. A category that fails is excluded
+with a stated reason instead of being guessed at. Nothing does the equivalent on
+the output side — no code compares the model's prose against those same fields.
+
+One case would be nearly free. `formulae.projected_gain` is a pure function used
+today to *produce* the figures in the advisory table. The same function can
+*verify* one: a gain stated in the model's prose can be recomputed and compared.
+That is a narrower problem than the one recorded in
+[`ROADMAP.md`](../ROADMAP.md), which is about matching prose figures against a
+set of authorised values, because a recomputed number needs no set to match
+against.
+
+**What it does not reach.** Explanatory claims stay outside. A `riesgo` (Spanish for risk) field can
+contradict *"these are low-risk"*; nothing can check *"because the exchange
+guarantees settlement"*. And a declared attribute is asserted by whoever wrote
+the dataset, not verified. What it enables is a check that *the answer agrees
+with what this wiki declares* — a real property, and a testable one, but it
+moves the trust to the curation step rather than removing it.
+
+**Why the engine does not do this for you.** The engine stays domain-neutral: a
+`DatasetSource` hands back the front-matter as a plain mapping, and only the
+finance module interprets it. *Buy quote below sell quote* is not a fact about
+wikis. Every check in the table above is domain knowledge that somebody wrote
+down, and `base/domain/finance_argentina/` — 868 lines — is the only instance of
+that in this repository.
+
+This is the trade the whole document has been circling, stated at its most
+general. **The engine's guarantees are formal because they are generic**: they
+hold for any wiki precisely because they examine the shape of a run — was a tool
+called, is a source named, is the subject on the roster — and never its subject
+matter. Verifying what an answer *says* is available too, but only per domain,
+and the price is writing that domain down as a schema.
+
 ### What Part 2 does not show
 
 **Checking a Tier-2 answer against its source.** When the plan is Tier 2 (a raw

@@ -1450,6 +1450,12 @@ living inside the workspace. The activation is decided by the *data* —
 `datasets/` folder satisfies a declared manifest — so the engine stays
 domain-agnostic without a wiki having to carry code.
 
+That manifest has a consequence on the reading side worth knowing about here:
+because these sources declare typed fields rather than prose, statements in an
+answer can be checked against them by code. The query walkthrough works out how
+far that reaches, and where it stops, in [What structured sources make
+checkable](query_walkthrough.md#what-structured-sources-make-checkable).
+
 Moving it into `examples/` would change something more important than tidiness:
 today **a workspace is data only** — markdown, a TOML file, a SQLite database.
 Nothing in it is executed. If a workspace could carry Python that the engine
