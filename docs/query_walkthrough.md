@@ -61,7 +61,7 @@ searching.
 **Never.** Hand the model the search tools and trust it. (A *tool* is a function
 the model is allowed to call: it asks for a search, the code runs it, and the
 results come back into the conversation. This project provides three, listed at
-the start of [Part 1](#part-1--the-model-decides-what-to-look-up).) The model
+the start of [Part 1](#part-1--pre-retrieval-unticked-the-model-decides-what-to-look-up).) The model
 decides what to look for, when
 it has seen enough, and what to say. This handles the widest range of questions
 and gives you no guarantees at all.
@@ -352,9 +352,12 @@ replays two deterministic functions over an already-captured conversation. It
 needs no second model call and cannot drift from the app's behaviour, but it is
 derived from one live run rather than being a live run of its own.
 
-## Part 1 — the model decides what to look up
+## Part 1 — pre-retrieval unticked: the model decides what to look up
 
-This is the mode a wiki of plain documents runs in.
+This part covers the *never* and *afterwards* positions, which is what you get
+with the **Pre-retrieval** box unticked: the model searches using the available tools, and the only
+question is whether code inspects the result afterwards. It is the mode a wiki
+of plain documents runs in.
 
 The agent loop was described [at the top](#the-question-this-document-answers):
 the model holds some functions, picks which to call, reads what comes back, and
@@ -366,6 +369,21 @@ here it gets three:
 | `read_wiki_page` | open one generated wiki page by path and return its text |
 | `search_wiki_fts` | full-text search restricted to the curated wiki pages |
 | `search_source_chunks` | full-text search over the raw ingested documents |
+
+**None of these three consults the wiki's vocabulary lists.**
+`search_wiki_fts` passes the model's search terms to
+`search_chunks(db_path, query, scope="wiki")` and returns what FTS5 matches
+(`chat/wiki_tools.py:101`). The alternate names recorded at ingest are not
+substituted into the query, and the list of topics the wiki must refuse is not
+consulted — a question about a blacklisted topic reaches the model like any
+other. Those lists are read only by the functions of the pre-retrieval path, so
+in this mode they have no effect at all. What the model searches for is whatever
+words it decided to search for.
+
+Where they do take effect is Part 2: the blacklist is the first branch of [the
+routing chain](#the-routing-decision-in-shape), and the alternate names widen the
+list of subjects the wiki claims to cover, which [Act
+5](#5-an-alias-reaches-the-datum) shows deciding a real question.
 
 (A wiki with a `datasets/` folder gets a fourth, `query_dataset`; `fairy-tales`
 has no such folder, so here it really is three.) Alongside them the model gets a
@@ -652,10 +670,10 @@ often. It would still fail without warning, which is the part that does not go
 away by upgrading — and the Snow White row is the shape of failure that survives
 both a better model and a stricter checkbox.
 
-## Part 2 — code decides what to look up
+## Part 2 — pre-retrieval ticked: code decides what to look up
 
-Everything from here on runs on `examples/finanzas-argentinas`, with the
-pre-retrieval box **ticked**. The reason that wiki makes the opposite choice is
+This part covers the *before* position. Everything from here on runs on
+`examples/finanzas-argentinas`, with the pre-retrieval box **ticked**. The reason that wiki makes the opposite choice is
 the subject of the rest of this document.
 
 Start with what changes about the failure Part 1 ended on. A badly sourced
