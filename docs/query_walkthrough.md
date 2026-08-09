@@ -1034,6 +1034,11 @@ So the system can tell the difference between "I can calculate this"
 
 ### What structured sources make checkable
 
+A wiki confined to one subject can do something no generic wiki engine can:
+establish that an answer is **wrong**, rather than merely unsupported. This
+section works out where that ability comes from, how far it reaches, and what it
+costs.
+
 Act 6 produced a claim of a kind nothing else in this document can verify. Its
 answer carries a second table headed **Renta variable** (*variable income*) —
 *no estimable*, listing the instruments whose gain the system will not project.
@@ -1060,6 +1065,14 @@ The first two are closed enumerations. That is what makes them checkable rather
 than merely present: there is a fixed set of values an answer can be compared
 against.
 
+None of these keys expires, which is worth noticing because the `datasets/`
+folder was introduced on the opposite grounds — [facts with an expiry
+date](ingestion_walkthrough.md#wikis-whose-facts-change). The rows in these
+files do expire, and each carries an `as_of` for that reason. The front-matter
+above them does not: it declares what a category *is*. Both live outside the
+generated pages for the same underlying reason, which is not volatility but
+that code reads them directly rather than a model compiling them into prose.
+
 **What a schema of this kind permits.** None of these checks needs a model, and
 none of them is about attribution:
 
@@ -1077,6 +1090,23 @@ is no `riesgo` field today. But adding one means adding a key with an
 enumeration, exactly like `disponibilidad` — and once it exists, *"las cauciones
 son de bajo riesgo"* is as checkable as *"el MEP está a 1180"*. **The boundary is
 not numeric against qualitative. It is declared against undeclared.**
+
+**For a wiki about one domain, this is the strongest verification available in
+the system, by a wide margin.** Every other check in this document examines the
+procedure a run followed: whether a tool was called, whether a source is named,
+whether the subject is on the roster. None of them can find an answer wrong —
+that is the limit Part 1 demonstrated with the Snow White row, and the one the
+*before* position works around by declining earlier rather than by detecting
+anything. A schema check is not subject to it. An answer calling an instrument
+low-risk where the field says `alto` is not unsupported and not uncited: it is
+**contradicted**, by a value in a file, with no model consulted and the same
+result on every run.
+
+That changes what a refusal can be based on. The three positions decide *whether
+to answer*; this decides *whether the answer is admissible*, and it is the only
+mechanism here that operates on what the answer says. Any wiki whose subject can
+be written as a schema — instruments, drugs, components, regulations, tariffs —
+can have it.
 
 **Half of this already exists, on the input side.**
 `finance_argentina/validator.py` checks each category against a requirements

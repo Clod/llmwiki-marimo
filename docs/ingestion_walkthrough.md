@@ -1279,6 +1279,17 @@ of a markdown file. It holds information **about** the document, while the body
 below is the document itself. A program can read it easily, and because it lives
 inside the same file it cannot get separated from what it describes.
 
+**Two kinds of content live here, and only one of them expires.** The rows do:
+each carries an `as_of`, because the value it holds stops being true. The
+front-matter does not — a key such as `metodo_calculo: no_deterministico` states
+what kind of instrument a category holds, and that does not change when the
+market moves. What the two have in common is not volatility. It is that code
+reads them directly, instead of a model compiling them into prose. Expiry is why
+this layer was built; being machine-readable is what it also turns out to be
+good for, and the query walkthrough works that second use out in [What
+structured sources make
+checkable](query_walkthrough.md#what-structured-sources-make-checkable).
+
 Here is the `dolar.md` file with my demo dataset.
 
 ```text
