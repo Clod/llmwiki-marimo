@@ -1269,10 +1269,11 @@ where it falls short of what the note asked for.
 
 **What it demonstrates that the idea only asserts.** The claim that a wiki
 *compounds* is easy to state and easy to fake. Act 2 of the ingestion walkthrough
-measures it: ingesting a second document took the corpus from 15 to 25
-`links_to` edges — more than the new pages alone account for, because the repair
-pass also went back and connected pages that were already there. Nobody asked it
-to. The claim that answering from compiled pages
+measures it: ingesting a second document took the corpus from 15 to 30
+`links_to` edges, and **most of those new edges were not written by the model
+generating pages** — they come from `repair_missing_xref`, the pass that adds
+`## See also` links between concepts citing the same source. It connected pages
+that were already there. Nobody asked it to. The claim that answering from compiled pages
 beats answering from raw fragments is likewise measurable, and Part 1 of this
 document shows the failure it is supposed to prevent actually happening — a raw
 fragment from the middle of Snow White, narrated as the ending, correctly cited.
