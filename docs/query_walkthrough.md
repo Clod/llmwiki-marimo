@@ -756,11 +756,17 @@ Three things about this chain are easy to miss when reading the code once.
 nothing: no prompt, and no **completion** — the model's generated reply, which is
 the part you pay for by the token. It is also byte-for-byte identical every time.
 
-**Both tiers depend on `in_roster`, not on the number of search hits.** Keyword
-search will happily return a hit for a topic the wiki does not cover, just
-because it shares a word with one that it does. The roster, not the search
-engine, decides what the wiki covers. The third act below shows this happening
-for real, with numbers.
+**Both tiers depend on `in_roster`, not on the number of search hits.** The two
+conditions answer different questions, and the code requires both. `in_roster`
+asks whether the wiki claims the topic at all: it matches the question against a
+list of names — concept-page titles, dataset terms, and the aliases for both —
+and a name is not text to answer from. The search hits are that text: the
+passages that go into the prompt. So a hit without a roster match is text about
+some other topic, which keyword search produces routinely because it matches
+words and not meaning; and a roster match without hits leaves nothing to inject,
+where answering anyway would mean answering from the model's own knowledge.
+Either case ends in `refuse`. The third act below shows the first one: six
+matching fragments, and still a refusal.
 
 **What gets injected is passages, not whole pages.** Tier 1 takes the six
 best-ranked curated passages and Tier 2 the four best raw ones, each labelled
