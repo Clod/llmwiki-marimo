@@ -1511,4 +1511,5 @@ If you would rather go sideways than forward:
 - [`sqlite_data_dictionary.md`](sqlite_data_dictionary.md) for every column of
   every table, rather than only the four that carry the argument here.
 - [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
-  for the authoritative retrieval contract the next document narrates.
+  — the retrieval **contract**: the specification that code has to satisfy, kept
+  in step with it commit by commit, and the document to trust over any prose.

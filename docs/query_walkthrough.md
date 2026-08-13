@@ -22,8 +22,17 @@ uv run python scripts/capture_query_walkthrough.py
 ```
 
 The authoritative contract for everything below is
-[`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
-— prefer it over this document wherever the two seem to disagree.
+[`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md).
+
+A **contract** here is the specification a piece of code has to satisfy: its
+exact signature, what state it leaves behind, what happens in each case, and the
+tests that check each of those claims. They live in `.trellis/spec/backend/` and
+are updated in the same commit as the code they describe.
+
+This document is prose written around a generated appendix, and it simplifies
+where simplifying helps. So where it and a contract seem to disagree, the
+contract is the one to trust — not because the code failed to meet it, but
+because the contract is the one kept in step with the code.
 
 ## The question this document answers
 
@@ -1358,8 +1367,7 @@ Otherwise:
 
 - [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
   — the current, authoritative contract for the plan order, the roster gate and
-  the citation format. Prefer it over this document's prose wherever they seem to
-  disagree.
+  the citation format.
 - [Workflows](manual/workflows.md) §6.7 — the per-operation reference for the
   agentic mode of Part 1: the tool inventory, the prompt-driven routing order,
   and what each phase is for.
