@@ -108,6 +108,85 @@ invariant over the frozen corpus in
 > (`docs/uat_test_plan.md` Part B). When you add a deterministic DB/file
 > invariant, add it to `tests/regression/`, not to the manual plan.
 
+### Deleting a wiki *page* is not the same operation
+
+`delete_page(db_path, workspace, dir_path: str, slug: str) -> bool` in
+`base/domain/tools/wiki_fs.py:543` removes one generated page. It returns whether
+the page existed (file **or** DB row). Unlike `delete_source` it touches no
+source document, but it has two cleanups the FK cascade cannot do, because the
+things it must clean are *not* rows pointing at the page.
+
+| Step | What | Why not a cascade |
+|---|---|---|
+| A | `_strip_dead_links` (`wiki_fs.py:102`) rewrites every wiki page that links to this one, replacing `[Title](href)` with `Title` | the link is markdown *inside another page's content*, not a row |
+| B | `document_chunks`, `document_references` (both directions), then the `documents` row | done explicitly so ordering is controlled |
+| C | `remove_index_entry` (`index_manager.py:49`) drops the line from `wiki/index.md` | `index.md` has **no row in `documents`**, so nothing cascades to it |
+| D | the markdown file, deleted **last** | if any DB step raises, the file survives and the page stays consistent rather than leaving an orphan row |
+
+**Href resolution is the part that broke before.** Pages link by *page-relative*
+href — `[Title](other.md)` between neighbours, `[Title](../summaries/other.md)`
+across folders — which is what `inject_see_also` and `repair_missing_xref` emit.
+A pattern built from the full `wiki/concepts/x.md` form matches none of them. The
+current code matches **every** markdown link and resolves each href against the
+directory of the page containing it, accepting both the page-relative form and
+the workspace-root-relative form (with or without a leading `/`) that older pages
+carry. Skips anything with `://`, and strips `#fragment` / `?query` first.
+
+Step C is **best-effort**: wrapped in `try/except`, logging a warning, because a
+missing or hand-edited `index.md` must not block the delete. It reads the wiki
+language (`load_wiki_language`) since the section header is localized — a Spanish
+wiki files entries under `## Conceptos`, and looking for the English header
+removes nothing.
+
+**Tests:** `tests/unit/test_wiki_fs.py` —
+`test_delete_page_strips_dead_links_from_referencing_page`,
+`test_delete_page_strips_links_written_the_way_pages_actually_write_them`,
+`test_delete_page_strips_absolute_wiki_links`,
+`test_delete_page_removes_the_entry_from_index_md`,
+`test_deleting_every_stale_page_leaves_the_wiki_consistent`.
+
+### `stale_since` is cleared only by a regeneration
+
+`create_page(..., clear_stale: bool = False)` (`wiki_fs.py:299`, effect at 432).
+The flag means *a source this page cited was deleted; the prose may now be
+under-supported*. Clearing is **opt-in and must stay opt-in**: only four of the
+eight `overwrite=True` call sites revisit the prose the mark is asking about.
+
+| `clear_stale=True` | Leave the mark |
+|---|---|
+| ingest concept page (`pipeline.py:281`) | rollback after a failed ingest — restores a prior state, mark included |
+| ingest summary page (`pipeline.py:323`) | `crosslink_wiki_pages` — appends a See-also link |
+| `regenerate_wiki_pages` (`pipeline.py:688`) | `repair_gap_filled` — swaps a TODO marker for a link |
+| `repair_stale` (`repair/actions.py:156`) | `save_to_wiki` — chat merge |
+
+Tying it to `overwrite=True` instead would erase the signal on a See-also append,
+making the flag meaningless by the opposite route from never clearing it.
+
+**Tests:** `tests/unit/test_wiki_fs.py::test_regenerating_a_page_clears_its_stale_mark`
+and `::test_an_edit_that_is_not_a_regeneration_leaves_the_stale_mark`.
+
+### A `cites` edge may never point at a wiki page
+
+`cites` means *this page took its content from that source document*.
+`delete_source` decides what to destroy by following these edges, and lint and
+provenance both assume the target is a source — so a page-to-page edge stored as
+`cites` is a correctness bug, not untidiness.
+
+`update_references` (`tools/references.py`) matches a citation candidate against
+every document **by filename and by title**, and wiki pages carry both. A "See
+also" bullet that drifted under `## Sources` therefore resolved to a wiki page
+and was stored as a citation. Guarded at `references.py:126`: a candidate whose
+`path` starts with `/wiki/` is skipped, whatever the markdown says.
+
+Fixed at the other end too — `repair_missing_xref` used to append with
+`append_to_page`, which writes to the *end* of the file, landing the link under
+`## Sources` on a generated page (where See also precedes Sources). It now writes
+into the See also section, opening one above Sources when absent, matching how
+`inject_see_also` positions it at generation time.
+
+**Tests:** `tests/unit/test_repair.py::test_a_cites_record_never_points_at_a_wiki_page`
+and `::test_repair_missing_xref_writes_under_see_also_not_under_sources`.
+
 ---
 
 ## Query Patterns
