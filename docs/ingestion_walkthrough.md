@@ -38,8 +38,14 @@ uv run python scripts/capture_ingestion_walkthrough.py
 
 Because the appendix is machine-generated and this document is hand-written
 prose around it, a change to the pipeline's behavior shows up in the appendix on
-the next run — and if the prose starts disagreeing with the regenerated numbers,
-that disagreement is a signal the pipeline changed, not a typo to quietly fix.
+the next run. Which figures carry that signal is worth stating, because not all
+of them do. Row counts, fragment counts and link counts are produced by code and
+do not move unless the pipeline moves, so a disagreement between one of those and
+the prose here means the pipeline changed and is not a typo to quietly fix. Page
+names and generated prose are a different matter: they come from a model running
+at a temperature above zero, and they differ between two runs over an unchanged
+corpus. The [next section](#the-pieces-before-anything-moves) works out what that
+costs.
 
 ## Where the idea comes from
 
@@ -280,10 +286,11 @@ questions about it regardless — exactly the case the blacklist exists for. Two
 gates that usually agree can hide each other's gaps, and the only way to know
 which one did the work is to look, as above.
 
-
-The rest of this document depends on that difference over and over. It is why
-"just delete the page and generate it again" is a safe thing to say, and why
-nothing described here can lose your data.
+Back to the diagram at the top of this section, and to the division it drew: the
+three green boxes are yours, everything else is derived from them. The rest of
+this document depends on that division over and over. It is why "just delete the
+page and generate it again" is a safe thing to say, and why nothing described
+here can lose your data.
 
 **But safe is not the same as repeatable, and the difference matters.** Generating
 a page is an LLM call, and those calls run at a temperature between 0.2 and 0.4 —
@@ -546,7 +553,7 @@ flowchart LR
     PDF["<b>Cinderella.pdf</b><br/>5 pages<br/><i>sources/ — yours</i>"]
 
     PDF ==>|"step 4 · extract"| PAGES["<b>document_pages</b><br/>5 rows — one per page<br/><i>the text, word for word</i>"]
-    PAGES ==>|"step 5 · chunk"| CH["<b>document_chunks</b><br/>16 rows — one per fragment<br/><i>~512 tokens, paragraph boundaries</i>"]
+    PAGES ==>|"step 5 · chunk"| CH["<b>document_chunks</b><br/>16 rows — one per fragment<br/><i>10 from the PDF · 6 from the wiki pages</i><br/><i>~512 tokens, paragraph boundaries</i>"]
     CH -.->|"triggers, automatically"| FTS[("<b>chunks_fts</b><br/>the search index<br/><i>word → fragments</i>")]
     PDF ==>|"step 3, then 6"| DOC["<b>documents</b><br/>1 row<br/><i>name · type · hash · status</i>"]
 
@@ -610,9 +617,20 @@ The numbers above are Act 1's, so you can check every one of them against the
   definition given just before a boundary travels along with the text that
   depends on it. This repetition has a size limit, and often does not happen at
   all: when the previous paragraph is itself bigger than that limit, nothing is
-  repeated. In the fairy-tale **corpus** — the usual word for the whole
-  collection of text a system works with — ten of the fourteen boundaries repeat
-  nothing; where repetition does happen it runs 92–119 tokens.
+  repeated. In the bundled `examples/fairy-tales` **corpus** — the usual word for
+  the whole collection of text a system works with — ten of the fourteen
+  boundaries repeat nothing; where repetition does happen it runs 92–119 tokens.
+  Those fourteen are the internal boundaries of its three source tales, whose
+  fragment counts are 10, 2 and 5.
+
+  A warning about that name, because two collections of fairy tales appear in
+  this document. The one just measured is the demo shipped in
+  `examples/fairy-tales`, three tales. The acts further down build a **separate,
+  temporary** corpus, two tales, which the capture script discards afterwards.
+  The PDFs are the same files in both, so a per-document figure holds across
+  them — `Cinderella.pdf` yields 10 fragments wherever it is ingested — but a
+  whole-corpus total does not, because the two hold different numbers of
+  documents.
 
   Each fragment records which document and page it came from, plus a
   **breadcrumb**: the markdown headings that apply where its text sits, joined
@@ -814,7 +832,7 @@ flowchart TD
         A1["Act 1 · Cinderella.pdf (5 pp) ingested<br/>1 source · 5 extracted pages<br/>6 wiki pages · 16 fragments<br/>6 cites · 15 links_to<br/>▸ the source row is committed ready<br/>before the LLM writes a single page"]
         A2["Act 2 · + Little Red Riding Hood.pdf (2 pp)<br/>2 sources · 7 extracted pages<br/>12 wiki pages · 24 fragments<br/>cites 6 → 12 · links_to 15 → 30<br/>▸ the wiki compounds — Act 1's pages end up<br/>better connected than they went in"]
         A3a{"Act 3a · re-ingested,<br/>nothing changed on disk"}
-        A3b["Act 3b · Cinderella.pdf replaced on disk<br/>2 sources — the row is updated, not duplicated<br/>17 wiki pages · 32 fragments · links_to 30 → 80<br/>lint+repair after: 45 issues · 40 fixed · 5 skipped · 0 failed<br/>▸ every skip names exactly what it was missing"]
+        A3b["Act 3b · Cinderella.pdf replaced on disk<br/>2 sources — the row is updated, not duplicated<br/>17 wiki pages · 32 fragments<br/>cites 12 → 19 · links_to 30 → 80<br/>lint+repair after: 45 issues · 40 fixed · 5 skipped · 0 failed<br/>▸ every skip names exactly what it was missing"]
         A3c["Act 3c · Little Red Riding Hood.pdf deleted<br/>1 source · 16 wiki pages · 29 fragments<br/>cites 19 → 13 · links_to 80 → 75<br/>▸ its 1 summary page dies with it;<br/>its 5 concept pages are kept and marked stale"]
     end
 
@@ -1000,6 +1018,13 @@ delete-and-insert). And **+5** new wiki pages appear, for the concepts the new
 content introduces: Sleeping Beauty, Fairy Godmothers, Ogress Queen, Spindle
 Curse and Seven-League Boots. Full numbers in the [appendix, Act
 3b](ingestion_walkthrough_appendix.md#act-3b--edited-source-re-ingested).
+
+Both kinds of link rise here, and Act 3c reads from where they land, so the
+figures are worth carrying forward: `cites` **12 → 19** and `links_to` **30 →
+80**. The pages Act 1 wrote from the old `Cinderella.pdf` keep citing it —
+nothing rewrote them, since the replacement file yielded five *different*
+concepts — and the five new pages add citations of their own on top. This is why
+Act 3c opens at 19 rather than at Act 2's 12.
 
 The part worth studying is what lint and repair did afterwards: **45 issues, 40
 fixed, 5 skipped, 0 failed**.
