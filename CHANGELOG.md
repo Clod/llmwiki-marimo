@@ -12,6 +12,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 ## [Unreleased]
 
 ### Added
+- **Stale pages can be deleted from the ingest app.** A page is marked stale when
+  a source it cited is deleted: the page is kept, because it may still rest on
+  other sources, and flagged for a human. Nothing surfaced that flag —
+  `find_stale_pages` had been written for exactly this and was called from
+  nowhere — so acting on it meant knowing it existed and deleting pages by hand.
+  Two cells, per the project's rule against stacking controls in one: the first
+  counts the marked pages, puts the count in the button label, names them in the
+  confirmation (five, then "+N more") and disables itself when there are none;
+  the second deletes each one, continuing past a failure so a single bad page
+  cannot strand the rest. Offering this in bulk is only safe because of the two
+  fixes below — inbound links are stripped, the catalogue entry is pruned, and
+  the mark is cleared on regeneration, so the button sees pages that lost
+  evidence and were never revisited rather than every page ever marked.
 - **`docs/from_idea_to_product.md`, linked from the top of the README.** Seventeen
   ways the LLM-wiki idea leaks when a generic agent is pointed at a folder, each
   with a real example and what this project does about it — the answer to the
@@ -112,6 +125,41 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   bare strings. Reading tolerates the old string form, so existing wikis keep working.
 
 ### Fixed
+- **Deleting a wiki page left broken links and a catalogue entry behind.** Two
+  cleanups that were supposed to run on delete did not. `_strip_dead_links` built
+  its pattern from the page's full path (`wiki/concepts/x.md`), while neighbours
+  link as `[Title](x.md)` and across folders as `[Title](../summaries/x.md)` —
+  what `inject_see_also` and `repair_missing_xref` actually emit, and what all 26
+  links in the fairy-tale demo look like. The pattern matched nothing, so
+  deleting a page left a broken link in every page pointing at it. It now matches
+  every markdown link and resolves each href against the directory of the page
+  containing it, the workspace-root-relative form included, since older pages may
+  carry it. `delete_page` also never touched `wiki/index.md`: that file has no row
+  in `documents`, so no cascade reaches it, and the deleted page stayed listed in
+  the one page whose job is to list what exists. `remove_index_entry` already
+  existed for this and is now called.
+- **A page marked stale stayed marked forever.** `stale_since` means "a source
+  this page cited was deleted; it may now be under-supported, review it". Nothing
+  ever cleared it, so any list built from the flag filled with pages long since
+  dealt with. Clearing is opt-in rather than tied to `overwrite=True`, because
+  only four of the eight overwrite call sites are regenerations — ingesting a
+  concept or summary page, `regenerate_wiki_pages` and `repair_stale` clear it;
+  rollback after a failed ingest, `crosslink_wiki_pages`, `repair_gap_filled` and
+  `save_to_wiki` keep it. None of those four revisits the page's prose, which is
+  what the mark asks about, so clearing on any overwrite would erase the signal
+  on a See-also append and make the flag meaningless by the opposite route.
+- **Wiki pages were being recorded as citation sources.** A `cites` record means
+  "this page was written from that source document", and deletion, lint and
+  provenance all assume the target is a source — `delete_source` decides what to
+  destroy by following them. Two defects stored page-to-page relationships as
+  citations: `repair_missing_xref` appended its "See also" link with
+  `append_to_page`, which writes to the end of the file, so on a generated page —
+  where "See also" precedes "Sources" — the link landed under `## Sources`; and
+  `update_references` matches a citation against every document by filename *and*
+  by title, both of which a wiki page has, so the misplaced bullet resolved to it.
+  Fixed at both levels: the repair now writes into the See also section, opening
+  one above Sources when absent, and the parser refuses to point a citation at a
+  wiki page whatever the markdown says.
 - **Two Spanish column headers survived the interface translation.** The read
   app's page table rendered `Título` / `Ruta` against an English wiki — missed by
   the sweep in this release because they are dictionary *keys* built in
