@@ -464,7 +464,8 @@ being an LLM step of its own.
 Two pieces of vocabulary before the numbers. *Changed* is decided by comparing
 the file's **mtime** (the modification timestamp the filesystem keeps) and then
 its **hash** (a short fingerprint computed from the file's bytes, so any edit
-produces a different one documents.content_hash) against what was recorded last time. And a
+produces a different one, stored in `documents.content_hash`) against what was
+recorded last time. And a
 **transaction** is a group of database writes that either all take effect or none
 do — there is no state in which half of them landed.
 
@@ -1394,7 +1395,7 @@ feature, ingesting a document about CEDEARs — Argentine certificates that
 represent shares in foreign companies — into a copy of this demo logged `⚠️ 1
 alias collision(s) dropped`: the model had proposed an alias that was already
 another covered term's own name, and the generator discarded it before it reached
-the file. Mention what the name were, otherwise it is way too hard to understand. 
+the file.
 
 The exact pair was not recorded — that run predates this document and its numbers
 came from a testing session rather than the regenerable appendix. So here is an
