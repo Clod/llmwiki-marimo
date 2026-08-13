@@ -55,58 +55,127 @@ def build_vocabulary(source: DatasetSource) -> set[str]:
 
 
 def _format_hits(rows: list[dict]) -> list[str]:
-    """Turn search_chunks rows into injectable, attributed text blocks."""
+    """Turn search_chunks rows into injectable, attributed text blocks.
+
+    The label is `path + filename` — the page, not its directory. `path` alone
+    is `/wiki/concepts/` for *every* concept page, so labelling by it handed the
+    model six blocks it could not tell apart, in a mode whose prompt asks it to
+    cite. `filename` was already in the row and unused.
+
+    Front-matter is stripped, for the reason `retrieve_collection_pages` gives
+    for stripping it there: the model is being handed context to answer FROM,
+    not page metadata. It was ~8% of the injected context on the shipped demo.
+    The two changes belong together — the `sources:` line inside that
+    front-matter was, in practice, what the model cited from, so removing it
+    without first making the label identify the page would have taken away the
+    attribution and put nothing back.
+    """
     blocks: list[str] = []
     for row in rows:
-        content = (row.get("content") or "").strip()
-        if not content:
+        raw = (row.get("content") or "").strip()
+        if not raw:
             continue
-        label = row.get("path") or row.get("filename") or ""
+        _, body = split_frontmatter(raw)
+        content = body.strip() or raw  # a chunk that is *only* front-matter keeps it
+        label = f"{row.get('path') or ''}{row.get('filename') or ''}"
         blocks.append(f"[{label}]\n{content}" if label else content)
     return blocks
 
 
-# Ubiquitous Spanish function words. OR-joining these would make an off-topic
-# question ("¿la capital de Francia?") match nearly every page — so we drop them
-# (along with 1-2 char tokens) before building the query. The roster gate is the
-# real coverage authority; this just keeps the lexical match on content words.
-_FTS_STOPWORDS = frozenset({
-    "que", "qué", "los", "las", "una", "unos", "unas", "con", "por", "para",
-    "del", "como", "cómo", "son", "sos", "está", "estan", "están", "este",
-    "esta", "esto", "estos", "estas", "cual", "cuál", "cuales", "cuáles",
-    "quien", "quién", "dame", "hago", "estoy", "más", "mas", "pero", "sus",
-    "nos", "les", "ese", "esa", "eso", "aquel", "sobre", "entre", "desde",
-    "hasta", "donde", "dónde", "cuando", "cuándo", "muy", "hay", "tengo",
-})
+# Ubiquitous function words, PER LANGUAGE. OR-joining these would make an
+# off-topic question ("¿la capital de Francia?") match nearly every page — so we
+# drop them (along with 1-2 char tokens) before building the query. The roster
+# gate is the real coverage authority; this just keeps the lexical match on
+# content words.
+#
+# ── ADDING A LANGUAGE ────────────────────────────────────────────────────────
+# A new wiki language needs an entry here. Without one it falls back to English
+# (`_stopwords` below), which filters little in another language and leaves the
+# original defect: a word as common as "the" matches nearly every chunk, so
+# `wiki_hits` is never empty, and Tier 2 — reached only when `wiki_hits` IS
+# empty — becomes unreachable. That is exactly what happened to English before
+# `en` was added here. See `docs/manual/workflows.md` §6.7.
+#
+# The sets must stay language-SPECIFIC rather than merged into one. A function
+# word in one language is often a content word in another: Spanish "son" (they
+# are) is English "son", which appears in six chunks of the fairy-tale corpus.
+# Merging the sets would silently drop the most important word of "Who is the
+# king's son?".
+_STOPWORDS: dict[str, frozenset[str]] = {
+    "es": frozenset({
+        "que", "qué", "los", "las", "una", "unos", "unas", "con", "por", "para",
+        "del", "como", "cómo", "son", "sos", "está", "estan", "están", "este",
+        "esta", "esto", "estos", "estas", "cual", "cuál", "cuales", "cuáles",
+        "quien", "quién", "dame", "hago", "estoy", "más", "mas", "pero", "sus",
+        "nos", "les", "ese", "esa", "eso", "aquel", "sobre", "entre", "desde",
+        "hasta", "donde", "dónde", "cuando", "cuándo", "muy", "hay", "tengo",
+    }),
+    # Same categories as the Spanish set: articles, prepositions, pronouns,
+    # auxiliaries, question words, and the verbs a question is phrased with
+    # ("tell me", "explain") — the counterparts of "dame"/"hago"/"tengo".
+    # Deliberately excluded because they can be content in a wiki: "may"
+    # (month), "will" is kept (auxiliary use dominates), "son" is NOT here (it
+    # is a content word in English — see the note above).
+    "en": frozenset({
+        "the", "and", "for", "are", "was", "were", "has", "have", "had", "but",
+        "not", "you", "your", "this", "that", "these", "those", "with", "from",
+        "into", "about", "what", "which", "who", "whom", "whose", "when",
+        "where", "why", "how", "does", "did", "can", "could", "would", "should",
+        "will", "there", "their", "them", "they", "its", "his", "her", "hers",
+        "our", "ours", "any", "all", "some", "more", "most", "than", "then",
+        "also", "been", "being", "over", "under", "between", "off", "very",
+        "just", "only", "such", "too", "tell", "give", "show", "explain",
+        "describe", "please",
+    }),
+}
 
 
-def _fts_query(text: str) -> str:
+def _stopwords(language: str | None) -> frozenset[str]:
+    """The stop-word set for `language`, falling back to English.
+
+    English is the fallback because it is the project's default wiki language
+    (`wiki_settings.load_wiki_language` resolves an absent or unknown value to
+    `"en"`), so this matches what such a wiki actually generates.
+    """
+    return _STOPWORDS.get((language or "en").lower(), _STOPWORDS["en"])
+
+
+def _fts_query(text: str, language: str | None = None) -> str:
     """Turn a natural-language question into a safe FTS5 MATCH expression.
 
     FTS5 reads bare ',', '?', '¿', quotes, etc. as syntax, so passing a raw
     question to MATCH raised OperationalError — silently swallowed by
     search_chunks, which then returned no hits and left the pre-retrieval gate
-    with nothing to inject. We tokenize to word characters, drop stopwords and
-    1-2 char tokens, and OR the rest, quoting each so an FTS keyword
-    (OR/AND/NOT/NEAR) that happens to be a word can't act as an operator. Empty
-    string when nothing meaningful remains — search_chunks short-circuits that
-    to [].
+    with nothing to inject. We tokenize to word characters, drop `language`'s
+    stop words and 1-2 char tokens, and OR the rest, quoting each so an FTS
+    keyword (OR/AND/NOT/NEAR) that happens to be a word can't act as an
+    operator. Empty string when nothing meaningful remains — search_chunks
+    short-circuits that to [].
     """
+    stop = _stopwords(language)
     tokens = [
         t for t in re.findall(r"\w+", text, flags=re.UNICODE)
-        if len(t) > 2 and t.lower() not in _FTS_STOPWORDS
+        if len(t) > 2 and t.lower() not in stop
     ]
     return " OR ".join(f'"{t}"' for t in tokens)
 
 
-def retrieve_wiki(db_path: str, query: str, *, limit: int = 6) -> list[str]:
+def retrieve_wiki(
+    db_path: str, query: str, *, limit: int = 6, language: str | None = None
+) -> list[str]:
     """Top curated-wiki chunks for `query` (Tier 1). Empty list if none."""
-    return _format_hits(search_chunks(db_path, _fts_query(query), limit=limit, scope="wiki"))
+    return _format_hits(
+        search_chunks(db_path, _fts_query(query, language), limit=limit, scope="wiki")
+    )
 
 
-def retrieve_source_chunks(db_path: str, query: str, *, limit: int = 4) -> list[str]:
+def retrieve_source_chunks(
+    db_path: str, query: str, *, limit: int = 4, language: str | None = None
+) -> list[str]:
     """Top raw source-document chunks for `query` (Tier 2). Empty if none."""
-    return _format_hits(search_chunks(db_path, _fts_query(query), limit=limit, scope="sources"))
+    return _format_hits(
+        search_chunks(db_path, _fts_query(query, language), limit=limit, scope="sources")
+    )
 
 
 def retrieve_collection_pages(workspace) -> list[str]:
@@ -251,9 +320,9 @@ async def pre_retrieval_answer(
     if is_off_limits(question, config.off_limits):
         wiki_hits, doc_hits, collection_hits = [], [], []
     else:
-        wiki_hits = retrieve_wiki(db_path, question)
+        wiki_hits = retrieve_wiki(db_path, question, language=language)
         doc_hits = (
-            retrieve_source_chunks(db_path, question)
+            retrieve_source_chunks(db_path, question, language=language)
             if (not wiki_hits and in_roster) else []
         )
         # Collection-shaped question ("what tales are in this wiki?") — inject

@@ -1,9 +1,15 @@
 # LLMWiki Workflows (§6)
 
 > Part of the [LLMWiki Programmer Manual](../programmer_manual.md) — this file
-> is **§6 Workflows**. Sections §1–§5 and §7–§14 live in `../programmer_manual.md`.
-> Section numbers are global and unchanged: a bare `§6.x` is in this file, any
-> other `§N` is in the main manual.
+> is **§6 Workflows**. Section numbers are **global**: a `§N` means the same
+> section wherever it is cited. Where each lives:
+>
+> | Sections | File |
+> |---|---|
+> | §1 §2 §3 §10 §11 §13 | [`programmer_manual.md`](../programmer_manual.md) — orientation, the nine layers, directory map, constraints, glossary |
+> | §6 | this file |
+> | §4 §5 §14 | [`internals.md`](internals.md) — schema, tool layer, tracing |
+> | §7 §8 §9 §15 | [`apps.md`](apps.md) — Marimo apps, configuration, testing, datasets |
 
 ## 6. Workflows
 
@@ -24,14 +30,14 @@ Each workflow below follows the same template:
 
 | #    | Workflow           | Status | Entry                                                                | Pending                                                |
 | ---- | ------------------ | ------ | -------------------------------------------------------------------- | ------------------------------------------------------ |
-| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; `vocabulary` + `thin_page` checks added; auto-tail done for ingest; scan/regenerate pending (§11.11) |
+| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; `vocabulary` + `thin_page` checks added; auto-tail done for ingest; scan/regenerate pending |
 | 6.2  | Repair             | ✅      | `repair/runner.py:repair_wiki`                                                | All eight deterministic repairs implemented             |
-| 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:ingest_file`                                           | Lint+repair tail opt-in today (§11.11)                 |
-| 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:batch_ingest`                                   | Lint+repair tail opt-in today (§11.11)                 |
-| 6.5  | Scan sources       | ✅      | `ingestion/pipeline.py:scan_and_ingest`                                          | Should chain into lint+repair (§11.11)                 |
-| 6.6  | Regenerate         | ✅      | `ingestion/pipeline.py:regenerate_wiki_pages`                                          | Should chain into lint+repair (§11.8)                  |
-| 6.7  | Chat / RAG         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Two modes: agent-driven (default) and opt-in pre-retrieval. Phases 1–3 (wiki + sources) complete; web search (Phase 4) is a future enhancement (§12) |
-| 6.8  | Chat → Wiki        | ✅      | `read_app.py` Save form → `chat/wiki_tools.py:save_to_wiki` (user-driven; agent has no write tool) | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred (§12) |
+| 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:ingest_file`                                           | Lint+repair tail opt-in today                 |
+| 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:batch_ingest`                                   | Lint+repair tail opt-in today                 |
+| 6.5  | Scan sources       | ✅      | `ingestion/pipeline.py:scan_and_ingest`                                          | Should chain into lint+repair                 |
+| 6.6  | Regenerate         | ✅      | `ingestion/pipeline.py:regenerate_wiki_pages`                                          | Should chain into lint+repair                  |
+| 6.7  | Chat / RAG         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Two modes: agent-driven (default) and opt-in pre-retrieval. Phases 1–3 (wiki + sources) complete; web search (Phase 4) is deliberately not built — see the ROADMAP |
+| 6.8  | Chat → Wiki        | ✅      | `read_app.py` Save form → `chat/wiki_tools.py:save_to_wiki` (user-driven; agent has no write tool) | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred — see the ROADMAP |
 | 6.9  | Source deletion    | ✅      | `tools/deletion.py:delete_source`                                               | —                                                      |
 | 6.10 | Wiki page deletion | ✅      | `tools/wiki_fs.py:delete_page`                               | —                                                     |
 
@@ -47,10 +53,10 @@ for whatever lint still flags. The steady-state success criterion for any ingest
 is therefore *"lint comes back clean."*
 
 **Two-column convention.** Each workflow below is described as **Today** (what the
-code does now) and **Target** (the intended end state, tracked in §11). The status
+code does now) and **Target** (the intended end state, tracked in the [ROADMAP](../../ROADMAP.md)). The status
 legend (✅ implemented · 🟡 partial · ❌ missing) still applies per workflow.
 
-**Plan note (§11.11).** The app has a wiki-wide "Run Wiki Lint & Repair" button
+**Plan note** (tracked in the [ROADMAP](../../ROADMAP.md)). The app has a wiki-wide "Run Wiki Lint & Repair" button
 (`lint_repair_widget_cell` + `lint_repair_runner`), and the ingest runner closes
 every ingest with a scoped lint+repair tail (deterministic by default, full-LLM
 via the form checkbox). The remaining Target is auto-tails for scan and regenerate,
@@ -156,6 +162,50 @@ fast, so the callback mostly matters in full-LLM mode.
 - `vocab_ambiguous` (**warning**) — one alias mapping to two canonicals
 - `vocab_covered` (**info**) — a `[fuera_de_alcance]` term that now has a page/dataset
 
+#### Maintaining the vocabulary lists
+
+There is **no GUI for this and no plan for one**, and the reason is a design
+rule worth stating outright: *the pipeline never rewrites a file a human wrote.*
+The two vocabulary files have different owners and the boundary is enforced in
+code, not by convention.
+
+| File | Owner | Written by | Editable by hand |
+|---|---|---|---|
+| `.llmwiki/aliases.generated.toml` | the machine | ingestion step 8b, and `repair_vocab_collision` | no — its own header says so |
+| `wiki_config.toml` `[alias_datos]`, `[falsos_sinonimos]`, `[fuera_de_alcance]` | you | nothing, ever | yes — this is the only way |
+
+Nothing in `base/` or `marimo/` writes `wiki_config.toml`. `load_config` and
+`load_wiki_language` read it; there is no writer. So maintenance is a text
+editor, and the loop is:
+
+1. **Ingest, or press "Run Wiki Lint & Repair".** `vocabulary_check` compares
+   both alias sources against the live coverage roster.
+2. **Read the findings.** Each carries a `suggestion` naming the fix — e.g.
+   *"List 'X' under 'Y' in `[falsos_sinonimos]`, or remove it"*, or *"Remove it
+   from the blacklist — it's covered now"*.
+3. **One of them repairs itself, conditionally.** `vocab_collision` is the only
+   vocabulary finding in `repair/runner.py:_DISPATCH`. It drops the offending
+   alias — **but only if it lives in the generated artifact**. When the collision
+   comes from your `[alias_datos]`, the repair refuses and says so: *"is a hand
+   override in wiki_config.toml … resolve it by hand"*. The other three
+   (`vocab_stale`, `vocab_ambiguous`, `vocab_covered`) are in `_ADVISORY_CHECKS`:
+   reported, never touched.
+4. **Edit `wiki_config.toml`** for everything left.
+5. **Re-run lint** to confirm the finding is gone.
+
+**These lists go stale on their own as the wiki grows**, which is why the loop
+is not a one-time setup. `vocab_covered` exists precisely for that: it fires
+when a term you blacklisted *now has a page*, which can only happen after you
+ingest something new. `vocab_stale` is the mirror image — aliases still pointing
+at a concept whose page no longer exists, which regeneration alone can cause,
+since concept page names are model-chosen and vary between runs. Reading the
+lint output after an ingest is the only mechanism that surfaces either.
+
+Also worth knowing before you invest effort in these lists: **they are read only
+by the pre-retrieval path.** With `[pre_retrieval] enabled = false` — the
+default — nothing consults them; the model does its own searching and no scope
+check runs in front of it. `vocabulary_check` still lints them either way.
+
 `thin_page_check`'s ruler is **orphan chunks, not page size** (a good summary is
 deliberately short) — it reuses the same `chat/overlap.py:coverage` that verifies
 Tier-2 chat answers. Coverage = the pages that **cite** the source plus the
@@ -171,8 +221,8 @@ checks only when a `client` is passed (`lint/runner.py:lint_wiki`).
 
 | Prompt                | Template                                                         | Input                                              | Output                                                  | Temperature |
 | --------------------- | ---------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------- | ----------- |
-| `contradiction_check` | `_CONTRADICTION_SYSTEM` (L155), `_CONTRADICTION_TEMPLATE` (L159) | path_a, content_a≤2000ch, path_b, content_b≤2000ch | `"CONTRADICTION: <desc>"` or `"NO CONTRADICTION"`       | 0.1         |
-| `data_gap_check`      | `_GAP_TEMPLATE` (L232)                                           | bullet list of all concept titles                  | `"GAP: <topic> — <suggestion>"` per line or `"NO GAPS"` | 0.3         |
+| `contradiction_check` | `_CONTRADICTION_SYSTEM`, `_CONTRADICTION_TEMPLATE` | path_a, content_a≤2000ch, path_b, content_b≤2000ch | `"CONTRADICTION: <desc>"` or `"NO CONTRADICTION"`       | 0.1         |
+| `data_gap_check`      | `_GAP_TEMPLATE`                                           | bullet list of all concept titles                  | `"GAP: <topic> — <suggestion>"` per line or `"NO GAPS"` | 0.3         |
 
 **Report shape (`lint/report.py`):**
 
@@ -202,11 +252,11 @@ class LintReport:
 - `batch_ingest(..., run_lint=True)` — same, once per batch. Default is `False`.
 - Manual function call from a notebook cell.
 - No standalone "Run Lint" button — the combined wiki-wide "Run Wiki Lint & Repair" button covers it.
-- `data_gap_check` is intentionally shallow — it only sees titles (§11.7).
+- `data_gap_check` is intentionally shallow — it only sees titles — deepening it is on the [ROADMAP](../../ROADMAP.md).
 
 **Target:** lint runs automatically at the end of every ingest, scan, and
 regenerate (not opt-in), plus an explicit "Run Lint" button. Deepen `data_gap`
-beyond titles (§11.7). Tracked in §11.11.
+beyond titles. Both are on the [ROADMAP](../../ROADMAP.md).
 
 ---
 
@@ -254,8 +304,8 @@ print(repair_report.summary())   # "4 issue(s): 2 fixed, 1 skipped, 1 failed"
 
 | Issue type        | Function (line)                 | Action                                                                                                                                                             | Needs LLM                                                 | Status    |
 | ----------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- | --------- |
-| `orphan`          | `repair_orphan` (L30)           | Delete the orphan concept page (file + DB row + chunks + references)                                                                                               | No                                                        | ✅         |
-| `stale`           | `repair_stale` (L55)            | Reload page text from `document_pages` → re-run `extract_structured` + `build_summary_page` → `create_page(overwrite=True)` → `update_references`                  | Yes                                                       | ✅         |
+| `orphan`          | `repair_orphan`           | Delete the orphan concept page (file + DB row + chunks + references)                                                                                               | No                                                        | ✅         |
+| `stale`           | `repair_stale`            | Reload page text from `document_pages` → re-run `extract_structured` + `build_summary_page` → `create_page(overwrite=True)` → `update_references`                  | Yes                                                       | ✅         |
 | `missing_xref`    | `repair_missing_xref`           | Append `## See also` bullet linking A→B; call `update_references` to record the `links_to` edge. Idempotent.                                                        | No                                                        | ✅         |
 | `missing_concept` | `repair_missing_concept`        | Parse filename out of the issue description; gather context via `search_chunks`; LLM writes new concept page; `create_page` + `update_references` + `update_index` | Yes (inline f-string prompt, temperature 0.3)             | ✅         |
 | `contradiction`   | `repair_contradiction`          | Append idempotent `<!-- CONTRADICTION: path_b -->` + `⚠️` callout to page A; call `update_references`. Needs a human to resolve; repair only flags.                | No                                                        | ✅         |
@@ -293,7 +343,7 @@ class RepairReport:
 in the post-ingest tail (§6.3) and after chat→wiki save (§6.8).
 
 **Target:** repair runs automatically after lint at the end of every ingest,
-scan, and regenerate, with an explicit "Run Repair" button. Tracked in §11.11.
+scan, and regenerate, with an explicit "Run Repair" button — on the [ROADMAP](../../ROADMAP.md).
 
 **Verification:** `tests/unit/test_repair_*.py`.
 
@@ -356,15 +406,15 @@ result = ingest_file(
 | ----- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | 1     | Validate file (exists, supported extension)                                                               | `pipeline.py`                                       |
 | 2     | Hash + mtime change detection                                                                             | `detector.py:needs_ingestion`                       |
-| 3     | Extract `(page_number, markdown)` pairs                                                                   | `extractor.py:extract` (PDF / DOCX-via-LibreOffice) |
-| 4     | Chunk pages into FTS5 units                                                                               | `chunker.py:chunk_pages`                            |
-| 5     | Atomic DB write: `documents` + `document_pages` + `document_chunks`                                       | `pipeline.py`                                       |
-| **6** | **Commit `status='ready'**` — readers can now see the source                                              | `pipeline.py`                                       |
-| 7     | LLM: structured extraction → `ExtractionResult(document_summary, concepts[])`                             | `wiki_generator.py:extract_structured` (line 189)   |
-| 8     | For each concept: build page (LLM) → `create_page(overwrite=True)` → `update_references` → `update_index` | `wiki_generator.build_concept_page` (270)           |
+| 3     | Upsert the source `documents` row, `status='processing'` — provisional, filtered out of every read        | `pipeline.py`                                       |
+| 4     | Extract `(page_number, markdown)` pairs                                                                   | `extractor.py:extract` (PDF / DOCX-via-LibreOffice) |
+| 5     | Chunk pages into FTS5 units **in memory**                                                                 | `chunker.py:chunk_pages`                            |
+| **6** | **One transaction:** flip the row to `status='ready'` **and** write `document_pages` + `document_chunks` — from here the source is visible to every reader | `pipeline.py`                                       |
+| 7     | LLM: structured extraction → `ExtractionResult(document_summary, concepts[])`                             | `wiki_generator.py:extract_structured`              |
+| 8     | For each concept: build page (LLM) → `create_page(overwrite=True)` → `update_references` → `update_index` | `wiki_generator.py:build_concept_page`              |
 | **8b** | Update the generated alias artifact (best-effort, deterministic)                                          | `alias_generation.py:update_generated_aliases`      |
-| 9     | Build summary page (deterministic) → `create_page` with `source_document_id`                              | `wiki_generator.build_summary_page` (238)           |
-| 10    | LLM: rewrite `wiki/overview.md`                                                                           | `wiki_generator.update_overview` (304)              |
+| 9     | Build summary page (deterministic) → `create_page` with `source_document_id`                              | `wiki_generator.py:build_summary_page`              |
+| 10    | LLM: rewrite `wiki/overview.md`                                                                           | `wiki_generator.py:update_overview`                 |
 | 11    | Append `## [date] Ingested | filename` to `wiki/log.md`                                                   | `wiki_fs.append_to_page`                            |
 | 12    | `auto_commit("ingest: ...")`                                                                              | `git_ops.auto_commit`                               |
 | 13    | Optional deterministic lint pass (if `lint_after_ingest=True`)                                            | `lint/runner.lint_wiki`                             |
@@ -373,11 +423,11 @@ result = ingest_file(
 
 | Prompt               | Template constants                                                                             | Inputs                                                             | Output                                                               | Temperature |
 | -------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- | ----------- |
-| `extract_structured` | `_EXTRACT_SYSTEM` (L78), `_EXTRACT_USER_TEMPLATE` (L85)                                        | filename, file_type, page_count, content ≤80 KB                    | JSON `{document_summary, concepts:[{name,category,insight}]}`        | 0.2         |
-| `build_concept_page` | `_CONCEPT_SYSTEM` (L109) + `_CONCEPT_NEW_TEMPLATE` (L114) OR `_CONCEPT_UPDATE_TEMPLATE` (L143) | concept name/category/insight, filename, existing content (if any) | Markdown **body only** — Definition/Characteristics/Context/Sources. The YAML front-matter is written by `create_page`, not by the model | 0.3         |
-| `update_overview`    | `_OVERVIEW_SYSTEM` (L156), `_OVERVIEW_TEMPLATE` (L160)                                         | current overview, new summary, all concept names                   | 3–5 paragraph narrative                                              | 0.4         |
+| `extract_structured` | `_EXTRACT_SYSTEM`, `_EXTRACT_USER_TEMPLATE`                                        | filename, file_type, page_count, content ≤80 KB                    | JSON `{document_summary, concepts:[{name,category,insight}]}`        | 0.2         |
+| `build_concept_page` | `_CONCEPT_SYSTEM` + `_CONCEPT_NEW_TEMPLATE` OR `_CONCEPT_UPDATE_TEMPLATE` | concept name/category/insight, filename, existing content (if any) | Markdown **body only** — Definition/Characteristics/Context/Sources. The YAML front-matter is written by `create_page`, not by the model | 0.3         |
+| `update_overview`    | `_OVERVIEW_SYSTEM`, `_OVERVIEW_TEMPLATE`                                         | current overview, new summary, all concept names                   | 3–5 paragraph narrative                                              | 0.4         |
 
-> The legacy single-shot `build_wiki_page` (L331) is kept for backward  
+> The legacy single-shot `build_wiki_page` is kept for backward  
 > compatibility but is no longer on the ingest path.
 
 **Triggers:**
@@ -403,10 +453,10 @@ result = ingest_file(
   ingest reconciles only its own document and never rewrites unrelated pages (the
   manual "Run Wiki Lint & Repair" button does the wiki-wide sweep). The `orphan`
   check is excluded so pages created by *this* run aren't deleted for lacking inbound
-  links yet. Remaining: extend the same auto-close to scan and regenerate (§11.11).
+  links yet. Remaining: extend the same auto-close to scan and regenerate — on the [ROADMAP](../../ROADMAP.md).
 - **Duplicate handling.** Today an unchanged file returns `status="skipped"`
   silently (`detector.needs_ingestion`). **Target:** the GUI warns "already
-  ingested" rather than skipping quietly (§11.13).
+  ingested" rather than skipping quietly — on the [ROADMAP](../../ROADMAP.md).
 
 `status='ready'` is set at step 6 (before the LLM work in steps 7–9), see §10.
 
@@ -504,9 +554,9 @@ of an existing concept hits the `_CONCEPT_UPDATE_TEMPLATE` branch in step 8.
   one optional deterministic lint pass (`run_lint=True`, default `False`); repair
   never runs. **Target:** the batch closes with a single lint **and** repair pass
   over the whole wiki — *including the pages just created in this batch* — so newly
-  related concepts get cross-linked and lint comes back clean (§11.11).
+  related concepts get cross-linked and lint comes back clean.
 - **Duplicate handling.** Like §6.3, unchanged files are skipped silently today;
-  **Target** warns when any uploaded file is already ingested (§11.13).
+  **Target** warns when any uploaded file is already ingested — on the [ROADMAP](../../ROADMAP.md).
 
 **Triggers:** currently invoked through `ingest_app.py` "Ingest" button when  
 multiple files are uploaded (the underlying widget supports multi-select).
@@ -583,10 +633,10 @@ lint+repair to bring the wiki back into a consistent state.**
   does **not** run lint+repair afterwards, so stale dependents are detected but
   not fixed in the same pass. The per-file overview rewrite is also wasteful for
   large scans — treat scan as "pick up the one or two files I dropped"; for bulk
-  imports call `batch_ingest` directly (§11.9).
+  imports call `batch_ingest` directly.
 - **Target:** scan closes with a single lint **and** repair pass so a modified
   source's stale pages are regenerated automatically and lint comes back clean
-  (§11.11).
+  (on the [ROADMAP](../../ROADMAP.md)).
 
 ---
 
@@ -633,7 +683,7 @@ re-extraction), and re-runs:
   sources are skipped silently.
 - **Target:** regenerate rebuilds concept pages and overview too, then closes with
   a lint **and** repair pass so a regenerate never leaves stale concept/overview
-  pages behind and lint comes back clean (§11.8, §11.11).
+  pages behind and lint comes back clean — on the [ROADMAP](../../ROADMAP.md).
 
 ---
 
@@ -654,7 +704,7 @@ flowchart TD
     P2 -->|enough| ANS["answer + cite source/page"]
     P2 -->|not enough| P3["Phase 3 · search_source_chunks 🔎 (sources)"]
     P3 --> ANS
-    P3 -. deferred .-> P4["Phase 4 · web search ❌ §12"]
+    P3 -. deferred .-> P4["Phase 4 · web search ❌<br/>not built — see ROADMAP"]
     ANS -->|worth keeping| CAP["user saves via form → §6.8"]
 ```
 
@@ -686,7 +736,7 @@ and higher-signal than re-deriving knowledge from raw chunks on every query.
 | `search_source_chunks(query, limit=10)`  | `chat/tools.py:search_source_chunks` (async) | `source_kind='source'` | Last-resort lookup into raw PDFs/DOCXs    |
 | `query_dataset(...)`                     | `chat/dataset_tools.py`    | `workspace/datasets/`  | Only registered when the workspace has datasets — a current value with its `as_of` date |
 | *domain overlay* (e.g. `estimar_alternativas`) | passed in as `extra_tools` | overlay-defined   | Only when an overlay activates for this workspace (§6.11) |
-| Web search                               | —                          | —                      | ❌ **NOT YET IMPLEMENTED** (Pending §11.5) |
+| Web search                               | —                          | —                      | ❌ **NOT BUILT** — deliberately; see the ROADMAP |
 
 The agent receives `db_path` as `deps_type=str`. Every tool derives the  
 workspace from it via `workspace = Path(db_path).parent.parent` (because the  
@@ -725,7 +775,7 @@ The intended retrieval flow is staged — *wiki first, raw sources second, web*
 3. **Phase 3 — Fall back to raw sources.** Only call `search_source_chunks`
   when the wiki results don't contain enough detail.
 4. **Phase 4 — Web search.** Only when phases 1–3 returned nothing useful.
-  **Not implemented yet** — track in §11.5 and §11.6.
+  **Not built**, deliberately — see [`ROADMAP.md`](../../ROADMAP.md).
 5. **Capture.** When the agent produces a comparison/analysis/summary worth
   keeping, it proposes a title + category and directs the user to the Save form;
   the user saves it (`save_to_wiki`, §6.8). The agent does not write.
@@ -785,14 +835,14 @@ rebuilt by the `wiki_context` cell whenever the active wiki changes (§7.1).
 
 **Gaps:**
 
-- **Web search (Phase 4) is intentionally deferred** — see §12 for the
+- **Web search (Phase 4) is intentionally deferred** — see [`ROADMAP.md`](../../ROADMAP.md) for the
   rationale. Phases 1–3 (wiki index → wiki FTS → raw source chunks) are fully
   implemented and cover the project's core thesis: answer from your own curated
   corpus. Phase 4 is the only workflow that reaches outside it.
 - The "always check index first" rule is advisory — there's no programmatic  
 guarantee the LLM does it. Track regressions via the E2E suite.
 - Phases are not numbered explicitly in the prompt today; tightening them to
-  "Phase 1 / Phase 2 / Phase 3" labels would only matter once Phase 4 lands (§12).
+  "Phase 1 / Phase 2 / Phase 3" labels would only matter once Phase 4 lands, which is not planned.
 
 #### Pre-retrieval: the other mode
 
@@ -809,7 +859,7 @@ enabled = true
 
 `chat/config.py` reads it into `WikiAssistantConfig.pre_retrieval` (default
 `False`, so a workspace that says nothing keeps the mode above). The read app
-also exposes it as a live checkbox beside "Modo estricto", which picks between
+also exposes it as a live checkbox beside "Strict mode", which picks between
 two agents built up front, so toggling takes effect on the next message without
 rebuilding the chat.
 
@@ -828,6 +878,22 @@ answer, and verify the answer against it.
 | Who decides it is out of scope | the model, if the prompt persuades it | `plan_retrieval`, deterministically |
 | Cost of a refusal | a completion | nothing — the model is never called |
 | Reach | any question, including about the collection | only what the coverage roster recognises |
+
+**The lexical query is built per language.** A question is tokenized to word
+characters; tokens of 1–2 characters and the wiki language's stop words are
+dropped; the rest are quoted and OR-joined into an FTS5 `MATCH`
+(`preretrieval.py:_fts_query`). The stop-word sets live in `_STOPWORDS`, keyed
+by ISO code, and **a new wiki language needs a new entry there.** Without one it
+falls back to English, which filters little in another language.
+
+That is not a tidiness point. The sets were Spanish-only until 2026-08-05, so in
+an English wiki `the` — three characters, past the length filter — reached FTS
+and matched nearly every chunk. `wiki_hits` was therefore never empty; and since
+`doc_hits` is computed only when `wiki_hits` **is** empty, the Tier-2 raw-source
+branch could not be reached at all. An off-topic question also got six unrelated
+curated chunks injected instead of none. The gate still refused such questions,
+because `in_roster` is the coverage authority — but for the right answer by
+luck rather than by design.
 
 **Where the authority is.** The order of those branches and the citation format
 are contracts, specified in
@@ -892,8 +958,8 @@ The save flow:
 
 | Prompt                              | Template constants                                         | Inputs                            | Output                                                               | Temperature |
 | ----------------------------------- | ---------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------- | ----------- |
-| `structure_chat_content` (new page) | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_NEW_TEMPLATE`    | title, category, raw content      | Markdown **body only** — front-matter added by `create_page` | 0.3         |
-| `structure_chat_content` (update)   | `_CONCEPT_SYSTEM` (L109) + `_CHAT_CONCEPT_UPDATE_TEMPLATE` | title, raw content, existing page | Merged markdown, no duplication                                      | 0.3         |
+| `structure_chat_content` (new page) | `_CONCEPT_SYSTEM` + `_CHAT_CONCEPT_NEW_TEMPLATE`    | title, category, raw content      | Markdown **body only** — front-matter added by `create_page` | 0.3         |
+| `structure_chat_content` (update)   | `_CONCEPT_SYSTEM` + `_CHAT_CONCEPT_UPDATE_TEMPLATE` | title, raw content, existing page | Merged markdown, no duplication                                      | 0.3         |
 
 **`save_to_wiki` — client injection:** optional keyword-only `client=None, model=None`; builds `openai.OpenAI` from `config.settings` (`WIKI_LLM_*` falling  
 back to `LLM_*`) when omitted, allowing tests to inject `FakeLLMClient` directly.
@@ -924,7 +990,7 @@ saves a chat reply, the LLM structures it into a proper page (step 4),
   link and records the `links_to` edge). Verified end-to-end by
   `tests/unit/test_lint_repair_after_save.py::test_save_to_wiki_auto_cross_links_shared_source`.
 
-**Two known limitations (both deferred to §12, acceptable for a PoC):**
+**Two known limitations (both deferred — see [`ROADMAP.md`](../../ROADMAP.md) — acceptable for a PoC):**
 
 1. *Cross-linking is directional.* `missing_xref_check` emits one issue per pair,
    keyed on `path_a` (the page whose id sorts lower). The post-save filter only

@@ -107,6 +107,14 @@ WIKI_PATH=/tmp/test-wiki uv run marimo run marimo/read_app.py --no-sandbox --por
 #   → http://localhost:2720  · read pages (middle), chat (right)
 ```
 
+> **Two read apps ship, and this plan tests the older one.** `read_app.py` is the
+> three-panel grid; `read_app_tabs.py` is the same app reorganised into two tabs
+> (📖 Read · 💬 Chat), and it is the one intended to survive — see
+> [`ROADMAP.md`](../ROADMAP.md). It is not promoted yet because promoting it
+> requires a parity end-to-end test first, proving nothing was lost. Until that
+> exists, run Part B against `read_app.py` as written; the engine underneath is
+> identical, so B3–B5 behave the same either way. Only **B2** is layout-specific.
+
 ```bash
 # ── Terminal 3: live SQL session (optional, for eyeballing) ───────────────
 sqlite3 /tmp/test-wiki/.llmwiki/index.db
@@ -235,9 +243,11 @@ draft quality**.
 
 ## B5. Lint & repair — finding quality
 
-**Do:** run lint, then repair, from the ingest app's maintenance controls. Checks:
-`orphan`, `stale`, `missing_xref`, `missing_concept`, `contradiction`,
-`data_gap`, `gap_filled`.
+**Do:** run lint, then repair, from the ingest app's maintenance controls. Lint
+emits **twelve** kinds of finding: `orphan`, `stale`, `missing_xref`,
+`missing_concept`, `contradiction`, `data_gap`, `gap_filled`, `thin_page`, and
+four vocabulary checks — `vocab_collision`, `vocab_stale`, `vocab_ambiguous`,
+`vocab_covered`.
 
 **Accept (judgment — Part A already proves lint *runs* and repair adds edges):**
 
@@ -247,9 +257,53 @@ draft quality**.
 - The **LLM-gated** checks (`contradiction`, `data_gap`, `gap_filled`) are
   judgment calls — `contradiction` may legitimately be **empty** on fairy tales
   (empty ≠ broken).
+- `thin_page` measures **orphaned chunks, not page length** — a good summary is
+  deliberately short. It fires when the pages built from a source leave half its
+  fragments uncovered, and it is advisory: reported, never auto-fixed.
 - Repair is visibly **non-destructive**: it adds links/pages, the page count from
   the health query doesn't shrink, and a previously-flagged `missing_xref` is
   gone (or reduced) on a re-run.
+
+### B5b. Vocabulary checks — needs a different corpus
+
+**The four `vocab_*` checks are silent on the fairy tales, by design.** That
+corpus has two generated aliases and no `wiki_config.toml`, so nothing can
+collide. Verified: `vocabulary_check` returns **0 findings** there. Testing them
+on `/tmp/test-wiki` proves nothing.
+
+**Do:** point the ingest app at the shipped finance demo instead and run lint.
+
+```bash
+WIKI_PATH=examples/finanzas-argentinas uv run marimo run marimo/ingest_app.py \
+  --no-sandbox --port 2718
+```
+
+**Accept:** exactly one vocabulary finding, and it is a real one the project
+ships knowingly:
+
+```text
+vocab_ambiguous (warning) — Alias 'uva' maps to several canonicals:
+                            Plazo fijo UVA, Unidad de Valor Adquisitivo
+```
+
+That is one alias claimed by two different concepts, surfaced for a human rather
+than guessed at. **It must not be auto-repaired** — `vocab_ambiguous` is
+advisory, so repair should report it as skipped, not "fixed" and not "unknown
+check type".
+
+What the other three would look like, for when you meet them:
+
+| Check | Severity | Fires when | Repairable? |
+|---|---|---|---|
+| `vocab_collision` | error | an alias is really another covered concept's own name | **yes**, but only if it came from the generated file — a collision from your own `[alias_datos]` is reported and left alone, since the pipeline never rewrites what you wrote |
+| `vocab_stale` | warning | aliases still point at a concept whose page is gone | no — advisory |
+| `vocab_covered` | info | a term on your `[fuera_de_alcance]` blacklist now has a page or dataset | no — advisory; it is telling you the blacklist entry is obsolete |
+
+> These go stale on their own as a wiki grows: `vocab_covered` can only fire
+> *after* an ingest gives a blacklisted term a page. Reading lint output after an
+> ingest is the only thing that surfaces it. See
+> [`docs/manual/workflows.md`](manual/workflows.md#maintaining-the-vocabulary-lists)
+> for the maintenance loop.
 
 ## B6. Multi-wiki picker (GUI)
 
@@ -296,6 +350,9 @@ timeline. Useful for diagnosing a bad summary in B1.
   the page; title box **clears** + ✅ notice **persists**; a follow-up chat
   triggers **no** auto re-save.
 - [ ] **B5** Lint findings are sensible; repair adds a real link non-destructively.
+- [ ] **B5b** On the finance demo, lint reports the one shipped `vocab_ambiguous`
+  (`uva` → two canonicals) and repair **skips** it as advisory — not "fixed", not
+  "unknown check type".
 - [ ] **B6** Picker switches wikis cleanly; indexes stay independent.
 - [ ] **B7** (optional) Trace captured and viewable.
 

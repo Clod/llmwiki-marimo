@@ -6,6 +6,8 @@ from domain.tools.db import get_connection
 from domain.tools.wiki_fs import create_page, delete_page, read_page
 from tests.helpers.workspace import WorkspaceFixture
 
+_LONG = "word " * 50  # padding to exceed MIN_CHUNK_TOKENS
+
 _CONTENT = (
     "# My Page\n\n"
     "This page covers important financial concepts related to investment strategies "
@@ -308,6 +310,210 @@ def test_delete_page_strips_dead_links_from_referencing_page(tmp_workspace: Work
         ).fetchone()
     assert "wiki/summaries/target.md" not in row["content"]
     assert "Target Page" in row["content"]
+
+
+def test_delete_page_strips_links_written_the_way_pages_actually_write_them(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """Generated pages link by *relative* href, not by full path.
+
+    Two pages in the same folder link to each other as `[Title](other.md)`, and
+    across folders as `[Title](../summaries/other.md)` — that is what
+    `inject_see_also` and `repair_missing_xref` emit, and what all 26 links in the
+    fairy-tale demo look like. The full `wiki/...` form the other tests use is
+    never produced by the pipeline.
+
+    Matching only the full form meant deleting a page left a broken link in every
+    page that pointed at it.
+    """
+    target = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "target", "Target Page",
+        f"# Target Page\n\n{_LONG}\n", [],
+    )
+    # same folder → bare basename
+    sibling = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "sibling", "Sibling",
+        f"# Sibling\n\n{_LONG}\n\n## See also\n\n- [Target Page](target.md)\n", [],
+    )
+    # other folder → ../concepts/…
+    cousin = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/summaries/", "cousin", "Cousin",
+        f"# Cousin\n\n{_LONG}\n\n## See also\n\n- [Target Page](../concepts/target.md)\n", [],
+    )
+    with get_connection(tmp_workspace.db_path) as conn:
+        with conn:
+            for src in (sibling["id"], cousin["id"]):
+                conn.execute(
+                    "INSERT INTO document_references "
+                    "(source_document_id, target_document_id, reference_type) "
+                    "VALUES (?, ?, 'links_to')",
+                    (src, target["id"]),
+                )
+
+    delete_page(tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "target")
+
+    same_dir = read_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "sibling")
+    cross_dir = read_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/summaries/", "cousin")
+
+    assert "(target.md)" not in same_dir, f"same-folder link survived:\n{same_dir}"
+    assert "(../concepts/target.md)" not in cross_dir, f"cross-folder link survived:\n{cross_dir}"
+    # the label text stays, so the sentence still reads
+    assert "Target Page" in same_dir and "Target Page" in cross_dir
+
+
+def test_delete_page_removes_the_entry_from_index_md(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """index.md is the catalogue a reader browses; a deleted page must leave it.
+
+    Nothing else prunes it — index.md has no row in `documents`, so no cascade
+    reaches it — and an entry pointing at a file that is gone is a broken link in
+    the one page whose whole job is to list what exists.
+    """
+    from domain.ingestion.index_manager import update_index
+
+    page = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "doomed", "Doomed Page",
+        f"# Doomed Page\n\n{_LONG}\n", [],
+    )
+    update_index(tmp_workspace.workspace, page["path"], "A page about to go", "concepts")
+    index_path = tmp_workspace.workspace / "wiki" / "index.md"
+    assert "doomed.md" in index_path.read_text(encoding="utf-8")
+
+    delete_page(tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "doomed")
+
+    assert "doomed.md" not in index_path.read_text(encoding="utf-8"), (
+        "the deleted page is still listed in index.md:\n"
+        + index_path.read_text(encoding="utf-8")
+    )
+
+
+# ── stale_since lifecycle ─────────────────────────────────────────────────────
+
+def test_regenerating_a_page_clears_its_stale_mark(tmp_workspace: WorkspaceFixture) -> None:
+    """`stale_since` says "a source this page cited was deleted — review it".
+
+    Once the page has been rewritten from the sources that remain, that is no
+    longer true and the mark has to go. Nothing cleared it before, so a page
+    marked once stayed marked forever, and any list built from the flag would
+    fill up with pages that had already been dealt with.
+    """
+    page = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "revisited", "Revisited", f"# Revisited\n\n{_LONG}\n", [],
+    )
+    with get_connection(tmp_workspace.db_path) as conn:
+        with conn:
+            conn.execute(
+                "UPDATE documents SET stale_since=datetime('now') WHERE id=?", (page["id"],)
+            )
+
+    create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "revisited", "Revisited",
+        f"# Revisited\n\nRewritten from what is left.\n\n{_LONG}\n", [],
+        overwrite=True, clear_stale=True,
+    )
+
+    with get_connection(tmp_workspace.db_path) as conn:
+        row = conn.execute(
+            "SELECT stale_since FROM documents WHERE id=?", (page["id"],)
+        ).fetchone()
+    assert row["stale_since"] is None, "the page was regenerated but is still marked stale"
+
+
+def test_an_edit_that_is_not_a_regeneration_leaves_the_stale_mark(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """Not every rewrite means the page was reviewed.
+
+    repair_gap_filled swaps a TODO marker for a link, and repair_missing_xref
+    appends a See-also entry. Neither revisits the prose, so neither answers the
+    question the mark is asking. Clearing it on any `overwrite=True` would drop
+    the flag on those, which is why clearing is opt-in.
+    """
+    page = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "touched", "Touched", f"# Touched\n\n{_LONG}\n", [],
+    )
+    with get_connection(tmp_workspace.db_path) as conn:
+        with conn:
+            conn.execute(
+                "UPDATE documents SET stale_since=datetime('now') WHERE id=?", (page["id"],)
+            )
+
+    create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "touched", "Touched",
+        f"# Touched\n\n{_LONG}\n\n## See also\n\n- [Other](other.md)\n", [],
+        overwrite=True,
+    )
+
+    with get_connection(tmp_workspace.db_path) as conn:
+        row = conn.execute(
+            "SELECT stale_since FROM documents WHERE id=?", (page["id"],)
+        ).fetchone()
+    assert row["stale_since"] is not None, "a non-regenerating edit cleared the mark"
+
+
+def test_deleting_every_stale_page_leaves_the_wiki_consistent(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """The sequence behind the ingest app's "Delete Stale Page(s)" button.
+
+    The button is two marimo cells that do exactly this: list the marked pages,
+    delete each one, report. The cells cannot be unit-tested, so the sequence is —
+    it is where a mistake would actually cost something, since it deletes.
+
+    What must hold afterwards: the marked pages are gone, the unmarked one is
+    untouched, nothing still links to what was deleted, the catalogue no longer
+    lists it, and the list of marked pages is empty.
+    """
+    from domain.ingestion.index_manager import update_index
+    from domain.tools.references import find_stale_pages
+
+    keep = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "keeper",
+        "Keeper", f"# Keeper\n\n{_LONG}\n\n## See also\n\n- [Doomed](doomed.md)\n", [],
+    )
+    doomed = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "doomed",
+        "Doomed", f"# Doomed\n\n{_LONG}\n", [],
+    )
+    update_index(tmp_workspace.workspace, doomed["path"], "About to go", "concepts")
+    with get_connection(tmp_workspace.db_path) as conn:
+        with conn:
+            conn.execute(
+                "UPDATE documents SET stale_since=datetime('now') WHERE id=?", (doomed["id"],))
+            conn.execute(
+                "INSERT INTO document_references "
+                "(source_document_id, target_document_id, reference_type) "
+                "VALUES (?,?, 'links_to')", (keep["id"], doomed["id"]))
+
+    stale = find_stale_pages(tmp_workspace.db_path)
+    assert [p["filename"] for p in stale] == ["doomed.md"]
+
+    for page in stale:
+        delete_page(tmp_workspace.db_path, tmp_workspace.workspace,
+                    page["path"], page["filename"].removesuffix(".md"))
+
+    assert not (tmp_workspace.workspace / "wiki" / "concepts" / "doomed.md").exists()
+    assert (tmp_workspace.workspace / "wiki" / "concepts" / "keeper.md").exists()
+
+    survivor = read_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "keeper")
+    assert "(doomed.md)" not in survivor, f"survivor still links to the deleted page:\n{survivor}"
+    assert "Doomed" in survivor, "the link label should survive as plain text"
+
+    index_text = (tmp_workspace.workspace / "wiki" / "index.md").read_text(encoding="utf-8")
+    assert "doomed.md" not in index_text
+    assert find_stale_pages(tmp_workspace.db_path) == []
 
 
 def test_delete_page_strips_absolute_wiki_links(tmp_workspace: WorkspaceFixture) -> None:

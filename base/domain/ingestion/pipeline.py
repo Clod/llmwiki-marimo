@@ -278,6 +278,7 @@ def ingest_file(
                     concept_result = create_page(
                         db_path, workspace, "/wiki/concepts/", slug,
                         concept.name, concept_md, [concept.category], overwrite=True,
+                        clear_stale=True,
                         sources=[file_path.name],
                     )
                     wiki_compensations.append({
@@ -319,7 +320,7 @@ def ingest_file(
                 summary_result = create_page(
                     db_path, workspace, "/wiki/summaries/", wiki_slug,
                     _title_from_filename(file_path.name), summary_md, [],
-                    overwrite=True, source_document_id=doc_id,
+                    overwrite=True, source_document_id=doc_id, clear_stale=True,
                 )
                 wiki_compensations.append({
                     "dir_path": "/wiki/summaries/", "slug": wiki_slug,
@@ -684,6 +685,7 @@ def regenerate_wiki_pages(
                 create_page(
                     db_path, workspace, "/wiki/summaries/", wiki_slug,
                     _title_from_filename(filename), wiki_markdown, [], overwrite=True,
+                    clear_stale=True,
                     source_document_id=doc_id,
                 )
                 _cb(f"  ✅ {filename} → wiki/summaries/{wiki_slug}.md")

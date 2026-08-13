@@ -34,17 +34,18 @@ throughout and that branch of the chain is never taken.
 its own `suggested_prompts` — the questions its author expects — run through
 the gate as if the box were ticked. Also pure code, also free to reproduce.
 
-| Question | wiki | roster | plan if ticked |
-|---|---|---|---|
-| What tales are in this wiki? | 6 | False | **refuse** |
-| Summarize the plot of each tale | 6 | False | **refuse** |
-| What characters and themes do the tales share? | 6 | False | **refuse** |
-| Compare how each story ends | 6 | False | **refuse** |
+| Question | wiki | roster | collection | plan if ticked |
+|---|---|---|---|---|
+| What tales are in this wiki? | 6 | False | 2 | **invoke** |
+| Summarize the plot of each tale | 6 | False | 2 | **invoke** |
+| What characters and themes do the tales share? | 6 | False | 2 | **invoke** |
+| Compare how each story ends | 6 | False | 2 | **invoke** |
 
-4 of 4 would be refused, every one of them with wiki hits
-to spare. Nothing names a concept page, so nothing is in the roster, and this
-wiki has no dataset vocabulary to widen it with — which is the reason the box
-ships unticked here and ticked on the finance demo.
+0 of 4 would be refused. Note the `roster` column: none of
+these names a concept page, so the coverage roster does not cover any of them,
+and it never will — a question about the collection names no item. What answers
+them is the `collection` column: the pages whose job is to describe the whole
+wiki, injected directly. Before that branch existed all four refused here.
 
 ## The unticked mode, answering (live model)
 
@@ -52,6 +53,12 @@ Three of `fairy-tales`'s own suggested prompts, put to the agentic
 path: wiki search tools in the model's hands, no gate in front of it. The
 tools column is the point — nothing in the code decided to call those, the
 model did.
+
+These were captured with **both** checkboxes unticked, which is not the read
+app's default: `Strict mode` ships on. The last two lines of each entry
+replay that default over this same run — `guardrail.has_grounding` and
+`postprocess.ensure_citation` are pure functions of the message history, so
+the replay needs no second model call and cannot disagree with the app.
 
 ### P1. The collection, not a page
 
@@ -61,9 +68,11 @@ model did.
 
 - tools the model chose to call: `read_wiki_page`
 - carries a citation: **False**
+- a tool returned real evidence (`has_grounding`): **True**
+- what `Strict mode` would do to this answer: appends `Referencia: index.md`
 
 ```text
-The wiki contains summaries and concepts for the following fairy tales:
+The wiki contains summaries and concepts related to the following fairy tales:
 
 ### Summaries
 - **Cinderella**: A fairy tale about a kind and beautiful young woman who is mistreated by her stepfamily.
@@ -71,11 +80,9 @@ The wiki contains summaries and concepts for the following fairy tales:
 - **Snow White and the Seven Dwarfs**: The tale of a young princess named Snow White who is pursued by her jealous stepmother, the Wicked Queen.
 
 ### Concepts
-- **Cinderella**: Includes details about the protagonist, the Fairy Godmother, the glass slipper, the royal ball, and the antagonistic stepmother and stepsisters.
-- **Little Red Riding Hood**: Focuses on the young girl and the Wolf, who deceives her and her grandmother.
-- **Snow White**: Covers Snow White, the Magic Mirror, the Seven Dwarfs, the Poisoned Apple, and the Wicked Queen.
+- Various concepts related to these tales, such as characters (e.g., Fairy Godmother, The Wolf, The Wicked Queen), items (e.g., Glass Slipper, Magic Mirror, Poisoned Apple), and events (e.g., Royal Ball).
 
-Additionally, there are concepts related to fairy tales in general and "The Blue Fairy Book," a collection edited by Andrew Lang.
+These entries provide detailed insights into the characters, plot elements, and themes of each story.
 ```
 
 ### P2. Synthesis across pages
@@ -86,16 +93,20 @@ Additionally, there are concepts related to fairy tales in general and "The Blue
 
 - tools the model chose to call: `read_wiki_page`, `search_wiki_fts`, `search_wiki_fts`, `search_wiki_fts`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`, `read_wiki_page`
 - carries a citation: **True**
+- a tool returned real evidence (`has_grounding`): **True**
+- what `Strict mode` would do to this answer: **leaves it exactly as it is**
 
 ```text
 The classic fairy tales "Cinderella," "Snow White and the Seven Dwarfs," and "Little Red Riding Hood" share several characters and themes:
 
-### Shared Characters
-- **Stepmothers**: Both "Cinderella" and "Snow White" feature antagonistic stepmothers. In "Cinderella," the stepmother and stepsisters subject Cinderella to a life of servitude, embodying themes of jealousy and familial conflict (wiki/concepts/stepmother-and-stepsisters.md). In "Snow White," the Wicked Queen is driven by vanity and jealousy, making several attempts on Snow White's life (wiki/concepts/the-wicked-queen.md).
+### Characters
+- **Stepmother and Stepsisters (Cinderella)**: These characters are antagonistic figures who subject Cinderella to a life of servitude, embodying themes of jealousy and familial conflict (wiki/concepts/stepmother-and-stepsisters.md).
+- **The Wicked Queen (Snow White)**: Snow White's stepmother, driven by vanity and jealousy, makes several attempts on Snow White's life (wiki/concepts/the-wicked-queen.md).
+- **Little Red Riding Hood**: A young girl known for her red hood, who encounters a cunning wolf, highlighting themes of danger and deception (wiki/concepts/little-red-riding-hood.md).
 
-### Shared Themes
-- **Jealousy and Vanity**: Both "Cinderella" and "Snow White" explore themes of jealousy and vanity. The stepmother and stepsisters in "Cinderella" are jealous of Cinderella's beauty and kindness (wiki/concepts/stepmother-and-stepsisters.md), while the Wicked Queen in "Snow White" is driven by her vanity and jealousy of Snow White's beauty (wiki/concepts/the-wicked-queen.md).
-- **Transformation and Magic**: "Cinderella" features magical transformation through the Fairy Godmother, who uses magic to help Cinderella attend the royal ball (wiki/concepts/fairy-godmother.md). This theme of m
+### Themes
+- **Jealousy and Vanity**: Both "Cinderella" and "Snow White" feature stepmothers driven by jealousy and vanity, leading to conflict and attempts to harm the protagonists (wiki/concepts/stepmother-and-stepsisters.md; wiki/concepts/the-wicked-queen.md).
+- **Transformation and Magic**: In "Cinderella," the Fairy Godmother uses magic to transform Cinderella's appearance and circumstances, a common theme in fairy tales (wiki/concepts/fairy-
 …[truncated for the appendix]
 ```
 
@@ -107,17 +118,18 @@ The classic fairy tales "Cinderella," "Snow White and the Seven Dwarfs," and "Li
 
 - tools the model chose to call: `search_wiki_fts`, `search_wiki_fts`, `search_wiki_fts`, `read_wiki_page`, `search_source_chunks`, `search_source_chunks`, `search_source_chunks`
 - carries a citation: **True**
+- a tool returned real evidence (`has_grounding`): **True**
+- what `Strict mode` would do to this answer: **leaves it exactly as it is**
 
 ```text
 Here's a comparison of how each story ends based on the available information:
 
-- **Cinderella**: The story concludes with Cinderella marrying the prince after he finds her by using the glass slipper she left behind at the royal ball. This leads to a happy ending for Cinderella and reconciliation with her stepsisters (wiki/summaries/cinderella.md).
-
-- **Snow White**: The ending involves the Queen consulting her magic mirror, which tells her she is the fairest of all. However, the Seven Dwarfs find Snow White dead on the floor, suggesting a tragic turn before any resolution (Snow White and the Seven Dwarfs.pdf, p. 6).
-
-- **Little Red Riding Hood**: I couldn't find specific details about the ending of "Little Red Riding Hood" in the available sources.
-
-If you would like to save this comparison, you can use the "Save last response to wiki" form with the title "Comparison of Fairy Tale Endings" under the category "Summary."
+| Story                  | Ending Description                                                                                                                                  | Source                                                                 |
+|------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|
+| Cinderella             | Cinderella marries the prince after he finds her by using the glass slipper she left behind. This leads to a happy ending and reconciliation with her stepsisters. | (wiki/summaries/cinderella.md)                                         |
+| Snow White             | The wicked Queen is initially happy believing she is the fairest, but the Seven Dwarfs find Snow White dead on the floor, suggesting a tragic turn. | (Snow White and the Seven Dwarfs.pdf, p. 6)                            |
+| Little Red Riding Hood | I couldn't find that in your wiki.
+…[truncated for the appendix]
 ```
 
 ## The ticked mode, answering (live model — wording varies run to run)
@@ -134,13 +146,7 @@ If you would like to save this comparison, you can use the "Save last response t
 - carries a citation: **True**
 
 ```text
-Una caución bursátil es una operación financiera de corto plazo realizada en el mercado de capitales, similar a un depósito a plazo, pero con garantías superiores. Involucra a un colocador que presta dinero y un tomador que recibe los fondos, ofreciendo un colateral que supera el valor prestado. Se considera de bajo riesgo principalmente por dos razones:
-
-1. **Riesgo de crédito prácticamente nulo**: Gracias a las garantías exigidas por la Bolsa y Mercados Argentinos (BYMA), el riesgo de que una de las partes no cumpla con sus obligaciones financieras es casi inexistente. BYMA regula las cauciones bursátiles y exige garantías que minimizan el riesgo de crédito.
-
-2. **Garantías superiores**: Las cauciones bursátiles ofrecen garantías más sólidas en comparación con otros instrumentos similares, lo que proporciona una mayor seguridad a los inversores.
-
-Sin embargo, es importante considerar el riesgo inflacionario, que se refiere a la posibilidad de que la inflación real supere la tasa de interés ofrecida por estas inversiones, afectando su rentabilidad.
+Una caución bursátil es una operación financiera de corto plazo realizada en el mercado de capitales, similar a un depósito a plazo, pero con garantías superiores. En esta operación, un colocador presta dinero a un tomador, quien recibe los fondos ofreciendo un colateral que supera el valor prestado. Se considera de bajo riesgo principalmente debido a las garantías exigidas por la Bolsa y Mercados Argentinos (BYMA), que minimizan el riesgo de crédito. Aunque existen riesgos inflacionarios y de tasa, el riesgo de crédito es prácticamente nulo gracias a estas garantías.
 
 Referencia: 12 Cauciones Bursátiles.docx
 ```
@@ -187,7 +193,7 @@ Eso no está en mi base de conocimiento.
 - carries a citation: **True**
 
 ```text
-El dólar MEP tiene una cotización de compra de 1180 ARS y una cotización de venta de 1185 ARS, según los datos del 25 de junio de 2026.
+El dólar MEP tiene una cotización de compra de 1180.0 ARS y una cotización de venta de 1185.0 ARS, según los datos del 25 de junio de 2026.
 
 Fuente: ambito.com
 
@@ -206,7 +212,7 @@ Referencia: dolar.md
 - carries a citation: **True**
 
 ```text
-Aquí tienes las cotizaciones actuales del dólar en Argentina:
+Aquí tienes las cotizaciones actuales del dólar:
 
 - **Dólar MEP**:
   - Compra: 1180.0 ARS
@@ -269,7 +275,7 @@ Aquí tienes las alternativas de inversión para $1.000.000 a 3 meses, con sus g
 - carries a citation: **True**
 
 ```text
-No es posible estimar cuánto ganarías con acciones de YPF, ya que las acciones son un instrumento de renta variable. Esto significa que su rendimiento depende de múltiples factores, como el desempeño de la empresa, las condiciones del mercado, y otros riesgos estructurales de inversión. La herramienta de estimación marca las acciones como "no estimable" porque su ganancia no puede predecirse de manera confiable.
+No es posible estimar cuánto ganarías con acciones de YPF, ya que las acciones son un instrumento de renta variable. Esto significa que su rendimiento depende de múltiples factores, como el desempeño de la empresa, las condiciones del mercado y la economía en general. Las acciones locales, como las de YPF, ofrecen exposición a sectores específicos de la economía local, pero su ganancia no es predecible ni estimable de antemano.
 
 Referencia: 01 Acciones Locales.docx
 ```

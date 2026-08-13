@@ -18,6 +18,7 @@ Headless mode:
 
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -74,8 +75,8 @@ def _wait_for_port(host: str, port: int, timeout: float = 60) -> bool:
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="session")
-def read_app_server() -> str:
-    """Start read_app.py against the test workspace; skip if not yet ingested."""
+def tabs_app_server() -> str:
+    """Start read_app_tabs.py against the test workspace; skip if not yet ingested."""
     wiki_dir = WORKSPACE / "wiki"
     if not wiki_dir.exists() or not list(wiki_dir.glob("*.md")):
         pytest.skip(
@@ -93,7 +94,7 @@ def read_app_server() -> str:
     proc = subprocess.Popen(
         [
             str(marimo_bin), "run",
-            "marimo/read_app.py",
+            "marimo/read_app_tabs.py",
             "--port", str(port),
             "--headless",
             "--no-token",
@@ -110,18 +111,18 @@ def read_app_server() -> str:
     def _reader():
         assert proc.stdout is not None
         for line in iter(proc.stdout.readline, ""):
-            print(f"[read_app] {line.rstrip()}")
+            print(f"[read_app_tabs] {line.rstrip()}")
 
     threading.Thread(target=_reader, daemon=True).start()
 
     if not _wait_for_port("localhost", port, timeout=60):
         if proc.poll() is not None:
-            pytest.fail("read_app server process died; check output above")
-        pytest.fail(f"read_app not reachable on port {port} after 60s")
+            pytest.fail("read_app_tabs server process died; check output above")
+        pytest.fail(f"read_app_tabs not reachable on port {port} after 60s")
 
     time.sleep(1.5)
     url = f"http://localhost:{port}"
-    print(f"\n[read_app] Server ready at {url}\n")
+    print(f"\n[read_app_tabs] Server ready at {url}\n")
     yield url
 
     proc.terminate()
@@ -129,7 +130,7 @@ def read_app_server() -> str:
 
 
 @pytest.fixture(scope="session")
-async def browser_session(read_app_server: str) -> Browser:
+async def browser_session(tabs_app_server: str) -> Browser:
     headless = os.environ.get("HEADLESS", "0") == "1"
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(
@@ -141,16 +142,16 @@ async def browser_session(read_app_server: str) -> Browser:
 
 
 @pytest.fixture(scope="session")
-async def page(browser_session: Browser, read_app_server: str) -> Page:
+async def page(browser_session: Browser, tabs_app_server: str) -> Page:
     p = await browser_session.new_page(viewport={"width": 1440, "height": 900})
-    await p.goto(read_app_server, wait_until="networkidle", timeout=30_000)
+    await p.goto(tabs_app_server, wait_until="networkidle", timeout=30_000)
     await p.wait_for_timeout(2_000)
     yield p
     await p.close()
 
 
 @pytest.fixture
-async def chat_page(browser_session: Browser, read_app_server: str) -> Page:
+async def chat_page(browser_session: Browser, tabs_app_server: str) -> Page:
     """Function-scoped, independent page for chat tests.
 
     A chat turn mutates server-side conversation state (mo.state history in
@@ -159,10 +160,33 @@ async def chat_page(browser_session: Browser, read_app_server: str) -> Page:
     tests above. New page == fresh marimo session == empty chat history.
     """
     p = await browser_session.new_page(viewport={"width": 1440, "height": 900})
-    await p.goto(read_app_server, wait_until="networkidle", timeout=30_000)
+    await p.goto(tabs_app_server, wait_until="networkidle", timeout=30_000)
     await p.wait_for_timeout(2_000)
+    await _switch_to_chat_tab(p)
     yield p
     await p.close()
+
+
+# ── Tab helpers ───────────────────────────────────────────────────────────────
+
+_READ_TAB = "📖 Read"
+_CHAT_TAB = "💬 Chat"
+
+
+async def _switch_to_chat_tab(page: Page) -> None:
+    """Select the 💬 Chat tab and wait for the chat widget to mount.
+
+    `tab_body` in read_app_tabs.py renders ONLY the active tab, so before the
+    Chat tab is selected `marimo-chatbot` is not merely hidden — it is absent
+    from the DOM. Every chat assertion therefore has to come after this.
+
+    The selector is a plain `mo.ui.radio`, deliberately not `mo.ui.tabs`: tabs
+    build both bodies and rebuild them on every re-run, which re-parents the
+    live `mo.ui.chat` and kills its server callback.
+    """
+    await page.get_by_text(_CHAT_TAB, exact=False).last.click()
+    await page.locator("marimo-chatbot").last.wait_for(state="attached", timeout=15_000)
+    await page.wait_for_timeout(1_000)
 
 
 # ── Chat helpers ──────────────────────────────────────────────────────────────
@@ -318,11 +342,19 @@ async def test_no_edit_controls_present(page: Page) -> None:
 
 
 async def test_chat_panel_renders(page: Page) -> None:
-    """Chat panel heading visible; prompts loaded from wiki_config.toml."""
-    # Target the heading specifically: in the column layout marimo also renders a
-    # heading-navigation entry with the same text, so a plain get_by_text matches
-    # two elements (strict-mode violation).
-    heading = page.get_by_role("heading", name="Chat with your Wiki")
+    """Chat panel heading visible; prompts loaded from wiki_config.toml.
+
+    Placed last among the `page` tests on purpose: it is the only one that needs
+    the Chat tab, and switching leaves the shared session-scoped page there.
+    """
+    await _switch_to_chat_tab(page)
+
+    # Target the heading specifically: marimo also renders a heading-navigation
+    # entry with the same text, so a plain get_by_text matches two elements
+    # (strict-mode violation). Substring match because this app's heading reads
+    # "💬 Chat with your Wiki" while the grid app's has no emoji — cosmetic, and
+    # the only assertion-visible difference between the two suites.
+    heading = page.get_by_role("heading", name=re.compile("Chat with your Wiki"))
     await heading.wait_for(state="visible", timeout=5_000)
 
     chatbot = page.locator("marimo-chatbot").first

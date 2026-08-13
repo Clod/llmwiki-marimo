@@ -15,15 +15,26 @@ Inspired by [Karpathy's LLM Wiki idea](https://x.com/karpathy/status/20398056595
 The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas Astorian's open-source LLM Wiki](https://github.com/lucasastorian/llmwiki)
 (Apache-2.0); the rest is an independent local-first build on Marimo + SQLite. See [`NOTICE`](NOTICE).
 
-![The read app on the built-in sample wiki: page navigation on the left, a generated concept page in the middle, and the chat assistant on the right answering a cross-document question with a citation for every fact](docs/assets/read_app.png)
+![The read app's Read tab on the built-in sample wiki: a searchable table of generated pages on the left, and the selected concept page rendered on the right with its definition, key characteristics, context, and cross-links to related pages](docs/assets/read_app_read_tab.png)
 
-*The read app on the built-in sample wiki — navigation, a generated concept page, and a chat answer where every fact cites its source page. Below the chat: the **Save to wiki** form, the human-in-the-loop step that turns a good answer into a permanent page.*
+*The **Read** tab on the built-in sample wiki — every page in the table was written by the model from a source PDF, and the See-also links between them were added by the repair pass, not by hand.*
 
-▶ **[Watch the 1-minute demo](https://youtu.be/qXaPycsGXHw)** — a PDF ingested into a fresh wiki (concept pages, summary, lint auto-repair), then a chat answer where every fact cites its source.
+![The read app's Chat tab: two checkboxes select the answering mode, and the assistant answers "What do Cinderella and Snow White have in common?" across two documents, citing a specific wiki page for each of the three claims it makes. Below, an expanded form offers to save the answer as a new page](docs/assets/read_app_chat_tab.png)
+
+*The **Chat** tab, same wiki, one real answer. Three claims, five citations, each naming the page it came from. The two checkboxes are the whole design argument — **Strict mode** audits the model after it answers; **Pre-retrieval** has code retrieve first and refuse before the model is ever called ([which to pick, and why](docs/query_walkthrough.md)). Below: the **Save to wiki** form — the agent has no write tool, so a good answer becomes a permanent page only on your click.*
+
+▶ **[Watch the 1-minute demo](https://youtu.be/VLX5kLczQbk)** — reading a generated wiki, then one cross-document answer citing a page for every claim (9s), then the same kind of question refused **in 1.2s because the model was never called**.
 
 ---
 
 ## Highlights
+
+> **Why not just point Claude Code at a folder of notes?** That is the honest
+> question, and it has a long answer:
+> **[From Idea to Product](docs/from_idea_to_product.md)** — seventeen ways the
+> LLM-wiki idea leaks when a generic agent is pointed at it, each with a real
+> example and what this project does about it — including the three where the
+> answer is a deliberate trade rather than a fix.
 
 **A self-contained, agentic LLM-wiki.** Most takes on Karpathy's idea point an
 *external* agent — Claude Desktop, Cursor, an MCP client — at an Obsidian vault.
@@ -68,7 +79,7 @@ that also keeps live data and computes grounded advice over it.*
 
 - **Tests across three layers, ≈1:1 test-to-code** (framework-agnostic core in `base/`, exercised without a browser) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
 - **Framework-agnostic core** — all logic lives in `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo is only the UI at the edges, so the engine is exercised by unit tests without a browser.
-- **Malleable UI** — because the GUI is marimo notebooks, the read app's three columns are plain `@app.cell(column=N)` annotations: open the app with `marimo edit` and re-stack or re-column the cells to suit your workflow, taste, or monitor — no frontend code to touch.
+- **Malleable UI** — because the GUI is marimo notebooks, the read app's layout is plain `@app.cell` annotations: open it with `marimo edit` and re-stack, re-column or re-tab the cells to suit your workflow, taste, or monitor — no frontend code to touch. Both arrangements ship, from the same engine: a tabbed one and a three-column grid.
 - **Security-conscious** — a path-traversal guard on the LLM-callable page reader, an explicit prompt-injection threat model, and a documented [`SECURITY.md`](SECURITY.md).
 - **Local-first & private** — runs entirely on-device; each wiki is its own local-only git repo (version history for free); source files are never modified and nothing is pushed anywhere.
 - **Scale-aware** — re-ingest skips unchanged files by content hash, lint compares only page pairs that share a source (not N²), and the overview synthesis is incremental.
@@ -198,7 +209,8 @@ base/                   # Ingestion pipeline + chat agent (self-contained Python
 
 marimo/                # Marimo notebook apps
 ├── ingest_app.py          # Upload → ingest → wiki generation UI
-├── read_app.py            # Read-only viewer + chat (3-column grid)
+├── read_app_tabs.py       # Read-only viewer + chat (📖 Read · 💬 Chat tabs)
+├── read_app.py            # the same app as a 3-column grid — being retired
 └── trace_report_app.py    # Ingestion trace viewer (WIKI_TRACE=1 runs)
 
 database/
@@ -310,7 +322,7 @@ Open [http://localhost:2718](http://localhost:2718), drop in your PDFs or DOCXs,
 #### 4. Read and chat
 
 ```bash
-uv run marimo run marimo/read_app.py --no-sandbox --port 2720
+uv run marimo run marimo/read_app_tabs.py --no-sandbox --port 2720
 ```
 
 Open [http://localhost:2720](http://localhost:2720). Select a page on the left, read it in the middle, chat on the right.
@@ -482,7 +494,7 @@ falls back to English. See [`docs/programmer_manual.md`](docs/programmer_manual.
 
 **Text-based PDFs only.** Scanned / image-only PDFs are not OCR'd yet — they  
 ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap  
-(see [`docs/programmer_manual.md`](docs/programmer_manual.md) §12).
+(see [`ROADMAP.md`](ROADMAP.md)).
 
 ---
 
@@ -507,7 +519,7 @@ real ingest without re-calling the model.
 ```bash
 uv run playwright install chromium                            # once
 HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s  # ingest pipeline
-HEADLESS=1 uv run pytest tests/e2e/test_read_app.py  -v -s    # read app (uses the step-1 workspace)
+HEADLESS=1 uv run pytest tests/e2e/test_read_app_tabs.py -v -s  # read app (uses the step-1 workspace)
 ```
 
 **3. Acceptance & model check (manual)** — the human-judgment pass for the things
@@ -613,7 +625,11 @@ answer back as a wiki page via the read app's **Save to wiki** form
 click — so the human-in-the-loop step is post-hoc rather than during ingestion.
 
 The rationale for each cut and the revisit plan live in  
-[`docs/programmer_manual.md`](docs/programmer_manual.md) §12.
+[`ROADMAP.md`](ROADMAP.md).
+
+Those are the deliberate omissions. For what is planned next, and for the
+things that are built but known to be imperfect — measured rather than
+suspected — see [`ROADMAP.md`](ROADMAP.md).
 
 ---
 

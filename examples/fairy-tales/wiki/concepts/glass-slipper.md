@@ -23,10 +23,8 @@ In the broader context of fairy tales, the glass slipper is an iconic symbol of 
 
 - [Cinderella](cinderella.md)
 - [Cinderella](../summaries/cinderella.md)
+- [Royal Ball](royal-ball.md)
+- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)
 
 ## Sources
 - Cinderella.pdf
-
-- [Royal Ball](royal-ball.md)
-
-- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)

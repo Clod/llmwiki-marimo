@@ -91,3 +91,8 @@ eval_reports/
 
 # Understand-Anything knowledge graph (regenerable)
 .ua/
+
+# Demo video — regenerate with `uv run python scripts/record_demo.py`.
+# Not committed: the READMEs point at YouTube (GitHub will not play a
+# repo-relative mp4 inline), so a binary per revision would buy nothing.
+docs/assets/demo.mp4

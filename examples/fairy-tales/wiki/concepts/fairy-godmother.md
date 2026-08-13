@@ -24,10 +24,8 @@ The Fairy Godmother is a classic character in fairy tales, often depicted as a b
 - [Cinderella](cinderella.md)
 - [Royal Ball](royal-ball.md)
 - [Cinderella](../summaries/cinderella.md)
+- [Glass Slipper](glass-slipper.md)
+- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)
 
 ## Sources
 - Cinderella.pdf
-
-- [Glass Slipper](glass-slipper.md)
-
-- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)

@@ -10,7 +10,7 @@ Each turn appends one JSON object to ``<workspace>/.llmwiki/chat_trace.jsonl``:
     ts                    ISO-8601 UTC, millisecond precision
     question              the user's message this turn
     language              the wiki's content language (es/en/…)
-    strict_mode           the "Modo estricto" guardrail toggle state
+    strict_mode           the "Strict mode" guardrail toggle state
     history               prior turns sent as context: [{role, content}]
     tool_calls            [{name, args}] the agent invoked this turn
     tool_returns          [{name, content}] what each retrieval returned

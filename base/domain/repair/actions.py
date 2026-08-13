@@ -26,6 +26,20 @@ from .report import RepairResult
 logger = logging.getLogger(__name__)
 
 
+def _insert_into_section(content: str, heading: str, line: str) -> str:
+    """Put `line` at the end of `heading`'s section, before the next `## ` heading.
+
+    Appending to the end of the file instead would land the line under whatever
+    section happens to come last — which for a generated page is "## Sources", a
+    list of the documents the page was written from.
+    """
+    start = content.index(heading) + len(heading)
+    nxt = content.find("\n## ", start)
+    end = len(content) if nxt == -1 else nxt
+    section = content[start:end].rstrip("\n")
+    return f"{content[:start]}{section}\n{line}\n{content[end:]}"
+
+
 def _relative_link(from_page: str, to_page: str) -> str:
     """Relative href (always '/'-separated) from one /wiki/.../x.md page to another.
 
@@ -139,6 +153,7 @@ def repair_stale(
         result = create_page(
             db_path, workspace, "/wiki/summaries/", wiki_slug,
             name, summary_md, [], overwrite=True, source_document_id=src_id,
+            clear_stale=True,
         )
         update_references(db_path, result["id"], summary_md, "/wiki/summaries/")
 
@@ -169,7 +184,7 @@ def repair_missing_xref(
     The section header is localized to the wiki language so an es page keeps a
     single "## Véase también" section instead of gaining a duplicate English one.
     """
-    from domain.tools.wiki_fs import read_page, append_to_page
+    from domain.tools.wiki_fs import append_to_page, read_page, write_page_content
 
     b_path = issue.related_page
     if not b_path:
@@ -208,13 +223,25 @@ def repair_missing_xref(
             message="already linked",
         )
 
-    see_also = f"## {get_locale(language).h_see_also}"
+    loc = get_locale(language)
+    see_also = f"## {loc.h_see_also}"
+    bullet = f"- [{title_b}]({rel})"
     if see_also in content_a:
-        bullet = f"- [{title_b}]({rel})"
-        append_to_page(db_path, workspace, dir_a, slug_a, bullet)
+        # Write INTO the section, not at the end of the file. Generated pages put
+        # "See also" before "Sources", so appending would drop the link under a
+        # heading that lists the documents the page was written from.
+        updated = _insert_into_section(content_a, see_also, bullet)
+        write_page_content(db_path, workspace, dir_a, slug_a, updated)
     else:
-        block = f"{see_also}\n\n- [{title_b}]({rel})"
-        append_to_page(db_path, workspace, dir_a, slug_a, block)
+        block = f"{see_also}\n\n{bullet}"
+        # No section yet: open one just above Sources when that heading exists,
+        # matching how inject_see_also positions it at generation time.
+        sources = f"## {loc.h_sources}"
+        if sources in content_a:
+            updated = content_a.replace(sources, f"{block}\n\n{sources}", 1)
+            write_page_content(db_path, workspace, dir_a, slug_a, updated)
+        else:
+            append_to_page(db_path, workspace, dir_a, slug_a, block)
 
     # Re-read and rebuild references so the links_to edge is recorded
     full_content = read_page(db_path, workspace, dir_a, slug_a)
