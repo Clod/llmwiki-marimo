@@ -146,9 +146,9 @@ I cover this?" is read back out of the wiki's own contents — page titles,
 dataset categories. The blacklist is derived from nothing: it is you saying, in
 advance, *people will ask about this, we have nothing real to say, do not try.*
 On the query side it is checked **first**, before any search runs, so a question
-mentioning a blacklisted term is refused without the wiki ever being touched. Clod: blacklisted question or blacklisted topic?Should the user add synonims much like aliases list?
+mentioning a blacklisted term is refused without the wiki ever being touched.
 
-To answer both halves of that: what the list holds is **terms**, and a *question*
+What the list holds is **terms**, and a *question*
 becomes blacklisted by mentioning one. And yes — you should list the variants
 yourself, because this is the one place in the system where matching is literal.
 Measured against the finance demo's own list, `["cedear", "cedears", "cripto",
@@ -190,14 +190,6 @@ two never reaches the query path at all. Alias lists widen what the wiki will
 match; this one narrows it back where widening would do damage. The lint pass
 also uses it as its suggested remedy — when it finds an alias that is really
 another concept's name, what it tells you to do is add the pair here.
-
-Clod: I wonder if embeddings could be used to generate or replace the alias lists. Not in the current release but maybe in a future one. Thinking on how to improve that.
-
-(That question is recorded in [`ROADMAP.md`](../ROADMAP.md), under the entry that
-rules embeddings out for *retrieval* — because using one at ingest time to
-propose alternate names is a different proposition, and an open one.)
-
-Clod: Here I would like to add an example consiting of the involved files excerpts along with an explanaion of the behavior of the system focuses on the concepts mentioned in the excerpt
 
 ### All four lists, on one real wiki
 
@@ -324,7 +316,6 @@ read back out of the page titles whenever it is needed. So a run that names a
 page *Prince* instead of *Transformation* has not merely renamed a file, it has
 edited that list.
 
-Clod: include an example for clarification. 
 
 Concretely. Suppose the first run of the fairy-tale corpus produces these five
 concept pages from Cinderella, and a second run — same PDF, nothing edited —
@@ -413,10 +404,10 @@ two kinds of wiki page:
 
 Answering a question later means reading the page that was built from the source.
 The source stays in place underneath, as the evidence a citation can point to.
-Nobody re-reads the sources, and nobody pays an LLM twice for the same work. Clod: unless the answer to a covered topic is not found in the wiki pages.
+Nobody re-reads the sources, and nobody pays an LLM twice for the same work, unless the answer to a covered topic is not found in the wiki pages.
 
-That caveat is right, and worth stating in the text rather than leaving implied:
-the sources **are** read again when the pages fall short. The reading side keeps a
+Worth being precise about that exception, because it is the one place the
+promise bends: the sources **are** read again when the pages fall short. The reading side keeps a
 fallback that searches the raw documents for a covered subject no generated page
 answers, and the chat agent can be given a raw-source search tool outright. What
 never happens twice is the *compiling* — extraction, concept-finding, page
@@ -442,10 +433,8 @@ four stages:
 | **Write the wiki** | 7–10 | pull out a summary and a list of concepts · write a page per concept · record the alternate names found (8b) · build the summary page · rewrite `overview.md` | **yes**, except 8b and the summary page |
 | **Close the books** | 11–13 | append to `log.md` · make a git commit · optional lint pass | no |
 
-Clod: where do those step numbers come from???
-
-They come from the code itself. `ingestion/pipeline.py:ingest_file` marks each
-one with a comment banner — `# ── Step 6: Atomic source document DB write ──` —
+**Where these numbers come from.** `ingestion/pipeline.py:ingest_file` marks each
+step with a comment banner — `# ── Step 6: Atomic source document DB write ──` —
 and every later reference in this document, and in §6.3 of
 [Workflows](manual/workflows.md#63-single-document-ingestion-), uses that
 numbering. Here it is in full, so you never have to leave this page to decode a
@@ -482,7 +471,7 @@ do — there is no state in which half of them landed.
 Two things to remember from this table.
 
 **Step 6 is the one moment where the source becomes visible to the rest of the
-system.** Everything before it Clod: real persistent? — the row from step 3 is
+system.** Everything before it — the row from step 3 is
 persisted, so *persistent* would be the wrong word for what changes here; what
 changes is that readers start trusting it — is either held in memory or written
 to a row still marked `status='processing'`, which every query filters out.
@@ -520,7 +509,6 @@ Three words from these passes are used throughout the acts:
   reason. A repair that would need the model to rewrite prose is skipped when no
   model was supplied, rather than guessed at. Act 3b examines what those reasons
   actually were on a real run.
-  Clod: "when no model was supplied" needs clarification 
 
   *Supplied* is literal: `repair_wiki(..., llm_client=None)` is a legal call, and
   the pass that runs automatically after every ingest makes exactly that call. It
@@ -551,7 +539,6 @@ you can ask questions of.
 Four tables do that work, plus the search index built over one of them. The
 clearest way to tell them apart is to ask **what a single row means** in each:
 
-Clod: a diagram showing how a source feeds the different tables would be great
 
 ```mermaid
 flowchart LR
@@ -857,8 +844,6 @@ prince), **16 `document_chunks`**, **6 `cites` links** and **15
 `log.md`, and one git commit (`6f84793`). See the [appendix, Act
 1](ingestion_walkthrough_appendix.md#act-1--first-document) for the full table.
 
-Clod: diagram here would be great.
-
 ```mermaid
 flowchart TD
     S1["<b>steps 1–5</b> · no model, nothing committed<br/>validate · detect change · open a provisional row<br/>· extract 5 pages · cut 16 fragments <i>in memory</i>"]
@@ -881,7 +866,6 @@ The important detail here is the order of the steps, not the row counts. The
 source row is committed as `status='ready'` at **step 6** — before the LLM has
 written a single wiki page in steps 7–9.
 
-Clod: steps again... 
 
 (The full numbering is the table in [What ingesting one file actually
 does](#what-ingesting-one-file-actually-does), taken from the step banners in
@@ -953,7 +937,6 @@ new concepts to the old ones that share a source. The knowledge base gets **more
 useful** as sources are added, not merely bigger. That is Karpathy's central
 claim, and Act 2 is the smallest possible demonstration of it.
 
-Clod: explain how the new `overview.md` is generated. What is supplied to the LLM and why the size of the context does not grow quadratically as it might sound.
 
 **What step 10 actually sends.** `wiki_generator.update_overview` builds its
 prompt from exactly three things:
@@ -1062,8 +1045,6 @@ what it is pointing at:
   five skips never happen — the pages are regenerated as part of the ingest.
   Unticked is the default, which is why Act 3b looks the way it does.
 
-  Clod: Shouldn't we modify the message to cleary communicate that a lint & repair is needed? 
-
 The parenthetical in the checkbox label is the whole trade, stated by the app
 itself: *slower, uses tokens*. The default is not a limitation someone forgot to
 lift — it is the pipeline declining to spend your money without being asked. One
@@ -1075,7 +1056,7 @@ touched**: the summary pages of the documents just ingested, plus every wiki pag
 that cites them. It never rewrites unrelated pages. The button is the wiki-wide
 sweep.
 
-Clod: does this avoid the risk of quadratic growth in LLM token usage as the wiki grows?
+Does this avoid the risk of quadratic growth in LLM token usage as the wiki grows?
 
 Yes — for this pass specifically. Its scope is a function of the *document* being
 ingested, not of the wiki's size: the summary pages of what you just ingested,
@@ -1149,9 +1130,6 @@ cannot see them at all. On top of that, the automatic `stale` repair only
 regenerates **summary** pages, the ones written from a single document. A concept
 page combines several sources, and there is no mechanical way to rewrite it from
 "whatever is left" without deciding what it should now say.
-
-Clod: a clarification example is desperately needed here.  
-HOw hard would it by to use different names? maybe stale_lint and stale_delete or stale and orphan?
 
 Worked through on this corpus, the two look like this.
 
@@ -1300,6 +1278,17 @@ front-matter declares a category, and whose rows hold values each carrying an
 of a markdown file. It holds information **about** the document, while the body
 below is the document itself. A program can read it easily, and because it lives
 inside the same file it cannot get separated from what it describes.
+
+**Two kinds of content live here, and only one of them expires.** The rows do:
+each carries an `as_of`, because the value it holds stops being true. The
+front-matter does not — a key such as `metodo_calculo: no_deterministico` states
+what kind of instrument a category holds, and that does not change when the
+market moves. What the two have in common is not volatility. It is that code
+reads them directly, instead of a model compiling them into prose. Expiry is why
+this layer was built; being machine-readable is what it also turns out to be
+good for, and the query walkthrough works that second use out in [What
+structured sources make
+checkable](query_walkthrough.md#what-structured-sources-make-checkable).
 
 Here is the `dolar.md` file with my demo dataset.
 
@@ -1456,9 +1445,6 @@ human to resolve, not auto-fixed). Showing that the linter catches a real
 ambiguity in the project's own demo data is more credible to this audience
 than asserting the demo has none.
 
-Clod: I think we should mention that the math needed for these wikis in not performed by the LLM but this will be further explained in the read walkthrough.
-BTW: The code shouln't be within the wiki instead of in the engine code? Each wiki might have its own math. HOw hard/dangerous is it to move it from base/domain/finance_argentina/ to the examples folder?
-
 **One rule about datasets belongs here, even though it is enforced on the reading
 side: no number in an answer is ever computed by the model.** A tool reads the
 value out of the file and returns it unchanged; where a figure has to be
@@ -1474,6 +1460,12 @@ living inside the workspace. The activation is decided by the *data* —
 `agent_tool.py:activate` returns nothing at all unless the workspace's
 `datasets/` folder satisfies a declared manifest — so the engine stays
 domain-agnostic without a wiki having to carry code.
+
+That manifest has a consequence on the reading side worth knowing about here:
+because these sources declare typed fields rather than prose, statements in an
+answer can be checked against them by code. The query walkthrough works out how
+far that reaches, and where it stops, in [What structured sources make
+checkable](query_walkthrough.md#what-structured-sources-make-checkable).
 
 Moving it into `examples/` would change something more important than tidiness:
 today **a workspace is data only** — markdown, a TOML file, a SQLite database.

@@ -123,6 +123,45 @@ reasoning applies to asking it to cite. Deciding this means choosing what a
 guaranteed citation would name — the passages injected, or only those the answer
 demonstrably used — which is the same open question as the fit check below.
 
+**A number invented in the model's own prose is asked against, not blocked.**
+The project's rule is that the model explains figures and never arrives at them:
+`query_dataset` returns values read straight out of the data files, and the
+advisory's whole comparison table is computed in Python and appended by
+`postprocess.answer_with_table` whether or not the model reproduced it. What
+none of that covers is the model writing a *different* number into the sentences
+around the table. The system prompt asks it not to. Nothing checks.
+
+Unlike the fit check below, this one is exactly checkable. Numbers are a closed
+class and compare exactly, where a paraphrase does not, and the figures the tools
+returned are already held as typed values rather than as text to be parsed back
+out — `DatasetRow.valor`, plus the figures in the computed advisory block. The shape is the one `postprocess.py`
+already uses: a pure function over the run's message log, reading `ToolReturnPart`
+contents.
+
+```python
+authorised = {norm(v) for v in dataset_values(messages)} | numbers_in(advisory_table)
+invented   = {n for n in numbers_in(answer_prose) if norm(n) not in authorised}
+```
+
+Two decisions block it, and neither is technical:
+
+**Rounding.** The data says `1187.5`, the model writes "cerca de 1.200". That is
+good prose, not an invention, and an exact match rejects it. Admitting a
+tolerance (±x%) reopens the hole the check exists to close; refusing one forbids
+rounding outright. The project's own stance narrows this more than it would
+narrow elsewhere — under "the model does not arrive at figures", a computed
+number *is* the violation — but the rounding case still has to be decided rather
+than assumed away. Numbers appearing inside a page the answer legitimately read
+also have to be admitted into the authorised set.
+
+**What happens on a hit.** Reject and regenerate, strike the sentence, or
+annotate. The existing precedent is to append rather than rewrite
+(`answer_with_table` never edits the model's text), but only rejection is
+actually a guarantee.
+
+Stated as a limit in
+[`docs/query_walkthrough.md`](docs/query_walkthrough.md#the-question-this-document-answers).
+
 **The raw-source fallback is reachable but structurally rare.** With
 pre-retrieval enabled, the last resort before refusing is to answer from a
 fragment of the original document. It runs only when the question names
@@ -149,10 +188,93 @@ The gate asks *did I find anything?* rather than *does what I found answer
 this?* — the same distinction that made the stop-word defect possible one level
 down. Deliberate as a safety property (a question about an uncovered subject
 must not be able to pull a tangential fragment as cover) but the effect on reach
-looks like a consequence rather than a decision. The machinery to judge fit
-already exists in `chat/overlap.py`, used today to verify fallback answers
-*after* they are produced. No change proposed yet; the trade needs measuring
-first.
+looks like a consequence rather than a decision.
+
+`chat/overlap.py` does not answer this question, although it runs on that same
+path. It measures whether the answer draws on the fragment, not whether the
+fragment answers the question — a faithful narration of an irrelevant passage
+scores high. Judging fit requires one of the techniques in the entry below. No
+change proposed yet; the trade needs measuring first.
+
+**Verifying an answer against its source: the established techniques.** Two
+distinct problems are involved, and this project currently addresses neither.
+They are recorded together because the entry above and
+[`docs/query_walkthrough.md`](docs/query_walkthrough.md#the-question-this-document-answers)
+both refer to them.
+
+*Problem 1 — which passage supports which sentence.* `overlap.is_supported`
+takes one answer and one source. Where it runs, the code injected exactly one
+fragment, so there is nothing to attribute. In the agentic path the model chose
+what to read and several tool returns may exist, with no record of which one a
+sentence came from. Joining them and comparing against the whole does not work:
+coverage rises with the length of the right-hand side. The established approach
+is to score each sentence against each passage independently and keep the
+highest score. The stronger variant is to record attribution during generation —
+require a citation per claim naming the passage — which is what the **ALCE**
+benchmark (Gao et al., 2023) evaluates, using entailment to compute citation
+precision and recall.
+
+*Problem 2 — whether the passage answers the question.* Two families, differing
+in where they act:
+
+| What is verified | Technique | Acts |
+|---|---|---|
+| the answer follows from the passage | **textual entailment (NLI)**: the pair (premise = passage, hypothesis = sentence) is classified as entailed / neutral / contradicted. DeBERTa-v3-MNLI, AlignScore, MiniCheck, Vectara HHEM | after the answer |
+| the passage is relevant to the question | **cross-encoder reranking**: the pair (question, passage) is scored by a model that reads both together. monoT5, BGE-reranker, Cohere Rerank | at retrieval |
+
+The Snow White failure written up in the query walkthrough is the second kind,
+not the first: the fragment is described accurately and the answer narrates it
+faithfully; what fails is that the fragment is not about the ending. Reranking
+at retrieval addresses it. A post-hoc verifier does not.
+
+**A third route, cheaper than either, when the source declares its own
+structure.** A neural reranker judges relevance by reading question and passage
+together. A document that carries headings has already stated which part it is:
+introduction, method, results; installation, troubleshooting; beginning, middle,
+ending. Comparing *the section a fragment came from* against *the section the
+question asks about* is a string comparison, not a model.
+
+Half of it is built and unused. `chunker.py:63` computes `header_breadcrumb` for
+every chunk, `pipeline.py:242` stores it on the `document_chunks` row,
+`search_chunks` returns it (`tools/search.py:27`), and `wiki_tools.py:118`
+renders it into what the model sees. Every retrieved fragment already carries
+the section it came from; no code compares it with anything.
+
+The missing half is the mapping from a question to a section — deciding that
+"how does it end" is about the ending. Options, in the project's existing idiom:
+a per-corpus declared list, like the alias lists in `wiki_config.toml`; or a
+model call, which reintroduces the cost the route was chosen to avoid. The
+mapping is also the part that fails silently on a corpus whose headings are
+idiosyncratic.
+
+Scope, stated honestly: it applies only where sources are structured, it checks
+*which part* rather than *what is true*, and it does not subsume the entailment
+check above — an answer can quote the right section and still misstate it.
+Nothing is built.
+
+Costlier families, for completeness: atomic-claim decomposition and per-claim
+verification (**FactScore**, **SAFE**, Chain-of-Verification), and
+model-as-judge with a rubric (**RAGAS** faithfulness and context
+precision/recall, the **TruLens** RAG triad, **DeepEval**, **Arize Phoenix**).
+
+**What adopting any of them costs here.** All are models producing a score
+against a threshold, not a branch in Python. Two consequences specific to this
+project:
+
+- The document argues that the *before* position gives guarantees because no
+  decision is left to a model. An NLI verifier or a reranker puts a model back
+  into that chain. NLI models are small, run locally and are deterministic at
+  temperature zero, so the claim survives with qualification — but the wording
+  has to change.
+- Embeddings were refused for retrieval. A cross-encoder is also a neural model,
+  though a different one: it reads question and passage together instead of
+  comparing vectors. Adopting it is an explicit exception to that decision, not
+  a continuation of it.
+
+**Where to put them first.** `base/domain/eval/` already holds a rubric and an
+LLM judge, with `graders.py` as its deterministic pre-screen. RAGAS-style
+metrics or an NLI verifier belong there as offline measurement. Only with that
+measurement in hand is there a basis for moving one into the answering path.
 
 **The coverage gate matches page titles literally.** With pre-retrieval enabled,
 whether a wiki answers a question depends on whether one of its concept-page

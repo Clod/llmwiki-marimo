@@ -57,6 +57,30 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   demo's own config — so a user copying the template had no way to learn it exists.
 
 ### Changed
+- **Both walkthroughs were reviewed line by line by a first-time reader, and
+  repaired.** Twenty-seven commits of prose, no production code touched and the
+  generated appendix unchanged. The review found errors that a check against the
+  code could not: the compounding figure was 15 → 30 `links_to` edges rather than
+  15 → 25, and the argument attached to it did not hold either, since six new
+  pages produced fifteen new edges — the same ratio as the first act — so what
+  supports the claim is that most new edges come from `repair_missing_xref`, not
+  from the model writing pages. The capture script re-runs eleven questions
+  through the gate, ten of them through a live model, not seven — a figure the
+  same document stated correctly sixty lines earlier. `ensure_citation` appends
+  two independently decided labels, `Referencia:` and `Fuente:`, not one.
+  `overlap.py` was described as able to judge whether a fragment answers a
+  question, when it measures whether an answer draws on a fragment; the ROADMAP
+  entry repeating that claim is corrected too. "Either case ends in `refuse`" is
+  false for a wiki with datasets, where `has_data` diverts the question to the
+  tools.
+
+  Terms used before being defined were introduced where the behaviour first
+  appears — "positions", "agentic", the document's own division into parts, the
+  coverage roster, and the three runs the summary table refers to — so every
+  reference resolves backwards. Figurative phrasing was replaced with the
+  mechanism it stood for throughout: "it nearly went the other way" does not say
+  what the other way was, and "structurally blind" does not say what goes
+  undetected.
 - **The programmer manual is four files, and gained a layer map.** It had grown
   to 1227 lines on top of the 1090 already split into `workflows.md`. Now:
   `programmer_manual.md` keeps orientation (§1 §2 §3 §10 §11 §13, 421 lines),

@@ -49,14 +49,29 @@ intervene?** There are exactly three answers — never, after the model has
 finished, or before it is ever called — and this project can be configured for
 any of them.
 
-**Never.** Hand the model the search tools and trust it. (A *tool* is simply a
-function the model is allowed to call — it asks for a search, the code runs it,
-and the results come back into the conversation. [Part 1](#part-1--the-model-decides-what-to-look-up)
-lists the three this project provides.) The model decides what to look for, when
+Those three are what this document calls the **positions** — the position being
+where the checking code sits relative to the model's run. They are named
+*never*, *afterwards* and *before*, and they are the next three paragraphs.
+
+They also determine how this document is divided. **Part 1** covers *never* and
+*afterwards*: both leave the searching to the model, and differ only in whether
+code inspects the result. **Part 2** covers *before*, where code does the
+searching.
+
+**Never.** Hand the model the search tools and trust it. (A *tool* is a function
+the model is allowed to call: it asks for a search, the code runs it, and the
+results come back into the conversation. This project provides three, listed at
+the start of [Part 1](#part-1--pre-retrieval-unticked-the-model-decides-what-to-look-up).) The model
+decides what to look for, when
 it has seen enough, and what to say. This handles the widest range of questions
 and gives you no guarantees at all.
 
-Clod: this is the standard agentic behavior, right?
+This is the ordinary **agentic** arrangement — a loop in which the model holds
+some functions, chooses which to call and when, reads what they return, and keeps
+going until it is ready to answer. It is what Claude Code, Cursor or any MCP
+client is doing when you point one at a folder. Nothing in it is particular to
+this project: it is what you get for free, and the two positions below are what
+it costs to do better.
 
 **Afterwards.** Let the model work exactly as above, then have code examine the
 finished conversation before the answer reaches the user. Two things are cheap
@@ -70,17 +85,56 @@ is cited, but not that the cited page says what the answer claims. A model that
 searched, got three fragments back, and then wrote a sentence none of them
 support passes every check here.
 
-Clod: shouldn't we mention here that lexical token overlap is in the roadmap?
+A test that compared the answer against the source would be a different kind of
+test, and the project contains one: `chat/overlap.py`. It computes *coverage* —
+the fraction of the answer's content words that also occur in the source text —
+and rejects the answer when coverage falls below a deliberately low threshold.
+In the answering path it runs in one place, described in Part 2: when an answer
+was written from a single fragment of a raw document, that answer is compared
+against that fragment before the user sees it
+(`preretrieval.py:354`). The lint pass uses the same function for an unrelated
+purpose: comparing a source document's fragments against the wiki pages built
+from it, to find documents whose content largely failed to reach any page
+(`lint/checks.py:486`).
+
+It is not applied in this position, for two reasons.
+
+**It assumes one identified source.** In the case where it runs, the code
+injected exactly one fragment, and the answer can have come from nowhere else.
+Here the model chose what to read, the conversation may hold several tool
+returns, and nothing records which return a given sentence came from. Reusing
+the function unchanged would mean comparing the answer against all of them
+joined together, and that does not work: the more text on the right-hand side,
+the more of the answer's words occur in it, so coverage rises without the answer
+being any better supported. The established alternative is to score each
+sentence against each passage separately and keep the highest score, which
+avoids that effect. So this is an obstacle to reusing the existing function, not
+a reason the check cannot be built.
+
+**It measures a different failure.** Coverage asks whether the answer draws on
+the source. It does not ask whether the source answers the question. The Snow
+White example below is a faithful narration of the fragment it cites — the
+fragment does describe the dwarfs finding Snow White on the floor — so its
+coverage would be high and this test would accept it. What went wrong there is
+that the fragment is not about the ending, and no word-comparison detects that.
+
+The failure the second paragraph describes — a passage that does not answer the
+question — is normally addressed at retrieval time rather than after the answer
+exists, which is the position Part 2 takes. [`ROADMAP.md`](../ROADMAP.md) records
+both problems and the established techniques for each.
 
 **Before.** Have code do the searching — the same SQLite full-text index the
-ingestion walkthrough built, no embeddings involved — and decide from what it
-finds whether this wiki covers the question at all. If it does not, refuse without ever
-calling the model. If it does — the ordinary case — call the model as usual, but
-with the retrieved pages already sitting in its context and no search tools of
-its own: it still writes the answer, it just never chose what to read. This
-gives you guarantees, and you pay for them by answering fewer questions: one
-that mentions nothing the wiki knows about is turned away, even when a search
-would have found something.
+ingestion walkthrough built, no embeddings involved — and then decide whether
+this wiki covers the question. The search result is not what decides it. The
+code also reads two lists the wiki carries: one names topics it must refuse
+outright and is checked before any search runs; the other names the subjects it
+does cover, together with the alternate names people use for them, and a
+question naming none of them is refused even when the search returned matches.
+If the question is not covered, the model is never called. If it is — the
+ordinary case — the model is called as usual, but with the retrieved pages
+already in its context and no search tools of its own: it still writes the
+answer, it just never chose what to read. This gives you guarantees, and you pay
+for them by answering fewer questions.
 
 None of the three is a broken version of the others. Each is a real choice with a
 real cost, and this document is arranged so you can disagree with me about which
@@ -91,23 +145,42 @@ There is a fourth idea worth naming here, though it is not one of the three:
 structured data — currency rates, interest rates, prices — a tool reads the
 values straight out of the data files and returns them unchanged, and for the
 investment advisory the whole comparison table is computed in Python and pasted
-below the model's prose whether or not the model copied it correctly. The
-model's job is to explain figures in words, not to arrive at them.
+below the model's prose whether or not the model copied it correctly. **The
+model's job is to explain figures in words, not to arrive at them.**
 
 Two qualifications, so this is not oversold. First, it does not come free with
 any of the three positions above: it applies to wikis that have a `datasets/`
 folder, and `fairy-tales` — the wiki behind every transcript in Part 1 — has
 none, so nothing of this appears until
 [Part 2, Act 6](#6-deterministic-advisory). Second, what the code guarantees is
-that the authoritative figures *reach* the user; that the model does not also
+that the figures read out of the data files *reach* the user; that the model does not also
 write an invented number into its own sentences is asked for in the system
-prompt, not enforced.
+prompt, and today nothing checks it.
+
+That gap can be closed. Numbers are the one class of claim that compares
+exactly, and the figures the tools returned are already held as typed values
+rather than as text that would have to be parsed back out, so code could extract
+the figures from the model's prose and reject any the tools did not produce. What prevents it is not the check but an
+unresolved decision about rounding: the data says `1187.5`, the model writes
+"about 1,200", and that is correct prose rather than an invention.
+[`ROADMAP.md`](../ROADMAP.md) records the design and the two decisions it waits
+on.
 
 ## The two checkboxes
 
-Those three positions are not an abstraction — they are two checkboxes in the
-read app's chat panel, and it is worth seeing them before any transcript, because
-almost everything below is a consequence of which one is set.
+Those three positions are not a classification written for this document. Each
+one is a setting you can select in the running application: **two checkboxes**
+in the read app's chat panel. Three positions out of two boxes, because one
+overrides the other. Tick **Pre-retrieval** and you get
+*before*, whatever else is set. Leave it unticked, and **Strict mode** chooses
+between *afterwards* (ticked — and it is ticked by default) and *never*.
+
+Every transcript in this document was produced with these two checkboxes in one
+particular state, so the checkboxes are explained before any transcript appears.
+Two views of them follow. The diagram shows how a question is routed under each
+setting. The table below the diagram compares the three positions: what each one
+is for, who decides what gets read, what the code guarantees, and which function
+implements it.
 
 ```mermaid
 flowchart TD
@@ -135,18 +208,33 @@ flowchart TD
     style C3 fill:#fdeaea,stroke:#a33
 ```
 
-| | The idea, in one sentence | Who decides what to look up | What code guarantees | Where it is |
+| Checkboxes → position | The idea, in one sentence | Who decides what to look up | What code guarantees | Where it is |
 |---|---|---|---|---|
-| **Pre-retrieval** ticked | *Know what you cover.* If the question is not about something this wiki holds, do not spend a model call on it — and when it is, hand the model the relevant pages rather than let it hunt for them. | code, via SQLite full-text search | the wiki's coverage decides whether the model is called at all | `preretrieval.pre_retrieval_answer` |
-| **Strict mode** only *(the default)* | *Let it work, then audit it.* The model researches however it likes; code refuses to show an answer it cannot see any evidence behind. | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
-| neither | *Trust the model.* Whatever it produces is what the user reads. | the model | nothing | **streamed** straight from the agent |
+| **Pre-retrieval** ticked<br>→ ***before*** | *Know what you cover.* If the question is not about something this wiki holds, do not spend a model call on it — and when it is, hand the model the relevant pages rather than let it hunt for them. | code, via SQLite full-text search | the wiki's coverage decides whether the model is called at all | `preretrieval.pre_retrieval_answer` |
+| **Strict mode** only *(the default for a wiki that does not enable pre-retrieval)*<br>→ ***afterwards*** | *Let it work, then audit it.* The model researches however it likes; code refuses to show an answer it cannot see any evidence behind. | the model | an answer with no tool evidence behind it is replaced by a refusal; a missing citation is appended | `guardrail.enforce_grounding` + `postprocess.ensure_citation` |
+| neither<br>→ ***never*** | *Trust the model.* Whatever it produces is what the user reads. | the model | nothing | **streamed** straight from the agent |
 
-One note on the labels. The checkbox reads, in full, "Strict mode: answer only
-from wiki sources". Ticking **Pre-retrieval supersedes it**: its own flow is
-already gated, so the after-the-fact check has nothing left to add. The default
-is the middle row — `grounding_flag = {"strict": True, "pre_retrieval": False}` in
-`marimo/read_app_tabs.py`, with the pre-retrieval box re-seeded per wiki from
-that wiki's `wiki_config.toml`.
+**What the two labels say, and why one of them overrides the other.** The first
+checkbox reads "Strict mode: answer only from wiki sources"; the second reads
+"Pre-retrieval: code retrieves from the wiki (supersedes strict mode)". That
+precedence is literal in the code: the pre-retrieval branch answers and returns
+before the strict branch is reached (`read_app_tabs.py:443` and `:465`), so with
+pre-retrieval ticked, `enforce_grounding` and `ensure_citation` never run,
+whatever the strict checkbox shows.
+
+The reason they are not needed there is that the pre-retrieval path has already
+done more than they check for. It refused the question outright if the wiki does
+not cover it, and it chose the passages itself instead of leaving the model to
+search — so a check asking "did any tool return content?" has nothing left to
+decide.
+
+**Which row you start on depends on the wiki.**
+`marimo/read_app_tabs.py:372` initialises `grounding_flag = {"strict": True,
+"pre_retrieval": False}`, but that is only the state before a wiki is loaded.
+Selecting one re-seeds the pre-retrieval box from that wiki's `wiki_config.toml`
+(line 532); strict mode has no such key and always starts ticked. So a wiki
+whose configuration does not enable pre-retrieval opens on the middle row, and
+one that enables it opens on the first.
 
 **The corpus follows the setting.** Part 1 runs on `examples/fairy-tales`, a wiki
 of documents and nothing else, which ships with pre-retrieval **unticked**. Part
@@ -155,17 +243,59 @@ of documents and nothing else, which ships with pre-retrieval **unticked**. Part
 with it **ticked**. That the two demos ship on different settings is the argument
 of this document in miniature.
 
+**Where "ships with" lives.** It is three lines in the wiki's own
+`wiki_config.toml`, next to the vocabulary lists the ingestion walkthrough
+covered:
+
+```toml
+[pre_retrieval]
+enabled = true
+```
+
+`finanzas-argentinas` has that block; `fairy-tales` has no `[pre_retrieval]`
+section at all, and its absence is the default —
+`config.py:225` reads `data.get("pre_retrieval", {}).get("enabled", False)`, so a
+wiki that never heard of the setting gets the agentic path. Nothing else in the
+file changes: the same wiki, with that one block deleted, answers through
+the model's own searching instead.
+
+The checkbox is seeded from it every time you switch wikis, and un-ticking it
+overrides the file for that session only — the file is read, never written.
+
+**Strict mode is not configurable this way**, which is worth knowing before you
+go looking. There is no TOML key for it: it starts `True`
+(`marimo/read_app_tabs.py:372`) for every wiki, and the only way to change it is
+the checkbox. The asymmetry is deliberate — whether a wiki knows its own
+coverage well enough to gate on it is a property of that wiki, while "audit the
+answer before showing it" is a default nobody should have to opt into.
+
 If you are building the ordinary kind of wiki, **Part 1 is the whole document for
 you** — Part 2 describes a setting you have no reason to turn on, on a corpus you
 do not have.
 
 ## How the appendix is generated
 
-The appendix is deliberately generated in two passes, and the split matters
-enough to explain before reading either half — because the two halves deserve
-very different amounts of trust.
+**What the appendix is.**
+[`query_walkthrough_appendix.md`](query_walkthrough_appendix.md) is the raw
+evidence behind this document. Eleven questions were put to the two demo wikis;
+for every one of them it records how the code routed the question, and for ten it
+also records the answer that came back, verbatim. Nothing in it is written by
+hand — the file is produced
+by `scripts/capture_query_walkthrough.py`, carries a `do not edit` banner, and is
+overwritten each time that script runs. Every figure and every quotation in the
+rest of this walkthrough is taken from it.
 
-The **routing table** is pure code. For each question it records five things:
+**Why its two halves are not equally trustworthy.** The file is produced by two
+separate passes:
+
+1. a **routing table**, produced by code alone, and
+2. the **answers**, produced by a live model.
+
+The difference matters enough to explain before you read either one.
+
+**The routing table.** One line per question asked of a demo wiki. Each line
+records what the code decided about that question — and since no model takes part
+in any of it, the same question always produces the same line. Five columns:
 
 | Column | What it means |
 |---|---|
@@ -175,27 +305,45 @@ The **routing table** is pure code. For each question it records five things:
 | `wiki` / `docs` | how many hits the full-text search returned, in the curated pages and in the raw documents respectively |
 | `plan` | the resulting decision: call the model, or refuse |
 
-Behind them are `scope.is_off_limits`, `scope.mentions_known_data`,
-`scope.advisory_intent` and `preretrieval.plan_retrieval` — every one of them
-living inside the pre-retrieval path and nowhere else. That is worth saying
-plainly, because the blacklist and the alias lists sit in a config file that
-looks like it governs the whole wiki: **untick the box and none of them are
-read.** The model then does its own searching, and no scope check stands in
-front of it. No model runs to produce any of this table, so it is deterministic
-and identical on every run — which is
-exactly what makes it the more useful of the two halves for judging whether the
-system is correct: you can read it, compare it across commits, and reproduce it
-for the cost of a SQLite query.
-`scripts/capture_query_walkthrough.py --plan-only` captures *only* this half — no
+Those five values are computed by four functions: `scope.is_off_limits`,
+`scope.mentions_known_data`, `scope.advisory_intent` and
+`preretrieval.plan_retrieval`. All four live inside the pre-retrieval path and
+are called from nowhere else. That is worth stating plainly, because the
+blacklist and the alias lists sit in a config file that looks as though it
+governs the whole wiki: **untick the box and none of those four functions runs.**
+The model does its own searching instead, and nothing reads the config file.
+
+Because the table is deterministic, it is the more useful half for judging
+whether the system is correct: you can read it, compare it across commits, and
+reproduce it for the cost of a SQLite query.
+`scripts/capture_query_walkthrough.py --plan-only` captures this half alone — no
 model client is even constructed.
 
-The **answers** need a live model, and vary in wording from run to run: different
-phrasing, different ordering of a table's ties, occasionally a different sentence
-structure. Read them for *behaviour* — does it cite? does it refuse? does it call
-the tool it should? — never for exact prose. That is also why this document
-quotes them rather than describing them from memory: the quotes are the only
-honest way to show what a live run produced, short of pasting the whole appendix
-or asserting something that might not survive the next regeneration.
+**The answers.** These require a live model, and their wording varies from one
+run to the next: different phrasing, a different order among rows that rank
+equally, sometimes a different sentence structure. Read them for what the model
+did — whether it cited a source, whether it refused, which tools it called — and
+not for the exact words, which the next capture will change.
+
+The same variation determines how this document reports them. Take Act 7, where
+the model is asked what it would earn on YPF shares. Two ways of reporting what
+came back:
+
+- **Described:** the model explained that a return on shares cannot be
+  estimated in advance.
+- **Quoted:** *"No es posible estimar cuánto ganarías con acciones de YPF, ya
+  que las acciones son un instrumento de renta variable…"*
+
+The description is not in the appendix — no search of that file finds those
+words, so a reader cannot confirm it, and neither can a test. Worse, it survives
+being wrong: if a later capture had the model refuse the question outright
+instead of explaining the limit, the description would still read as plausible
+while no longer matching anything. The quotation would fail to match, and the
+mismatch would be visible.
+
+Reproducing the whole appendix instead would put every line that matters inside
+pages of material unrelated to it. Quoting is the option between the two: the
+shortest form a reader can still find, word for word, in the capture.
 
 There is one hybrid case, and it is flagged where it appears. The table in [What
 the default configuration does to those same three
@@ -204,20 +352,38 @@ replays two deterministic functions over an already-captured conversation. It
 needs no second model call and cannot drift from the app's behaviour, but it is
 derived from one live run rather than being a live run of its own.
 
-## Part 1 — the model decides what to look up
+## Part 1 — pre-retrieval unticked: the model decides what to look up
 
-This is the mode a wiki of plain documents runs in.
+This part covers the *never* and *afterwards* positions, which is what you get
+with the **Pre-retrieval** box unticked: the model searches using the available tools, and the only
+question is whether code inspects the result afterwards. It is the mode a wiki
+of plain documents runs in.
 
-First, a definition. An **agent** is a loop: the model is given a set of
-functions it is allowed to call, it decides for itself which ones to call and
-when, it reads what they return, and it keeps going until it is ready to answer.
-The functions are called **tools**. Here the agent gets three of them:
+The agent loop was described [at the top](#the-question-this-document-answers):
+the model holds some functions, picks which to call, reads what comes back, and
+keeps going until it is ready to answer. Those functions are its **tools**, and
+here it gets three:
 
 | Tool | What it does |
 |---|---|
 | `read_wiki_page` | open one generated wiki page by path and return its text |
 | `search_wiki_fts` | full-text search restricted to the curated wiki pages |
 | `search_source_chunks` | full-text search over the raw ingested documents |
+
+**None of these three consults the wiki's vocabulary lists.**
+`search_wiki_fts` passes the model's search terms to
+`search_chunks(db_path, query, scope="wiki")` and returns what FTS5 matches
+(`chat/wiki_tools.py:101`). The alternate names recorded at ingest are not
+substituted into the query, and the list of topics the wiki must refuse is not
+consulted — a question about a blacklisted topic reaches the model like any
+other. Those lists are read only by the functions of the pre-retrieval path, so
+in this mode they have no effect at all. What the model searches for is whatever
+words it decided to search for.
+
+Where they do take effect is Part 2: the blacklist is the first branch of [the
+routing chain](#the-routing-decision-in-shape), and the alternate names widen the
+list of subjects the wiki claims to cover, which [Act
+5](#5-an-alias-reaches-the-datum) shows deciding a real question.
 
 (A wiki with a `datasets/` folder gets a fourth, `query_dataset`; `fairy-tales`
 has no such folder, so here it really is three.) Alongside them the model gets a
@@ -236,8 +402,13 @@ about all of them, or about the collection as a whole — because it is holding 
 search tool and can go and find out.
 
 The `fairy-tales` demo suggests four questions to new users, and all four are of
-that kind: *What tales are in this wiki?* · *Summarize the plot of each tale* ·
-*What characters and themes do the tales share?* · *Compare how each story ends*.
+that kind: 
+
+1. *What tales are in this wiki?*
+2. *Summarize the plot of each tale* ·
+3. *What characters and themes do the tales share?* ·
+4. *Compare how each story ends*.
+
 Not one of them names a specific topic. All four are normal things to ask an
 encyclopedia, and all four need an agent that is free to look around.
 
@@ -247,29 +418,44 @@ The prompt asks, and asks firmly, but asking is all it can do.
 
 ### What the raw model does, with nothing checking it
 
-Three of those suggested prompts were put to the live agent with **both boxes
-unticked** — the bottom row of the table above, deliberately chosen to isolate
-what the model does when no code is watching. The full transcripts are in the
+Three of the four suggested prompts — questions 1, 3 and 4; *Summarize the plot
+of each tale* was left out — were put to the live agent with **both boxes
+unticked**. That is the *never* position: no pre-retrieval, no strict mode, and
+nothing examining the answer between the model and the user. The setting was
+chosen deliberately, to record what the model does when no code constrains it.
+The full transcripts are in the
 [appendix](query_walkthrough_appendix.md#the-unticked-mode-answering-live-model);
 what matters here is what the model chose to do.
 
-**The range, demonstrated.** *What characters and themes do the tales share?* is
+**Run 1, the synthesis — the range, demonstrated.** *What characters and themes
+do the tales share?* is
 a question no single page in the wiki answers, and the agent went and built the
 answer itself: three `search_wiki_fts` calls and eight `read_wiki_page` calls —
 **eleven tool calls in one turn** — ending in a comparison of the stepmothers in
 Cinderella and Snow White, with a citation on each claim. Nothing in the code
 planned any of that.
 
-**A citation simply missing.** *What tales are in this wiki?* took a single
-`read_wiki_page` and produced a correct, complete inventory of three tales and
-their concepts — **carrying no citation at all**, in a wiki whose system prompt
+**Run 2, the inventory — a citation simply missing.** *What tales are in this
+wiki?* took a single `read_wiki_page` call, on `wiki/index.md` — the page
+ingestion writes to list what the wiki holds — and produced a correct, complete
+inventory of three tales and their concepts — **carrying no citation at all**, in a wiki whose system prompt
 says citations are "mandatory, not optional" and that every factual statement
 must carry one. The answer happens to be right; the point is that its being right
 is not something the model established.
 
-**And the failure no amount of checking catches, in the open.** *Compare how each
-story ends* went seven calls deep, exhausted the curated pages, and fell through
+**And nothing happens to it.** In this configuration the answer reaches the user
+exactly as the model wrote it, uncited. That is what the *never* position means:
+the system prompt is the only thing that asked for a citation, a system prompt is
+a request, and the request was not honoured. No code looks at the answer, so
+nothing notices. The [next section](#what-the-default-configuration-does-to-those-same-three-answers)
+takes this same answer and shows what the configuration the app actually ships
+with does with it.
+
+**Run 3, Snow White — the failure no amount of checking catches, in the open.**
+*Compare how each story ends* went seven calls deep, exhausted the curated pages, and fell through
 to `search_source_chunks` three times. What came back:
+
+The answer came back as a table, one row per tale. This is the Snow White row:
 
 > | Snow White | The wicked Queen is initially happy believing she is the
 > fairest, but the Seven Dwarfs find Snow White dead on the floor, suggesting a
@@ -281,12 +467,40 @@ at simply is not the ending. This is the whole risk in one sentence: a raw
 fragment retrieved for a question it does not answer, narrated confidently, and
 **stamped with a citation that makes it look grounded**.
 
-The same answer gets Cinderella right, citing the curated page
-`wiki/summaries/cinderella.md`, and declines honestly on Little Red Riding
-Hood — *"I couldn't find that in your wiki."* That mixture is what makes the Snow
-White row instructive rather than merely wrong. The model is not being reckless,
-and it is not incapable of saying no. It found something, and something is not
-the same as the answer.
+**The other two rows of that same table came out differently, and the difference
+is visible in what each one cites.** Cinderella is correct, and it cites
+`wiki/summaries/cinderella.md` — a wiki page, written during ingestion by a model
+that had the whole tale in front of it. Little Red Riding Hood is not answered at
+all: *"I couldn't find that in your wiki."* Snow White is the only row citing a
+raw PDF page, and the only row that is wrong.
+
+This is a single answer, so it shows a pattern rather than proving one. But it is
+the pattern the rest of this document is about. A wiki page has already been read
+and summarised by a model that had the whole document in front of it. A raw
+fragment is a few hundred words that matched the query — and matching is not
+answering. Nothing between the search and the sentence checked which of the two
+it was. The row that went wrong is the row where the agent had exhausted the
+pages and started reading source text.
+
+That mixture — one right, one refused, one wrong — is what makes this run
+instructive rather than merely bad. The model is not being reckless, and it is
+not incapable of saying no: it said no about Little Red Riding Hood in the same
+answer. It found something, and something is not the same as the answer.
+
+**A source that declared its own structure would have caught this one.** What
+makes the Snow White row undetectable is that nothing in this system compares a
+statement against anything except the words it was retrieved from — and those
+words do support it. But the question asked how the tale *ends*, and the
+fragment came from the middle. Had the source carried headings — an
+introduction, a middle, an ending — the fragment would have arrived labelled
+with the section it came from, and a fragment from the middle offered as the
+ending is a mismatch code can see.
+
+Note what that requires. Not a declaration of *what* the ending is, which nobody
+is going to write for every tale, but only of *which part* is the ending. The
+[section on structured sources](#what-structured-sources-make-checkable) covers
+both this and the stronger form, where declared fields let an answer be
+contradicted outright.
 
 ### What the default configuration does to those same three answers
 
@@ -297,48 +511,66 @@ anything. Both are pure functions of the run's own message history, so their
 effect on these exact three answers can be worked out without asking the model
 anything again — and the capture script now records it alongside each transcript.
 
-**`guardrail.enforce_grounding`** asks one question: did *any* tool in this run
-return something substantive — not empty, and not one of the tools' own
-"nothing found" messages? If not, the answer is thrown away and replaced
-wholesale with the refusal. As its own docstring puts it, a system prompt "can
-ASK the model to answer only from the wiki, but it cannot GUARANTEE it."
+**`guardrail.enforce_grounding` asks: did this run look anything up?** It goes
+through the tool calls looking for one that came back with actual content — an
+empty result does not count, and neither does a tool's own polite "nothing
+found". If none did, the model's answer is not edited or flagged, it is thrown
+out and the refusal is shown in its place. The function's docstring says why it
+has to exist at all: a system prompt "can ASK the model to answer only from the
+wiki, but it cannot GUARANTEE it."
 
-**`postprocess.ensure_citation`** collects the sources the run *deliberately
-used* — the wiki pages actually opened with `read_wiki_page`, the dataset files
-actually queried — and appends a `Referencia:` (*reference*) line if the answer
-does not already carry that attribution. Pages that merely turned up in a search are
-excluded on purpose: searching is not the same as using.
+**`postprocess.ensure_citation` asks: does the answer say where it came from?**
+It lists what the run actually used — pages opened with `read_wiki_page`,
+datasets queried with `query_dataset` — and if the answer names none of them, it
+adds a line at the bottom. Two labels, chosen independently, because there are
+two different things to credit: `Referencia:` for something inside the wiki (the
+page, the dataset file), `Fuente:` for where a dataset's figures originally came
+from. An answer can end up with both.
 
-Applied to the three runs above — these are the values the capture measured, not
-a hand-derivation:
+A page that merely showed up in a search result does not count as used, and that
+exclusion is deliberate. Asking "what have you got on Cinderella?" and being
+handed five titles is not the same as reading one of them; crediting all five
+would make the answer look better sourced than it is.
 
-| | what the raw model produced | what `Strict mode` does to it |
+So: run those same two functions over runs 1, 2 and 3 — the three transcripts
+from the section above, unchanged — and this is what the default configuration
+would have shown the user instead. The capture script measures these values; none
+of them is derived by hand.
+
+| The run | what the raw model produced | what `Strict mode` does to it |
 |---|---|---|
-| the inventory | correct, **no citation** | a tool returned real content, so the answer stands — and the page it opened is appended: **`Referencia: index.md`**. The failure is repaired. |
-| the synthesis | 11 tool calls, cited inline | grounded, and it already names the pages it read. **Leaves it exactly as it is.** |
-| Snow White | a mid-tale passage narrated as the ending, **with a real citation** | the searches returned real text, so `has_grounding` is true; the answer already names a page it read, so nothing is appended. **Leaves it exactly as it is.** |
+| **1 · the synthesis**<br>*What characters and themes do the tales share?* | 11 tool calls, cited inline | grounded, and it already names the pages it read. **Leaves it exactly as it is.** |
+| **2 · the inventory**<br>*What tales are in this wiki?* | correct, **no citation** | a tool returned real content, so the answer stands — and the page it opened is appended: **`Referencia: index.md`**. The failure is repaired. |
+| **3 · Snow White**<br>*Compare how each story ends* | a mid-tale passage narrated as the ending, **with a real citation** | the searches returned real text, so `has_grounding` is true; the answer already names a page it read, so nothing is appended. **Leaves it exactly as it is.** |
 
-The last row is worth pausing on, because it nearly went the other way. Nothing
-is appended only because the model happened to cite
-`wiki/summaries/cinderella.md` inline, in the *Cinderella* row of the same table
-the wrong Snow White row sits in. Had it not, `ensure_citation` would have
-attached a `Referencia:` line to an answer containing a false claim — dressing it
-up rather than catching it. The check is about attribution, and attribution is
-indifferent to whether the sentence above it is true.
+Row 3 deserves closer attention, because an accident decided its outcome.
+`ensure_citation` appends nothing to it for one reason: the answer already
+contains an inline citation — `wiki/summaries/cinderella.md`, in the *Cinderella*
+row of the same table whose Snow White row is wrong. Had the model omitted that
+citation, the function would have appended a `Referencia:` line to an answer
+containing a false statement, leaving the statement untouched and making it
+appear better attributed than before. The function tests whether attribution is
+present. It does not compare the attribution against the claim it accompanies.
 
-That last row is the point of this whole section, and it is worth being blunt
-about it: **the default configuration repairs the missing-citation failure and is
-structurally blind to the wrong-answer failure.** This is not an oversight, it is
-stated in the guardrail's source — *"this catches answers with NO grounding
+Row 3 is the point of this section. **The default configuration repairs one of
+the two failures and cannot detect the other.** It repairs the missing citation,
+because whether a citation is present is a property of the answer's own text and
+can be tested directly. It does not detect the incorrect statement, because
+neither function reads the retrieved passage at all: `enforce_grounding` counts
+tool returns, and `ensure_citation` lists which tools were used. Neither one
+compares the answer against what those tools returned. This is not an oversight —
+the guardrail's source says so: *"this catches answers with NO grounding
 evidence… It does not catch an answer that ignored a result it did retrieve; that
 needs answer-vs-source verification."*
 
-The two failures are different in kind. A missing citation is a defect in the
-*shape* of an answer, and shape is exactly what code can check after the fact. A
-passage retrieved for a question it does not answer is a defect in *meaning*, and
-no amount of inspecting the run's structure will reveal it — the run looks
-perfect. Something has to intervene earlier, or read the answer against its
-source. That is Part 2.
+The two failures differ in kind. A missing citation is a defect in the *form* of
+the answer, and form can be tested after the fact from the text and the message
+log. A passage retrieved for a question it does not answer is a defect in
+*content*, and the run that produced it is structurally indistinguishable from a
+correct one: the right tools were called, real results came back, and a real page
+was cited. Detecting it requires either intervening before the model is called,
+or comparing the finished answer against the passage it was given. Part 2 does
+the first, and does the second where it falls back to raw text.
 
 For a wiki of fairy tales, this is still a fair trade. Nobody is harmed by a
 misremembered ending, and the range of questions it handles is worth having. Part 2 is about what changes
@@ -346,9 +578,10 @@ when that stops being true.
 
 ### What ticking the box would cost here
 
-The trade is not a matter of opinion, and it does not need a model to measure.
-Running the same four suggested prompts through the pre-retrieval gate — pure
-code, no LLM, free to reproduce — gives this:
+What ticking **Pre-retrieval** would cost on this wiki can be measured rather
+than argued about, and measuring it needs no model. Running the same four
+suggested prompts through the pre-retrieval gate — pure code, no LLM, free to
+reproduce — gives this:
 
 | Question | wiki hits | in roster | collection | plan if ticked |
 |---|---:|---|---:|---|
@@ -381,8 +614,9 @@ box used to include every question about the collection; it no longer does.
 
 ### Where the roster shows its limits
 
-The same lesson has a second half, and it is fair to know it before ticking the
-box. The match is literal: `scope.mentions_known_data` asks whether one of those
+The previous section showed a roster failing to recognise questions about the
+*collection*. It has a second limitation, affecting questions about *subjects*,
+and it is fair to know both before ticking the box. The match is literal: `scope.mentions_known_data` asks whether one of those
 page titles appears **as a phrase, word for word**, inside the question — case
 and accents ignored, nothing else. Not the reverse, and not word by word.
 
@@ -393,8 +627,8 @@ types those words, so the gate does its job.
 It gets thinner when a page is named after a *statement* rather than a subject.
 The finance demo has three pages about the risks of a `caución` (a short-term
 secured loan traded on the exchange): `Caución Bursátil`,
-`Riesgo Inflacionario en Cauciones` and `Riesgo de Crédito en Cauciones`. Ask it
-the obvious question and watch:
+`Riesgo Inflacionario en Cauciones` and `Riesgo de Crédito en Cauciones`. Three
+questions, run against that wiki's real roster:
 
 | Question | In roster? | What matched |
 |---|---|---|
@@ -402,17 +636,18 @@ the obvious question and watch:
 | *"¿me conviene esperar a que se mueva el dólar?"* | yes | the dataset category `dolar` |
 | *"¿las cauciones son riesgosas?"* | **no** | — |
 
-The third is the honest one. Three pages in this wiki are about exactly that
-question, and it is turned away, because not one of them is titled *Cauciones*:
-the gate needs a whole title inside the question, and *"Riesgo Inflacionario en
-Cauciones"* is not a phrase anybody types. (These three rows were measured by
+The third row is where the limit shows. Three pages in this wiki are about
+exactly that question, and the gate turns it away, because no page is titled
+*Cauciones*: the gate requires a complete title to appear inside the question,
+and *"Riesgo Inflacionario en Cauciones"* is not a phrase anybody types. (These three rows were measured by
 calling `scope.mentions_known_data` against the demo's real roster — 65 covered
 terms and 17 aliases — not worked out on paper.)
 
-Notice also *why* the first two passed: not because the page you would expect was
-found, but because some *other*, more plainly named page or dataset category
-happened to be mentioned. Coverage here is a lucky overlap of vocabularies, not a
-judgment about meaning.
+The first two rows deserve as much attention as the third. Neither passed because
+the gate found the page a reader would expect. Each passed because the question
+happened to contain the title of some *other*, more plainly named page, or a
+dataset category. What the gate measures is whether the question and the roster
+share a string — not whether the wiki has anything to say about the subject.
 
 And nothing chose those titles deliberately — a language model did, while writing
 the pages, at a temperature above zero. The gate's reach is therefore decided by
@@ -426,8 +661,11 @@ of this applies unless pre-retrieval is ticked — the ordinary wiki never consu
 a roster at all.
 
 Stated plainly: this gate trades recall for precision, and the trade is not free.
-It stops the leak the next act demonstrates, and it will also turn away real
-questions whose wording happens to miss every page title. What it still costs, by
+It prevents the failure demonstrated in [Part 2, Act
+2](#2-in-scope-but-not-covered) — a question about an instrument the wiki has no
+page for, answered out of a fragment that merely shares vocabulary with it — and
+it will also turn away real questions whose wording happens to miss every page
+title. What it still costs, by
 design, is a question about a subject the wiki does not cover — which is
 precisely the refusal the setting exists to produce. What it costs by accident is
 a question about a subject the wiki *does* cover, asked in words no page title
@@ -456,10 +694,10 @@ often. It would still fail without warning, which is the part that does not go
 away by upgrading — and the Snow White row is the shape of failure that survives
 both a better model and a stricter checkbox.
 
-## Part 2 — code decides what to look up
+## Part 2 — pre-retrieval ticked: code decides what to look up
 
-Everything from here on runs on `examples/finanzas-argentinas`, with the
-pre-retrieval box **ticked**. The reason that wiki makes the opposite choice is
+This part covers the *before* position. Everything from here on runs on
+`examples/finanzas-argentinas`, with the pre-retrieval box **ticked**. The reason that wiki makes the opposite choice is
 the subject of the rest of this document.
 
 Start with what changes about the failure Part 1 ended on. A badly sourced
@@ -467,12 +705,13 @@ sentence about a glass slipper costs nothing. A badly sourced sentence about wha
 a financial instrument pays, or whether an investment is safe, costs something
 real.
 
-And it is the *same* failure. A loosely related passage, dressed up as a
-confident answer with a genuine-looking citation, is exactly what neither the
-plain agent nor the after-the-fact check can catch — and exactly what does damage
-here. When the consequences change like that, "the prompt asks the model to
-search" stops being good enough. The request has to become a rule the code
-enforces.
+And it is the *same* failure: a loosely related passage, presented as a confident
+answer and carrying a real citation. Neither the plain agent nor the
+after-the-fact check detects it, for the reason the previous section gave —
+nothing compares the answer against the passage. In this domain that is the
+failure that does damage. Once the consequences change, "the system prompt asks
+the model to search" is no longer sufficient: the request has to become a rule
+the code enforces.
 
 **A note on the language.** This demo is an Argentine finance wiki, so its pages,
 its questions and its answers are in Spanish, and they are quoted below exactly
@@ -511,17 +750,24 @@ The two tiers are named in Spanish in the code: **Tier 1 *curado*** means
 document, which is why only that tier gets verified afterwards and carries a
 warning.
 
-Two things about this chain are easy to miss when reading the code once.
+Three things about this chain are easy to miss when reading the code once.
 
 **Two of the five outcomes never reach the model at all.** A refusal costs
 nothing: no prompt, and no **completion** — the model's generated reply, which is
 the part you pay for by the token. It is also byte-for-byte identical every time.
 
-**Both tiers depend on `in_roster`, not on the number of search hits.** Keyword
-search will happily return a hit for a topic the wiki does not cover, just
-because it shares a word with one that it does. The roster, not the search
-engine, decides what the wiki covers. The third act below shows this happening
-for real, with numbers.
+**Both tiers depend on `in_roster`, not on the number of search hits.** The two
+conditions answer different questions, and the code requires both. `in_roster`
+asks whether the wiki claims the topic at all: it matches the question against a
+list of names — concept-page titles, dataset terms, and the aliases for both —
+and a name is not text to answer from. The search hits are that text: the
+passages that go into the prompt. So a hit without a roster match is text about
+some other topic, which keyword search produces routinely because it matches
+words and not meaning; and a roster match without hits leaves nothing to inject,
+where answering anyway would mean answering from the model's own knowledge.
+Either case rules out both tiers, and with no other branch in this half of the
+chain, the plan is `refuse`. The third act below shows the first case: six
+matching fragments, and still a refusal.
 
 **What gets injected is passages, not whole pages.** Tier 1 takes the six
 best-ranked curated passages and Tier 2 the four best raw ones, each labelled
@@ -574,10 +820,11 @@ curated page and put its text into the prompt (`preretrieval.retrieve_wiki` →
 `_INJECT_TEMPLATE`). The model's only job was to write prose using the text it
 was handed, not to decide what to look for.
 
-That is the whole point. Searching is not a tool the model can choose to skip,
-so it cannot skip it by accident. The agent from Part 1 *could* have answered
-this question correctly by calling `search_wiki_fts` itself — but "could" is the
-weak word there, and this design removes it for the common case.
+That is the point of this position. Retrieval is no longer a tool call the model
+may or may not make, so it cannot be omitted. The agent in Part 1 was perfectly
+capable of answering this question correctly by calling `search_wiki_fts` on its
+own — but whether it did so on any given run was determined by the model, not by
+the code. Here it is determined by the code.
 
 #### 2. In scope, but not covered
 
@@ -590,25 +837,28 @@ completion, no token spent. The `docs=0` is not "the search came back empty";
 it's that the raw-source search never ran at all. Looking at
 `preretrieval.pre_retrieval_answer`, `retrieve_source_chunks` is only called when
 `wiki_hits` is empty **and** `in_roster` is true — and here `in_roster` is false,
-so the raw-source lookup is skipped outright. There is no tangential source
-fragment sitting around for a leaky prompt to dress up as a general-knowledge
-answer, because the code never went looking for one.
+so the raw-source lookup is skipped outright. No tangentially matching fragment
+is available, because the code never retrieved one — and with no retrieved
+fragment, there is nothing an answer drawn from the model's own knowledge could
+be attributed to.
 
 This is the fix for what the contract calls the **CEDEARs leak** (§3). CEDEARs
 are Argentine certificates representing shares in foreign companies; the wiki has
 pages about them, and a question about some *other* instrument would share enough
-vocabulary with those pages to score a lexical hit. That tangential match used to
-be enough to smuggle the model's general knowledge past the wiki-only
-instruction — the answer looked sourced, and was not. Gating Tier 2 on the
-roster rather than on the hit count closes that path before the model ever sees
-the question.
+vocabulary with those pages to score a lexical hit. That tangential match was
+previously enough to satisfy the gate: the fragment was injected, the model
+answered from its own general knowledge, and the answer carried a citation to a
+page that did not support it. Gating Tier 2 on the roster rather than on the hit
+count removes that path before the model is ever called.
 
 #### 3. Off topic
 
 *"¿Cuál es la capital de Francia?"* — *what is the capital of France?*
 
-The most instructive row in the whole appendix, and the one that most directly
-earns the thesis: `off_limits=False`, `data=False`, `roster=False` — but
+This is the most instructive row in the whole appendix, and the clearest evidence
+for the claim this document has been building — that coverage has to be decided
+by something other than the number of search hits.
+`off_limits=False`, `data=False`, `roster=False` — but
 `wiki=6`. The full-text query genuinely matched 6 fragments in the curated wiki
 (some word shared between the question and unrelated financial prose). If the
 plan were driven by the hit count alone, this would be Tier 1: inject those 6
@@ -705,7 +955,16 @@ might say *greenback*. The question never uses the word *dólar* at all.
 Here the gate looks different: **zero** wiki hits, but `data=True` because
 "billete verde" is a whitelisted alias for the dollar vocabulary
 (`scope.mentions_known_data` checks the alias list, not just the raw dataset
-terms). With `wiki_hits` empty, `in_roster` true and `has_data` true,
+terms).
+
+That zero is worth reading closely, because it marks a boundary. The alias opens
+the gate but never reaches the search: `_fts_query` tokenizes the question as
+written — `"billete" OR "verde"` — and no page in this wiki contains that phrase,
+while several use *dólar*. Aliases are consulted by `scope.mentions_known_data`
+and by nothing else; they are never added to the query. So what carries this
+question to the datum is not retrieval at all, but the branch below.
+
+With `wiki_hits` empty, `in_roster` true and `has_data` true,
 `plan_retrieval` reaches the `has_data` branch before it ever looks at
 `doc_hits` — even though the code *did* retrieve 2 raw-document hits behind the
 scenes (`retrieve_source_chunks` runs whenever `wiki_hits` is empty and
@@ -813,6 +1072,145 @@ So the system can tell the difference between "I can calculate this"
 (fixed-income instruments, Act 6) and "this cannot be calculated" (shares, here)
 — and it says the second one out loud, instead of quietly declining, or guessing.
 
+### What structured sources make checkable
+
+A wiki confined to one subject can do something no generic wiki engine can:
+establish that an answer is **wrong**, rather than merely unsupported. This
+section works out where that ability comes from, how far it reaches, and what it
+costs.
+
+Act 6 produced a claim of a kind nothing else in this document can verify. Its
+answer carries a second table headed **Renta variable** (*variable income*) —
+*no estimable*, listing the instruments whose gain the system will not project.
+That refusal is not a judgement the model made, and it is not read out of any
+page's prose. It comes from a field: each dataset file declares
+`metodo_calculo`, and a category declaring `no_deterministico` is routed into
+that table by `advisory.py:105` instead of into the ranked one.
+
+It is worth generalising, because it is the one place in this project where a
+*qualitative* statement — this cannot be estimated — is decided by code rather
+than written by a model.
+
+**The schema that makes it possible.** `datasets/<categoria>.md` carries YAML
+front-matter, and `finance_argentina/instrument_attrs.py` is the only module
+that knows what its keys mean:
+
+| Key | Values |
+|---|---|
+| `disponibilidad` | `inmediata` · `a_plazo` |
+| `metodo_calculo` | `interes_simple_vencimiento` · `capitalizacion_diaria` · `no_deterministico` |
+| `plazos_dias` · `monto_minimo` · `moneda` · `metrica_tasa` · `depende_de` | numbers, strings, lists |
+
+The first two are closed enumerations. That is what makes them checkable rather
+than merely present: there is a fixed set of values an answer can be compared
+against.
+
+None of these keys expires, which is worth noticing because the `datasets/`
+folder was introduced on the opposite grounds — [facts with an expiry
+date](ingestion_walkthrough.md#wikis-whose-facts-change). The rows in these
+files do expire, and each carries an `as_of` for that reason. The front-matter
+above them does not: it declares what a category *is*. Both live outside the
+generated pages for the same underlying reason, which is not volatility but
+that code reads them directly rather than a model compiling them into prose.
+
+**What a schema of this kind permits.** None of these checks needs a model, and
+none of them is about attribution:
+
+| Check | Example |
+|---|---|
+| unit | the answer says "1180 dollars" where `unidad` is `ARS` |
+| referential existence | the answer names an instrument no row declares |
+| freshness | the answer says "today" about a row whose `as_of` is six weeks old |
+| range | a figure outside the historical range of that `(categoria, clave, metrica)` series |
+| cross-field invariant | a buy quote above the matching sell quote |
+| declared attribute | the answer calls an instrument low-risk where a `riesgo` field says otherwise |
+
+The last row is the one that carries the argument, and it is hypothetical: there
+is no `riesgo` field today. But adding one means adding a key with an
+enumeration, exactly like `disponibilidad` — and once it exists, *"las cauciones
+son de bajo riesgo"* is as checkable as *"el MEP está a 1180"*. **The boundary is
+not numeric against qualitative. It is declared against undeclared.**
+
+**For a wiki about one domain, this is the strongest verification available in
+the system, by a wide margin.** Every other check in this document examines the
+procedure a run followed: whether a tool was called, whether a source is named,
+whether the subject is on the roster. None of them can find an answer wrong —
+that is the limit Part 1 demonstrated with the Snow White row, and the one the
+*before* position works around by declining earlier rather than by detecting
+anything. A schema check is not subject to it. An answer calling an instrument
+low-risk where the field says `alto` is not unsupported and not uncited: it is
+**contradicted**, by a value in a file, with no model consulted and the same
+result on every run.
+
+That changes what a refusal can be based on. The three positions decide *whether
+to answer*; this decides *whether the answer is admissible*, and it is the only
+mechanism here that operates on what the answer says. Any wiki whose subject can
+be written as a schema — instruments, drugs, components, regulations, tariffs —
+can have it.
+
+**Half of this already exists, on the input side.**
+`finance_argentina/validator.py` checks each category against a requirements
+manifest before the advisory trusts it: every required metric present, every
+required attribute declared and well typed. A category that fails is excluded
+with a stated reason instead of being guessed at. Nothing does the equivalent on
+the output side — no code compares the model's prose against those same fields.
+
+One case would be nearly free. `formulae.projected_gain` is a pure function used
+today to *produce* the figures in the advisory table. The same function can
+*verify* one: a gain stated in the model's prose can be recomputed and compared.
+That is a narrower problem than the one recorded in
+[`ROADMAP.md`](../ROADMAP.md), which is about matching prose figures against a
+set of authorised values, because a recomputed number needs no set to match
+against.
+
+**A weaker declaration buys something too, and it is nearly free.** Everything
+above declares *facts*: a field states that an instrument is low-risk. A source
+can instead declare only its own *shape* — that it has an introduction, a middle
+and an ending; that a manual has an installation section and a troubleshooting
+one; that a paper follows introduction, method, results, discussion. That says
+nothing about what is true. It says which part of the document a passage came
+from.
+
+The Snow White row is what that catches. The question asked how the tale ends
+and the answer came from the middle of it, which is a mismatch between two
+labels, not a judgement about content.
+
+**The evidence side of this already exists and is unused.** The chunker records
+the heading hierarchy above every fragment in `header_breadcrumb`
+(`ingestion/chunker.py:63`), ingestion stores it on the `document_chunks` row
+(`ingestion/pipeline.py:242`), `search_chunks` returns it
+(`tools/search.py:27`), and `search_wiki_fts` even prints it to the model
+(`chat/wiki_tools.py:118`). Every retrieved fragment already knows which section
+it came from. Nothing compares that against the question.
+
+What is missing is the other half: deciding that *"how does it end"* is a
+question about the ending. That mapping has to come from somewhere — a list
+declared per corpus, in the manner of the alias lists, or a model call — so this
+is not free either. But it needs no domain model, no typed facts and no
+maintenance of values that change: only headings in the source, which many
+corpora already have. Recorded in [`ROADMAP.md`](../ROADMAP.md); nothing is built.
+
+**What it does not reach.** Explanatory claims stay outside. A `riesgo` (Spanish for risk) field can
+contradict *"these are low-risk"*; nothing can check *"because the exchange
+guarantees settlement"*. And a declared attribute is asserted by whoever wrote
+the dataset, not verified. What it enables is a check that *the answer agrees
+with what this wiki declares* — a real property, and a testable one, but it
+moves the trust to the curation step rather than removing it.
+
+**Why the engine does not do this for you.** The engine stays domain-neutral: a
+`DatasetSource` hands back the front-matter as a plain mapping, and only the
+finance module interprets it. *Buy quote below sell quote* is not a fact about
+wikis. Every check in the table above is domain knowledge that somebody wrote
+down, and `base/domain/finance_argentina/` — 868 lines — is the only instance of
+that in this repository.
+
+This is the trade the whole document has been circling, stated at its most
+general. **The engine's guarantees are formal because they are generic**: they
+hold for any wiki precisely because they examine the shape of a run — was a tool
+called, is a source named, is the subject on the roster — and never its subject
+matter. Verifying what an answer *says* is available too, but only per domain,
+and the price is writing that domain down as a schema.
+
 ### What Part 2 does not show
 
 **Checking a Tier-2 answer against its source.** When the plan is Tier 2 (a raw
@@ -887,16 +1285,18 @@ where it falls short of what the note asked for.
 
 **What it demonstrates that the idea only asserts.** The claim that a wiki
 *compounds* is easy to state and easy to fake. Act 2 of the ingestion walkthrough
-measures it: ingesting a second document took the corpus from 15 to 25
-`links_to` edges — more than the new pages alone account for, because the repair
-pass also went back and connected pages that were already there. Nobody asked it
-to. The claim that answering from compiled pages
+measures it: ingesting a second document took the corpus from 15 to 30
+`links_to` edges, and **most of those new edges were not written by the model
+generating pages** — they come from `repair_missing_xref`, the pass that adds
+`## See also` links between concepts citing the same source. It connected pages
+that were already there, on its own initiative rather than in response to any
+instruction. The claim that answering from compiled pages
 beats answering from raw fragments is likewise measurable, and Part 1 of this
 document shows the failure it is supposed to prevent actually happening — a raw
 fragment from the middle of Snow White, narrated as the ending, correctly cited.
 
-**What it adds beyond the note.** Three things, in rough order of how much they
-change the character of the system:
+**What it adds beyond the note.** Three things, ordered by how much each one
+changes what the system can decline to do:
 
 1. **A deterministic coverage gate.** Karpathy's wiki answers; it has no notion
    of declining. Pre-retrieval makes "I don't cover this" a branch in Python that
@@ -917,7 +1317,7 @@ keyword-plus-vector retrieval with LLM re-ranking. This has keyword search only,
 no embeddings, and the [ingestion
 walkthrough](ingestion_walkthrough.md#what-is-truth-and-what-is-disposable)
 spells out what that costs: a page phrased in different words is not merely
-ranked low, it is invisible. The vocabulary and alias machinery are compensations
+ranked low, it is invisible. The vocabulary and alias lists are compensations
 for that gap, not a replacement for it. Ingestion is also automatic rather than
 the guided conversation the note describes — you drop a file and pages appear,
 where Karpathy imagined discussing a document with the model before it wrote
@@ -929,15 +1329,16 @@ takes all fifteen ideas from the note one at a time and marks each one done,
 partly done, deferred or not applicable, with a pointer to the reasoning behind
 every mark. If you want the scorecard rather than the argument, read that.
 
-**The one-sentence version.** Karpathy's idea is that a knowledge base should
+**The short version.** Karpathy's idea is that a knowledge base should
 *remember* the work it has already done. What this project adds is that it should
 also *know what it does not know* — and be able to prove which of the two it is
 doing, on any given question, without asking a model to be honest about it.
 
 ## Verify it yourself
 
-- `uv run python scripts/capture_query_walkthrough.py` re-runs all seven
-  questions through the real gate and the real model and regenerates
+- `uv run python scripts/capture_query_walkthrough.py` re-runs the eleven
+  questions through the real gate — ten of them through the real model as well —
+  and regenerates
   [`docs/query_walkthrough_appendix.md`](query_walkthrough_appendix.md).
 - `uv run python scripts/capture_query_walkthrough.py --plan-only`
   reproduces both deterministic tables — the routing decision for Part 2's
