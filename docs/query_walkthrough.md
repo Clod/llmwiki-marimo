@@ -765,7 +765,8 @@ passages that go into the prompt. So a hit without a roster match is text about
 some other topic, which keyword search produces routinely because it matches
 words and not meaning; and a roster match without hits leaves nothing to inject,
 where answering anyway would mean answering from the model's own knowledge.
-Either case ends in `refuse`. The third act below shows the first one: six
+Either case rules out both tiers, and with no other branch in this half of the
+chain, the plan is `refuse`. The third act below shows the first case: six
 matching fragments, and still a refusal.
 
 **What gets injected is passages, not whole pages.** Tier 1 takes the six
@@ -954,7 +955,16 @@ might say *greenback*. The question never uses the word *dólar* at all.
 Here the gate looks different: **zero** wiki hits, but `data=True` because
 "billete verde" is a whitelisted alias for the dollar vocabulary
 (`scope.mentions_known_data` checks the alias list, not just the raw dataset
-terms). With `wiki_hits` empty, `in_roster` true and `has_data` true,
+terms).
+
+That zero is worth reading closely, because it marks a boundary. The alias opens
+the gate but never reaches the search: `_fts_query` tokenizes the question as
+written — `"billete" OR "verde"` — and no page in this wiki contains that phrase,
+while several use *dólar*. Aliases are consulted by `scope.mentions_known_data`
+and by nothing else; they are never added to the query. So what carries this
+question to the datum is not retrieval at all, but the branch below.
+
+With `wiki_hits` empty, `in_roster` true and `has_data` true,
 `plan_retrieval` reaches the `has_data` branch before it ever looks at
 `doc_hits` — even though the code *did* retrieve 2 raw-document hits behind the
 scenes (`retrieve_source_chunks` runs whenever `wiki_hits` is empty and
