@@ -155,8 +155,8 @@ On the query side it is checked **first**, before any search runs, so a question
 mentioning a blacklisted term is refused without the wiki ever being touched.
 
 What the list holds is **terms**, and a *question*
-becomes blacklisted by mentioning one. And yes — you should list the variants
-yourself, because this is the one place in the system where matching is literal.
+becomes blacklisted by mentioning one. You have to list the variants yourself,
+because this is the one place in the system where matching is literal.
 Measured against the finance demo's own list, `["cedear", "cedears", "cripto",
 "bitcoin"]`:
 
@@ -234,7 +234,7 @@ dolar = ["billete verde", "divisa"]
 cedear = ["accion", "acciones"]
 ```
 
-Three lists, three different jobs, and each one exists because the machine could
+The three hand-written lists, three different jobs, and each one exists because the machine could
 not have worked it out:
 
 - **`billete verde`** — street slang for the US dollar. It appears in no table of
@@ -303,7 +303,7 @@ same wiki from the same untouched sources and you get:
 - and often **different concept pages**, because the model decides for itself
   which topics deserve one.
 
-That last point surprises people. While this document was being written its
+The third of those is the one that surprises. While this document was being written its
 appendix was regenerated several times from an identical corpus, and each run named
 the concepts differently — one run pulled a page called *Transformation* out of
 Cinderella, the next chose *Prince* instead. Neither is wrong. They are two
@@ -322,7 +322,6 @@ subjects this wiki considers itself to cover. Nothing stores that list; it is
 read back out of the page titles whenever it is needed. So a run that names a
 page *Prince* instead of *Transformation* has not merely renamed a file, it has
 edited that list.
-
 
 Concretely. Suppose the first run of the fairy-tale corpus produces these five
 concept pages from Cinderella, and a second run — same PDF, nothing edited —
@@ -344,7 +343,7 @@ does not, even though both wikis contain the same sentences about it.
 
 In practice this matters less than it sounds, because concepts overlap: a
 question about Cinderella still finds the *Cinderella* page whatever the sibling
-pages ended up called. It bites only a question that names **just** the renamed
+pages ended up called. It affects only a question that names **just** the renamed
 concept and nothing else. But the direction is worth knowing, and it only
 applies to wikis that opt into the coverage gate at all. Why a wiki would want
 such a list, what it does with it, and where the idea shows its limits are the
@@ -378,8 +377,11 @@ file directly, which is exactly what the [query
 walkthrough](query_walkthrough.md#what-ticking-the-box-would-cost-here) describes
 happening for questions about the collection as a whole.
 
-Two applications drive it, both built with [marimo](https://marimo.io) (a Python
-notebook framework whose cells re-run automatically when their inputs change):
+### The two applications
+
+Everything described so far is driven from one of two applications, both built
+with [marimo](https://marimo.io) (a Python notebook framework whose cells re-run
+automatically when their inputs change):
 
 - **the ingest app** (`marimo/ingest_app.py`) — put documents in, watch pages
   come out. Everything in this document happens here.
@@ -411,10 +413,11 @@ two kinds of wiki page:
 
 Answering a question later means reading the page that was built from the source.
 The source stays in place underneath, as the evidence a citation can point to.
-Nobody re-reads the sources, and nobody pays an LLM twice for the same work, unless the answer to a covered topic is not found in the wiki pages.
+Nobody re-reads the sources, and nobody pays an LLM twice for the same work.
 
-Worth being precise about that exception, because it is the one place the
-promise bends: the sources **are** read again when the pages fall short. The reading side keeps a
+That statement has one exception, and it is worth being precise about it, because
+it is the only place the promise bends: the sources **are** read again when the
+pages fall short. The reading side keeps a
 fallback that searches the raw documents for a covered subject no generated page
 answers, and the chat agent can be given a raw-source search tool outright. What
 never happens twice is the *compiling* — extraction, concept-finding, page
@@ -479,11 +482,11 @@ do — there is no state in which half of them landed.
 Two things to remember from this table.
 
 **Step 6 is the one moment where the source becomes visible to the rest of the
-system.** Everything before it — the row from step 3 is
-persisted, so *persistent* would be the wrong word for what changes here; what
-changes is that readers start trusting it — is either held in memory or written
-to a row still marked `status='processing'`, which every query filters out.
-Act 1 explains why that moment sits exactly there, before any LLM has run.
+system.** Everything before it is either held in memory or written to a row still
+marked `status='processing'`, which every query filters out. Note that the row
+from step 3 is already persisted, so *persistent* is the wrong word for what step
+6 changes: what changes is that readers start trusting it. Act 1 explains why
+that moment sits exactly there, before any LLM has run.
 
 **The model is used in one stage only.** The other nine steps are ordinary code,
 which is why re-ingesting an unchanged file costs nothing (Act 3a).
@@ -546,7 +549,6 @@ you can ask questions of.
 
 Four tables do that work, plus the search index built over one of them. The
 clearest way to tell them apart is to ask **what a single row means** in each:
-
 
 ```mermaid
 flowchart LR
@@ -767,7 +769,8 @@ The numbers above are Act 1's, so you can check every one of them against the
   second thing an index gives you besides speed: the question no longer has to be
   spelled the way the corpus happens to spell it.
 
-  Two design choices about it are worth knowing. It is declared
+  One design choice about it is worth knowing, and it forces a second thing. It
+  is declared
   **external-content**, which means it keeps no copy of the text: SQLite is told
   to read the words from `document_chunks.content` itself, so the corpus is
   stored exactly once rather than duplicated into the index. The price of that
@@ -885,7 +888,6 @@ The important detail here is the order of the steps, not the row counts. The
 source row is committed as `status='ready'` at **step 6** — before the LLM has
 written a single wiki page in steps 7–9.
 
-
 (The full numbering is the table in [What ingesting one file actually
 does](#what-ingesting-one-file-actually-does), taken from the step banners in
 `pipeline.py` itself.)
@@ -955,7 +957,6 @@ the pipeline rewrites `overview.md` around all ten, and the repair pass links th
 new concepts to the old ones that share a source. The knowledge base gets **more
 useful** as sources are added, not merely bigger. That is Karpathy's central
 claim, and Act 2 is the smallest possible demonstration of it.
-
 
 **What step 10 actually sends.** `wiki_generator.update_overview` builds its
 prompt from exactly three things:
@@ -1058,8 +1059,8 @@ argument to pass and two buttons that do the job. A skip has to name what is
 missing **in the reader's own terms**, which is why the message now names those
 buttons.
 
-**So that is how you get those five repaired** — the message says it, and here is
-what it is pointing at:
+**There are two ways to get those five repaired** — the message names both, and
+here is what each one does:
 
 - **Afterwards, for the whole wiki.** The **Run Wiki Lint & Repair** button runs
   the same two passes over every page, this time *with* a model. The five stale
@@ -1082,7 +1083,9 @@ touched**: the summary pages of the documents just ingested, plus every wiki pag
 that cites them. It never rewrites unrelated pages. The button is the wiki-wide
 sweep.
 
-Does this avoid the risk of quadratic growth in LLM token usage as the wiki grows?
+Act 2 asked whether token usage grows quadratically with the wiki, about the
+overview rewrite. The same question applies to this pass, and it has a different
+answer.
 
 Yes — for this pass specifically. Its scope is a function of the *document* being
 ingested, not of the wiki's size: the summary pages of what you just ingested,
@@ -1247,7 +1250,6 @@ differently when a source is deleted
   generated pages, not a page and a source, so it survives — even when one of the
   two pages loses its citation.
 
-
 Put simply: deleting a source destroys the page that was built from that source
 alone. It never destroys a concept page that combined **several** sources,
 because that page still has its other sources to stand on.
@@ -1316,7 +1318,7 @@ good for, and the query walkthrough works that second use out in [What
 structured sources make
 checkable](query_walkthrough.md#what-structured-sources-make-checkable).
 
-Here is the `dolar.md` file with my demo dataset.
+Here is the demo's `dolar.md` dataset file.
 
 ```text
 ---
@@ -1342,7 +1344,6 @@ moneda: ARS
 | CCL     | 1190   | 1196  |
 | Tarjeta | 1300   | 1365  |
 ```
-
 
 Datasets hold facts that expire — what the *dólar MEP* (one of the several legal
 exchange rates that exist side by side in Argentina, obtained by buying a bond in
@@ -1449,13 +1450,9 @@ confusion that `[falsos_sinonimos]` exists to make permanent — the demo's one
 entry, `cedear = ["accion", "acciones"]`, is a human writing down "do not let
 this happen again" after seeing it happen once.
 
-Unlike the numbers in the acts above, this one comes from that
-testing session rather than from the regenerable appendix, whose corpus has no
-`datasets/` folder at all.
-
-It's also worth showing a real warning rather than claiming the shipped demo
-is spotless. `examples/finanzas-argentinas/.llmwiki/aliases.generated.toml`
-currently contains both
+The shipped demo has one of these, and the linter reports it.
+`examples/finanzas-argentinas/.llmwiki/aliases.generated.toml` currently contains
+both
 
 ```toml
 "Plazo fijo UVA" = ["UVA"]
@@ -1465,11 +1462,9 @@ currently contains both
 — the same alias, `"UVA"`, mapped to two different canonical terms. Lint's
 `vocabulary` check (`lint/checks.py:vocabulary_check`, §6.1) reports exactly
 this as `vocab_ambiguous`: one alias mapping to two canonicals, a warning
-rather than an error because it's informational (§6.2 lists `vocab_ambiguous`
-among the advisory findings with no automatic repair — it's surfaced for a
-human to resolve, not auto-fixed). Showing that the linter catches a real
-ambiguity in the project's own demo data is more credible to this audience
-than asserting the demo has none.
+rather than an error because it is informational (§6.2 lists `vocab_ambiguous`
+among the advisory findings with no automatic repair — it is surfaced for a
+human to resolve, not auto-fixed).
 
 **One rule about datasets belongs here, even though it is enforced on the reading
 side: no number in an answer is ever computed by the model.** A tool reads the
@@ -1493,7 +1488,8 @@ answer can be checked against them by code. The query walkthrough works out how
 far that reaches, and where it stops, in [What structured sources make
 checkable](query_walkthrough.md#what-structured-sources-make-checkable).
 
-Moving it into `examples/` would change something more important than tidiness:
+Moving that engine into `examples/` would change something more important than
+tidiness:
 today **a workspace is data only** — markdown, a TOML file, a SQLite database.
 Nothing in it is executed. If a workspace could carry Python that the engine
 imports, then opening a wiki someone sent you would run their code. That is a
@@ -1513,6 +1509,6 @@ If you would rather go sideways than forward:
   walkthrough deliberately doesn't restate: step tables, LLM prompt inputs and
   outputs, table-write matrices, today-vs-target status.
 - [`sqlite_data_dictionary.md`](sqlite_data_dictionary.md) for every column of
-  the four tables described above, rather than the four that carry the argument.
+  every table, rather than only the four that carry the argument here.
 - [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
   for the authoritative retrieval contract the next document narrates.
