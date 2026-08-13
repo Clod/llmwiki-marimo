@@ -1289,13 +1289,14 @@ measures it: ingesting a second document took the corpus from 15 to 30
 `links_to` edges, and **most of those new edges were not written by the model
 generating pages** — they come from `repair_missing_xref`, the pass that adds
 `## See also` links between concepts citing the same source. It connected pages
-that were already there. Nobody asked it to. The claim that answering from compiled pages
+that were already there, on its own initiative rather than in response to any
+instruction. The claim that answering from compiled pages
 beats answering from raw fragments is likewise measurable, and Part 1 of this
 document shows the failure it is supposed to prevent actually happening — a raw
 fragment from the middle of Snow White, narrated as the ending, correctly cited.
 
-**What it adds beyond the note.** Three things, in rough order of how much they
-change the character of the system:
+**What it adds beyond the note.** Three things, ordered by how much each one
+changes what the system can decline to do:
 
 1. **A deterministic coverage gate.** Karpathy's wiki answers; it has no notion
    of declining. Pre-retrieval makes "I don't cover this" a branch in Python that
@@ -1316,7 +1317,7 @@ keyword-plus-vector retrieval with LLM re-ranking. This has keyword search only,
 no embeddings, and the [ingestion
 walkthrough](ingestion_walkthrough.md#what-is-truth-and-what-is-disposable)
 spells out what that costs: a page phrased in different words is not merely
-ranked low, it is invisible. The vocabulary and alias machinery are compensations
+ranked low, it is invisible. The vocabulary and alias lists are compensations
 for that gap, not a replacement for it. Ingestion is also automatic rather than
 the guided conversation the note describes — you drop a file and pages appear,
 where Karpathy imagined discussing a document with the model before it wrote
@@ -1328,15 +1329,16 @@ takes all fifteen ideas from the note one at a time and marks each one done,
 partly done, deferred or not applicable, with a pointer to the reasoning behind
 every mark. If you want the scorecard rather than the argument, read that.
 
-**The one-sentence version.** Karpathy's idea is that a knowledge base should
+**The short version.** Karpathy's idea is that a knowledge base should
 *remember* the work it has already done. What this project adds is that it should
 also *know what it does not know* — and be able to prove which of the two it is
 doing, on any given question, without asking a model to be honest about it.
 
 ## Verify it yourself
 
-- `uv run python scripts/capture_query_walkthrough.py` re-runs all seven
-  questions through the real gate and the real model and regenerates
+- `uv run python scripts/capture_query_walkthrough.py` re-runs the eleven
+  questions through the real gate — ten of them through the real model as well —
+  and regenerates
   [`docs/query_walkthrough_appendix.md`](query_walkthrough_appendix.md).
 - `uv run python scripts/capture_query_walkthrough.py --plan-only`
   reproduces both deterministic tables — the routing decision for Part 2's
