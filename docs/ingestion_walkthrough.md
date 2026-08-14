@@ -437,6 +437,18 @@ such a list, what it does with it, and where the idea shows its limits are the
 `datasets/` is the odd one out and gets its own [closing
 section](#wikis-whose-facts-change); ignore it until then if your wiki has none.
 
+**A closing note on who can write these lists well.** They get easier to write
+the more specialized the wiki's subject is, and the reason is not that
+specialists are more diligent. Each list is bounded by something different. The
+alias list is bounded by what the wiki covers: a finite set of subjects has a
+finite set of other names, and someone who knows the field can write them down.
+The blacklist is bounded by what the wiki does *not* cover, which in general is
+everything else — a set nobody can enumerate. A single-domain wiki escapes
+that, because the questions it receives come from its own field: the subjects
+worth blocking are the neighbours of the ones it covers, a short and knowable
+list. Curated that way by someone who knows which confusions actually arise,
+these lists turn away a whole class of wrong answers before any search runs.
+
 ### Three files in `wiki/` are not pages
 
 Most of what the pipeline writes into `wiki/` is a page about a topic. Three
