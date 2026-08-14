@@ -183,9 +183,12 @@ documents never mention: the finance demo records
 `dolar = ["billete verde", "divisa"]`, everyday Argentine slang for the US
 dollar that appears in no table of exchange rates. The two files are merged when the config
 is read (`vocabulary.merge_aliases`), and the lists are added together rather
-than one replacing the other. In the demo they do not overlap. Where they do,
-the entries collapse into one under **your** spelling of the name — had the
-pipeline also written a `Dólar` entry:
+than one replacing the other. In the demo they do not overlap, so the example
+below is invented. Where they do, the entries collapse into one under **your**
+spelling of the name. The two count as one key because the names are compared
+after being lowercased and stripped of accents, with `_` read as a space —
+`Dólar`, `dolar` and `DOLAR` are the same entry. Had the pipeline also written a
+`Dólar` entry:
 
 ```toml
 # .llmwiki/aliases.generated.toml - written by the pipeline at ingest
