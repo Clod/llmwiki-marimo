@@ -316,9 +316,20 @@ not have worked it out:
   *foreign* company's share; treating the two as the same reads perfectly fluent
   and is wrong.
 
-**What the system ends up with.** Loading the config merges the two alias files,
-generated underneath, hand-written on top, minus the false-synonym pairs
-(`vocabulary.merge_aliases`). Asking the demo's own configuration for the result:
+**What the system ends up with.** Loading the config combines the two alias
+files into one map (`vocabulary.merge_aliases`). The hand-written list does not
+replace the generated one — the two sets of aliases are added together, and
+duplicates collapse. Two things settle what happens where they meet:
+
+- **Same subject, two spellings.** Keys are matched after normalizing, so a
+  generated `Dólar` and a hand-written `dolar` are one entry, not two. The
+  human's spelling is the one kept, on the reasoning that a person who typed a
+  key meant that form.
+- **`[falsos_sinonimos]` is applied last, as a deletion.** For each canonical it
+  names, the aliases listed under it are struck from the merged result no matter
+  which file supplied them. A canonical left with nothing drops out of the map.
+
+Loading the shipped demo's own configuration and printing the result gives:
 
 ```text
 "dolar"          = ['billete verde', 'divisa']       ← hand-written
