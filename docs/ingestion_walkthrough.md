@@ -253,8 +253,29 @@ excerpts from the shipped `examples/finanzas-argentinas` demo.
 "Bonos Dólar Linked" = ["Dólar Linked"]
 ```
 
-Every one of those was read out of the documents in `sources/`. `BCBA` is in
-the text; nobody told the pipeline about it.
+Every one of those was read out of the documents in `sources/`. The pass that
+decides which concepts a document deserves also returns, for each concept, the
+other names that document uses for it. `BCBA` is in `aliases.generated.toml`
+because a source says it, not because anyone wrote it into a configuration
+file.
+
+Each key on the left is a concept page. `Bolsas y Mercados Argentinos` is
+`wiki/concepts/bolsas-y-mercados-argentinos.md`, and the other twelve keys in
+this wiki's `aliases.generated.toml` are concept pages as well. A concept page
+carries its own name but not the other names for it, so
+`aliases.generated.toml` is the only place those are stored.
+
+`aliases.generated.toml` accumulates rather than being rewritten from nothing:
+each ingest reads it, adds the concepts from the document just processed,
+re-checks the whole map and writes it back. Ingesting the same document twice
+therefore adds the same alias once.
+
+That re-check enforces one rule: **an alias may not be the name of something
+else this wiki already covers.** An alias that breaks it is dropped instead of
+written, and the pipeline prints `⚠️ N alias collision(s) dropped`. The section
+[Wikis whose facts change](#wikis-whose-facts-change), further down, works
+through a real case: a document about CEDEARs whose proposed alias was already
+another concept page's name.
 
 **What you wrote** — `wiki_config.toml`:
 
