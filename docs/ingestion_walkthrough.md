@@ -147,8 +147,9 @@ pre_retrieval is on"* — so you may have read it there first. The linter is the
 exception — it checks these lists for staleness and contradictions regardless of
 the setting.
 
-The blacklist is worth pausing on. Everything else the system uses to judge "do
-I cover this?" is read back out of the wiki's own contents — page titles,
+The blacklist — `[fuera_de_alcance]` — is worth pausing on. Everything else the
+system uses to judge "do I cover this?" is read back out of the wiki's own
+contents — page titles,
 dataset categories. The blacklist is derived from nothing: it is you saying, in
 advance, *people will ask about this, we have nothing real to say, do not try.*
 On the query side it is checked **first**, before any search runs, so a question
@@ -219,19 +220,21 @@ match; this one narrows it back where widening would do damage. The lint pass
 also uses it as its suggested remedy — when it finds an alias that is really
 another concept's name, what it tells you to do is add the pair here.
 
-**How the pair gets there.** At ingest, a proposed alias is dropped
-automatically when it is already the name of something the wiki covers — but
-that check needs an *Acciones* page or dataset term to fire against. The case it
-cannot see is the one where no such page exists: the model, reading a document
-that explains CEDEARs in terms of shares, proposes *acciones* as another name
-for *cedear*, and nothing contradicts it. The damage surfaces later, at question
-time — *¿cuánto rindieron las acciones este año?* now counts as mentioning data
-the wiki has, the scope check lets it through, the search returns CEDEAR pages,
-and the answer reads as though it were about shares. Writing
-`cedear = ["accion", "acciones"]` into `[falsos_sinonimos]` deletes that alias
-from the merged map the next time the wiki is opened — the filter runs when
-`wiki_config.toml` is read, so there is nothing to re-ingest — and the same
-question is refused instead of answered wrongly.
+**The blacklist and this list answer different questions.** The question is
+matched against the blacklist: if a listed term appears in it, the question is
+turned away at the first check, before anything is searched.
+
+`[falsos_sinonimos]` is never matched against the question. It works on the
+alias map — not the generated file on disk, which is written once at ingest, but
+the map assembled from that file every time the wiki is opened. The assembly
+reads `wiki_config.toml`: the pipeline's aliases first, your `[alias_datos]`
+added on top, then every pair listed in `[falsos_sinonimos]` deleted from the
+result. So if the pipeline had recorded *acciones* as another name for *cedear*,
+the finished map has no such entry — not overruled at question time, simply
+never in the list the roster consults. A question admitted only because that
+alias existed is refused instead. Adding a pair therefore takes effect the next
+time the wiki is opened: the file on disk is untouched, and there is nothing to
+re-ingest.
 
 ### All four lists, on one real wiki
 
@@ -301,7 +304,7 @@ turned on (it ships that way; a wiki without it consults none of these lists):
 | *"¿a cuánto está el **billete verde**?"* | reaches the dollar data | your `[alias_datos]` — the phrase is not in any document |
 | *"¿qué son los **Bonos CER**?"* | reaches the CER/UVA page | the generated file — the pipeline found that short form itself |
 | *"¿conviene comprar **cedears**?"* | refused before any search runs | `[fuera_de_alcance]` — the term is listed verbatim |
-| *"¿qué es una **criptomoneda**?"* | refused — but **not by the blacklist** | the coverage roster, which happens to catch it |
+| *"¿qué es una **criptomoneda**?"* | refused — but **not by the blacklist** (`[fuera_de_alcance]`) | the coverage roster, which happens to catch it |
 
 The last row is the one worth studying, and it is the reason this section shows
 the lists together rather than one at a time. Measured on the shipped demo:
@@ -317,10 +320,13 @@ anyway, because nothing in it names a subject this wiki covers, so the roster
 refuses it one branch later.
 
 Which means the blacklist's failure is **invisible here**. It only becomes
-visible on a wiki that *does* have pages about crypto and wants to decline
-questions about it regardless — exactly the case the blacklist exists for. Two
-gates that usually agree can hide each other's gaps, and the only way to know
-which one did the work is to look, as above.
+visible on a wiki whose roster contains the term — as a concept page title, a
+dataset entry, or an alias of either — and that wants to decline questions about
+it anyway, which is exactly the case the blacklist exists for. A page that
+merely mentions crypto in its text changes nothing: the roster is a list of
+names, and page bodies are not in it. Two gates that usually agree can hide each
+other's gaps: to know which one turned a question away, you have to read the two
+values separately, the way the block above prints them.
 
 Back to the diagram at the top of this section, and to the division it drew: the
 three green boxes are yours, everything else is derived from them. The rest of
