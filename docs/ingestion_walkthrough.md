@@ -101,7 +101,7 @@ flowchart TD
     DS["<b>datasets/</b> <i>(optional)</i> — markdown tables you maintain<br/><i>facts that expire: what it is WORTH today</i><br/>YOURS · never modified"]
     CFG["<b>wiki_config.toml</b> <i>(optional)</i> — the only file<br/>you write in your own words<br/><i>language · the assistant's instructions ·<br/>a list of topics this wiki refuses</i><br/>YOURS · never modified"]
     WIKI["<b>wiki/</b> — the markdown pages an LLM wrote<br/>DERIVED · safe to delete and rebuild<br/><i>a git repository in its own right</i>"]
-    DB[("<b>.llmwiki/index.db</b> — one SQLite file<br/>DERIVED · full-text index<br/><i>over sources AND wiki alike</i>")]
+    DB[("<b>.llmwiki/</b> — everything the pipeline generates<br/>besides the pages: <b>index.db</b>, the full-text index<br/><i>over sources AND wiki alike</i>,<br/>plus generated aliases and traces<br/>DERIVED · safe to delete and rebuild")]
     NOTE["<b>never ingested.</b> No LLM, no generated page,<br/>no database row — read straight off disk, fresh,<br/>each time a question needs one"]
 
     SRC ==>|"<b>read ONCE</b>, at ingest —<br/>an LLM compiles them into pages"| WIKI
@@ -166,7 +166,9 @@ passes    ¿conviene invertir en criptomonedas?
 passes    ¿qué son las criptos?
 ```
 
-The blacklist matches whole words and nothing else. The search index, by
+The blacklist matches whole words, and a multi-word entry as a contiguous phrase
+in that order — `dollar blue` blocks *¿cuánto está el dollar blue?* but not
+*blue dollar*. The search index, by
 contrast, **stems** — `slippers` and `slipper` land on the same entry, as the
 [FTS section](#what-is-truth-and-what-is-disposable) below explains. Two parts of
 the same system therefore treat word endings differently, and only one of them
