@@ -118,7 +118,7 @@ flowchart TD
     style NOTE fill:#fff,stroke:#999,stroke-dasharray: 4 3
 ```
 
-Read the labels, not the shapes. The three green boxes are **yours**, and the
+The three green boxes are **yours**, and the
 pipeline never writes to them. The blue and brown ones are **derived**: they can
 be thrown away and rebuilt from the green ones at any time.
 
@@ -129,7 +129,7 @@ you can put there:
 
 | Section | What it does |
 |---|---|
-| `[wiki] language` | `"en"` or `"es"`. Governs the language of every generated page **and** of the chat's answers, independently of what language the sources are in — so an English wiki and a Spanish wiki can sit side by side |
+| `[wiki] language` | `"en"` or `"es"`. Governs the language of every generated page **and** of the chat's answers, independently of what language the sources are in. It is read from each wiki's own `wiki_config.toml`, so two wikis on the same machine can be in different languages |
 | `[assistant]` | the system prompt sent at the start of every conversation, and the suggested questions shown as buttons in the chat |
 | `[fuera_de_alcance]` | *out of scope* — a **blacklist**: topics you know this wiki does not cover and never should answer about. The finance demo lists `cedear`, `cripto`, `bitcoin` |
 | `[alias_datos]`, `[falsos_sinonimos]` | other names for things you do cover, and pairs of words that must **not** be treated as the same thing |
@@ -139,11 +139,11 @@ you can put there:
 worth knowing before you write one: they are read by the code that decides, ahead
 of the model, whether a question is answerable — and if that code never runs,
 nothing reads them. Write `bitcoin` into the blacklist of a wiki running the
-default configuration and the assistant will still answer about bitcoin, because
+default configuration (pre_retrieval is off) and the assistant will still answer about bitcoin, because
 in that configuration the model does its own searching and no scope check stands
-in front of it. The lists are not decoration in that case; they are simply not
-consulted. (`wiki_config.example.toml` says the same thing above the three
-sections, which is the other place you might read it.) The linter is the
+in front of it. `wiki_config.example.toml` carries the same warning as a comment
+above the three sections — *"The three lists below only matter when
+pre_retrieval is on"* — so you may have read it there first. The linter is the
 exception — it checks these lists for staleness and contradictions regardless of
 the setting.
 
