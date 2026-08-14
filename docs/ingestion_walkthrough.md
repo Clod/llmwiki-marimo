@@ -174,17 +174,35 @@ in that order — `dollar blue` blocks *¿cuánto está el dollar blue?* but not
 blacklist does not, so write out every form you mean: `cripto`, `criptos`,
 `criptomoneda`, `criptomonedas`.
 
-**Alternate names come from two places, and yours win.** Step 8b of the pipeline
-(described in Act 1) has an LLM read each document and propose other names for
-the concepts it found, writing them to `.llmwiki/aliases.generated.toml`. That
-file learns the names *the documents* use. `[alias_datos]` is the other list,
-the one you write yourself, for the names the documents never mention — the finance demo
-records `dolar = ["billete verde", "divisa"]`, everyday Argentine slang for the
-US dollar that appears in no table of exchange rates. The two are merged when
-the config is read (`vocabulary.merge_aliases`): the generated file is the base,
-your entries are layered on top, and where both name the same concept your
-spelling of it wins. The generated file says so in its own first line — *do not
-edit by hand; hand overrides live in wiki_config.toml*.
+**Alternate names come from two places, and both count.** During ingestion an
+LLM reads each document and proposes other names for the concepts it found,
+writing them to `.llmwiki/aliases.generated.toml`. That file learns the names
+*the documents* use. `[alias_datos]` in `wiki_config.toml` is the other list —
+the same section name, in the file you write yourself — for the names the
+documents never mention: the finance demo records
+`dolar = ["billete verde", "divisa"]`, everyday Argentine slang for the US
+dollar that appears in no table of exchange rates. The two files are merged when the config
+is read (`vocabulary.merge_aliases`), and the lists are added together rather
+than one replacing the other. In the demo they do not overlap. Where they do,
+the entries collapse into one under **your** spelling of the name — had the
+pipeline also written a `Dólar` entry:
+
+```toml
+# .llmwiki/aliases.generated.toml - written by the pipeline at ingest
+[alias_datos]
+"Dólar" = ["dólar oficial"]
+```
+
+```toml
+# wiki_config.toml - written by you
+[alias_datos]
+dolar = ["billete verde", "divisa"]
+```
+
+the merge would give a single entry,
+`dolar = ["dólar oficial", "billete verde", "divisa"]`. The generated file says
+so in its own opening comment: *do not edit by hand; hand overrides live in
+wiki_config.toml `[alias_datos]`*.
 
 **`[falsos_sinonimos]` is the opposite instruction: two words that must never be
 treated as the same thing.** The finance demo records one, `cedear =
