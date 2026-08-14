@@ -277,6 +277,17 @@ written, and the pipeline prints `⚠️ N alias collision(s) dropped`. The sect
 through a real case: a document about CEDEARs whose proposed alias was already
 another concept page's name.
 
+What that re-check does **not** do is remove an entry whose page is gone. It
+checks the aliases, never the key, so if a concept page is deleted — or simply
+named differently by the next regeneration, which happens, since the model
+chooses those names — its entry stays. Nothing re-adds it and nothing removes
+it either. The lint pass reports each one as `vocab_stale`, naming the
+canonical that no longer has a page, and there it stops: **removing the entry
+is manual today**, done by editing `.llmwiki/aliases.generated.toml`, and
+automating it is on the project's backlog. Until then a stale entry keeps its
+alias working: a question that names only that alias is still let through the
+coverage gate, and then finds nothing.
+
 **What you wrote** — `wiki_config.toml`:
 
 ```toml
