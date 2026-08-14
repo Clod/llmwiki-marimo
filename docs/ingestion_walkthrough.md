@@ -168,12 +168,11 @@ passes    ¿qué son las criptos?
 
 The blacklist matches whole words, and a multi-word entry as a contiguous phrase
 in that order — `dollar blue` blocks *¿cuánto está el dollar blue?* but not
-*blue dollar*. The search index, by
-contrast, **stems** — `slippers` and `slipper` land on the same entry, as the
-[FTS section](#what-is-truth-and-what-is-disposable) below explains. Two parts of
-the same system therefore treat word endings differently, and only one of them
-tells you so. Until that is reconciled, write out the forms you mean:
-`cripto`, `criptos`, `criptomoneda`, `criptomonedas`.
+*blue dollar*. The search index, by contrast, **stems** — `slippers` and
+`slipper` land on the same entry, as the
+[FTS section](#what-is-truth-and-what-is-disposable) below explains. The
+blacklist does not, so write out every form you mean: `cripto`, `criptos`,
+`criptomoneda`, `criptomonedas`.
 
 **Alternate names come from two places, and yours win.** Step 8b of the pipeline
 (described in Act 1) has an LLM read each document and propose other names for
