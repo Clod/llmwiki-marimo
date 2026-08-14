@@ -250,10 +250,10 @@ excerpts from the shipped `examples/finanzas-argentinas` demo.
 "Bonos Dólar Linked" = ["Dólar Linked"]
 ```
 
-Every one of those was read out of the documents. `BCBA` is in the text; nobody
-told the pipeline about it.
+Every one of those was read out of the documents in `sources/`. `BCBA` is in
+the text; nobody told the pipeline about it.
 
-**What the owner wrote** — `wiki_config.toml`:
+**What you wrote** — `wiki_config.toml`:
 
 ```toml
 # Lista NEGRA: términos que sabemos que NO cubrimos -> abstención inmediata,
