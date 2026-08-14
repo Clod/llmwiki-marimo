@@ -219,6 +219,20 @@ match; this one narrows it back where widening would do damage. The lint pass
 also uses it as its suggested remedy — when it finds an alias that is really
 another concept's name, what it tells you to do is add the pair here.
 
+**How the pair gets there.** At ingest, a proposed alias is dropped
+automatically when it is already the name of something the wiki covers — but
+that check needs an *Acciones* page or dataset term to fire against. The case it
+cannot see is the one where no such page exists: the model, reading a document
+that explains CEDEARs in terms of shares, proposes *acciones* as another name
+for *cedear*, and nothing contradicts it. The damage surfaces later, at question
+time — *¿cuánto rindieron las acciones este año?* now counts as mentioning data
+the wiki has, the scope check lets it through, the search returns CEDEAR pages,
+and the answer reads as though it were about shares. Writing
+`cedear = ["accion", "acciones"]` into `[falsos_sinonimos]` deletes that alias
+from the merged map the next time the wiki is opened — the filter runs when
+`wiki_config.toml` is read, so there is nothing to re-ingest — and the same
+question is refused instead of answered wrongly.
+
 ### All four lists, on one real wiki
 
 Everything above is easier to hold together seen at once. These are verbatim
