@@ -502,11 +502,12 @@ ingest it, and *compiled*: its text is extracted, cut into search-sized fragment
 (*chunks* — the subject of most of the next section), and an LLM turns it into
 two kinds of wiki page:
 
-- a **summary page** — one per document, saying what that file contains, in
-  order;
-- a **concept page** — one per topic. This is the interesting kind, because it
-  belongs to the topic and not to any one document. Several sources can add to
-  the same concept page, so it grows as you add documents.
+- a **summary page** — exactly one per document, saying what that file
+  contains, in order;
+- **concept pages** — usually several per document, one for each topic the
+  model finds worth its own page. This is the interesting kind, because a
+  concept page belongs to the topic and not to any one document. Several
+  sources can add to the same concept page, so it grows as you add documents.
 
 Answering a question later means reading the page that was built from the source.
 The source stays in place underneath, as the evidence a citation can point to.
