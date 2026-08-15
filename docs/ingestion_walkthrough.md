@@ -538,8 +538,17 @@ four stages:
 |---|---|---|---|
 | **Take it in** | 1–5 | validate the file · check whether it changed · open a provisional `documents` row marked `status='processing'` · extract the text page by page · cut it into fragments **in memory** | no |
 | **Publish the source** | **6** | one transaction: flip that row to `status='ready'` *and* write `document_pages` and `document_chunks`. From here the source exists and is searchable | no |
-| **Write the wiki** | 7–10 | pull out a summary and a list of concepts · write a page per concept · record the alternate names found (8b) · build the summary page · rewrite `overview.md` | **yes**, except 8b and the summary page |
+| **Write the wiki** | 7–10 | pull out a summary and a list of concepts · write a page per concept · record the alternate names found (8b) · build the summary page (9) · rewrite `overview.md` | **yes** at 7, 8 and 10; no call at 8b or 9 |
 | **Close the books** | 11–13 | append to `log.md` · make a git commit · optional lint pass | no |
+
+That last column answers *does this step call the model*, which is a question
+about cost and about which steps repeat identically. It is not the same as
+*was this written by the model*. Step 9 makes no call because the prose it lays
+out already exists. `build_summary_page` concatenates strings around the
+document summary and the concept names, both of which step 7 obtained from the
+model. What step 9 itself contributes is the structure — headings, labels, the
+file's name and page count, the date, the links to the concept pages. The same
+holds for 8b, which files away alternate names step 7 already returned.
 
 **Where these numbers come from.** `ingestion/pipeline.py:ingest_file` marks each
 step with a comment banner — `# ── Step 6: Atomic source document DB write ──` —
