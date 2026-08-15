@@ -629,12 +629,16 @@ Three words from these passes are used throughout the acts:
   actually were on a real run.
 
   *Supplied* is literal: `repair_wiki(..., llm_client=None)` is a legal call, and
-  the pass that runs automatically after every ingest makes exactly that call. It
-  is not that the model failed or was unavailable — it was deliberately not
-  handed over, so the pipeline cannot spend tokens you did not ask it to spend.
-  Two repairs need one (`stale` and `missing_concept`); the rest are plain code
-  and run either way. Act 3b shows what that looks like in the log, and names the
-  two ways to supply a model when you do want those two repairs.
+  it is the call the post-ingest pass makes by default. It is not that the model
+  failed or was unavailable — it was deliberately not handed over, so the
+  pipeline cannot spend tokens you did not ask it to spend. Asking is one tick:
+  the ingest form carries a checkbox, *"Also run full LLM lint & repair after
+  ingest (slower, uses tokens)"*, and with it ticked that same post-ingest pass
+  runs with a model. Two repairs need one (`stale` and `missing_concept`); the
+  rest are plain code and run either way. Act 3b shows what the default looks
+  like in the log, and covers the other way to supply a model — the wiki-wide
+  **Run Wiki Lint & Repair** button, which sweeps every page rather than the
+  ones this ingest touched.
 
 §6.1 lists every check lint runs; §6.2 lists every repair and says which of them
 need a model.
