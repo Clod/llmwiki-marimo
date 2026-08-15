@@ -276,6 +276,37 @@ LLM judge, with `graders.py` as its deterministic pre-screen. RAGAS-style
 metrics or an NLI verifier belong there as offline measurement. Only with that
 measurement in hand is there a basis for moving one into the answering path.
 
+**Where each one would be inserted, and why that is not the same as how large
+the job is.** The call sites are few and already separated, so the seams are
+not the obstacle:
+
+| Route | Insertion point |
+|---|---|
+| breadcrumb comparison | between `retrieve_wiki` (`preretrieval.py:323`) and the plan, dropping or downranking rows whose `header_breadcrumb` does not match the section the question asks about |
+| cross-encoder reranking | the same place, rescoring and reordering the rows instead |
+| NLI verification | `preretrieval.py:354`, replacing or complementing `is_supported` |
+
+One line each. What differs is what surrounds that line.
+
+**Only the breadcrumb route is bounded end to end.** Read-side plumbing exists
+(`search_chunks` already returns the field), so the whole job is: one module
+shaped like `overlap.py`, one new section in `wiki_config.toml` parsed in
+`config.py` beside the four it already parses, one call site, and tests. No
+dependency, no model weights, no added latency, deterministic, and testable
+without an LLM — which matters, because the suite runs without one. It would
+also want a lint check for the mapping going stale, with `vocabulary_check` as
+the precedent.
+
+**The other two are bounded in the code and not outside it.** A cross-encoder or
+an NLI model brings a dependency with weights in the hundreds of megabytes, into
+a project whose installer is a stdlib-only `quickstart.py` over a hash-pinned
+`requirements.txt` — the "one command, Python 3.12+" promise is the first thing
+that breaks. Then: latency on every question, on top of the model call; a
+configuration surface for model, threshold and per-wiki on/off; and a threshold
+that has to be measured rather than chosen, which is the `base/domain/eval/`
+work described above. Content language is a per-wiki property, so the model has
+to be multilingual or there has to be one per language.
+
 **The coverage gate matches page titles literally.** With pre-retrieval enabled,
 whether a wiki answers a question depends on whether one of its concept-page
 titles appears word-for-word *inside that question* — the test runs in that

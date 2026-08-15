@@ -119,7 +119,8 @@ Sí: para cualquier tema con **datos que se actualizan seguido + necesidad de ha
 **cuentas o citar con precisión**. Salud y dosis, normativa que cambia, precios,  
 logística, estadística deportiva. ↪ *El cierre de*  
 *[de la idea al producto](de_la_idea_al_producto.md) desarrolla los casos.* Finanzas es el primero,  
-no el único.
+no el único. ↪ *Un campo analizado en detalle, con ocho casos*
+*y sus límites: [aplicaciones al agro](aplicaciones_agro.md).*
 
 ### 12. ¿Necesito internet? ¿Mis datos se suben a algún lado? 🏷️
 
