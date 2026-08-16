@@ -388,6 +388,75 @@ the first search returns nothing — that was never implemented. Kept rather tha
 deleted because it is precisely what would keep such a step safe. The decision
 to build it or delete it is open; the function documents both directions.
 
+**Staleness does not travel along page-to-page links, and the graph to make it
+travel already exists.** Today `staleness_check` (`lint/checks.py:37`) follows
+`cites` only — wiki page to source document. It compares a page's timestamp
+against the timestamps of the sources it cites, never against another page. So
+rewriting page A leaves every page that links to A untouched, unflagged and
+unreviewed. `update_references` rewrites only the *outgoing* edges of the page
+being written, and `get_backlinks` (`tools/references.py`) has no production
+caller at all — two tests use it and nothing else does.
+
+What looks like propagation today is not. If B cites the same source as A and
+that source changes, B is flagged on its own account, not because A changed.
+
+*Why this matters.* Page B may reference A because it touches, in passing, a
+subject A treats in full. If what A says about that subject changed, B's
+sentence about it may now be wrong. Nothing surfaces that.
+
+*The distinction that decides whether the check is useful.* Two link kinds hide
+behind one edge type:
+
+| | What B does | Does a change in A merit review |
+|---|---|---|
+| pointer | "for the detail, see A", restating nothing | no — the pointer still points correctly |
+| restatement | "X is a kind of Y, covered in A" | yes — B holds a copy of a claim whose authoritative version is in A |
+
+`links_to` records that a markdown link exists and nothing more. And in this
+project most `links_to` edges are pointers by construction: the `missing_xref`
+repair inserts "See also" links between concept pages citing a shared source,
+and the ingestion walkthrough measures that pass as the origin of most new
+edges. Propagating over `links_to` unfiltered would flag mostly the kind that
+never needs review.
+
+*The discriminator is positional, and free.* A link inside the "See also"
+section is a pointer; a link inside the body prose is the one that may
+accompany a restated claim. The section heading is written by code from the
+locale (`inject_see_also`), not chosen by the model, so the split is a string
+operation with no model and no ambiguity. Two values — body and see-also — not
+a scale: a scale invites calibration with nothing to calibrate against.
+
+The weight belongs to the edge, not to the pair: A may link to B in its body
+while B links back only under "See also". Heavy in one direction, light in the
+other.
+
+*This also settles how far to propagate.* One hop over body links only is a
+small set by construction, so no arbitrary depth limit is needed.
+
+*Derive it on read; do not store it.* There is no migration path in this
+project — `_apply_base_schema` (`tools/db.py:37`) runs the schema file on open,
+and there is no `ALTER TABLE`, no schema version, nothing. A new column on
+`document_references` would never appear in the databases that already exist,
+including both shipped demos, so storing the weight means first building a
+migration mechanism, which is a larger change than the feature. Deriving it
+when the check runs avoids that, keeps the classification in one place (the
+check itself; `update_references` does not change), and reads page text the
+lint pass already reads. It also gives the better semantics: a stored weight
+would say what the link was when it was recorded, a derived one says what it is
+now, and "does B currently restate something from A" is the question being
+asked.
+
+*Shape.* A new lint check, sibling to `stale`, advisory like `vocab_stale` —
+deciding that a neighbour's prose has gone out of date is a judgement, not a
+mechanical repair.
+
+*Not settled.* What counts as a change to A. Pages are regenerated at
+temperature 0.2–0.4, so a rewrite produces different prose from identical
+content; if any rewrite flags its neighbours, every ingest floods the report and
+the signal dies. The deterministic candidate is to compare the extraction rather
+than the prose — the set of concept names and their insights — so a rewording
+does not count and a changed concept does. Nothing is built.
+
 **There is no interface for the vocabulary lists.** The blacklist, the
 hand-written aliases and the false-synonym pairs live in `wiki_config.toml` and
 are edited in a text editor. This is deliberate — the pipeline never rewrites a
