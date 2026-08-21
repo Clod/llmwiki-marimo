@@ -388,11 +388,11 @@ same wiki from the same untouched sources and you get:
 - and often **different concept pages**, because the model decides for itself
   which topics deserve one.
 
-The third of those is the one that surprises. While this document was being written its
-appendix was regenerated several times from an identical corpus, and each run named
-the concepts differently — one run pulled a page called *Transformation* out of
-Cinderella, the next chose *Prince* instead. Neither is wrong. They are two
-readings of the same tale.
+The last of those three — different concept pages — is the one that surprises.
+While this document was being written its appendix was regenerated several times
+from an identical corpus, and each run named the concepts differently: one run
+pulled a page called *Transformation* out of Cinderella, the next chose *Prince*
+instead. Neither is wrong. They are two readings of the same tale.
 
 Three practical consequences follow. **Anything you edited by hand is gone** when
 the page is regenerated, because nothing distinguishes your sentence from the
