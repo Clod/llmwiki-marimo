@@ -101,7 +101,7 @@ flowchart TD
     DS["<b>datasets/</b> <i>(optional)</i> — markdown tables you maintain<br/><i>facts that expire: what it is WORTH today</i><br/>YOURS · never modified"]
     CFG["<b>wiki_config.toml</b> <i>(optional)</i> — the only file<br/>you write in your own words<br/><i>language · the assistant's instructions ·<br/>a list of topics this wiki refuses</i><br/>YOURS · never modified"]
     WIKI["<b>wiki/</b> — the markdown pages an LLM wrote<br/>DERIVED · safe to delete and rebuild<br/><i>a git repository in its own right</i>"]
-    DB[("<b>.llmwiki/</b> — everything the pipeline generates<br/>besides the pages: <b>index.db</b>, the full-text index<br/><i>over sources AND wiki alike</i>,<br/>plus generated aliases and traces<br/>DERIVED · safe to delete and rebuild")]
+    DB[("<b>.llmwiki/</b> — everything the pipeline generates<br/>besides the pages: <b>index.db</b>, the full-text index<br/><i>over sources AND wiki alike</i>,<br/>plus generated aliases and traces<br/>DERIVED · rebuilt only by ingesting again")]
     NOTE["<b>never ingested.</b> No LLM, no generated page,<br/>no database row — read straight off disk, fresh,<br/>each time a question needs one"]
 
     SRC ==>|"<b>read ONCE</b>, at ingest —<br/>an LLM compiles them into pages"| WIKI
@@ -657,6 +657,30 @@ version control like any other folder. The database holds no knowledge of its
 own — every value in it was copied out of a source file, or derived from a wiki
 page that exists on disk — but it is what turns a folder of files into something
 you can ask questions of.
+
+**How you would rebuild it, and what that costs.** Since the database holds
+nothing of its own, losing it should be an inconvenience rather than a loss, and
+in principle it is. In practice there is only one way to repopulate it today:
+ingest the sources again. That is a fresh compile, not a rebuild, and it differs
+from one in three ways worth knowing before you need it.
+
+It calls the model again, so the pages come out differently worded and the
+concept pages may be named differently — the same variation described earlier,
+applied to the whole corpus at once. It overwrites the markdown on disk, so any
+sentence you edited by hand is replaced. And a page whose source file is no
+longer in `sources/` cannot be produced at all, because there is nothing left to
+compile: the page's text survives on disk, but nothing re-registers it.
+
+A mechanical rebuild — one that reads the markdown and the sources back into a
+fresh database without calling the model, so the pages you already have stay
+exactly as they are — is designed and not built. The
+[ROADMAP](../ROADMAP.md) records the five steps it would take, what would be
+recovered exactly, and the two things that cannot come from disk at all: the
+internal counters, and the creation timestamps.
+
+Until then, the useful precaution is the ordinary one: `wiki/` is a git
+repository of its own, and `sources/` is your own folder of files. Those two are
+what a rebuild would read. The database is the part you can afford to lose.
 
 Four tables do that work, plus the search index built over one of them. The
 clearest way to tell them apart is to ask **what a single row means** in each:
