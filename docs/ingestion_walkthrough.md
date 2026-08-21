@@ -786,13 +786,16 @@ The numbers above are Act 1's, so you can check every one of them against the
   ```
 
   Those numbers are `rowid`s — internal row numbers, reassigned whenever the
-  corpus is rebuilt — and they come out already sorted best-first. They are the
-  whole answer the index gives: eight fragments out of thirty-four for the first
-  word, and the other twenty-six never even looked at.
+  corpus is rebuilt. They are listed here best-first, which is not the order the
+  index hands them back: left alone it returns them in `rowid` order, and
+  best-first is a second thing you ask for, as the query below does. Either way
+  the set is the whole answer the index gives: eight fragments
+  out of thirty-four for the first word, and the other twenty-six never even
+  looked at.
 
   To turn that into something you can quote, you join the index back to the
-  tables. The index says *which* fragments and *in what order*; the tables supply
-  the text and where it came from:
+  tables. The index says *which* fragments, and scores them when asked; the
+  tables supply the text and where it came from:
 
   ```sql
   SELECT d.filename, c.page, c.header_breadcrumb, c.content
