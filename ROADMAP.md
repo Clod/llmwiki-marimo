@@ -227,6 +227,12 @@ not the first: the fragment is described accurately and the answer narrates it
 faithfully; what fails is that the fragment is not about the ending. Reranking
 at retrieval addresses it. A post-hoc verifier does not.
 
+The mirror case belongs to the first kind. An answer that takes a detail from
+one retrieved passage and attaches it to the subject of another is not caught
+by reranking — every passage involved is relevant, and only the pairing is
+wrong — and it is exactly what a per-sentence entailment check is for.
+Nothing in the project detects it today.
+
 **A third route, cheaper than either, when the source declares its own
 structure.** A neural reranker judges relevance by reading question and passage
 together. A document that carries headings has already stated which part it is:
@@ -368,6 +374,31 @@ matches against was assembled by accident.
 kept.** None of the three has been built; this entry exists so the next person
 does not have to re-derive the trade.
 
+**The pipeline accepts a malformed extraction instead of rejecting it.**
+`extract_structured` asks for JSON in the prompt, and `_parse_extraction`
+reads the reply leniently: when it does not parse, the function returns the
+whole raw response as `document_summary` and no concepts at all
+(`wiki_generator.py:312`). The run continues. That text is written verbatim
+under the summary page's `## Summary` heading, the page still carries its
+`[^1]` source footnote, and what records the failure is a log warning, the
+interface line "Found 0 concept(s)", and `concept_count=0` in the ingestion
+trace when it is enabled. Nothing rejects the page, and nothing retries the
+call.
+
+The asymmetry is with the read side. A chat answer with no grounding evidence
+is replaced by a refusal — `enforce_grounding` takes that decision away from
+the model. A document whose extraction failed is written to disk.
+
+The fix is not a new mechanism. The provider's structured-output parameter
+constrains generation to the declared schema, so the format stops depending on
+the model complying, and the parse that follows verifies that constraint
+instead of standing in for it. A failed call then becomes an error the
+pipeline can retry or report, rather than a page.
+
+*Not settled:* what a rejected document leaves behind. Skipping it silently
+repeats the same defect one level up. A `status='failed'` row is the existing
+idiom — `search_chunks` already filters on `d.status != 'failed'`.
+
 **"Regenerate and diff" is a weaker check than the ingestion walkthrough claims.**
 That document says a disagreement between its prose and a regenerated appendix
 "is a signal the pipeline changed". But pages are model-written at temperature
@@ -494,6 +525,15 @@ Recorded so the absence reads as a decision rather than an oversight.
   by measuring the current pass's misses rather than assuming they exist.
 - **Multi-user or hosted operation.** A workspace is a folder on one machine.
   See "Limitations & non-goals" in the [README](README.md#limitations--non-goals).
+- **Measurement that needs production traffic.** Sampling a percentage of live
+  answers for offline scoring, shadow testing a candidate version against the
+  same real traffic, and a metrics dashboard read week over week are the
+  standard way to keep a RAG system under control once it is deployed. None of
+  the three applies here, for the reason above: a workspace is a folder on one
+  machine with one user, so there is no stream to sample, nothing running in
+  parallel to compare against, and no series to plot. Measurement in this
+  project is offline and deliberate — the frozen golden corpus, and the eval
+  packet in `base/domain/eval/`.
 - **Web search, at query time or as an ingest loop.** The chat agent's cascade is
   wiki index → wiki full-text → raw source chunks. A fourth step that reaches the
   web is deliberately absent: the project's claim is about answering from a
