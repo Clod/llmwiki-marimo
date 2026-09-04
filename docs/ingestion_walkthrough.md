@@ -750,15 +750,18 @@ The numbers above are Act 1's, so you can check every one of them against the
   sentence. The one exception is a single paragraph too big to be a fragment on
   its own, which does get cut.
 
-  A fragment may also start by repeating the end of the previous one, so that a
-  definition given just before a boundary travels along with the text that
-  depends on it. This repetition has a size limit, and often does not happen at
-  all: when the previous paragraph is itself bigger than that limit, nothing is
-  repeated. In the bundled `examples/fairy-tales` **corpus** — the usual word for
-  the whole collection of text a system works with — ten of the fourteen
-  boundaries repeat nothing; where repetition does happen it runs 92–119 tokens.
-  Those fourteen are the internal boundaries of its three source tales, whose
-  fragment counts are 10, 2 and 5.
+  A fragment may also start by repeating the end of the previous one, so that
+  a definition given just before a boundary travels along with the text that
+  depends on it. The repetition is made of whole paragraphs and has a budget
+  of 128 tokens: the code walks backwards from the end of the previous
+  fragment, taking paragraphs while they fit, and stops at the first one that
+  would exceed it. A paragraph longer than the budget therefore cannot be
+  repeated at all, and that turns out to be the common case. In the bundled
+  `examples/fairy-tales` **corpus** — the usual word for the whole collection
+  of text a system works with — ten of the fourteen boundaries repeat nothing;
+  where repetition does happen it runs 92–119 tokens. Those fourteen are the
+  internal boundaries of its three source tales, whose fragment counts are 10,
+  2 and 5.
 
   A warning about that name, because two collections of fairy tales appear in
   this document. The one just measured is the demo shipped in
