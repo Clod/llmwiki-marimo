@@ -765,12 +765,12 @@ The numbers above are Act 1's, so you can check every one of them against the
 
   A warning about that name, because two collections of fairy tales appear in
   this document. The one just measured is the demo shipped in
-  `examples/fairy-tales`, three tales. The acts further down build a **separate,
-  temporary** corpus, two tales, which the capture script discards afterwards.
-  The PDFs are the same files in both, so a per-document figure holds across
-  them — `Cinderella.pdf` yields 10 fragments wherever it is ingested — but a
-  whole-corpus total does not, because the two hold different numbers of
-  documents.
+  `examples/fairy-tales`, three tales. The acts further down build a
+  **separate, temporary** corpus, two tales, which the capture script discards
+  afterwards. The PDFs are the same files in both corpora, so a per-document
+  figure holds across them — `Cinderella.pdf` yields 10 fragments wherever it
+  is ingested — but a whole-corpus total does not, because the two hold
+  different numbers of documents.
 
   Each fragment records which document and page it came from, plus a
   **breadcrumb**: the headings that apply where its text sits, joined with ` > `
