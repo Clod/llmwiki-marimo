@@ -682,8 +682,9 @@ Until then, the useful precaution is the ordinary one: `wiki/` is a git
 repository of its own, and `sources/` is your own folder of files. Those two are
 what a rebuild would read. The database is the part you can afford to lose.
 
-Four tables do that work, plus the search index built over one of them. The
-clearest way to tell them apart is to ask **what a single row means** in each:
+The database is made of four tables, plus the search index built over one of
+them. The clearest way to tell them apart is to ask **what a single row
+means** in each:
 
 ```mermaid
 flowchart LR
