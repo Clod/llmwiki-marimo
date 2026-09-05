@@ -998,7 +998,7 @@ flowchart TD
         A1["Act 1 · Cinderella.pdf (5 pp) ingested<br/>1 source · 5 extracted pages<br/>6 wiki pages · 16 fragments<br/>6 cites · 15 links_to<br/>▸ the source row is committed ready<br/>before the LLM writes a single page"]
         A2["Act 2 · + Little Red Riding Hood.pdf (2 pp)<br/>2 sources · 7 extracted pages<br/>12 wiki pages · 24 fragments<br/>cites 6 → 12 · links_to 15 → 30<br/>▸ the wiki compounds — Act 1's pages gain<br/>connections they did not have before"]
         A3a{"Act 3a · Little Red Riding Hood.pdf<br/>re-ingested, unchanged on disk"}
-        A3b["Act 3b · Cinderella.pdf replaced on disk<br/>2 sources — the row is updated, not duplicated<br/>17 wiki pages · 32 fragments<br/>cites 12 → 19 · links_to 30 → 80<br/>lint+repair after: 45 issues · 40 fixed · 5 skipped · 0 failed<br/>▸ every skip names exactly what it was missing"]
+        A3b["Act 3b · Cinderella.pdf replaced on disk<br/>with the bytes of another tale, same filename<br/>2 sources — the row is updated, not duplicated<br/>17 wiki pages · 32 fragments<br/>cites 12 → 19 · links_to 30 → 80<br/>lint+repair after: 45 issues · 40 fixed · 5 skipped · 0 failed<br/>▸ every skip names exactly what it was missing"]
         A3c["Act 3c · Little Red Riding Hood.pdf deleted<br/>1 source · 16 wiki pages · 29 fragments<br/>cites 19 → 13 · links_to 80 → 75<br/>▸ its 1 summary page is deleted with it;<br/>its 5 concept pages are kept and marked stale"]
     end
 
