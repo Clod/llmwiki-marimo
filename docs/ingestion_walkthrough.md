@@ -927,7 +927,10 @@ The numbers above are Act 1's, so you can check every one of them against the
 
 - `document_references` — **one row per link from one document to another.**
   There are two kinds: `cites` means a wiki page took its content from a source,
-  and `links_to` means a wiki page links to another wiki page. The clearest way
+  and `links_to` sends the reader from one page on to a neighbouring one.
+  Concepts carved out of the same document belong together, and a page read on
+  its own is a dead end, so the pipeline cross-links the pages that share a
+  source. The clearest way
   to see the difference is that the same page usually has both. These two rows
   come from Act 1 below:
 
