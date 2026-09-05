@@ -944,8 +944,12 @@ The numbers above are Act 1's, so you can check every one of them against the
   they answer different questions — *where did this come from?* versus *what else
   should I read?* — and they behave differently when a document is deleted.
 
-  One column name is misleading, so be warned: `source_document_id` holds the
-  document doing the referring, not the file sitting in `sources/`.
+  One column name is worth a warning: `source_document_id` means two different
+  things. In `documents` it holds the source a wiki page was written from; in
+  `document_references` it holds the document doing the referring. Renaming it
+  is not as cheap as it sounds — the schema is applied as written to every
+  database when it opens, and there is no migration step, so a rename would
+  leave every wiki built before it unreadable, the two shipped demos included.
 
   These links are stored in a table instead of being worked out by scanning the
   markdown each time they are needed. That is what makes it possible to *ask*
