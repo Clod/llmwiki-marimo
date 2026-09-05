@@ -1033,7 +1033,7 @@ prince), **16 `document_chunks`**, **6 `cites` links** and **15
 flowchart TD
     S1["<b>steps 1–5</b> · no model, nothing committed<br/>validate · detect change · open a provisional row<br/>· extract 5 pages · cut 16 fragments <i>in memory</i>"]
     S6["<b>step 6</b> · ONE transaction<br/>row flips to <b>status='ready'</b> +<br/>document_pages + document_chunks written"]
-    SAFE(["<b>from here the source is safe</b><br/>searchable, quotable, permanent —<br/>with zero wiki pages so far"])
+    SAFE(["<b>from here the source survives a failure</b><br/>stored, searchable and quotable —<br/>with zero wiki pages so far"])
     S7["<b>steps 7–9</b> · the LLM writes<br/>6 pages: 1 summary + 5 concepts"]
     S10["<b>steps 10–13</b><br/>rewrite overview.md · log.md · git commit"]
     FAIL{{"if any LLM call fails here"}}
