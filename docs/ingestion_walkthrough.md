@@ -983,7 +983,7 @@ is what lets this walkthrough say things like "just delete the page and generate
 it again". Nothing here can lose data, because the sources are never what gets
 deleted.
 
-## The story, top to bottom
+## The sequence, end to end
 
 Each act below states the workspace as it stands when the act ends, and the one
 thing that act exists to demonstrate. Every figure is read off the generated
@@ -996,10 +996,10 @@ flowchart TD
     subgraph FT ["Acts 1–3c — the bundled fairy-tale corpus"]
         direction TB
         A1["Act 1 · Cinderella.pdf (5 pp) ingested<br/>1 source · 5 extracted pages<br/>6 wiki pages · 16 fragments<br/>6 cites · 15 links_to<br/>▸ the source row is committed ready<br/>before the LLM writes a single page"]
-        A2["Act 2 · + Little Red Riding Hood.pdf (2 pp)<br/>2 sources · 7 extracted pages<br/>12 wiki pages · 24 fragments<br/>cites 6 → 12 · links_to 15 → 30<br/>▸ the wiki compounds — Act 1's pages end up<br/>better connected than they went in"]
+        A2["Act 2 · + Little Red Riding Hood.pdf (2 pp)<br/>2 sources · 7 extracted pages<br/>12 wiki pages · 24 fragments<br/>cites 6 → 12 · links_to 15 → 30<br/>▸ the wiki compounds — Act 1's pages gain<br/>connections they did not have before"]
         A3a{"Act 3a · re-ingested,<br/>nothing changed on disk"}
         A3b["Act 3b · Cinderella.pdf replaced on disk<br/>2 sources — the row is updated, not duplicated<br/>17 wiki pages · 32 fragments<br/>cites 12 → 19 · links_to 30 → 80<br/>lint+repair after: 45 issues · 40 fixed · 5 skipped · 0 failed<br/>▸ every skip names exactly what it was missing"]
-        A3c["Act 3c · Little Red Riding Hood.pdf deleted<br/>1 source · 16 wiki pages · 29 fragments<br/>cites 19 → 13 · links_to 80 → 75<br/>▸ its 1 summary page dies with it;<br/>its 5 concept pages are kept and marked stale"]
+        A3c["Act 3c · Little Red Riding Hood.pdf deleted<br/>1 source · 16 wiki pages · 29 fragments<br/>cites 19 → 13 · links_to 80 → 75<br/>▸ its 1 summary page is deleted with it;<br/>its 5 concept pages are kept and marked stale"]
     end
 
     COD["Closing section · only for wikis with datasets/<br/>the finanzas-argentinas demo<br/>▸ the second alias pass runs — once per scan,<br/>gated on a fingerprint of the dataset vocabulary"]
@@ -1059,15 +1059,14 @@ That order matters because of what happens when something fails. If step 7 (the
 LLM call that reads the document and returns its summary and concept list) fails,
 or any of the concept-page calls after it, the worst possible result is a source
 sitting in the database, fully searchable, with no wiki pages yet. The opposite
-can never happen: there is no way to end up with a wiki page pointing at a source
-that was never really stored.
+can never happen: a wiki page cannot point at a source that was never stored.
 
 This is also why calling the wiki "derived and disposable" is more than a slogan.
 Both regenerate (§6.6) and repair (§6.2) assume the source rows are the permanent
 truth and the wiki rows can be rebuilt from them. Step 6 is what makes that
 assumption safe.
 
-The alternate-names file tells the same story from the vocabulary side. Step 8b
+The alternate-names file shows the same sequence from the vocabulary side. Step 8b
 (`ingestion/alias_generation.py:update_generated_aliases`) writes
 `.llmwiki/aliases.generated.toml` with one entry — a real alternate name the LLM
 found in the tale's own text, not one anybody typed. Open the bundled demo's
@@ -1134,7 +1133,7 @@ The thing that is *not* sent is the one that would hurt: **the pages themselves.
 The model gets a list of names — `Cinderella, Fairy Godmother, Glass Slipper, …` —
 and the previous narrative, and is asked to fold one new summary into it.
 
-So the honest answer to "does this grow quadratically?" is: **each ingest costs
+The answer to "does this grow quadratically?" is: **each ingest costs
 slightly more than the last, and the total over N documents is quadratic in the
 mild sense** — but the term that grows is a comma-separated list of titles. A
 wiki with 500 concept pages would send roughly 3,000 tokens of names. The
@@ -1161,12 +1160,12 @@ exactly the state running it once did, so a repeat costs zero model calls.
 That property is what makes §6.5's Scan sources workflow safe to run repeatedly
 against a folder someone is actively dropping files into: re-scanning a folder
 with nine unchanged files and one new one does one document's worth of LLM work,
-not ten. Without it, the natural operating habit — drop a file in, hit scan —
+not ten. Without it, the natural operating habit — add a file, run scan —
 would re-pay for the entire corpus every time.
 
 ## Act 3b — the source changed on disk
 
-This act simulates an edited source honestly: the capture script swaps
+This act simulates an edited source without shortcuts: the capture script swaps
 `Cinderella.pdf`'s bytes for a different tale entirely (`The Sleeping Beauty in
 the Wood.pdf`, renamed to the same filename) rather than hand-editing a sentence,
 because the detector never looks at *what* changed, only that the hash did. From
@@ -1287,7 +1286,7 @@ deleted.
 ### What happens to a page once it is marked stale
 
 "Marked stale" is a flag on the page (`stale_since`) that means one thing: *a
-source this page was written from is gone — someone should look at it.* It is
+source this page was written from is gone, and the page needs review.* It is
 not a verdict. The page may still rest on two other sources and be perfectly
 good; the pipeline has no way to judge that, so it refuses to guess and says so
 instead.
@@ -1337,7 +1336,7 @@ They are flagged because a source they were written from **no longer exists**.
 Run lint and repair now and nothing happens to them — not because the repair
 failed, but because lint's `stale` check never sees them. That check works by
 comparing a page against a source it still cites, and these five have no such
-source left: the `cites` rows died with the document.
+source left: the `cites` rows were deleted with the document.
 
 **Now instead you edit `Cinderella.pdf`** — you replace it with a revised edition
 and re-ingest, which is Act 3b. Nothing is deleted and no `stale_since` flag is
@@ -1413,7 +1412,7 @@ differently when a source is deleted
   generated pages, not a page and a source, so it survives — even when one of the
   two pages loses its citation.
 
-Put simply: deleting a source destroys the page that was built from that source
+Deleting a source destroys the page that was built from that source
 alone. It never destroys a concept page that combined **several** sources,
 because that page still has its other sources to stand on.
 
@@ -1436,11 +1435,11 @@ Everything above is reproducible, not just re-readable:
   sequence — ingest, ingest, re-ingest unchanged, edit and re-ingest, delete —
   against a fresh temporary workspace and regenerates
   [`docs/ingestion_walkthrough_appendix.md`](ingestion_walkthrough_appendix.md).
-- `tests/e2e/test_ingest_app_v2.py` asserts the same journey end-to-end by
+- `tests/e2e/test_ingest_app_v2.py` asserts the same sequence end-to-end by
   driving the real ingest app in a browser (wiki picker, ingest form, Activity
   Log, vocabulary lint lines, scan idempotency, cross-links) rather than by
   calling the pipeline functions directly — so it fails if the machinery works
-  but the interface to it doesn't.
+  but the interface to it does not.
 
 ## Wikis whose facts change
 
@@ -1457,7 +1456,7 @@ works because the answer will not have changed by the time somebody reads it.
 Point the same machinery at an exchange rate and two things go wrong at once. The
 page is out of date the moment the rate moves. And worse, the number itself gets
 absorbed into a sentence, where it can no longer be quoted together with the date
-it belongs to — you end up with prose saying the dollar is worth 1180, with no
+it belongs to — the result is prose saying the dollar is worth 1180, with no
 way to know when that was true.
 
 So a wiki that needs facts like these keeps them somewhere else, as a second kind
@@ -1476,8 +1475,7 @@ front-matter does not — a key such as `metodo_calculo: no_deterministico` stat
 what kind of instrument a category holds, and that does not change when the
 market moves. What the two have in common is not volatility. It is that code
 reads them directly, instead of a model compiling them into prose. Expiry is why
-this layer was built; being machine-readable is what it also turns out to be
-good for, and the query walkthrough works that second use out in [What
+this layer was built; being machine-readable is a second use it serves, and the query walkthrough works that second use out in [What
 structured sources make
 checkable](query_walkthrough.md#what-structured-sources-make-checkable).
 
@@ -1554,15 +1552,15 @@ page, one for where the number came from. That is what the two paths exist for.
 Everything in the acts above happens in a corpus with only PDFs. The appendix confirms
 that: every act's file list shows `.llmwiki/aliases.generated.toml`, but
 **no** `.llmwiki/dataset_aliases.fingerprint` ever appears — that sidecar
-file simply never gets written, because there is no `datasets/` folder for it
+file is never written, because there is no `datasets/` folder for it
 to fingerprint. The shipped `examples/finanzas-argentinas` demo has both.
 
 Two alias passes exist, and only one of them ran anywhere in Acts 1–3c.
 The **concept-alias pass** (`alias_generation.py:update_generated_aliases`,
-step 8b of §6.3) runs per file, for any corpus — it's what produced
+step 8b of §6.3) runs per file, for any corpus — it is what produced
 `"Cinderella" = ["Cinderwench"]`. The **dataset-alias pass**
 (`alias_generation.py:regenerate_dataset_aliases`) runs once per *scan*
-(§6.5), not per file, and only when `datasets/` exists; it's
+(§6.5), not per file, and only when `datasets/` exists; it is
 fingerprint-gated (`_vocab_fingerprint` / `_read_fingerprint` /
 `_write_fingerprint`), so the LLM pass re-runs only when the dataset
 vocabulary actually changed since the last scan — a second scan of an
@@ -1669,7 +1667,7 @@ original note gets settled. The two are meant to be read back to back.
 If you would rather go sideways than forward:
 
 - §6 [Workflows](manual/workflows.md) for the per-operation contracts this
-  walkthrough deliberately doesn't restate: step tables, LLM prompt inputs and
+  walkthrough deliberately does not restate: step tables, LLM prompt inputs and
   outputs, table-write matrices, today-vs-target status.
 - [`sqlite_data_dictionary.md`](sqlite_data_dictionary.md) for every column of
   every table, rather than only the four that carry the argument here.

@@ -79,7 +79,7 @@ This is the ordinary **agentic** arrangement — a loop in which the model holds
 some functions, chooses which to call and when, reads what they return, and keeps
 going until it is ready to answer. It is what Claude Code, Cursor or any MCP
 client is doing when you point one at a folder. Nothing in it is particular to
-this project: it is what you get for free, and the two positions below are what
+this project: it is the default behaviour, and the two positions below are what
 it costs to do better.
 
 **Afterwards.** Let the model work exactly as above, then have code examine the
@@ -444,7 +444,7 @@ answer itself: three `search_wiki_fts` calls and eight `read_wiki_page` calls �
 Cinderella and Snow White, with a citation on each claim. Nothing in the code
 planned any of that.
 
-**Run 2, the inventory — a citation simply missing.** *What tales are in this
+**Run 2, the inventory — a citation missing.** *What tales are in this
 wiki?* took a single `read_wiki_page` call, on `wiki/index.md` — the page
 ingestion writes to list what the wiki holds — and produced a correct, complete
 inventory of three tales and their concepts — **carrying no citation at all**, in a wiki whose system prompt
@@ -472,7 +472,7 @@ The answer came back as a table, one row per tale. This is the Snow White row:
 
 That is not how Snow White ends — it is the middle of the tale, before the prince
 arrives. The citation is real and the page number is real; the passage it points
-at simply is not the ending. This is the whole risk in one sentence: a raw
+at is not the ending. This is the whole risk in one sentence: a raw
 fragment retrieved for a question it does not answer, narrated confidently, and
 **stamped with a citation that makes it look grounded**.
 
@@ -534,7 +534,7 @@ datasets queried with `query_dataset` — and if the answer names none of them, 
 adds a line at the bottom. Two labels, chosen independently, because there are
 two different things to credit: `Referencia:` for something inside the wiki (the
 page, the dataset file), `Fuente:` for where a dataset's figures originally came
-from. An answer can end up with both.
+from. An answer can carry both.
 
 A page that merely showed up in a search result does not count as used, and that
 exclusion is deliberate. Asking "what have you got on Cinderella?" and being
@@ -690,7 +690,7 @@ rather than writes.
 a mid-tale paragraph offered as an ending — are what one run produced, not a
 rate. Run it again and the model may cite the inventory and get the ending right;
 that is exactly the property being described. A mode whose guarantees come from a
-prompt behaves differently from turn to turn, so the honest claim is *this can
+prompt behaves differently from turn to turn, so the accurate claim is *this can
 happen and here it did*, not *this happens N% of the time*.
 
 **The strict-mode column is derived, not separately captured.** The table in the
@@ -843,7 +843,7 @@ about an instrument this particular wiki has no page for.
 `off_limits=False`, `data=False`, `roster=False`, and both `wiki` and `docs` hit
 counts are **0**. The plan is `refuse`, and the model was **never invoked** — no
 completion, no token spent. The `docs=0` is not "the search came back empty";
-it's that the raw-source search never ran at all. Looking at
+it is that the raw-source search never ran at all. Looking at
 `preretrieval.pre_retrieval_answer`, `retrieve_source_chunks` is only called when
 `wiki_hits` is empty **and** `in_roster` is true — and here `in_roster` is false,
 so the raw-source lookup is skipped outright. No tangentially matching fragment
@@ -872,7 +872,7 @@ by something other than the number of search hits.
 (some word shared between the question and unrelated financial prose). If the
 plan were driven by the hit count alone, this would be Tier 1: inject those 6
 fragments and let the model try to answer a geography question out of financial
-context. It isn't, because `wiki_hits and in_roster` requires *both*, and
+context. It is not, because `wiki_hits and in_roster` requires *both*, and
 `in_roster` is false — nothing about *Francia* is on the coverage roster. The
 plan falls through every branch to `refuse`, and the model is never invoked. The
 answer is the same fixed string as Act 2, `"Eso no está en mi base de
@@ -947,7 +947,7 @@ See [§2 of the contract](../.trellis/spec/backend/chat-retrieval.md) for the
 rule. `postprocess.ensure_citation` is what guarantees the second line appears
 even when the model's own text forgets to mention `dolar.md` by name.
 
-This answer is where the decision made on the ingestion side pays off. A dataset
+This answer is where the decision made on the ingestion side returns its value. A dataset
 is deliberately **never compiled into a wiki page**; it is read at question time,
 exactly so that a figure stays quotable with the date it belongs
 to, instead of being absorbed into fixed prose; see [Wikis whose facts
@@ -978,13 +978,13 @@ With `wiki_hits` empty, `in_roster` true and `has_data` true,
 `doc_hits` — even though the code *did* retrieve 2 raw-document hits behind the
 scenes (`retrieve_source_chunks` runs whenever `wiki_hits` is empty and
 `in_roster` is true, so that candidates are ready if the later branch needs
-them). Those 2 hits are simply never used: reaching the `has_data` branch first
+them). Those 2 hits are never used: reaching the `has_data` branch first
 ends the chain, exactly as §3 of the contract specifies, so the question goes to
 `query_dataset` instead of being answered out of a raw document fragment.
 
 The model made **three** `query_dataset` calls and returned quotes for the MEP
 and the **CCL** (*contado con liquidación*, another of Argentina's parallel
-exchange rates, the one used to move money abroad) plus an honest *"No se
+exchange rates, the one used to move money abroad) plus an explicit *"No se
 encontraron datos para el dólar oficial."* (*no data found for the official
 dollar*), all closing with `Referencia: dolar.md`.
 
@@ -1045,7 +1045,7 @@ The model's job is to narrate that table, not to compute a single number in it.
 model's prose regardless of whether the model reproduced it faithfully, so the
 numbers a user sees are never trusted to model arithmetic even in the worst case.
 
-**One measurement error worth being honest about.** The appendix records
+**One measurement error worth recording.** The appendix records
 `carries a citation: False` for this act. The answer *is* cited — every row
 of the table ends in a `fuente` column, exactly as the system prompt
 specifies — but the trace's `_looks_cited` heuristic
@@ -1058,7 +1058,7 @@ form the system prompt actually specifies (§2 of the contract lists the
 `fuente` column explicitly as a valid citation carrier), and this document
 would rather show the false negative than quietly drop the flag.
 
-#### 7. The honest limit
+#### 7. The limit
 
 *"¿Cuánto ganaría con acciones de YPF?"* — *how much would I earn on YPF shares?*
 YPF is Argentina's largest energy company and a heavily traded local stock.
@@ -1275,11 +1275,11 @@ A page saved this way is also marked as such: `create_page` is called with
 from a document names that document; a page that came out of a conversation says
 `chat`, and nothing later mistakes one for the other.
 
-That is a deliberate asymmetry, and it is the honest answer to an obvious worry
+That is a deliberate asymmetry, and it is the answer to an obvious worry
 about a system that writes its own encyclopedia. Ingestion writes autonomously —
 you pointed it at a folder, that was the consent. Everything the *chat* adds to
 the wiki passes through a human first. The safety property is not "the agent is
-read-only" — it isn't, in the ingestion path — it is that the two write paths
+read-only" — it is not, in the ingestion path — it is that the two write paths
 have different authorisations, and every page in either is a git commit you can
 read and revert.
 
@@ -1321,17 +1321,17 @@ changes what the system can decline to do:
    compiling a number into prose destroys the one property that made it useful:
    its date.
 
-**Where it is honestly behind.** The note asks for "proper search" — hybrid
+**Where it falls short.** The note asks for "proper search" — hybrid
 keyword-plus-vector retrieval with LLM re-ranking. This has keyword search only,
 no embeddings, and the [ingestion
 walkthrough](ingestion_walkthrough.md#what-is-truth-and-what-is-disposable)
 spells out what that costs: a page phrased in different words is not merely
 ranked low, it is invisible. The vocabulary and alias lists are compensations
 for that gap, not a replacement for it. Ingestion is also automatic rather than
-the guided conversation the note describes — you drop a file and pages appear,
+the guided conversation the note describes — you add a file and pages appear,
 where Karpathy imagined discussing a document with the model before it wrote
 anything; the save-to-wiki flow above only partly makes up for it. And image
-handling, web search and alternate outputs are simply not built.
+handling, web search and alternate outputs are not built.
 
 §1 of the [Programmer Manual](programmer_manual.md#karpathy-coverage-matrix)
 takes all fifteen ideas from the note one at a time and marks each one done,
@@ -1341,7 +1341,7 @@ every mark. If you want the scorecard rather than the argument, read that.
 **The short version.** Karpathy's idea is that a knowledge base should
 *remember* the work it has already done. What this project adds is that it should
 also *know what it does not know* — and be able to prove which of the two it is
-doing, on any given question, without asking a model to be honest about it.
+doing, on any given question, without asking a model to report on itself.
 
 ## Verify it yourself
 
@@ -1361,7 +1361,7 @@ doing, on any given question, without asking a model to be honest about it.
 You have now seen both halves: how the wiki is built, and what happens when it is
 asked something. If you read only one more thing, make it the coverage matrix in
 §1 of the [Programmer Manual](programmer_manual.md#karpathy-coverage-matrix) —
-it is the honest scorecard behind the previous section.
+it is the scorecard behind the previous section.
 
 Otherwise:
 
