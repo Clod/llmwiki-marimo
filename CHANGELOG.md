@@ -12,6 +12,24 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 ## [Unreleased]
 
 ### Added
+- **Lint reports a source that produced no wiki page.** Ingestion commits the
+  source row as `status='ready'` at step 6, before the model writes anything, so
+  that a failure in the steps after it cannot lose the document. The cost of that
+  order is a state nothing reported: a source stored, indexed and searchable with
+  no page written from it. Nothing recovered it either — `needs_ingestion`
+  compares the file's modification time and its hash, never whether the document
+  has pages, so every later scan called the file up to date and wrote nothing,
+  and touching the file did not help because the hash still matched. No check
+  covered it: `orphan` runs the other way round, flagging pages nothing links to
+  and deleting them, and `thin_page` measures how well a source's pages cover it
+  and skips a source that has none. Finding it meant noticing the absence in a
+  page list. `unpaged_source_check` now lists every source with `status='ready'`
+  that no wiki page cites. It is advisory rather than repairable: producing the
+  pages means deleting the source and ingesting it again, which is a decision.
+  Two of its four tests fix the boundary — a source marked `failed` is not
+  reported, because there ingestion already said so, and a wiki page is not
+  mistaken for a source.
+
 - **Stale pages can be deleted from the ingest app.** A page is marked stale when
   a source it cited is deleted: the page is kept, because it may still rest on
   other sources, and flagged for a human. Nothing surfaced that flag —
