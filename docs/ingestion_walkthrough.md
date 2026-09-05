@@ -774,15 +774,9 @@ The numbers above are Act 1's, so you can check every one of them against the
   different numbers of documents.
 
   Each fragment records which document and page it came from, plus a
-  **breadcrumb**: the headings that apply where its text sits, joined with
-  ` > ` — `Cinderella > Definition`. They are markdown headings by the time a
-  fragment is cut, but the markdown is what extraction produced, not what you
-  supplied: a PDF's headings become `#` lines in step 4, and a DOCX is
-  converted to PDF by LibreOffice before that, so both reach the same
-  extractor. That conversion is also what gives a DOCX page numbers, which it
-  does not have on its own and which every fragment records. So this is not a
-  markdown-only feature — it applies to every document the pipeline accepts,
-  as far as the extractor recognised headings in it.
+  **breadcrumb**: the path of headings above the point where its text sits,
+  joined with ` > ` — `Cinderella > Definition`. Source documents get one as
+  well as wiki pages, as far as the extractor found headings in them.
 
   A page number alone tells you where a fragment sits in a PDF, but nothing
   about what part of the document it belongs to. The breadcrumb is what lets a
