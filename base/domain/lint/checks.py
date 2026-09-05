@@ -32,6 +32,50 @@ def orphan_check(db_path: str) -> list[LintIssue]:
     return issues
 
 
+def unpaged_source_check(db_path: str) -> list[LintIssue]:
+    """Source documents that were stored but produced no wiki page.
+
+    Ingestion commits the source row as ``status='ready'`` at step 6, before the
+    model writes anything. If a model call in steps 7-9 then fails, the source
+    stays indexed and searchable with no page written from it — the failure mode
+    the ingestion walkthrough describes as the worst possible outcome.
+
+    Nothing else reports it. ``needs_ingestion`` compares the file's mtime and
+    hash, never whether the document has pages, so every later scan calls the
+    source up to date; ``thin_page_check`` measures how well a source's pages
+    cover it and skips a source that has none. Recovering means deleting the
+    source and ingesting it again, which is a human decision — hence advisory.
+    """
+    issues = []
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT d.id, d.filename, d.relative_path FROM documents d "
+            "WHERE d.source_kind = 'source' AND d.status = 'ready' "
+            "  AND NOT EXISTS ("
+            "    SELECT 1 FROM document_references r "
+            "    WHERE r.target_document_id = d.id AND r.reference_type = 'cites'"
+            "  ) "
+            "ORDER BY d.filename"
+        ).fetchall()
+    for row in rows:
+        issues.append(LintIssue(
+            check="unpaged_source",
+            severity="warning",
+            page=row["relative_path"] or row["filename"],
+            description=(
+                f"'{row['filename']}' is stored and searchable but no wiki page "
+                f"cites it"
+            ),
+            suggestion=(
+                "Ingestion stored the source and then wrote no page, usually "
+                "because a model call failed. Re-scanning will not fix it: the "
+                "file is unchanged, so it counts as up to date. Delete the "
+                "source and ingest it again."
+            ),
+        ))
+    return issues
+
+
 # ── 3.2: Staleness check ──────────────────────────────────────────────────────
 
 def staleness_check(db_path: str) -> list[LintIssue]:

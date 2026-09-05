@@ -30,7 +30,7 @@ Each workflow below follows the same template:
 
 | #    | Workflow           | Status | Entry                                                                | Pending                                                |
 | ---- | ------------------ | ------ | -------------------------------------------------------------------- | ------------------------------------------------------ |
-| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; `vocabulary` + `thin_page` checks added; auto-tail done for ingest; scan/regenerate pending |
+| 6.1  | Lint               | ✅      | `lint/runner.py:lint_wiki`                                                  | `data_gap` shallow; `gap_filled_check` runs always; `vocabulary`, `thin_page` + `unpaged_source` checks added; auto-tail done for ingest; scan/regenerate pending |
 | 6.2  | Repair             | ✅      | `repair/runner.py:repair_wiki`                                                | All eight deterministic repairs implemented             |
 | 6.3  | Single ingest      | ✅      | `ingestion/pipeline.py:ingest_file`                                           | Lint+repair tail opt-in today                 |
 | 6.4  | Batch ingest       | ✅      | `ingestion/batch.py:batch_ingest`                                   | Lint+repair tail opt-in today                 |
@@ -103,7 +103,7 @@ and stores involved; 🧠 marks a step that calls the LLM.
 
 ```mermaid
 flowchart LR
-    L["lint_wiki()"] -->|always| DET["7 deterministic checks:<br/>orphan · stale · missing_xref<br/>missing_concept · gap_filled<br/>vocabulary · thin_page"]
+    L["lint_wiki()"] -->|always| DET["8 deterministic checks:<br/>orphan · stale · missing_xref<br/>missing_concept · gap_filled<br/>vocabulary · thin_page · unpaged_source"]
     L -->|client set| LLM["2 LLM checks 🧠:<br/>contradiction · data_gap"]
     DET -. reads .-> S[("index.db + wiki/ FS")]
     LLM -. reads .-> S
@@ -152,6 +152,7 @@ fast, so the callback mostly matters in full-LLM mode.
 | `gap_filled`      | `gap_filled_check` | deterministic (always runs)     | info           | `<!-- DATA_GAP: slug -->` TODO markers whose topic is now covered by a source                  |
 | `vocabulary`      | `vocabulary_check` | deterministic                   | error/warning/info | Alias-map drift vs the live coverage roster — see the four findings below                  |
 | `thin_page`       | `thin_page_check`  | deterministic                   | warning        | Source docs whose wiki pages leave ≥50% of the source's chunks *orphaned*                      |
+| `unpaged_source`  | `unpaged_source_check` | deterministic               | warning        | Sources stored as `status='ready'` that no wiki page cites — a model failure after step 6      |
 | `contradiction`   | `contradiction_check` | **LLM** (skip if `client=None`) | error       | Pair-wise LLM comparison of concepts sharing a source                                          |
 | `data_gap`        | `data_gap_check`   | **LLM** (skip if `client=None`) | info           | LLM scan of all concept titles for missing/underdeveloped topics                               |
 
