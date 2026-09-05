@@ -830,20 +830,20 @@ The numbers above are Act 1's, so you can check every one of them against the
    ORDER BY chunks_fts.rank;
   ```
 
-  The top three rows that come back are `glass-slipper.md`, then `Cinderella.pdf`
-  itself, then `cinderella.md`: a curated page, a raw source, and another curated
-  page, all ranked against each other in a single list. The index does not care
-  which layer a fragment belongs to — which is why separating the two layers has
-  to be a deliberate choice made elsewhere, as the previous bullet described.
+  The top three rows that come back are `glass-slipper.md`, then
+  `Cinderella.pdf` itself, then `cinderella.md`: a curated page, a raw source,
+  and another curated page, all ranked against each other in a single list.
+  The index does not care which layer (source or wiki) a fragment belongs to —
+  which is why separating the two layers has to be a deliberate choice made
+  elsewhere, as the previous bullet described.
 
   `rank` is the one column there that doesn't explain itself. FTS5 fills it with
-  **BM25**, the standard relevance formula full-text search engines have used for
-  decades: given a query, it scores every matching fragment on how strongly that
-  fragment is *about* the query rather than merely containing it. The wiki takes
-  the score as it comes — there is one indexed column, so there is nothing to
-  weight one column against another. Its values are negative and the best match
-  is the most negative, which is why ordering ascending puts the strongest hit
-  first. For *slipper*, the eight fragments score like this:
+  **BM25**, the standard relevance formula full-text search engines have used
+  for decades: given a query, it scores every matching fragment on how
+  strongly that fragment is *about* the query rather than merely containing
+  it. The wiki uses the score untuned. Its values are negative and the best
+  match is the most negative, which is why ordering ascending puts the
+  strongest hit first. For *slipper*, the eight fragments score like this:
 
   | fragment | mentions | tokens | rank |
   |---:|---:|---:|---:|
