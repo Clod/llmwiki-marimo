@@ -966,12 +966,13 @@ for a page that no longer exists.
 `wiki/` is a git repository too, and the pipeline commits to it after every
 ingest, edit and delete. So the generated pages carry the same history you would
 expect from source code: you can see what a page said last week, and diff it
-against what it says now. Restoring an old version is a different matter — a
-`git checkout` writes the file behind the pipeline's back, and the database
-keeps the text it indexed, so search and the link graph go on describing the
-version you replaced. Lint and repair do not notice, because they read the
-database. Re-ingesting the source is the only way back into step today, and it
-rewrites the page rather than restoring it. It is a repository with no remote — nothing is pushed
+against what it says now. Restoring an old version is a different matter. A
+`git checkout` writes the page to disk without going through the pipeline, so
+the database still holds the text the pipeline indexed, and search and the link
+graph still describe the version you replaced. Lint and repair do not catch
+this, because lint and repair read the database. Re-ingesting the source is the
+only way to bring the database back into step today, and re-ingesting rewrites
+the page rather than restoring it. It is a repository with no remote — nothing is pushed
 anywhere — and it is a convenience rather than a mechanism the rest depends on.
 If `git` is not installed the commit is skipped with a warning and the ingest
 succeeds anyway, and `WIKI_AUTOCOMMIT=0` turns it off entirely, leaving the
