@@ -963,9 +963,19 @@ nothing. The FTS triggers give the search index the same protection. Together
 they mean a deletion cannot leave a fragment with no document, or a search hit
 for a page that no longer exists.
 
-Next to the database, `wiki/` is also a git repository: every ingest, edit and
-delete is a commit, so the generated pages have the same history and the same
-undo you would expect from source code.
+`wiki/` is a git repository too, and the pipeline commits to it after every
+ingest, edit and delete. So the generated pages carry the same history you would
+expect from source code: you can see what a page said last week, and diff it
+against what it says now. Restoring an old version is a different matter — a
+`git checkout` writes the file behind the pipeline's back, and the database
+keeps the text it indexed, so search and the link graph go on describing the
+version you replaced. Lint and repair do not notice, because they read the
+database. Re-ingesting the source is the only way back into step today, and it
+rewrites the page rather than restoring it. It is a repository with no remote — nothing is pushed
+anywhere — and it is a convenience rather than a mechanism the rest depends on.
+If `git` is not installed the commit is skipped with a warning and the ingest
+succeeds anyway, and `WIKI_AUTOCOMMIT=0` turns it off entirely, leaving the
+history for you to manage.
 
 That division — sources are the truth, the index and the wiki are both derived —
 is what lets this walkthrough say things like "just delete the page and generate
