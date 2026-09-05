@@ -112,8 +112,13 @@ def test_every_rowid_named_in_the_prose_is_one_the_table_shows(doc, db):
 
 
 def test_the_corpus_size_the_prose_quotes_is_current(doc, db):
-    """"eight fragments out of thirty-four", spelled out in the prose."""
-    assert "out of thirty-four" in doc
+    """The corpus size spelled out in the prose, and the count it must match.
+
+    The wording around the figure has changed more than once, so match the
+    spelled-out number rather than the sentence carrying it — pinning the
+    phrase makes an ordinary rewrite look like a stale figure.
+    """
+    assert "thirty-four" in doc
     assert db.execute("SELECT count(*) FROM document_chunks").fetchone()[0] == 34
 
     assert "whose 34 fragments come from three tales" in doc
