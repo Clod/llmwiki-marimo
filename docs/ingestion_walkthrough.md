@@ -1321,14 +1321,21 @@ The one part of ingestion that does grow with the wiki is step 10, the overview
 rewrite — [described above](#act-2--a-second-document-meets-a-non-empty-wiki),
 where the term that grows is the list of page titles.
 
-Two other skip reasons exist and did not appear in this particular run. A
-`missing_xref` can be skipped as `already linked`, when an earlier fix in the
-same run had added the link a later issue was still reporting — a genuine no-op
-rather than a refusal. And an advisory check such as `thin_page` is skipped as
-*"advisory finding — no automatic repair (resolve by hand)"*, because it reports
-something a human has to decide about. Both are listed here for completeness;
-neither is narrated as though it had been observed, because in this capture it
-was not.
+When the repair pass cannot fix an issue lint reported, it skips that issue and
+logs why. The five skips above all gave the same reason, a missing model. Two
+further reasons exist, and this run produced neither.
+
+The first is `already linked`, and it applies to `missing_xref`. The repair pass
+handles issues one at a time, so a fix made early in the run can add a link that
+a later issue is still asking for. By the time the pass reaches that later
+issue, there is nothing left to do.
+
+The second covers the advisory checks. `thin_page` and the others like it have
+no automatic repair, so the pass skips them with *"advisory finding — no
+automatic repair (resolve by hand)"* and leaves them for a person.
+
+Both are described here for completeness. Neither appears in the captured log,
+so neither is presented as something this run demonstrated.
 
 ## Act 3c — deleting a source
 
