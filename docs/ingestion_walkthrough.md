@@ -1210,13 +1210,16 @@ would re-pay for the entire corpus every time.
 
 ## Act 3b — the source changed on disk
 
-This act simulates an edited source without shortcuts: the capture script swaps
-`Cinderella.pdf`'s bytes for a different tale entirely (`The Sleeping Beauty in
-the Wood.pdf`, renamed to the same filename) rather than hand-editing a sentence,
-because the detector never looks at *what* changed, only that the hash did. From
-the pipeline's point of view, this is indistinguishable from someone replacing a
-source PDF with a revised edition — and swapping the whole file makes the effect
-visible in the page list instead of hiding in one altered paragraph.
+In this act the source file changes. The capture script overwrites
+`Cinderella.pdf` with the bytes of `The Sleeping Beauty in the Wood.pdf`, and
+keeps the original filename.
+
+Replacing the whole file, instead of editing one sentence inside it, is
+deliberate. Change detection compares the hash and never inspects *what*
+changed, so the pipeline treats both cases the same way: for it, this run is a
+user replacing a source PDF with a revised edition. Replacing the file also
+makes the result easy to read, because the whole page list changes, where an
+edited paragraph would alter one page at most.
 
 The result: `documents (source)` stays at **2 rows, +0** — the existing row is
 *updated*, not duplicated — while `document_pages` and `document_chunks` are
