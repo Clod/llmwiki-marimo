@@ -1306,20 +1306,20 @@ touched**: the summary pages of the documents just ingested, plus every wiki pag
 that cites them. It never rewrites unrelated pages. The button is the wiki-wide
 sweep.
 
-Act 2 asked whether token usage grows quadratically with the wiki, about the
-overview rewrite. The same question applies to this pass, and it has a different
-answer.
+Act 2 asked whether token usage grows with the size of the wiki, about the
+overview rewrite. The same question applies to this pass, and here the answer is
+no: its cost does not depend on how large the wiki is.
 
-Yes — for this pass specifically. Its scope is a function of the *document* being
-ingested, not of the wiki's size: the summary pages of what you just ingested,
-plus the pages that cite those sources. Ingest the five-hundredth document into a
-large wiki and this pass still only looks at that document's neighbourhood. The
-button is the one that sweeps everything, and it is a button precisely so that
-the sweep is something you choose rather than something every ingest pays for.
+What the pass examines is a function of the *document* being ingested: the
+summary pages of what you just ingested, plus the pages that cite those sources.
+Ingest the five-hundredth document into a large wiki and the pass still examines
+only that document's neighbourhood. Sweeping the whole wiki is a separate
+button, and it is a button so that the sweep is something you ask for rather
+than something every ingest pays for.
 
-The one part of ingestion that *does* grow with the wiki is step 10, the overview
+The one part of ingestion that does grow with the wiki is step 10, the overview
 rewrite — [described above](#act-2--a-second-document-meets-a-non-empty-wiki),
-where the growing term turns out to be a list of page titles.
+where the term that grows is the list of page titles.
 
 Two other skip reasons exist and did not appear in this particular run. A
 `missing_xref` can be skipped as `already linked`, when an earlier fix in the
