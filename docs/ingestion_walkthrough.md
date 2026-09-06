@@ -1096,11 +1096,13 @@ Which names the model records is a model decision taken at a temperature above
 zero, so it varies between runs over the same text — the same variation the
 page names show.
 
-Act 1's two lines matter more than their size suggests, because of *when* the
-work happens. Without it, somebody asking a question about "Cinderwench" would need
-the search layer, or the model, to guess that this is another name for Cinderella
-— and to guess it again on every single question. With it, the connection is
-worked out once, permanently, at the moment the source is read.
+What makes those entries worth writing is *when* they are written. A question
+about "Cinderwench" has to reach the Cinderella page, and the only text
+connecting the two words is the tale itself. Without
+`aliases.generated.toml`, the search layer or the model would have to make that
+connection from the question alone, and make it again on every later question
+using the name. With `aliases.generated.toml`, ingestion made the connection
+once, while the tale was open, and it holds for every question afterwards.
 
 ## Act 2 — a second document meets a non-empty wiki
 
