@@ -1055,32 +1055,49 @@ written a single wiki page in steps 7–9.
 does](#what-ingesting-one-file-actually-does), taken from the step banners in
 `pipeline.py` itself.)
 
-That order matters because of what happens when something fails. If step 7 (the
-LLM call that reads the document and returns its summary and concept list) fails,
-or any of the concept-page calls after it, the worst possible result is a source
+That order matters because of what happens when something fails. Step 7 is one
+model call, the one that reads the document and returns its summary and concept
+list; step 8 is one further call per concept, each writing that concept's page.
+If step 7 fails, or any of step 8's calls, the worst possible result is a source
 sitting in the database, fully searchable, with no wiki pages yet. The opposite
 can never happen: a wiki page cannot point at a source that was never stored.
+
+Leaving that state is a manual operation, and lint reports it so that it does
+not go unnoticed. `unpaged_source_check` lists every source stored as
+`status='ready'` that no wiki page cites. It is advisory: recovering means
+deleting the source and ingesting it again, which is a decision rather than a
+repair. A re-scan on its own does nothing, because change detection compares
+the file's modification time and its hash, never whether the document has
+pages, so the source counts as up to date; touching the file does not help
+either, because the hash still matches.
 
 This is also why calling the wiki "derived and disposable" is more than a slogan.
 Both regenerate (§6.6) and repair (§6.2) assume the source rows are the permanent
 truth and the wiki rows can be rebuilt from them. Step 6 is what makes that
 assumption safe.
 
-The alternate-names file shows the same sequence from the vocabulary side. Step 8b
-(`ingestion/alias_generation.py:update_generated_aliases`) writes
-`.llmwiki/aliases.generated.toml` with one entry — a real alternate name the LLM
-found in the tale's own text, not one anybody typed. Open the bundled demo's
-copy (`examples/fairy-tales/.llmwiki/aliases.generated.toml`), where three tales
-rather than two produce one more entry, and the whole file is this:
+The same act writes the alternate-names file. Step 8b
+(`ingestion/alias_generation.py:update_generated_aliases`) produces
+`.llmwiki/aliases.generated.toml`, whose entries are alternate names the model
+found in the tale's own text rather than names anybody typed. Act 1 writes two
+([appendix, Act 1](ingestion_walkthrough_appendix.md#act-1--first-document)):
 
 ```toml
 [alias_datos]
 "Cinderella" = ["Cinderwench"]
-"The Wicked Queen" = ["The Queen"]
+"Prince" = ["King's son"]
 ```
 
-Those two lines matter more than their size suggests, because of *when* the work
-happens. Without it, somebody asking a question about "Cinderwench" would need
+The bundled demo (`examples/fairy-tales/.llmwiki/aliases.generated.toml`) also
+holds two, built from three tales rather than one, and they are not the same
+two: `Cinderwench` again, and `"The Wicked Queen" = ["The Queen"]` from Snow
+White. `King's son` is absent, although that demo contains Cinderella as well.
+Which names the model records is a model decision taken at a temperature above
+zero, so it varies between runs over the same text — the same variation the
+page names show.
+
+Act 1's two lines matter more than their size suggests, because of *when* the
+work happens. Without it, somebody asking a question about "Cinderwench" would need
 the search layer, or the model, to guess that this is another name for Cinderella
 — and to guess it again on every single question. With it, the connection is
 worked out once, permanently, at the moment the source is read.
