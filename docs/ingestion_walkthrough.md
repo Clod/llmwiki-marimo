@@ -1180,8 +1180,13 @@ wiki with 500 concept pages would send roughly 3,000 tokens of names. The
 overview prose does not grow with N at all, because the prompt asks for a fixed
 length no matter how much it is summarising.
 
-That is a deliberate trade, and it has a cost worth naming: the model rewrites
-the narrative knowing only what the other pages are *called*, not what they say.
+That is a deliberate trade, and it has a cost worth naming: of the pages
+themselves the model sees nothing. What it knows about the documents already in
+the wiki reaches it through the current `overview.md` — three to five paragraphs
+written in earlier passes, standing in for the whole corpus — plus the bare
+titles of the concept pages. A detail that never made it into `overview.md`
+cannot find its way back in later, because no rewrite re-reads the page holding
+it.
 
 ## Act 3a — re-ingesting an unchanged document
 
