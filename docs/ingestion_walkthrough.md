@@ -1173,12 +1173,25 @@ The thing that is *not* sent is the one that would hurt: **the pages themselves.
 The model gets a list of names — `Cinderella, Fairy Godmother, Glass Slipper, …` —
 and the previous narrative, and is asked to fold one new summary into it.
 
-The answer to "does this grow quadratically?" is: **each ingest costs
-slightly more than the last, and the total over N documents is quadratic in the
-mild sense** — but the term that grows is a comma-separated list of titles. A
-wiki with 500 concept pages would send roughly 3,000 tokens of names. The
-overview prose does not grow with N at all, because the prompt asks for a fixed
-length no matter how much it is summarising.
+Does this grow quadratically? **What one ingest costs does not: it is a
+straight line in the size of the wiki.** Two of the three inputs are constant.
+The third, the list of names, adds about six tokens for every concept page
+already there, and that is the slope. A wiki with 500 concept pages sends some
+3,000 tokens of names, on top of an overview that stays at three to five
+paragraphs however many documents it summarises.
+
+Adding those straight lines together is what makes the total quadratic, and the
+arithmetic is short. Each tale in the demo produces five concept pages, so the
+first ingest sends no names at all, the second sends five, the third ten, and
+the Nth sends five times N−1. At six tokens a name, every ingest carries about
+thirty tokens more than the one before it. Summed over N ingests that is
+15·N·(N−1) tokens of names in total: about 1,350 for ten documents and about
+148,000 for a hundred.
+
+That total is the figure the question usually has in mind. It is also spread
+across N separate runs, often weeks apart, so no single call ever carries it —
+which is why the slope, and not the sum, is what to check before adding a
+document.
 
 That is a deliberate trade, and it has a cost worth naming: of the pages
 themselves the model sees nothing. What it knows about the documents already in
