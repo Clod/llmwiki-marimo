@@ -1125,10 +1125,15 @@ clash does happen, the generator updates the existing page instead of creating a
 new one (`wiki_generator.py` switches from its create template to its update
 template, listed in §6.3). Act 3b shows that happening.
 
-**The lint pass finds `missing_xref` problems and fixes them.** After ingestion
-finishes, `repair_missing_xref` adds `## See also` links between concepts that
-cite the same source. Most of the new `links_to` rows in this act come from
-there — not from anything the LLM wrote while generating pages.
+**The lint pass finds `missing_xref` problems and fixes them, in code.** After
+ingestion finishes, `repair_missing_xref` adds `## See also` links between
+concepts that cite the same source. Neither half involves the model:
+`missing_xref_check` is a SQL join over `document_references` that pairs wiki
+pages citing the same source, and `repair_missing_xref` inserts a markdown link
+into a section — its signature takes no client, unlike the repairs that do call
+one. Ten of this act's fifteen new `links_to` rows come from there rather than
+from anything the model wrote while generating pages, which is why they are
+reproducible run to run where the page names are not.
 
 **`overview.md` is rewritten from scratch** (step 10), so it describes *both*
 documents together, rather than being two separate one-document summaries joined
