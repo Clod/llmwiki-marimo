@@ -1332,7 +1332,12 @@ issue, there is nothing left to do.
 
 The second covers the advisory checks. `thin_page` and the others like it have
 no automatic repair, so the pass skips them with *"advisory finding — no
-automatic repair (resolve by hand)"* and leaves them for a person.
+automatic repair (resolve by hand)"*. What resolving by hand means depends on
+the check. For `thin_page` it is a choice between two acceptable outcomes:
+expand the page until it covers more of its source, or leave it and accept that
+questions about the uncovered part get answered from the raw document instead.
+Both are defensible, no rule decides between them, and that is why the check
+reports and stops.
 
 Both are described here for completeness. Neither appears in the captured log,
 so neither is presented as something this run demonstrated.
