@@ -1140,17 +1140,25 @@ documents together, rather than being two separate one-document summaries joined
 end to end.
 
 Stated plainly: the wiki **compounds**. It is not a pile of independent
-per-document summaries. The second document leaves the first document's pages
-better connected than they were at the end of Act 1.
+per-document summaries. `overview.md` is rewritten around both documents, so an
+artifact the first ingest produced is revisited by the second.
 
-This is the whole argument for building an LLM-wiki instead of doing plain RAG,
-and it is worth being precise about the difference. Add a tenth document to a RAG
-system and you have ten documents' worth of fragments: the first nine are exactly
-as they were, because nothing ever revisits them. Add a tenth document here and
-the pipeline rewrites `overview.md` around all ten, and the repair pass links the
-new concepts to the old ones that share a source. The knowledge base gets **more
-useful** as sources are added, not merely bigger. That is Karpathy's central
-claim, and Act 2 is the smallest possible demonstration of it.
+The cross-links are a narrower case, and this act marks its boundary rather than
+its reach. All ten links the repair pass added join the five new Red Riding Hood
+pages to each other; not one reaches a Cinderella page. `missing_xref_check`
+pairs pages that cite the *same* source, and two unrelated tales share none. A
+concept page is linked across documents only when a later document also covers
+that concept, so the page is updated and ends up citing both sources — which is
+what Act 3b shows.
+
+That is still the argument for building an LLM-wiki instead of doing plain RAG,
+with its scope stated. Add a tenth document to a RAG system and you have ten
+documents' worth of fragments: the first nine are exactly as they were, because
+nothing ever revisits them. Add a tenth document here and `overview.md` is
+rewritten around all ten, and every concept the tenth document also covers is
+rewritten to account for both. The knowledge base gets **more useful** as sources
+are added, not merely bigger. That is Karpathy's central claim, and Act 2
+demonstrates the first half of it.
 
 **What step 10 actually sends.** `wiki_generator.update_overview` builds its
 prompt from exactly three things:
