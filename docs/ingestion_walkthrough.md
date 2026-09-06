@@ -1104,6 +1104,14 @@ connection from the question alone, and make it again on every later question
 using the name. With `aliases.generated.toml`, ingestion made the connection
 once, while the tale was open, and it holds for every question afterwards.
 
+`aliases.generated.toml` records only names the documents themselves use. A
+name no document contains — a term your readers use for something the corpus
+calls something else — is written by hand in `wiki_config.toml`, in the
+`[alias_datos]` section, and the two lists are merged at question time.
+*Alternate names come from two places, and both count*, under
+[The pieces, before anything moves](#the-pieces-before-anything-moves), sets
+out both lists and what happens when they disagree.
+
 ## Act 2 — a second document meets a non-empty wiki
 
 Ingesting `Little Red Riding Hood.pdf` adds **+6 wiki pages** (12 total),
