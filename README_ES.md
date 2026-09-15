@@ -245,6 +245,14 @@ requirements.txt        # Dependencias fijadas por hash exportadas de uv.lock (p
 
 - **Python 3.12+** y **[uv](https://docs.astral.sh/uv/)**
 - Una **API de LLM compatible con OpenAI** (OpenRouter, Ollama, LM Studio, etc.)
+- **Un runtime de Java** — necesario para **toda** ingesta, tanto PDF como DOCX:
+  el extractor de texto (`opendataloader-pdf`) ejecuta un `.jar` incluido a
+  través del comando `java`, y un DOCX se convierte a PDF antes de que ese mismo
+  extractor lo lea. Leer una wiki ya construida y conversar con la wiki no
+  requieren runtime de Java, y por eso los demos incluidos abren sin uno:
+    - macOS: `brew install --cask temurin`
+    - Debian/Ubuntu: `sudo apt install default-jre` (Fedora: `sudo dnf install java-21-openjdk`)
+    - Windows: `winget install EclipseAdoptium.Temurin.21.JRE`
 - **LibreOffice** — solo necesario para la ingesta de DOCX:
     - macOS: `brew install --cask libreoffice`
     - Debian/Ubuntu: `sudo apt install libreoffice` (Fedora: `sudo dnf install libreoffice`)
@@ -256,7 +264,8 @@ requirements.txt        # Dependencias fijadas por hash exportadas de uv.lock (p
 ## Inicio rápido
 
 La forma más rápida de verlo funcionar — todo lo que necesitás es **Python 3.12+
-y git** (sin `uv`, sin `.env` manual):
+y git** (sin `uv`, sin `.env` manual; la wiki de demostración viene ya
+ingerida, así que leerla no requiere runtime de Java):
 
 ```bash
 git clone --depth 1 https://github.com/Clod/llmwiki-marimo.git
@@ -494,8 +503,8 @@ desconocido recae en inglés. Ver [`docs/programmer_manual.md`](docs/programmer_
 
 | Formato | Parser             | Notas                              |
 | ------- | ------------------ | ---------------------------------- |
-| PDF     | opendataloader-pdf | Los PDFs con mucho texto funcionan bien |
-| DOCX    | LibreOffice → PDF  | Requiere LibreOffice instalado     |
+| PDF     | opendataloader-pdf | Los PDFs con mucho texto funcionan bien; requiere runtime de Java |
+| DOCX    | LibreOffice → PDF  | Requiere LibreOffice **y** runtime de Java |
 
 **Solo PDFs basados en texto.** Los PDFs escaneados / solo-imagen aún no pasan por OCR —  
 se ingieren como texto vacío o ininteligible. El OCR para PDFs escaneados está en la hoja  

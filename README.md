@@ -243,6 +243,14 @@ requirements.txt        # Hash-pinned deps exported from uv.lock (for the instal
 
 - **Python 3.12+** and **[uv](https://docs.astral.sh/uv/)**
 - An **OpenAI-compatible LLM API** (OpenRouter, Ollama, LM Studio, etc.)
+- **A Java runtime** — needed for **all** ingestion, PDF and DOCX alike: the text
+  extractor (`opendataloader-pdf`) runs a bundled `.jar` through the `java`
+  command, and a DOCX is converted to PDF before that same extractor reads it.
+  Reading and chatting with a wiki that is already built need no Java runtime,
+  which is why the bundled demos open without one:
+    - macOS: `brew install --cask temurin`
+    - Debian/Ubuntu: `sudo apt install default-jre` (Fedora: `sudo dnf install java-21-openjdk`)
+    - Windows: `winget install EclipseAdoptium.Temurin.21.JRE`
 - **LibreOffice** — only needed for DOCX ingestion:
     - macOS: `brew install --cask libreoffice`
     - Debian/Ubuntu: `sudo apt install libreoffice` (Fedora: `sudo dnf install libreoffice`)
@@ -254,7 +262,8 @@ requirements.txt        # Hash-pinned deps exported from uv.lock (for the instal
 ## Quick start
 
 The fastest way to see it running — all you need is **Python 3.12+ and git**
-(no `uv`, no manual `.env`):
+(no `uv`, no manual `.env`; the demo wiki ships pre-ingested, so no Java
+runtime is needed to read it):
 
 ```bash
 git clone --depth 1 https://github.com/Clod/llmwiki-marimo.git
@@ -489,8 +498,8 @@ falls back to English. See [`docs/programmer_manual.md`](docs/programmer_manual.
 
 | Format | Parser             | Notes                          |
 | ------ | ------------------ | ------------------------------ |
-| PDF    | opendataloader-pdf | Text-heavy PDFs work well      |
-| DOCX   | LibreOffice → PDF  | Requires LibreOffice installed |
+| PDF    | opendataloader-pdf | Text-heavy PDFs work well; requires a Java runtime |
+| DOCX   | LibreOffice → PDF  | Requires LibreOffice **and** a Java runtime |
 
 **Text-based PDFs only.** Scanned / image-only PDFs are not OCR'd yet — they  
 ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap  

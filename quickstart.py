@@ -95,6 +95,26 @@ def check_python() -> None:
         )
 
 
+def check_java_runtime() -> None:
+    """Warn when no Java runtime is installed. Advisory: it does not block.
+
+    The demo wikis ship pre-ingested, so reading and chatting work without a
+    Java runtime. Ingesting a document of your own does not: the text extractor
+    (opendataloader-pdf) runs a .jar through the `java` command, and a DOCX is
+    converted to PDF before that same extractor reads it.
+    """
+    if shutil.which("java"):
+        return
+    java_home = os.environ.get("JAVA_HOME", "").strip()
+    if java_home and (Path(java_home) / "bin" / "java").exists():
+        return
+    say("  \u26a0 No Java runtime found. The demo wiki still opens and answers, "
+        "but ingesting your own PDF or DOCX will fail until you install one:")
+    say("      macOS:   brew install --cask temurin")
+    say("      Linux:   sudo apt-get install default-jre")
+    say("      Windows: winget install EclipseAdoptium.Temurin.21.JRE")
+
+
 def check_repo_layout() -> None:
     needed = [
         REPO_ROOT / "requirements.txt",
@@ -367,6 +387,7 @@ def main(argv: list[str]) -> int:
     say("\033[1mLLM Wiki — quick start\033[0m")
     check_python()
     check_repo_layout()
+    check_java_runtime()
 
     demos = available_demos()
     if not demos:

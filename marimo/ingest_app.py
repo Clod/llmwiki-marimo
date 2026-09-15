@@ -199,24 +199,32 @@ def wiki_add_runner(mo, add_btn, add_path, recent_list, set_active_wiki, set_rec
 
 @app.cell
 def libreoffice_check(mo, logger, set_lo_visible):
-    """Check LibreOffice availability and start a 10-second hide timer."""
+    """Check the external tools ingestion needs, and start a 10-second hide timer.
+
+    Two tools, two different failure surfaces: LibreOffice converts a DOCX to
+    PDF, and a Java runtime runs the .jar behind opendataloader-pdf, which reads
+    every PDF — including the one LibreOffice just produced. A missing Java
+    runtime therefore breaks ingestion for both file types, not only for DOCX.
+    """
     import time as _t
-    from domain.ingestion import check_libreoffice
+    from domain.ingestion import check_java, check_libreoffice
 
     lo = check_libreoffice()
+    java = check_java()
     logger.info("LibreOffice: %s", lo or "NOT FOUND")
+    logger.info("Java runtime: %s", java or "NOT FOUND")
 
     def _hide():
         _t.sleep(10)
         set_lo_visible(False)
 
     mo.Thread(target=_hide).start()
-    return (lo,)
+    return lo, java
 
 
 @app.cell
-def libreoffice_display(mo, lo, lo_visible, llm_model, wiki_base_url):
-    """Config summary + LibreOffice callout (auto-hides after 10 s)."""
+def libreoffice_display(mo, lo, java, lo_visible, llm_model, wiki_base_url):
+    """Config summary + external-tool callouts (auto-hide after 10 s)."""
     if lo_visible():
         _lo_callout = mo.callout(
             mo.md(f"✅ **LibreOffice found:** `{lo}`"), kind="success",
@@ -229,12 +237,26 @@ def libreoffice_display(mo, lo, lo_visible, llm_model, wiki_base_url):
             ),
             kind="warn",
         )
+        _java_callout = mo.callout(
+            mo.md(f"✅ **Java runtime found:** `{java}`"), kind="success",
+        ) if java else mo.callout(
+            mo.md(
+                "⚠️ **No Java runtime found** — every ingestion will fail, PDF "
+                "and DOCX alike: the text extractor runs a `.jar`.\n\n"
+                "- **macOS:** `brew install --cask temurin`\n"
+                "- **Linux:** `sudo apt-get install default-jre`\n"
+                "- **Windows:** `winget install EclipseAdoptium.Temurin.21.JRE`"
+            ),
+            kind="warn",
+        )
     else:
         _lo_callout = mo.Html("")
+        _java_callout = mo.Html("")
 
     mo.vstack([
         mo.md(f"**LLM:** `{llm_model}` via `{wiki_base_url}`"),
         _lo_callout,
+        _java_callout,
     ], gap=1)
 
 

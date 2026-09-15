@@ -20,7 +20,13 @@ from typing import Callable, Literal
 from . import trace
 from .chunker import chunk_pages
 from .detector import needs_ingestion
-from .extractor import extract, LibreOfficeNotInstalledError, check_libreoffice
+from .extractor import (
+    extract,
+    JavaNotInstalledError,
+    LibreOfficeNotInstalledError,
+    check_java,
+    check_libreoffice,
+)
 from .index_manager import update_index, remove_index_entry
 from .wiki_generator import (
     build_wiki_page, make_wiki_slug,
@@ -141,6 +147,13 @@ def ingest_file(
 
     if ext == ".docx" and not check_libreoffice():
         msg = LibreOfficeNotInstalledError(file_path.name).args[0]
+        return IngestResult(file_path, "failed", msg)
+
+    # Both extensions end up in opendataloader-pdf, which runs a .jar: a DOCX is
+    # converted to PDF first. Without a Java runtime the extractor raises deep in
+    # a subprocess call, so the check happens here, next to the LibreOffice one.
+    if not check_java():
+        msg = JavaNotInstalledError(file_path.name).args[0]
         return IngestResult(file_path, "failed", msg)
 
     _init_wiki_workspace(workspace, language)

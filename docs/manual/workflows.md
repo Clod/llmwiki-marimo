@@ -408,7 +408,7 @@ result = ingest_file(
 | 1     | Validate file (exists, supported extension)                                                               | `pipeline.py`                                       |
 | 2     | Hash + mtime change detection                                                                             | `detector.py:needs_ingestion`                       |
 | 3     | Upsert the source `documents` row, `status='processing'` — provisional, filtered out of every read        | `pipeline.py`                                       |
-| 4     | Extract `(page_number, markdown)` pairs                                                                   | `extractor.py:extract` (PDF / DOCX-via-LibreOffice) |
+| 4     | Extract `(page_number, markdown)` pairs                                                                   | `extractor.py:extract` (PDF / DOCX-via-LibreOffice; both need a Java runtime) |
 | 5     | Chunk pages into FTS5 units **in memory**                                                                 | `chunker.py:chunk_pages`                            |
 | **6** | **One transaction:** flip the row to `status='ready'` **and** write `document_pages` + `document_chunks` — from here the source is visible to every reader | `pipeline.py`                                       |
 | 7     | LLM: structured extraction → `ExtractionResult(document_summary, concepts[])`                             | `wiki_generator.py:extract_structured`              |
