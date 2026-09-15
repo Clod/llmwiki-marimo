@@ -118,7 +118,7 @@ def check_java_runtime() -> None:
 def check_repo_layout() -> None:
     needed = [
         REPO_ROOT / "requirements.txt",
-        REPO_ROOT / "marimo" / "read_app.py",
+        REPO_ROOT / "marimo" / "read_app_tabs.py",
         EXAMPLES_DIR,
     ]
     missing = [str(p.relative_to(REPO_ROOT)) for p in needed if not p.exists()]
@@ -345,7 +345,7 @@ def validate_model(venv_dir: Path) -> None:
 
 def launch_command(venv_dir: Path, port: int) -> list[str]:
     marimo = venv_executable(venv_dir, "marimo")
-    return [str(marimo), "run", "marimo/read_app.py", "--no-sandbox", "--port", str(port)]
+    return [str(marimo), "run", "marimo/read_app_tabs.py", "--no-sandbox", "--port", str(port)]
 
 
 def maybe_launch(venv_dir: Path, port: int, *, do_launch: bool, assume_yes: bool) -> None:
