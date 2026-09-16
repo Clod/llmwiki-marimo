@@ -607,10 +607,14 @@ def ingest_runner(
             else:
                 _cb("✅ Ingested pages consistent — no repairs needed.")
 
-            # Refresh "See also" cross-links across all pages now that this batch
-            # is ingested — an older page may now reference a freshly-added concept.
+            # Refresh "See also" cross-links now that this batch is ingested — an
+            # older page may reference a freshly-added concept. Scoped to the pages
+            # this ingest touched plus the pages that mention them: the full sweep
+            # is quadratic in the page count and belongs to the wiki-wide button.
             if _src_ids:
-                _n_linked = _crosslink(WORKSPACE, DB_PATH, language=WIKI_LANG, progress_cb=_cb)
+                _n_linked = _crosslink(
+                    WORKSPACE, DB_PATH, language=WIKI_LANG, progress_cb=_cb, touched=_related,
+                )
                 if _n_linked:
                     _cb(f"🔗 Cross-linked {_n_linked} page(s)")
         finally:
