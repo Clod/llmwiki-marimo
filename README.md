@@ -72,7 +72,7 @@ that also keeps live data and computes grounded advice over it.*
 - **LLM-as-judge eval packet** — one command bundles the questions, the model's own answers, the cited evidence, and source-vs-generated page pairs against a *frozen* 1–5 rubric, to score chat **and** ingestion quality (and compare models).
 - **Model-suitability check** — a one-command PASS/FAIL on whether a given model clears the bar for off-corpus refusal, citations, and cited synthesis.
 - **Evidence-based prompting** — the default system prompt embeds a worked, fully-cited example because testing proved that's what reliable cross-document citation took.
-- **Self-maintaining wiki** — nine lint checks (contradictions, stale pages, orphans, missing concepts, missing cross-refs, data gaps, filled gaps, vocabulary drift, thin pages) with auto-repair of the safe ones.
+- **Self-maintaining wiki** — ten lint checks (contradictions, stale pages, orphans, missing concepts, missing cross-refs, data gaps, filled gaps, vocabulary drift, thin pages, sources that produced no page) with auto-repair of the safe ones.
 - **Provider-agnostic, split-model** — any OpenAI-compatible endpoint; run a cheap local model for chat and a stronger one for ingestion, via `.env` alone.
 
 **Engineering quality**
@@ -89,7 +89,7 @@ that also keeps live data and computes grounded advice over it.*
 
 - **Citation graph in SQLite** — every page→source and page→page edge is recorded and rebuilt deterministically, so provenance is queryable.
 - **Opt-in tracing** (`WIKI_TRACE=1`) — emits a JSONL trace of the full LLM + data-flow per ingest, viewable in a dedicated trace-report app.
-- **Documented end to end** — a 72 KB programmer manual, a SQLite data dictionary, a three-part UAT plan, and an honest Karpathy-alignment matrix grading what's done, partial, and deferred.
+- **Documented end to end** — a programmer manual with its apps / workflows / internals reference, a SQLite data dictionary, a three-part UAT plan, and an honest Karpathy-alignment matrix grading what's done, partial, and deferred.
 
 ---
 

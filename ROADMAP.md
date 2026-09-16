@@ -41,7 +41,7 @@ assumption.
 
 **Wiki rollback.** Designed, unbuilt: git-tracked markdown plus a gitignored
 database snapshot ring and a deterministic reindex floor, so a bad ingest can be
-undone. Design lives in [PR #7](https://github.com/Clod/llmwiki/pull/7).
+undone. Design lives in [PR #7](https://github.com/Clod/llmwiki-marimo/pull/7).
 
 **Italian.** The engine is already multilingual per wiki (`[wiki] language` in
 `wiki_config.toml`); adding a language is one `Locale` entry in
