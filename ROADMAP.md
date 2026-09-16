@@ -230,6 +230,12 @@ not the first: the fragment is described accurately and the answer narrates it
 faithfully; what fails is that the fragment is not about the ending. Reranking
 at retrieval addresses it. A post-hoc verifier does not.
 
+The mirror case belongs to the first kind. An answer that takes a detail from
+one retrieved passage and attaches it to the subject of another is not caught
+by reranking — every passage involved is relevant, and only the pairing is
+wrong — and it is exactly what a per-sentence entailment check is for.
+Nothing in the project detects it today.
+
 **A third route, cheaper than either, when the source declares its own
 structure.** A neural reranker judges relevance by reading question and passage
 together. A document that carries headings has already stated which part it is:
@@ -278,6 +284,37 @@ project:
 LLM judge, with `graders.py` as its deterministic pre-screen. RAGAS-style
 metrics or an NLI verifier belong there as offline measurement. Only with that
 measurement in hand is there a basis for moving one into the answering path.
+
+**Where each one would be inserted, and why that is not the same as how large
+the job is.** The call sites are few and already separated, so the seams are
+not the obstacle:
+
+| Route | Insertion point |
+|---|---|
+| breadcrumb comparison | between `retrieve_wiki` (`preretrieval.py:323`) and the plan, dropping or downranking rows whose `header_breadcrumb` does not match the section the question asks about |
+| cross-encoder reranking | the same place, rescoring and reordering the rows instead |
+| NLI verification | `preretrieval.py:354`, replacing or complementing `is_supported` |
+
+One line each. What differs is what surrounds that line.
+
+**Only the breadcrumb route is bounded end to end.** Read-side plumbing exists
+(`search_chunks` already returns the field), so the whole job is: one module
+shaped like `overlap.py`, one new section in `wiki_config.toml` parsed in
+`config.py` beside the four it already parses, one call site, and tests. No
+dependency, no model weights, no added latency, deterministic, and testable
+without an LLM — which matters, because the suite runs without one. It would
+also want a lint check for the mapping going stale, with `vocabulary_check` as
+the precedent.
+
+**The other two are bounded in the code and not outside it.** A cross-encoder or
+an NLI model brings a dependency with weights in the hundreds of megabytes, into
+a project whose installer is a stdlib-only `quickstart.py` over a hash-pinned
+`requirements.txt` — the "one command, Python 3.12+" promise is the first thing
+that breaks. Then: latency on every question, on top of the model call; a
+configuration surface for model, threshold and per-wiki on/off; and a threshold
+that has to be measured rather than chosen, which is the `base/domain/eval/`
+work described above. Content language is a per-wiki property, so the model has
+to be multilingual or there has to be one per language.
 
 **The coverage gate matches page titles literally.** With pre-retrieval enabled,
 whether a wiki answers a question depends on whether one of its concept-page
@@ -340,6 +377,31 @@ matches against was assembled by accident.
 kept.** None of the three has been built; this entry exists so the next person
 does not have to re-derive the trade.
 
+**The pipeline accepts a malformed extraction instead of rejecting it.**
+`extract_structured` asks for JSON in the prompt, and `_parse_extraction`
+reads the reply leniently: when it does not parse, the function returns the
+whole raw response as `document_summary` and no concepts at all
+(`wiki_generator.py:312`). The run continues. That text is written verbatim
+under the summary page's `## Summary` heading, the page still carries its
+`[^1]` source footnote, and what records the failure is a log warning, the
+interface line "Found 0 concept(s)", and `concept_count=0` in the ingestion
+trace when it is enabled. Nothing rejects the page, and nothing retries the
+call.
+
+The asymmetry is with the read side. A chat answer with no grounding evidence
+is replaced by a refusal — `enforce_grounding` takes that decision away from
+the model. A document whose extraction failed is written to disk.
+
+The fix is not a new mechanism. The provider's structured-output parameter
+constrains generation to the declared schema, so the format stops depending on
+the model complying, and the parse that follows verifies that constraint
+instead of standing in for it. A failed call then becomes an error the
+pipeline can retry or report, rather than a page.
+
+*Not settled:* what a rejected document leaves behind. Skipping it silently
+repeats the same defect one level up. A `status='failed'` row is the existing
+idiom — `search_chunks` already filters on `d.status != 'failed'`.
+
 **"Regenerate and diff" is a weaker check than the ingestion walkthrough claims.**
 That document says a disagreement between its prose and a regenerated appendix
 "is a signal the pipeline changed". But pages are model-written at temperature
@@ -359,6 +421,75 @@ written for a query-time "synonym rescue" step — widen a question's terms when
 the first search returns nothing — that was never implemented. Kept rather than
 deleted because it is precisely what would keep such a step safe. The decision
 to build it or delete it is open; the function documents both directions.
+
+**Staleness does not travel along page-to-page links, and the graph to make it
+travel already exists.** Today `staleness_check` (`lint/checks.py:37`) follows
+`cites` only — wiki page to source document. It compares a page's timestamp
+against the timestamps of the sources it cites, never against another page. So
+rewriting page A leaves every page that links to A untouched, unflagged and
+unreviewed. `update_references` rewrites only the *outgoing* edges of the page
+being written, and `get_backlinks` (`tools/references.py`) has no production
+caller at all — two tests use it and nothing else does.
+
+What looks like propagation today is not. If B cites the same source as A and
+that source changes, B is flagged on its own account, not because A changed.
+
+*Why this matters.* Page B may reference A because it touches, in passing, a
+subject A treats in full. If what A says about that subject changed, B's
+sentence about it may now be wrong. Nothing surfaces that.
+
+*The distinction that decides whether the check is useful.* Two link kinds hide
+behind one edge type:
+
+| | What B does | Does a change in A merit review |
+|---|---|---|
+| pointer | "for the detail, see A", restating nothing | no — the pointer still points correctly |
+| restatement | "X is a kind of Y, covered in A" | yes — B holds a copy of a claim whose authoritative version is in A |
+
+`links_to` records that a markdown link exists and nothing more. And in this
+project most `links_to` edges are pointers by construction: the `missing_xref`
+repair inserts "See also" links between concept pages citing a shared source,
+and the ingestion walkthrough measures that pass as the origin of most new
+edges. Propagating over `links_to` unfiltered would flag mostly the kind that
+never needs review.
+
+*The discriminator is positional, and free.* A link inside the "See also"
+section is a pointer; a link inside the body prose is the one that may
+accompany a restated claim. The section heading is written by code from the
+locale (`inject_see_also`), not chosen by the model, so the split is a string
+operation with no model and no ambiguity. Two values — body and see-also — not
+a scale: a scale invites calibration with nothing to calibrate against.
+
+The weight belongs to the edge, not to the pair: A may link to B in its body
+while B links back only under "See also". Heavy in one direction, light in the
+other.
+
+*This also settles how far to propagate.* One hop over body links only is a
+small set by construction, so no arbitrary depth limit is needed.
+
+*Derive it on read; do not store it.* There is no migration path in this
+project — `_apply_base_schema` (`tools/db.py:37`) runs the schema file on open,
+and there is no `ALTER TABLE`, no schema version, nothing. A new column on
+`document_references` would never appear in the databases that already exist,
+including both shipped demos, so storing the weight means first building a
+migration mechanism, which is a larger change than the feature. Deriving it
+when the check runs avoids that, keeps the classification in one place (the
+check itself; `update_references` does not change), and reads page text the
+lint pass already reads. It also gives the better semantics: a stored weight
+would say what the link was when it was recorded, a derived one says what it is
+now, and "does B currently restate something from A" is the question being
+asked.
+
+*Shape.* A new lint check, sibling to `stale`, advisory like `vocab_stale` —
+deciding that a neighbour's prose has gone out of date is a judgement, not a
+mechanical repair.
+
+*Not settled.* What counts as a change to A. Pages are regenerated at
+temperature 0.2–0.4, so a rewrite produces different prose from identical
+content; if any rewrite flags its neighbours, every ingest floods the report and
+the signal dies. The deterministic candidate is to compare the extraction rather
+than the prose — the set of concept names and their insights — so a rewording
+does not count and a changed concept does. Nothing is built.
 
 **There is no interface for the vocabulary lists.** The blacklist, the
 hand-written aliases and the false-synonym pairs live in `wiki_config.toml` and
@@ -397,6 +528,39 @@ Recorded so the absence reads as a decision rather than an oversight.
   by measuring the current pass's misses rather than assuming they exist.
 - **Multi-user or hosted operation.** A workspace is a folder on one machine.
   See "Limitations & non-goals" in the [README](README.md#limitations--non-goals).
+- **Logfire as a shipped feature.** It is already installed — `pydantic-ai-slim`
+  pulls it in, and `pydantic-evals` and `pydantic-graph` pull `logfire-api` —
+  and instrumenting pydantic-ai with it is one call, which would trace every
+  model call and tool call with its latency and token count. It stays out of the
+  product for two reasons. `logfire.configure()` defaults `send_to_logfire` to
+  `None`, meaning *send to Pydantic's cloud*, and what would travel is the
+  prompts and the answers, which carry the content of the user's own documents;
+  that contradicts the entry above. Turning it off with `send_to_logfire=False`
+  works, but then the spans need an OTLP collector running somewhere, and the
+  installer's promise is one command and Python 3.12+.
+
+  It would also duplicate the existing tracers without replacing them.
+  `chat/trace.py` records decisions rather than calls — `grounded`,
+  `refusal_substituted`, `cited`, which tools returned something — and exists to
+  diagnose failures like a prior refusal in the history priming the model to drop
+  its citation on the next answer. Logfire would show the calls; those flags
+  would still have to be computed and logged by hand.
+
+  **Where it would pay, and is not refused:** as an opt-in development aid, with
+  `send_to_logfire=False` and no collector — debugging a failing ingest, reading
+  token counts per call, comparing models. That is the ground
+  `scripts/eval_chat_model.py` and `scripts/build_eval_packet.py` cover by hand
+  today. Evaluated 2026-09-14; nothing built.
+
+- **Measurement that needs production traffic.** Sampling a percentage of live
+  answers for offline scoring, shadow testing a candidate version against the
+  same real traffic, and a metrics dashboard read week over week are the
+  standard way to keep a RAG system under control once it is deployed. None of
+  the three applies here, for the reason above: a workspace is a folder on one
+  machine with one user, so there is no stream to sample, nothing running in
+  parallel to compare against, and no series to plot. Measurement in this
+  project is offline and deliberate — the frozen golden corpus, and the eval
+  packet in `base/domain/eval/`.
 - **Web search, at query time or as an ingest loop.** The chat agent's cascade is
   wiki index → wiki full-text → raw source chunks. A fourth step that reaches the
   web is deliberately absent: the project's claim is about answering from a

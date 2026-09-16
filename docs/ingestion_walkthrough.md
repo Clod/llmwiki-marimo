@@ -101,7 +101,7 @@ flowchart TD
     DS["<b>datasets/</b> <i>(optional)</i> — markdown tables you maintain<br/><i>facts that expire: what it is WORTH today</i><br/>YOURS · never modified"]
     CFG["<b>wiki_config.toml</b> <i>(optional)</i> — the only file<br/>you write in your own words<br/><i>language · the assistant's instructions ·<br/>a list of topics this wiki refuses</i><br/>YOURS · never modified"]
     WIKI["<b>wiki/</b> — the markdown pages an LLM wrote<br/>DERIVED · safe to delete and rebuild<br/><i>a git repository in its own right</i>"]
-    DB[("<b>.llmwiki/index.db</b> — one SQLite file<br/>DERIVED · full-text index<br/><i>over sources AND wiki alike</i>")]
+    DB[("<b>.llmwiki/</b> — everything the pipeline generates<br/>besides the pages: <b>index.db</b>, the full-text index<br/><i>over sources AND wiki alike</i>,<br/>plus generated aliases and traces<br/>DERIVED · rebuilt only by ingesting again")]
     NOTE["<b>never ingested.</b> No LLM, no generated page,<br/>no database row — read straight off disk, fresh,<br/>each time a question needs one"]
 
     SRC ==>|"<b>read ONCE</b>, at ingest —<br/>an LLM compiles them into pages"| WIKI
@@ -118,7 +118,7 @@ flowchart TD
     style NOTE fill:#fff,stroke:#999,stroke-dasharray: 4 3
 ```
 
-Read the labels, not the shapes. The three green boxes are **yours**, and the
+The three green boxes are **yours**, and the
 pipeline never writes to them. The blue and brown ones are **derived**: they can
 be thrown away and rebuilt from the green ones at any time.
 
@@ -129,7 +129,7 @@ you can put there:
 
 | Section | What it does |
 |---|---|
-| `[wiki] language` | `"en"` or `"es"`. Governs the language of every generated page **and** of the chat's answers, independently of what language the sources are in — so an English wiki and a Spanish wiki can sit side by side |
+| `[wiki] language` | `"en"` or `"es"`. Governs the language of every generated page **and** of the chat's answers, independently of what language the sources are in. It is read from each wiki's own `wiki_config.toml`, so two wikis on the same machine can be in different languages |
 | `[assistant]` | the system prompt sent at the start of every conversation, and the suggested questions shown as buttons in the chat |
 | `[fuera_de_alcance]` | *out of scope* — a **blacklist**: topics you know this wiki does not cover and never should answer about. The finance demo lists `cedear`, `cripto`, `bitcoin` |
 | `[alias_datos]`, `[falsos_sinonimos]` | other names for things you do cover, and pairs of words that must **not** be treated as the same thing |
@@ -139,16 +139,17 @@ you can put there:
 worth knowing before you write one: they are read by the code that decides, ahead
 of the model, whether a question is answerable — and if that code never runs,
 nothing reads them. Write `bitcoin` into the blacklist of a wiki running the
-default configuration and the assistant will still answer about bitcoin, because
+default configuration (pre_retrieval is off) and the assistant will still answer about bitcoin, because
 in that configuration the model does its own searching and no scope check stands
-in front of it. The lists are not decoration in that case; they are simply not
-consulted. (`wiki_config.example.toml` says the same thing above the three
-sections, which is the other place you might read it.) The linter is the
+in front of it. `wiki_config.example.toml` carries the same warning as a comment
+above the three sections — *"The three lists below only matter when
+pre_retrieval is on"* — so you may have read it there first. The linter is the
 exception — it checks these lists for staleness and contradictions regardless of
 the setting.
 
-The blacklist is worth pausing on. Everything else the system uses to judge "do
-I cover this?" is read back out of the wiki's own contents — page titles,
+The blacklist — `[fuera_de_alcance]` — is worth pausing on. Everything else the
+system uses to judge "do I cover this?" is read back out of the wiki's own
+contents — page titles,
 dataset categories. The blacklist is derived from nothing: it is you saying, in
 advance, *people will ask about this, we have nothing real to say, do not try.*
 On the query side it is checked **first**, before any search runs, so a question
@@ -166,24 +167,46 @@ passes    ¿conviene invertir en criptomonedas?
 passes    ¿qué son las criptos?
 ```
 
-The blacklist matches whole words and nothing else. The search index, by
-contrast, **stems** — `slippers` and `slipper` land on the same entry, as the
-[FTS section](#what-is-truth-and-what-is-disposable) below explains. Two parts of
-the same system therefore treat word endings differently, and only one of them
-tells you so. Until that is reconciled, write out the forms you mean:
-`cripto`, `criptos`, `criptomoneda`, `criptomonedas`.
+The blacklist matches whole words, and a multi-word entry as a contiguous phrase
+in that order — `dollar blue` blocks *¿cuánto está el dollar blue?* but not
+*blue dollar*. The search index, by contrast, **stems** — `slippers` and
+`slipper` land on the same entry, as the
+[FTS section](#what-is-truth-and-what-is-disposable) below explains. The
+blacklist does not, so write out every form you mean: `cripto`, `criptos`,
+`criptomoneda`, `criptomonedas`.
 
-**Alternate names come from two places, and yours win.** Step 8b of the pipeline
-(described in Act 1) has an LLM read each document and propose other names for
-the concepts it found, writing them to `.llmwiki/aliases.generated.toml`. That
-file learns the names *the documents* use. `[alias_datos]` is the other list,
-the one you write yourself, for the names the documents never mention — the finance demo
-records `dolar = ["billete verde", "divisa"]`, everyday Argentine slang for the
-US dollar that appears in no table of exchange rates. The two are merged when
-the config is read (`vocabulary.merge_aliases`): the generated file is the base,
-your entries are layered on top, and where both name the same concept your
-spelling of it wins. The generated file says so in its own first line — *do not
-edit by hand; hand overrides live in wiki_config.toml*.
+**Alternate names come from two places, and both count.** During ingestion an
+LLM reads each document and proposes other names for the concepts it found,
+writing them to `.llmwiki/aliases.generated.toml`. That file learns the names
+*the documents* use. `[alias_datos]` in `wiki_config.toml` is the other list —
+the same section name, in the file you write yourself — for the names the
+documents never mention: the finance demo records
+`dolar = ["billete verde", "divisa"]`, everyday Argentine slang for the US
+dollar that appears in no table of exchange rates. The two files are merged when the config
+is read (`vocabulary.merge_aliases`), and the lists are added together rather
+than one replacing the other. In the demo they do not overlap, so the example
+below is invented. Where they do, the entries collapse into one under **your**
+spelling of the name. The two count as one key because the names are compared
+after being lowercased and stripped of accents, with `_` read as a space —
+`Dólar`, `dolar` and `DOLAR` are the same entry. Had the pipeline also written a
+`Dólar` entry:
+
+```toml
+# .llmwiki/aliases.generated.toml - written by the pipeline at ingest
+[alias_datos]
+"Dólar" = ["dólar oficial"]
+```
+
+```toml
+# wiki_config.toml - written by you
+[alias_datos]
+dolar = ["billete verde", "divisa"]
+```
+
+the merge would give a single entry,
+`dolar = ["dólar oficial", "billete verde", "divisa"]`. The generated file says
+so in its own opening comment: *do not edit by hand; hand overrides live in
+wiki_config.toml `[alias_datos]`*.
 
 **`[falsos_sinonimos]` is the opposite instruction: two words that must never be
 treated as the same thing.** The finance demo records one, `cedear =
@@ -196,6 +219,22 @@ two never reaches the query path at all. Alias lists widen what the wiki will
 match; this one narrows it back where widening would do damage. The lint pass
 also uses it as its suggested remedy — when it finds an alias that is really
 another concept's name, what it tells you to do is add the pair here.
+
+**The blacklist and this list answer different questions.** The question is
+matched against the blacklist: if a listed term appears in it, the question is
+turned away at the first check, before anything is searched.
+
+`[falsos_sinonimos]` is never matched against the question. It works on the
+alias map — not the generated file on disk, which is written once at ingest, but
+the map assembled from that file every time the wiki is opened. The assembly
+reads `wiki_config.toml`: the pipeline's aliases first, your `[alias_datos]`
+added on top, then every pair listed in `[falsos_sinonimos]` deleted from the
+result. So if the pipeline had recorded *acciones* as another name for *cedear*,
+the finished map has no such entry — not overruled at question time, simply
+never in the list the roster consults. A question admitted only because that
+alias existed is refused instead. Adding a pair therefore takes effect the next
+time the wiki is opened: the file on disk is untouched, and there is nothing to
+re-ingest.
 
 ### All four lists, on one real wiki
 
@@ -214,10 +253,42 @@ excerpts from the shipped `examples/finanzas-argentinas` demo.
 "Bonos Dólar Linked" = ["Dólar Linked"]
 ```
 
-Every one of those was read out of the documents. `BCBA` is in the text; nobody
-told the pipeline about it.
+Every one of those was read out of the documents in `sources/`. The pass that
+decides which concepts a document deserves also returns, for each concept, the
+other names that document uses for it. `BCBA` is in `aliases.generated.toml`
+because a source says it, not because anyone wrote it into a configuration
+file.
 
-**What the owner wrote** — `wiki_config.toml`:
+Each key on the left is a concept page. `Bolsas y Mercados Argentinos` is
+`wiki/concepts/bolsas-y-mercados-argentinos.md`, and the other twelve keys in
+this wiki's `aliases.generated.toml` are concept pages as well. A concept page
+carries its own name but not the other names for it, so
+`aliases.generated.toml` is the only place those are stored.
+
+`aliases.generated.toml` accumulates rather than being rewritten from nothing:
+each ingest reads it, adds the concepts from the document just processed,
+re-checks the whole map and writes it back. Ingesting the same document twice
+therefore adds the same alias once.
+
+That re-check enforces one rule: **an alias may not be the name of something
+else this wiki already covers.** An alias that breaks it is dropped instead of
+written, and the pipeline prints `⚠️ N alias collision(s) dropped`. The section
+[Wikis whose facts change](#wikis-whose-facts-change), further down, works
+through a real case: a document about CEDEARs whose proposed alias was already
+another concept page's name.
+
+What that re-check does **not** do is remove an entry whose page is gone. It
+checks the aliases, never the key, so if a concept page is deleted — or simply
+named differently by the next regeneration, which happens, since the model
+chooses those names — its entry stays. Nothing re-adds it and nothing removes
+it either. The lint pass reports each one as `vocab_stale`, naming the
+canonical that no longer has a page, and there it stops: **removing the entry
+is manual today**, done by editing `.llmwiki/aliases.generated.toml`, and
+automating it is on the project's backlog. Until then a stale entry keeps its
+alias working: a question that names only that alias is still let through the
+coverage gate, and then finds nothing.
+
+**What you wrote** — `wiki_config.toml`:
 
 ```toml
 # Lista NEGRA: términos que sabemos que NO cubrimos -> abstención inmediata,
@@ -245,9 +316,20 @@ not have worked it out:
   *foreign* company's share; treating the two as the same reads perfectly fluent
   and is wrong.
 
-**What the system ends up with.** Loading the config merges the two alias files,
-generated underneath, hand-written on top, minus the false-synonym pairs
-(`vocabulary.merge_aliases`). Asking the demo's own configuration for the result:
+**What the system ends up with.** Loading the config combines the two alias
+files into one map (`vocabulary.merge_aliases`). The hand-written list does not
+replace the generated one — the two sets of aliases are added together, and
+duplicates collapse. Two things settle what happens where they meet:
+
+- **Same subject, two spellings.** Keys are matched after normalizing, so a
+  generated `Dólar` and a hand-written `dolar` are one entry, not two. The
+  human's spelling is the one kept, on the reasoning that a person who typed a
+  key meant that form.
+- **`[falsos_sinonimos]` is applied last, as a deletion.** For each canonical it
+  names, the aliases listed under it are struck from the merged result no matter
+  which file supplied them. A canonical left with nothing drops out of the map.
+
+Loading the shipped demo's own configuration and printing the result gives:
 
 ```text
 "dolar"          = ['billete verde', 'divisa']       ← hand-written
@@ -265,7 +347,7 @@ turned on (it ships that way; a wiki without it consults none of these lists):
 | *"¿a cuánto está el **billete verde**?"* | reaches the dollar data | your `[alias_datos]` — the phrase is not in any document |
 | *"¿qué son los **Bonos CER**?"* | reaches the CER/UVA page | the generated file — the pipeline found that short form itself |
 | *"¿conviene comprar **cedears**?"* | refused before any search runs | `[fuera_de_alcance]` — the term is listed verbatim |
-| *"¿qué es una **criptomoneda**?"* | refused — but **not by the blacklist** | the coverage roster, which happens to catch it |
+| *"¿qué es una **criptomoneda**?"* | refused — but **not by the blacklist** (`[fuera_de_alcance]`) | the coverage roster, which happens to catch it |
 
 The last row is the one worth studying, and it is the reason this section shows
 the lists together rather than one at a time. Measured on the shipped demo:
@@ -281,10 +363,13 @@ anyway, because nothing in it names a subject this wiki covers, so the roster
 refuses it one branch later.
 
 Which means the blacklist's failure is **invisible here**. It only becomes
-visible on a wiki that *does* have pages about crypto and wants to decline
-questions about it regardless — exactly the case the blacklist exists for. Two
-gates that usually agree can hide each other's gaps, and the only way to know
-which one did the work is to look, as above.
+visible on a wiki whose roster contains the term — as a concept page title, a
+dataset entry, or an alias of either — and that wants to decline questions about
+it anyway, which is exactly the case the blacklist exists for. A page that
+merely mentions crypto in its text changes nothing: the roster is a list of
+names, and page bodies are not in it. Two gates that usually agree can hide each
+other's gaps: to know which one turned a question away, you have to read the two
+values separately, the way the block above prints them.
 
 Back to the diagram at the top of this section, and to the division it drew: the
 three green boxes are yours, everything else is derived from them. The rest of
@@ -303,11 +388,11 @@ same wiki from the same untouched sources and you get:
 - and often **different concept pages**, because the model decides for itself
   which topics deserve one.
 
-The third of those is the one that surprises. While this document was being written its
-appendix was regenerated several times from an identical corpus, and each run named
-the concepts differently — one run pulled a page called *Transformation* out of
-Cinderella, the next chose *Prince* instead. Neither is wrong. They are two
-readings of the same tale.
+The last of those three — different concept pages — is the one that surprises.
+While this document was being written its appendix was regenerated several times
+from an identical corpus, and each run named the concepts differently: one run
+pulled a page called *Transformation* out of Cinderella, the next chose *Prince*
+instead. Neither is wrong. They are two readings of the same tale.
 
 Three practical consequences follow. **Anything you edited by hand is gone** when
 the page is regenerated, because nothing distinguishes your sentence from the
@@ -351,6 +436,18 @@ such a list, what it does with it, and where the idea shows its limits are the
 
 `datasets/` is the odd one out and gets its own [closing
 section](#wikis-whose-facts-change); ignore it until then if your wiki has none.
+
+**A closing note on who can write these lists well.** They get easier to write
+the more specialized the wiki's subject is, and the reason is not that
+specialists are more diligent. Each list is bounded by something different. The
+alias list is bounded by what the wiki covers: a finite set of subjects has a
+finite set of other names, and someone who knows the field can write them down.
+The blacklist is bounded by what the wiki does *not* cover, which in general is
+everything else — a set nobody can enumerate. A single-domain wiki escapes
+that, because the questions it receives come from its own field: the subjects
+worth blocking are the neighbours of the ones it covers, a short and knowable
+list. Curated that way by someone who knows which confusions actually arise,
+these lists turn away a whole class of wrong answers before any search runs.
 
 ### Three files in `wiki/` are not pages
 
@@ -405,11 +502,12 @@ ingest it, and *compiled*: its text is extracted, cut into search-sized fragment
 (*chunks* — the subject of most of the next section), and an LLM turns it into
 two kinds of wiki page:
 
-- a **summary page** — one per document, saying what that file contains, in
-  order;
-- a **concept page** — one per topic. This is the interesting kind, because it
-  belongs to the topic and not to any one document. Several sources can add to
-  the same concept page, so it grows as you add documents.
+- a **summary page** — exactly one per document, saying what that file
+  contains, in order;
+- **concept pages** — usually several per document, one for each topic the
+  model finds worth its own page. This is the interesting kind, because a
+  concept page belongs to the topic and not to any one document. Several
+  sources can add to the same concept page, so it grows as you add documents.
 
 Answering a question later means reading the page that was built from the source.
 The source stays in place underneath, as the evidence a citation can point to.
@@ -440,8 +538,17 @@ four stages:
 |---|---|---|---|
 | **Take it in** | 1–5 | validate the file · check whether it changed · open a provisional `documents` row marked `status='processing'` · extract the text page by page · cut it into fragments **in memory** | no |
 | **Publish the source** | **6** | one transaction: flip that row to `status='ready'` *and* write `document_pages` and `document_chunks`. From here the source exists and is searchable | no |
-| **Write the wiki** | 7–10 | pull out a summary and a list of concepts · write a page per concept · record the alternate names found (8b) · build the summary page · rewrite `overview.md` | **yes**, except 8b and the summary page |
+| **Write the wiki** | 7–10 | pull out a summary and a list of concepts · write a page per concept · record the alternate names found (8b) · build the summary page (9) · rewrite `overview.md` | **yes** at 7, 8 and 10; no call at 8b or 9 |
 | **Close the books** | 11–13 | append to `log.md` · make a git commit · optional lint pass | no |
+
+That last column answers *does this step call the model*, which is a question
+about cost and about which steps repeat identically. It is not the same as
+*was this written by the model*. Step 9 makes no call because the prose it lays
+out already exists. `build_summary_page` concatenates strings around the
+document summary and the concept names, both of which step 7 obtained from the
+model. What step 9 itself contributes is the structure — headings, labels, the
+file's name and page count, the date, the links to the concept pages. The same
+holds for 8b, which files away alternate names step 7 already returned.
 
 **Where these numbers come from.** `ingestion/pipeline.py:ingest_file` marks each
 step with a comment banner — `# ── Step 6: Atomic source document DB write ──` —
@@ -522,12 +629,16 @@ Three words from these passes are used throughout the acts:
   actually were on a real run.
 
   *Supplied* is literal: `repair_wiki(..., llm_client=None)` is a legal call, and
-  the pass that runs automatically after every ingest makes exactly that call. It
-  is not that the model failed or was unavailable — it was deliberately not
-  handed over, so the pipeline cannot spend tokens you did not ask it to spend.
-  Two repairs need one (`stale` and `missing_concept`); the rest are plain code
-  and run either way. Act 3b shows what that looks like in the log, and names the
-  two ways to supply a model when you do want those two repairs.
+  it is the call the post-ingest pass makes by default. It is not that the model
+  failed or was unavailable — it was deliberately not handed over, so the
+  pipeline cannot spend tokens you did not ask it to spend. Asking is one tick:
+  the ingest form carries a checkbox, *"Also run full LLM lint & repair after
+  ingest (slower, uses tokens)"*, and with it ticked that same post-ingest pass
+  runs with a model. Two repairs need one (`stale` and `missing_concept`); the
+  rest are plain code and run either way. Act 3b shows what the default looks
+  like in the log, and covers the other way to supply a model — the wiki-wide
+  **Run Wiki Lint & Repair** button, which sweeps every page rather than the
+  ones this ingest touched.
 
 §6.1 lists every check lint runs; §6.2 lists every repair and says which of them
 need a model.
@@ -547,8 +658,33 @@ own — every value in it was copied out of a source file, or derived from a wik
 page that exists on disk — but it is what turns a folder of files into something
 you can ask questions of.
 
-Four tables do that work, plus the search index built over one of them. The
-clearest way to tell them apart is to ask **what a single row means** in each:
+**How you would rebuild it, and what that costs.** Since the database holds
+nothing of its own, losing it should be an inconvenience rather than a loss, and
+in principle it is. In practice there is only one way to repopulate it today:
+ingest the sources again. That is a fresh compile, not a rebuild, and it differs
+from one in three ways worth knowing before you need it.
+
+It calls the model again, so the pages come out differently worded and the
+concept pages may be named differently — the same variation described earlier,
+applied to the whole corpus at once. It overwrites the markdown on disk, so any
+sentence you edited by hand is replaced. And a page whose source file is no
+longer in `sources/` cannot be produced at all, because there is nothing left to
+compile: the page's text survives on disk, but nothing re-registers it.
+
+A mechanical rebuild — one that reads the markdown and the sources back into a
+fresh database without calling the model, so the pages you already have stay
+exactly as they are — is designed and not built. The
+[ROADMAP](../ROADMAP.md) records the five steps it would take, what would be
+recovered exactly, and the two things that cannot come from disk at all: the
+internal counters, and the creation timestamps.
+
+Until then, the useful precaution is the ordinary one: `wiki/` is a git
+repository of its own, and `sources/` is your own folder of files. Those two are
+what a rebuild would read. The database is the part you can afford to lose.
+
+The database is made of four tables, plus the search index built over one of
+them. The clearest way to tell them apart is to ask **what a single row
+means** in each:
 
 ```mermaid
 flowchart LR
@@ -615,30 +751,37 @@ The numbers above are Act 1's, so you can check every one of them against the
   sentence. The one exception is a single paragraph too big to be a fragment on
   its own, which does get cut.
 
-  A fragment may also start by repeating the end of the previous one, so that a
-  definition given just before a boundary travels along with the text that
-  depends on it. This repetition has a size limit, and often does not happen at
-  all: when the previous paragraph is itself bigger than that limit, nothing is
-  repeated. In the bundled `examples/fairy-tales` **corpus** — the usual word for
-  the whole collection of text a system works with — ten of the fourteen
-  boundaries repeat nothing; where repetition does happen it runs 92–119 tokens.
-  Those fourteen are the internal boundaries of its three source tales, whose
-  fragment counts are 10, 2 and 5.
+  A fragment may also start by repeating the end of the previous one, so that
+  a definition given just before a boundary travels along with the text that
+  depends on it. The repetition is made of whole paragraphs and has a budget
+  of 128 tokens: the code walks backwards from the end of the previous
+  fragment, taking paragraphs while they fit, and stops at the first one that
+  would exceed it. A paragraph longer than the budget therefore cannot be
+  repeated at all, and that turns out to be the common case. In the bundled
+  `examples/fairy-tales` **corpus** — the usual word for the whole collection
+  of text a system works with — ten of the fourteen boundaries repeat nothing;
+  where repetition does happen it runs 92–119 tokens. Those fourteen are the
+  internal boundaries of its three source tales, whose fragment counts are 10,
+  2 and 5.
 
   A warning about that name, because two collections of fairy tales appear in
   this document. The one just measured is the demo shipped in
-  `examples/fairy-tales`, three tales. The acts further down build a **separate,
-  temporary** corpus, two tales, which the capture script discards afterwards.
-  The PDFs are the same files in both, so a per-document figure holds across
-  them — `Cinderella.pdf` yields 10 fragments wherever it is ingested — but a
-  whole-corpus total does not, because the two hold different numbers of
-  documents.
+  `examples/fairy-tales`, three tales. The acts further down build a
+  **separate, temporary** corpus, two tales, which the capture script discards
+  afterwards. The PDFs are the same files in both corpora, so a per-document
+  figure holds across them — `Cinderella.pdf` yields 10 fragments wherever it
+  is ingested — but a whole-corpus total does not, because the two hold
+  different numbers of documents.
 
   Each fragment records which document and page it came from, plus a
-  **breadcrumb**: the markdown headings that apply where its text sits, joined
-  with ` > ` — `Cinderella > Definition`. A page number alone tells you where a
-  fragment sits in a PDF, but nothing about what part of the document it belongs
-  to. The breadcrumb is what lets a citation name that place.
+  **breadcrumb**: the path of headings above the point where its text sits,
+  joined with ` > ` — `Cinderella > Definition`. Source documents get one as
+  well as wiki pages, as far as the extractor found headings in them.
+
+  A page number alone tells you where a fragment sits in a PDF, but nothing
+  about what part of the document it belongs to. The breadcrumb is what lets a
+  citation name that place, and it survives page breaks: a section opened on
+  page 3 and continuing on page 4 stays the same section.
 
   Both kinds of document are cut into fragments: the raw sources and the
   generated wiki pages alike. Every fragment records which document it belongs
@@ -668,13 +811,15 @@ The numbers above are Act 1's, so you can check every one of them against the
   ```
 
   Those numbers are `rowid`s — internal row numbers, reassigned whenever the
-  corpus is rebuilt — and they come out already sorted best-first. They are the
-  whole answer the index gives: eight fragments out of thirty-four for the first
-  word, and the other twenty-six never even looked at.
+  corpus is rebuilt. They are shown here best-first, which the index does not
+  do on its own: ranking is a second thing you ask for, as the query below
+  does. What the index gives you is the set — the `slipper` line above lists
+  eight of the corpus's thirty-four fragments, and the other twenty-six, which
+  do not contain the word, are never read.
 
   To turn that into something you can quote, you join the index back to the
-  tables. The index says *which* fragments and *in what order*; the tables supply
-  the text and where it came from:
+  tables. The index says *which* fragments, and scores them when asked; the
+  tables supply the text and where it came from:
 
   ```sql
   SELECT d.filename, c.page, c.header_breadcrumb, c.content
@@ -685,20 +830,20 @@ The numbers above are Act 1's, so you can check every one of them against the
    ORDER BY chunks_fts.rank;
   ```
 
-  The top three rows that come back are `glass-slipper.md`, then `Cinderella.pdf`
-  itself, then `cinderella.md`: a curated page, a raw source, and another curated
-  page, all ranked against each other in a single list. The index does not care
-  which layer a fragment belongs to — which is why separating the two layers has
-  to be a deliberate choice made elsewhere, as the previous bullet described.
+  The top three rows that come back are `glass-slipper.md`, then
+  `Cinderella.pdf` itself, then `cinderella.md`: a curated page, a raw source,
+  and another curated page, all ranked against each other in a single list.
+  The index does not care which layer (source or wiki) a fragment belongs to —
+  which is why separating the two layers has to be a deliberate choice made
+  elsewhere, as the previous bullet described.
 
   `rank` is the one column there that doesn't explain itself. FTS5 fills it with
-  **BM25**, the standard relevance formula full-text search engines have used for
-  decades: given a query, it scores every matching fragment on how strongly that
-  fragment is *about* the query rather than merely containing it. The wiki takes
-  the score as it comes — there is one indexed column, so there is nothing to
-  weight one column against another. Its values are negative and the best match
-  is the most negative, which is why ordering ascending puts the strongest hit
-  first. For *slipper*, the eight fragments score like this:
+  **BM25**, the standard relevance formula full-text search engines have used
+  for decades: given a query, it scores every matching fragment on how
+  strongly that fragment is *about* the query rather than merely containing
+  it. The wiki uses the score untuned. Its values are negative and the best
+  match is the most negative, which is why ordering ascending puts the
+  strongest hit first. For *slipper*, the eight fragments score like this:
 
   | fragment | mentions | tokens | rank |
   |---:|---:|---:|---:|
@@ -782,7 +927,10 @@ The numbers above are Act 1's, so you can check every one of them against the
 
 - `document_references` — **one row per link from one document to another.**
   There are two kinds: `cites` means a wiki page took its content from a source,
-  and `links_to` means a wiki page links to another wiki page. The clearest way
+  and `links_to` sends the reader from one page on to a neighbouring one.
+  Concepts carved out of the same document belong together, and a page read on
+  its own is a dead end, so the pipeline cross-links the pages that share a
+  source. The clearest way
   to see the difference is that the same page usually has both. These two rows
   come from Act 1 below:
 
@@ -796,8 +944,12 @@ The numbers above are Act 1's, so you can check every one of them against the
   they answer different questions — *where did this come from?* versus *what else
   should I read?* — and they behave differently when a document is deleted.
 
-  One column name is misleading, so be warned: `source_document_id` holds the
-  document doing the referring, not the file sitting in `sources/`.
+  One column name is worth a warning: `source_document_id` means two different
+  things. In `documents` it holds the source a wiki page was written from; in
+  `document_references` it holds the document doing the referring. Renaming it
+  is not as cheap as it sounds — the schema is applied as written to every
+  database when it opens, and there is no migration step, so a rename would
+  leave every wiki built before it unreadable, the two shipped demos included.
 
   These links are stored in a table instead of being worked out by scanning the
   markdown each time they are needed. That is what makes it possible to *ask*
@@ -811,16 +963,27 @@ nothing. The FTS triggers give the search index the same protection. Together
 they mean a deletion cannot leave a fragment with no document, or a search hit
 for a page that no longer exists.
 
-Next to the database, `wiki/` is also a git repository: every ingest, edit and
-delete is a commit, so the generated pages have the same history and the same
-undo you would expect from source code.
+`wiki/` is a git repository too, and the pipeline commits to it after every
+ingest, edit and delete. So the generated pages carry the same history you would
+expect from source code: you can see what a page said last week, and diff it
+against what it says now. Restoring an old version is a different matter. A
+`git checkout` writes the page to disk without going through the pipeline, so
+the database still holds the text the pipeline indexed, and search and the link
+graph still describe the version you replaced. Lint and repair do not catch
+this, because lint and repair read the database. Re-ingesting the source is the
+only way to bring the database back into step today, and re-ingesting rewrites
+the page rather than restoring it. It is a repository with no remote — nothing is pushed
+anywhere — and it is a convenience rather than a mechanism the rest depends on.
+If `git` is not installed the commit is skipped with a warning and the ingest
+succeeds anyway, and `WIKI_AUTOCOMMIT=0` turns it off entirely, leaving the
+history for you to manage.
 
 That division — sources are the truth, the index and the wiki are both derived —
 is what lets this walkthrough say things like "just delete the page and generate
 it again". Nothing here can lose data, because the sources are never what gets
 deleted.
 
-## The story, top to bottom
+## The sequence, end to end
 
 Each act below states the workspace as it stands when the act ends, and the one
 thing that act exists to demonstrate. Every figure is read off the generated
@@ -833,10 +996,10 @@ flowchart TD
     subgraph FT ["Acts 1–3c — the bundled fairy-tale corpus"]
         direction TB
         A1["Act 1 · Cinderella.pdf (5 pp) ingested<br/>1 source · 5 extracted pages<br/>6 wiki pages · 16 fragments<br/>6 cites · 15 links_to<br/>▸ the source row is committed ready<br/>before the LLM writes a single page"]
-        A2["Act 2 · + Little Red Riding Hood.pdf (2 pp)<br/>2 sources · 7 extracted pages<br/>12 wiki pages · 24 fragments<br/>cites 6 → 12 · links_to 15 → 30<br/>▸ the wiki compounds — Act 1's pages end up<br/>better connected than they went in"]
-        A3a{"Act 3a · re-ingested,<br/>nothing changed on disk"}
-        A3b["Act 3b · Cinderella.pdf replaced on disk<br/>2 sources — the row is updated, not duplicated<br/>17 wiki pages · 32 fragments<br/>cites 12 → 19 · links_to 30 → 80<br/>lint+repair after: 45 issues · 40 fixed · 5 skipped · 0 failed<br/>▸ every skip names exactly what it was missing"]
-        A3c["Act 3c · Little Red Riding Hood.pdf deleted<br/>1 source · 16 wiki pages · 29 fragments<br/>cites 19 → 13 · links_to 80 → 75<br/>▸ its 1 summary page dies with it;<br/>its 5 concept pages are kept and marked stale"]
+        A2["Act 2 · + Little Red Riding Hood.pdf (2 pp)<br/>2 sources · 7 extracted pages<br/>12 wiki pages · 24 fragments<br/>cites 6 → 12 · links_to 15 → 30<br/>▸ the wiki compounds — Act 1's pages gain<br/>connections they did not have before"]
+        A3a{"Act 3a · Little Red Riding Hood.pdf<br/>re-ingested, unchanged on disk"}
+        A3b["Act 3b · Cinderella.pdf replaced on disk<br/>with the bytes of another tale, same filename<br/>2 sources — the row is updated, not duplicated<br/>17 wiki pages · 32 fragments<br/>cites 12 → 19 · links_to 30 → 80<br/>lint+repair after: 45 issues · 40 fixed · 5 skipped · 0 failed<br/>▸ every skip names exactly what it was missing"]
+        A3c["Act 3c · Little Red Riding Hood.pdf deleted<br/>1 source · 16 wiki pages · 29 fragments<br/>cites 19 → 13 · links_to 80 → 75<br/>▸ its 1 summary page is deleted with it;<br/>its 5 concept pages are kept and marked stale"]
     end
 
     COD["Closing section · only for wikis with datasets/<br/>the finanzas-argentinas demo<br/>▸ the second alias pass runs — once per scan,<br/>gated on a fingerprint of the dataset vocabulary"]
@@ -870,7 +1033,7 @@ prince), **16 `document_chunks`**, **6 `cites` links** and **15
 flowchart TD
     S1["<b>steps 1–5</b> · no model, nothing committed<br/>validate · detect change · open a provisional row<br/>· extract 5 pages · cut 16 fragments <i>in memory</i>"]
     S6["<b>step 6</b> · ONE transaction<br/>row flips to <b>status='ready'</b> +<br/>document_pages + document_chunks written"]
-    SAFE(["<b>from here the source is safe</b><br/>searchable, quotable, permanent —<br/>with zero wiki pages so far"])
+    SAFE(["<b>from here the source survives a failure</b><br/>stored, searchable and quotable —<br/>with zero wiki pages so far"])
     S7["<b>steps 7–9</b> · the LLM writes<br/>6 pages: 1 summary + 5 concepts"]
     S10["<b>steps 10–13</b><br/>rewrite overview.md · log.md · git commit"]
     FAIL{{"if any LLM call fails here"}}
@@ -892,36 +1055,62 @@ written a single wiki page in steps 7–9.
 does](#what-ingesting-one-file-actually-does), taken from the step banners in
 `pipeline.py` itself.)
 
-That order matters because of what happens when something fails. If step 7 (the
-LLM call that reads the document and returns its summary and concept list) fails,
-or any of the concept-page calls after it, the worst possible result is a source
+That order matters because of what happens when something fails. Step 7 is one
+model call, the one that reads the document and returns its summary and concept
+list; step 8 is one further call per concept, each writing that concept's page.
+If step 7 fails, or any of step 8's calls, the worst possible result is a source
 sitting in the database, fully searchable, with no wiki pages yet. The opposite
-can never happen: there is no way to end up with a wiki page pointing at a source
-that was never really stored.
+can never happen: a wiki page cannot point at a source that was never stored.
+
+Leaving that state is a manual operation, and lint reports it so that it does
+not go unnoticed. `unpaged_source_check` lists every source stored as
+`status='ready'` that no wiki page cites. It is advisory: recovering means
+deleting the source and ingesting it again, which is a decision rather than a
+repair. A re-scan on its own does nothing, because change detection compares
+the file's modification time and its hash, never whether the document has
+pages, so the source counts as up to date; touching the file does not help
+either, because the hash still matches.
 
 This is also why calling the wiki "derived and disposable" is more than a slogan.
 Both regenerate (§6.6) and repair (§6.2) assume the source rows are the permanent
 truth and the wiki rows can be rebuilt from them. Step 6 is what makes that
 assumption safe.
 
-The alternate-names file tells the same story from the vocabulary side. Step 8b
-(`ingestion/alias_generation.py:update_generated_aliases`) writes
-`.llmwiki/aliases.generated.toml` with one entry — a real alternate name the LLM
-found in the tale's own text, not one anybody typed. Open the bundled demo's
-copy (`examples/fairy-tales/.llmwiki/aliases.generated.toml`), where three tales
-rather than two produce one more entry, and the whole file is this:
+The same act writes the alternate-names file. Step 8b
+(`ingestion/alias_generation.py:update_generated_aliases`) produces
+`.llmwiki/aliases.generated.toml`, whose entries are alternate names the model
+found in the tale's own text rather than names anybody typed. Act 1 writes two
+([appendix, Act 1](ingestion_walkthrough_appendix.md#act-1--first-document)):
 
 ```toml
 [alias_datos]
 "Cinderella" = ["Cinderwench"]
-"The Wicked Queen" = ["The Queen"]
+"Prince" = ["King's son"]
 ```
 
-Those two lines matter more than their size suggests, because of *when* the work
-happens. Without it, somebody asking a question about "Cinderwench" would need
-the search layer, or the model, to guess that this is another name for Cinderella
-— and to guess it again on every single question. With it, the connection is
-worked out once, permanently, at the moment the source is read.
+The bundled demo (`examples/fairy-tales/.llmwiki/aliases.generated.toml`) also
+holds two, built from three tales rather than one, and they are not the same
+two: `Cinderwench` again, and `"The Wicked Queen" = ["The Queen"]` from Snow
+White. `King's son` is absent, although that demo contains Cinderella as well.
+Which names the model records is a model decision taken at a temperature above
+zero, so it varies between runs over the same text — the same variation the
+page names show.
+
+What makes those entries worth writing is *when* they are written. A question
+about "Cinderwench" has to reach the Cinderella page, and the only text
+connecting the two words is the tale itself. Without
+`aliases.generated.toml`, the search layer or the model would have to make that
+connection from the question alone, and make it again on every later question
+using the name. With `aliases.generated.toml`, ingestion made the connection
+once, while the tale was open, and it holds for every question afterwards.
+
+`aliases.generated.toml` records only names the documents themselves use. A
+name no document contains — a term your readers use for something the corpus
+calls something else — is written by hand in `wiki_config.toml`, in the
+`[alias_datos]` section, and the two lists are merged at question time.
+*Alternate names come from two places, and both count*, under
+[The pieces, before anything moves](#the-pieces-before-anything-moves), sets
+out both lists and what happens when they disagree.
 
 ## Act 2 — a second document meets a non-empty wiki
 
@@ -936,27 +1125,40 @@ clash does happen, the generator updates the existing page instead of creating a
 new one (`wiki_generator.py` switches from its create template to its update
 template, listed in §6.3). Act 3b shows that happening.
 
-**The lint pass finds `missing_xref` problems and fixes them.** After ingestion
-finishes, `repair_missing_xref` adds `## See also` links between concepts that
-cite the same source. Most of the new `links_to` rows in this act come from
-there — not from anything the LLM wrote while generating pages.
+**The lint pass finds `missing_xref` problems and fixes them, in code.** After
+ingestion finishes, `repair_missing_xref` adds `## See also` links between
+concepts that cite the same source. Neither half involves the model:
+`missing_xref_check` is a SQL join over `document_references` that pairs wiki
+pages citing the same source, and `repair_missing_xref` inserts a markdown link
+into a section — its signature takes no client, unlike the repairs that do call
+one. Ten of this act's fifteen new `links_to` rows come from there rather than
+from anything the model wrote while generating pages, which is why they are
+reproducible run to run where the page names are not.
 
 **`overview.md` is rewritten from scratch** (step 10), so it describes *both*
 documents together, rather than being two separate one-document summaries joined
 end to end.
 
 Stated plainly: the wiki **compounds**. It is not a pile of independent
-per-document summaries. The second document leaves the first document's pages
-better connected than they were at the end of Act 1.
+per-document summaries. `overview.md` is rewritten around both documents, so an
+artifact the first ingest produced is revisited by the second.
 
-This is the whole argument for building an LLM-wiki instead of doing plain RAG,
-and it is worth being precise about the difference. Add a tenth document to a RAG
-system and you have ten documents' worth of fragments: the first nine are exactly
-as they were, because nothing ever revisits them. Add a tenth document here and
-the pipeline rewrites `overview.md` around all ten, and the repair pass links the
-new concepts to the old ones that share a source. The knowledge base gets **more
-useful** as sources are added, not merely bigger. That is Karpathy's central
-claim, and Act 2 is the smallest possible demonstration of it.
+The cross-links are a narrower case, and this act marks its boundary rather than
+its reach. All ten links the repair pass added join the five new Red Riding Hood
+pages to each other; not one reaches a Cinderella page. `missing_xref_check`
+pairs pages that cite the *same* source, and two unrelated tales share none. A
+concept page is linked across documents only when a later document also covers
+that concept, so the page is updated and ends up citing both sources — which is
+what Act 3b shows.
+
+That is still the argument for building an LLM-wiki instead of doing plain RAG,
+with its scope stated. Add a tenth document to a RAG system and you have ten
+documents' worth of fragments: the first nine are exactly as they were, because
+nothing ever revisits them. Add a tenth document here and `overview.md` is
+rewritten around all ten, and every concept the tenth document also covers is
+rewritten to account for both. The knowledge base gets **more useful** as sources
+are added, not merely bigger. That is Karpathy's central claim, and Act 2
+demonstrates the first half of it.
 
 **What step 10 actually sends.** `wiki_generator.update_overview` builds its
 prompt from exactly three things:
@@ -971,15 +1173,33 @@ The thing that is *not* sent is the one that would hurt: **the pages themselves.
 The model gets a list of names — `Cinderella, Fairy Godmother, Glass Slipper, …` —
 and the previous narrative, and is asked to fold one new summary into it.
 
-So the honest answer to "does this grow quadratically?" is: **each ingest costs
-slightly more than the last, and the total over N documents is quadratic in the
-mild sense** — but the term that grows is a comma-separated list of titles. A
-wiki with 500 concept pages would send roughly 3,000 tokens of names. The
-overview prose does not grow with N at all, because the prompt asks for a fixed
-length no matter how much it is summarising.
+Does this grow quadratically? **What one ingest costs does not: it is a
+straight line in the size of the wiki.** Two of the three inputs are constant.
+The third, the list of names, adds about six tokens for every concept page
+already there, and that is the slope. A wiki with 500 concept pages sends some
+3,000 tokens of names, on top of an overview that stays at three to five
+paragraphs however many documents it summarises.
 
-That is a deliberate trade, and it has a cost worth naming: the model rewrites
-the narrative knowing only what the other pages are *called*, not what they say.
+Adding those straight lines together is what makes the total quadratic, and the
+arithmetic is short. Each tale in the demo produces five concept pages, so the
+first ingest sends no names at all, the second sends five, the third ten, and
+the Nth sends five times N−1. At six tokens a name, every ingest carries about
+thirty tokens more than the one before it. Summed over N ingests that is
+15·N·(N−1) tokens of names in total: about 1,350 for ten documents and about
+148,000 for a hundred.
+
+That total is the figure the question usually has in mind. It is also spread
+across N separate runs, often weeks apart, so no single call ever carries it —
+which is why the slope, and not the sum, is what to check before adding a
+document.
+
+That is a deliberate trade, and it has a cost worth naming: of the pages
+themselves the model sees nothing. What it knows about the documents already in
+the wiki reaches it through the current `overview.md` — three to five paragraphs
+written in earlier passes, standing in for the whole corpus — plus the bare
+titles of the concept pages. A detail that never made it into `overview.md`
+cannot find its way back in later, because no rewrite re-reads the page holding
+it.
 
 ## Act 3a — re-ingesting an unchanged document
 
@@ -998,18 +1218,21 @@ exactly the state running it once did, so a repeat costs zero model calls.
 That property is what makes §6.5's Scan sources workflow safe to run repeatedly
 against a folder someone is actively dropping files into: re-scanning a folder
 with nine unchanged files and one new one does one document's worth of LLM work,
-not ten. Without it, the natural operating habit — drop a file in, hit scan —
+not ten. Without it, the natural operating habit — add a file, run scan —
 would re-pay for the entire corpus every time.
 
 ## Act 3b — the source changed on disk
 
-This act simulates an edited source honestly: the capture script swaps
-`Cinderella.pdf`'s bytes for a different tale entirely (`The Sleeping Beauty in
-the Wood.pdf`, renamed to the same filename) rather than hand-editing a sentence,
-because the detector never looks at *what* changed, only that the hash did. From
-the pipeline's point of view, this is indistinguishable from someone replacing a
-source PDF with a revised edition — and swapping the whole file makes the effect
-visible in the page list instead of hiding in one altered paragraph.
+In this act the source file changes. The capture script overwrites
+`Cinderella.pdf` with the bytes of `The Sleeping Beauty in the Wood.pdf`, and
+keeps the original filename.
+
+Replacing the whole file, instead of editing one sentence inside it, is
+deliberate. Change detection compares the hash and never inspects *what*
+changed, so the pipeline treats both cases the same way: for it, this run is a
+user replacing a source PDF with a revised edition. Replacing the file also
+makes the result easy to read, because the whole page list changes, where an
+edited paragraph would alter one page at most.
 
 The result: `documents (source)` stays at **2 rows, +0** — the existing row is
 *updated*, not duplicated — while `document_pages` and `document_chunks` are
@@ -1083,29 +1306,44 @@ touched**: the summary pages of the documents just ingested, plus every wiki pag
 that cites them. It never rewrites unrelated pages. The button is the wiki-wide
 sweep.
 
-Act 2 asked whether token usage grows quadratically with the wiki, about the
-overview rewrite. The same question applies to this pass, and it has a different
-answer.
+Act 2 asked whether token usage grows with the size of the wiki, about the
+overview rewrite. The same question applies to this pass, and here the answer is
+no: its cost does not depend on how large the wiki is.
 
-Yes — for this pass specifically. Its scope is a function of the *document* being
-ingested, not of the wiki's size: the summary pages of what you just ingested,
-plus the pages that cite those sources. Ingest the five-hundredth document into a
-large wiki and this pass still only looks at that document's neighbourhood. The
-button is the one that sweeps everything, and it is a button precisely so that
-the sweep is something you choose rather than something every ingest pays for.
+What the pass examines is a function of the *document* being ingested: the
+summary pages of what you just ingested, plus the pages that cite those sources.
+Ingest the five-hundredth document into a large wiki and the pass still examines
+only that document's neighbourhood. Sweeping the whole wiki is a separate
+button, and it is a button so that the sweep is something you ask for rather
+than something every ingest pays for.
 
-The one part of ingestion that *does* grow with the wiki is step 10, the overview
+The one part of ingestion that does grow with the wiki is step 10, the overview
 rewrite — [described above](#act-2--a-second-document-meets-a-non-empty-wiki),
-where the growing term turns out to be a list of page titles.
+where the term that grows is the list of page titles.
 
-Two other skip reasons exist and did not appear in this particular run. A
-`missing_xref` can be skipped as `already linked`, when an earlier fix in the
-same run had added the link a later issue was still reporting — a genuine no-op
-rather than a refusal. And an advisory check such as `thin_page` is skipped as
-*"advisory finding — no automatic repair (resolve by hand)"*, because it reports
-something a human has to decide about. Both are listed here for completeness;
-neither is narrated as though it had been observed, because in this capture it
-was not.
+When the repair pass cannot fix an issue lint reported, it skips that issue and
+logs why. The five skips above all gave the same reason, a missing model. Two
+further reasons exist, and this run produced neither.
+
+The first is `already linked`, and it applies to `missing_xref`. Lint draws up
+the entire list of issues before repair touches anything. Repair then works
+through that list one issue at a time, and each fix it makes rewrites a page and
+rebuilds the reference table. The list does not get redrawn as this happens, so
+an entry written when lint ran can describe a page that a later fix has since
+changed. When the pass reaches such an entry it finds the link already there,
+and reports `already linked` rather than adding it a second time.
+
+The second covers the advisory checks. `thin_page` and the others like it have
+no automatic repair, so the pass skips them with *"advisory finding — no
+automatic repair (resolve by hand)"*. What resolving by hand means depends on
+the check. For `thin_page` it is a choice between two acceptable outcomes:
+expand the page until it covers more of its source, or leave it and accept that
+questions about the uncovered part get answered from the raw document instead.
+Both are defensible, no rule decides between them, and that is why the check
+reports and stops.
+
+Both are described here for completeness. Neither appears in the captured log,
+so neither is presented as something this run demonstrated.
 
 ## Act 3c — deleting a source
 
@@ -1124,7 +1362,7 @@ deleted.
 ### What happens to a page once it is marked stale
 
 "Marked stale" is a flag on the page (`stale_since`) that means one thing: *a
-source this page was written from is gone — someone should look at it.* It is
+source this page was written from is gone, and the page needs review.* It is
 not a verdict. The page may still rest on two other sources and be perfectly
 good; the pipeline has no way to judge that, so it refuses to guess and says so
 instead.
@@ -1174,7 +1412,7 @@ They are flagged because a source they were written from **no longer exists**.
 Run lint and repair now and nothing happens to them — not because the repair
 failed, but because lint's `stale` check never sees them. That check works by
 comparing a page against a source it still cites, and these five have no such
-source left: the `cites` rows died with the document.
+source left: the `cites` rows were deleted with the document.
 
 **Now instead you edit `Cinderella.pdf`** — you replace it with a revised edition
 and re-ingest, which is Act 3b. Nothing is deleted and no `stale_since` flag is
@@ -1250,7 +1488,7 @@ differently when a source is deleted
   generated pages, not a page and a source, so it survives — even when one of the
   two pages loses its citation.
 
-Put simply: deleting a source destroys the page that was built from that source
+Deleting a source destroys the page that was built from that source
 alone. It never destroys a concept page that combined **several** sources,
 because that page still has its other sources to stand on.
 
@@ -1273,11 +1511,11 @@ Everything above is reproducible, not just re-readable:
   sequence — ingest, ingest, re-ingest unchanged, edit and re-ingest, delete —
   against a fresh temporary workspace and regenerates
   [`docs/ingestion_walkthrough_appendix.md`](ingestion_walkthrough_appendix.md).
-- `tests/e2e/test_ingest_app_v2.py` asserts the same journey end-to-end by
+- `tests/e2e/test_ingest_app_v2.py` asserts the same sequence end-to-end by
   driving the real ingest app in a browser (wiki picker, ingest form, Activity
   Log, vocabulary lint lines, scan idempotency, cross-links) rather than by
   calling the pipeline functions directly — so it fails if the machinery works
-  but the interface to it doesn't.
+  but the interface to it does not.
 
 ## Wikis whose facts change
 
@@ -1294,7 +1532,7 @@ works because the answer will not have changed by the time somebody reads it.
 Point the same machinery at an exchange rate and two things go wrong at once. The
 page is out of date the moment the rate moves. And worse, the number itself gets
 absorbed into a sentence, where it can no longer be quoted together with the date
-it belongs to — you end up with prose saying the dollar is worth 1180, with no
+it belongs to — the result is prose saying the dollar is worth 1180, with no
 way to know when that was true.
 
 So a wiki that needs facts like these keeps them somewhere else, as a second kind
@@ -1313,8 +1551,7 @@ front-matter does not — a key such as `metodo_calculo: no_deterministico` stat
 what kind of instrument a category holds, and that does not change when the
 market moves. What the two have in common is not volatility. It is that code
 reads them directly, instead of a model compiling them into prose. Expiry is why
-this layer was built; being machine-readable is what it also turns out to be
-good for, and the query walkthrough works that second use out in [What
+this layer was built; being machine-readable is a second use it serves, and the query walkthrough works that second use out in [What
 structured sources make
 checkable](query_walkthrough.md#what-structured-sources-make-checkable).
 
@@ -1391,15 +1628,15 @@ page, one for where the number came from. That is what the two paths exist for.
 Everything in the acts above happens in a corpus with only PDFs. The appendix confirms
 that: every act's file list shows `.llmwiki/aliases.generated.toml`, but
 **no** `.llmwiki/dataset_aliases.fingerprint` ever appears — that sidecar
-file simply never gets written, because there is no `datasets/` folder for it
+file is never written, because there is no `datasets/` folder for it
 to fingerprint. The shipped `examples/finanzas-argentinas` demo has both.
 
 Two alias passes exist, and only one of them ran anywhere in Acts 1–3c.
 The **concept-alias pass** (`alias_generation.py:update_generated_aliases`,
-step 8b of §6.3) runs per file, for any corpus — it's what produced
+step 8b of §6.3) runs per file, for any corpus — it is what produced
 `"Cinderella" = ["Cinderwench"]`. The **dataset-alias pass**
 (`alias_generation.py:regenerate_dataset_aliases`) runs once per *scan*
-(§6.5), not per file, and only when `datasets/` exists; it's
+(§6.5), not per file, and only when `datasets/` exists; it is
 fingerprint-gated (`_vocab_fingerprint` / `_read_fingerprint` /
 `_write_fingerprint`), so the LLM pass re-runs only when the dataset
 vocabulary actually changed since the last scan — a second scan of an
@@ -1506,7 +1743,7 @@ original note gets settled. The two are meant to be read back to back.
 If you would rather go sideways than forward:
 
 - §6 [Workflows](manual/workflows.md) for the per-operation contracts this
-  walkthrough deliberately doesn't restate: step tables, LLM prompt inputs and
+  walkthrough deliberately does not restate: step tables, LLM prompt inputs and
   outputs, table-write matrices, today-vs-target status.
 - [`sqlite_data_dictionary.md`](sqlite_data_dictionary.md) for every column of
   every table, rather than only the four that carry the argument here.

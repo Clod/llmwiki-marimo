@@ -598,6 +598,14 @@ After the per-file loop, `scan_and_ingest` runs two extra passes, once per scan
    the scan can link to a concept extracted from a later document. Deterministic
    (no LLM). Logs `🔗 Cross-linked N page(s)`.
 
+   **Scope.** `scan_and_ingest` passes a `touched` set, built by
+   `pages_touched_by()` from the sources just ingested: the summary pages written
+   from those sources plus every page that cites them. The pass then rewrites
+   those pages plus the pages whose text mentions one of them, found with one
+   substring scan per page, instead of comparing every page with every other
+   one. Calling `crosslink_wiki_pages` without `touched` keeps the full sweep,
+   which is what the **Run Wiki Lint & Repair** button and regeneration use.
+
 **Entry:** `scan_and_ingest()` — `base/domain/ingestion/pipeline.py:scan_and_ingest`
 
 Walks `workspace/sources/` recursively, collects `.pdf` / `.docx` files  
