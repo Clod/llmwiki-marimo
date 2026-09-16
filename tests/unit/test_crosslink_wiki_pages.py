@@ -136,3 +136,54 @@ def test_pages_touched_by_returns_summary_and_citing_pages(tmp_workspace: Worksp
 
     assert pages_touched_by(db, [src_id]) == {summary["path"], concept["path"]}
     assert pages_touched_by(db, []) == set()
+
+
+def test_crosslink_matches_an_accented_mention(tmp_workspace: WorkspaceFixture) -> None:
+    """The prose writes the accent, the slug never carries one.
+
+    `slugify` strips combining marks, so a page titled "Panel Líder" is filed as
+    `panel-lider.md` and matched by the text "panel lider". A page whose prose
+    spells "Panel Líder" therefore went unlinked until the haystack was stripped
+    the same way. Measured on the bundled finanzas-argentinas wiki before the
+    fix: thirty page pairs in that shape.
+    """
+    _concept(tmp_workspace.db_path, tmp_workspace.workspace, "acciones-locales",
+             "Acciones locales",
+             "Las acciones cotizan en el Panel Líder y en el panel general.")
+    _concept(tmp_workspace.db_path, tmp_workspace.workspace, "panel-lider", "Panel Líder",
+             "Las empresas de mayor capitalización y liquidez.")
+
+    changed = crosslink_wiki_pages(tmp_workspace.workspace, tmp_workspace.db_path, language="es")
+
+    assert changed >= 1
+    page = read_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "acciones-locales"
+    )
+    assert "[Panel Líder](panel-lider.md)" in page
+
+
+def test_crosslink_touched_selects_a_page_that_mentions_it_with_accents(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """The scoped pass must normalise exactly as the injection does.
+
+    `_crosslink_candidates` is a superset of the pages that end up linked only
+    while both halves compare the same string; a page left out of the candidate
+    set is never offered a link at all.
+    """
+    _concept(tmp_workspace.db_path, tmp_workspace.workspace, "acciones-locales",
+             "Acciones locales",
+             "Las acciones cotizan en el Panel Líder.")
+    _concept(tmp_workspace.db_path, tmp_workspace.workspace, "panel-lider", "Panel Líder",
+             "Las empresas de mayor capitalización y liquidez.")
+
+    changed = crosslink_wiki_pages(
+        tmp_workspace.workspace, tmp_workspace.db_path, language="es",
+        touched={"wiki/concepts/panel-lider.md"},
+    )
+
+    assert changed >= 1
+    page = read_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "acciones-locales"
+    )
+    assert "[Panel Líder](panel-lider.md)" in page

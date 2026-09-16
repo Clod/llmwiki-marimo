@@ -11,6 +11,21 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Fixed
+- **"See also" links now survive an accent.** `slugify` strips combining marks
+  when it builds a page's file name, so a page titled "Panel Líder" is filed as
+  `panel-lider.md`, and `inject_see_also` looks for the slug — "panel lider" —
+  in the text of every other page. The text keeps its accents, so prose that
+  spells "Panel Líder" never matched, and the link was never offered. Counted on
+  the bundled `finanzas-argentinas` wiki: thirty page pairs in that shape, among
+  them the summary of *Acciones Locales*, which names both "Panel Líder" and
+  "Riesgos estructurales de inversión" without linking either. The bundled
+  English wiki has none, which is why the gap stayed invisible. The comparison
+  now strips the accents from the text as well, through `strip_accents` in
+  `wiki_generator`, and `_crosslink_candidates` strips them the same way — that
+  candidate set is a superset of the pages that end up linked only while both
+  halves compare the same string.
+
 ### Added
 - **An index built with an older schema is reported instead of crashing.** The
   schema in `database/sqlite_schema.sql` is applied with
