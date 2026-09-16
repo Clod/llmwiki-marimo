@@ -155,12 +155,40 @@ eight `overwrite=True` call sites revisit the prose the mark is asking about.
 | `clear_stale=True` | Leave the mark |
 |---|---|
 | ingest concept page (`pipeline.py:281`) | rollback after a failed ingest — restores a prior state, mark included |
-| ingest summary page (`pipeline.py:323`) | `crosslink_wiki_pages` — appends a See-also link |
+| ingest summary page (`pipeline.py:323`) | `crosslink_wiki_pages` — appends a See-also link (scoped by `touched=`; see below) |
 | `regenerate_wiki_pages` (`pipeline.py:688`) | `repair_gap_filled` — swaps a TODO marker for a link |
 | `repair_stale` (`repair/actions.py:156`) | `save_to_wiki` — chat merge |
 
 Tying it to `overwrite=True` instead would erase the signal on a See-also append,
 making the flag meaningless by the opposite route from never clearing it.
+
+### `crosslink_wiki_pages` is scoped by the caller, not by the function
+
+```python
+def crosslink_wiki_pages(workspace, db_path, language="en", progress_cb=None,
+                         touched: Iterable[str] | None = None) -> int
+def pages_touched_by(db_path: str, source_doc_ids: list[str]) -> set[str]
+```
+
+`touched` is the set of wiki pages an ingest wrote, as relative paths
+(`wiki/concepts/x.md`; a leading `/` is tolerated, which is the `path || filename`
+shape the marimo app already has). The pass then rewrites those pages plus every
+page whose text mentions one of them.
+
+**Why it matters:** without `touched` the pass compares every page against every
+other with a regular-expression search per pair. Measured through the real
+pipeline: 0.1 s at 73 pages, 2.0 s at 460, 7.2 s at 601 — quadratic, on the
+ingest path, after any scan that ingested a single file. Scoped, on a 601-page
+wiki with one further document: 0.07 s, and a full pass straight afterwards finds
+**0** more pages to link.
+
+**When to pass `None`:** the wiki-wide sweep (the "Run Wiki Lint & Repair" button)
+and regeneration, where the whole graph is the subject. An ingest should always
+pass a set.
+
+**Tests:** `tests/unit/test_crosslink_wiki_pages.py::test_crosslink_touched_rewrites_the_touched_page_and_its_mentioners`
+— assertion point: a page the scoped pass skipped is still linked by a later full
+sweep, so scoping defers work rather than losing it.
 
 **Tests:** `tests/unit/test_wiki_fs.py::test_regenerating_a_page_clears_its_stale_mark`
 and `::test_an_edit_that_is_not_a_regeneration_leaves_the_stale_mark`.
@@ -174,9 +202,15 @@ provenance both assume the target is a source — so a page-to-page edge stored 
 
 `update_references` (`tools/references.py`) matches a citation candidate against
 every document **by filename and by title**, and wiki pages carry both. A "See
-also" bullet that drifted under `## Sources` therefore resolved to a wiki page
-and was stored as a citation. Guarded at `references.py:126`: a candidate whose
+also" bullet that drifted under the sources header therefore resolved to a wiki
+page and was stored as a citation. Guarded in `references.py`: a candidate whose
 `path` starts with `/wiki/` is skipped, whatever the markdown says.
+
+That header is **locale-derived**, not the literal `## Sources` — `## Fuentes` on
+an `es` wiki. `_SOURCES_SECTION_RE` is built from every registered locale's
+`h_sources`; hardcoding one language writes zero `cites` edges for every other,
+silently. See [`multilingual-content.md` → *Parsing a generated
+page*](./multilingual-content.md).
 
 Fixed at the other end too — `repair_missing_xref` used to append with
 `append_to_page`, which writes to the *end* of the file, landing the link under

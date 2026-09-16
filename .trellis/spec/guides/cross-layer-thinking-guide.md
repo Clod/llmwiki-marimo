@@ -78,10 +78,16 @@ Before implementation:
 - [ ] Defined format at each boundary
 - [ ] Decided where validation happens
 
+Before implementation:
+- [ ] Listed every **consumer** of any string the feature writes or reads —
+      including strings that come from a locale or a config, not just literals
+
 After implementation:
 - [ ] Tested with edge cases (null, empty, invalid)
 - [ ] Verified error handling at each boundary
 - [ ] Checked data survives round-trip
+- [ ] Verified the **derived** state, not only the rendered output — a parser that
+      stops matching writes no error, just an empty graph
 
 ---
 
@@ -123,6 +129,15 @@ representation* were the **same string**. Changing one changed the other.
 - Prefer parsers that accept the **rendered** form directly. The fix broadened
   `update_references` to read plain `- file.pdf` bullets under `## Sources`, so the thing
   shown and the thing parsed are now identical — no hidden second syntax.
+
+> **This lesson recurred.** "The thing shown and the thing parsed are identical" held
+> only while there was one language. When `[wiki].language` landed, the writer started
+> taking that header from the locale (`## Fuentes` for `es`) and the parser kept the
+> English literal, so every Spanish concept page produced **zero** `cites` edges — the
+> same silence as the original H1 regression, reached from the other side. **A localized
+> string is a layer boundary too**: if one layer writes it from a registry, every other
+> layer must read it from the same registry. Contract and tests:
+> [`backend/multilingual-content.md` → *Parsing a generated page*](../backend/multilingual-content.md).
 - Add a test that exercises the **producer → consumer seam** (template output fed through
   the parser), not just hand-written fixtures of the consumer's input.
 
