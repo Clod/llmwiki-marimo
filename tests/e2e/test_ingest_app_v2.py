@@ -627,6 +627,13 @@ async def test_wiki_wide_lint_and_repair(page: Page) -> None:
     await page.wait_for_timeout(300)
     await _click_button_pierce_shadow(page, "Confirm")
 
+    # The Activity Log still shows the previous run (the scan of
+    # test_scan_is_idempotent), which already ends in "total:". Polling for
+    # "total:" straight away matched that stale marker on the first read and
+    # the assertions below ran against the wrong log. `make_timed_logger`
+    # replaces the panel on the sweep's first line, so wait for the sweep's
+    # own opening marker first, then for its closing one.
+    await _wait_for_log_contains(page, "Wiki lint & repair started", timeout_s=30)
     log_text = await _wait_for_log_contains(
         page, "total:", timeout_s=300,
     )

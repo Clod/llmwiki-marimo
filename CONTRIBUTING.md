@@ -21,7 +21,7 @@ only needed for DOCX ingestion. See the [README](README.md) for provider config.
 
 ```bash
 uv run marimo run marimo/ingest_app.py --no-sandbox   # ingest documents
-uv run marimo run marimo/read_app.py   --no-sandbox   # read + chat
+uv run marimo run marimo/read_app_tabs.py --no-sandbox   # read + chat
 ```
 
 ## Tests
@@ -39,7 +39,7 @@ endpoint, so they are not part of CI:
 ```bash
 uv run playwright install chromium            # once
 HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s   # populates the workspace
-HEADLESS=1 uv run pytest tests/e2e/test_read_app.py   -v -s   # uses that workspace
+HEADLESS=1 uv run pytest tests/e2e/test_read_app_tabs.py -v -s   # uses that workspace
 ```
 
 CI runs the unit and regression suites and `ruff` on every push and PR to `master`.

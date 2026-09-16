@@ -5,7 +5,7 @@ Regression: pipeline-generated concept pages previously never linked to one
 another (inject_see_also was only wired into the chat "Save to wiki" path).
 """
 
-from domain.ingestion.pipeline import crosslink_wiki_pages
+from domain.ingestion.pipeline import crosslink_wiki_pages, pages_touched_by
 from domain.i18n import get_locale
 from domain.tools.wiki_fs import create_page, read_page
 from tests.helpers.workspace import WorkspaceFixture
@@ -72,3 +72,67 @@ def test_crosslink_no_mentions_leaves_page_untouched(tmp_workspace: WorkspaceFix
     assert changed == 0
     page = read_page(tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "alpha")
     assert "## See also" not in page
+
+
+def test_crosslink_touched_rewrites_the_touched_page_and_its_mentioners(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """Scoped to one ingest: the page it wrote, plus the pages whose text
+    mentions it, get their links; unrelated pages are not even read again.
+    The full pass compared every page with every other after any scan that
+    ingested one file (7.2 s at 601 pages)."""
+    ws, db = tmp_workspace.workspace, tmp_workspace.db_path
+    _concept(db, ws, "cinderella", "Cinderella", "Cinderella loses her glass slipper.")
+    _concept(db, ws, "royal-ball", "Royal Ball", "The ball where the glass slipper is lost.")
+    _concept(db, ws, "glass-slipper", "Glass Slipper", "A slipper made of glass.")
+    _concept(db, ws, "alpha", "Alpha", "This page mentions the royal ball only.")
+
+    changed = crosslink_wiki_pages(ws, db, language="en", touched={"wiki/concepts/glass-slipper.md"})
+
+    # cinderella and royal-ball mention the touched page -> linked; alpha does not.
+    assert changed == 2
+    assert "[Glass Slipper](glass-slipper.md)" in read_page(db, ws, "/wiki/concepts/", "cinderella")
+    assert "[Glass Slipper](glass-slipper.md)" in read_page(db, ws, "/wiki/concepts/", "royal-ball")
+    assert "## See also" not in read_page(db, ws, "/wiki/concepts/", "alpha")
+
+    # A later full sweep still finds alpha -> royal-ball: nothing was lost, only deferred.
+    assert crosslink_wiki_pages(ws, db, language="en") == 1
+    assert "[Royal Ball](royal-ball.md)" in read_page(db, ws, "/wiki/concepts/", "alpha")
+
+
+def test_crosslink_touched_accepts_the_app_path_shape_and_empty_set(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    ws, db = tmp_workspace.workspace, tmp_workspace.db_path
+    _concept(db, ws, "cinderella", "Cinderella", "Cinderella loses her glass slipper.")
+    _concept(db, ws, "glass-slipper", "Glass Slipper", "A slipper made of glass.")
+
+    assert crosslink_wiki_pages(ws, db, language="en", touched=set()) == 0
+    # The ingest app passes "/wiki/concepts/x.md" (path || filename); tolerated.
+    assert crosslink_wiki_pages(ws, db, language="en", touched={"/wiki/concepts/glass-slipper.md"}) == 1
+
+
+def test_pages_touched_by_returns_summary_and_citing_pages(tmp_workspace: WorkspaceFixture) -> None:
+    import uuid
+    from domain.tools.db import get_connection
+    from domain.tools.references import update_references
+
+    ws, db = tmp_workspace.workspace, tmp_workspace.db_path
+    src_id = str(uuid.uuid4())
+    with get_connection(db) as conn:
+        user_id = conn.execute("SELECT user_id FROM workspace LIMIT 1").fetchone()["user_id"]
+        with conn:
+            conn.execute(
+                "INSERT INTO documents (id, user_id, filename, title, path, relative_path, "
+                "source_kind, file_type, status) VALUES (?,?,?,?,'sources/',?,'source','pdf','ready')",
+                (src_id, user_id, "src.pdf", "Src", "sources/src.pdf"),
+            )
+    summary = create_page(db, ws, "/wiki/summaries/", "src", "Src", "# Src\n", [],
+                          source_document_id=src_id)
+    concept = create_page(db, ws, "/wiki/concepts/", "cinderella", "Cinderella",
+                          "# Cinderella\n\n## Sources\n- src.pdf\n", [])
+    update_references(db, concept["id"], "# Cinderella\n\n## Sources\n- src.pdf\n", "/wiki/concepts/")
+    _concept(db, ws, "unrelated", "Unrelated", "Nothing here.")
+
+    assert pages_touched_by(db, [src_id]) == {summary["path"], concept["path"]}
+    assert pages_touched_by(db, []) == set()

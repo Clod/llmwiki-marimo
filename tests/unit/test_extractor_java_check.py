@@ -76,3 +76,51 @@ def test_pipeline_reports_the_missing_runtime_as_a_failed_ingest(monkeypatch, tm
 
     assert result.status == "failed"
     assert "Java runtime is required" in result.message
+
+
+def test_extract_puts_the_java_home_runtime_on_path_for_the_extractor(monkeypatch, tmp_path):
+    """check_java accepts a runtime found only through JAVA_HOME, but the
+    dependency runs the bare `java` command against PATH. The extractor must
+    make that runtime reachable, and restore PATH afterwards."""
+    bin_dir = tmp_path / "jdk" / "bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "java").write_text("")
+    monkeypatch.setattr(extractor.shutil, "which", lambda name: None)
+    monkeypatch.setenv("JAVA_HOME", str(tmp_path / "jdk"))
+    monkeypatch.setenv("PATH", "/nonexistent")
+    seen: list[str] = []
+
+    def fake_extract_pdf(path: str):
+        import os
+        seen.append(os.environ["PATH"])
+        return [(1, "text")]
+
+    monkeypatch.setattr(extractor, "extract_pdf", fake_extract_pdf)
+    pdf = tmp_path / "doc.pdf"
+    pdf.write_bytes(b"%PDF")
+
+    pages, parser = extract(pdf, tmp_path / "cache")
+
+    import os
+    assert pages == [(1, "text")] and parser == "opendataloader"
+    assert seen == [str(bin_dir) + os.pathsep + "/nonexistent"]
+    assert os.environ["PATH"] == "/nonexistent"
+
+
+def test_extract_leaves_path_alone_when_java_is_already_on_it(monkeypatch, tmp_path):
+    monkeypatch.setattr(extractor.shutil, "which", lambda name: "/usr/bin/java")
+    monkeypatch.setenv("PATH", "/usr/bin")
+    seen: list[str] = []
+
+    def fake_extract_pdf(path: str):
+        import os
+        seen.append(os.environ["PATH"])
+        return [(1, "text")]
+
+    monkeypatch.setattr(extractor, "extract_pdf", fake_extract_pdf)
+    pdf = tmp_path / "doc.pdf"
+    pdf.write_bytes(b"%PDF")
+
+    extract(pdf, tmp_path / "cache")
+
+    assert seen == ["/usr/bin"]

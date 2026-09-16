@@ -6,16 +6,33 @@ Sync port of mcp/tools/references.py + mcp/vaultfs/sqlite.py reference methods.
 import logging
 import re
 
+from domain.i18n import SUPPORTED_LANGUAGES, get_locale
 from domain.tools.db import get_connection
 
 logger = logging.getLogger(__name__)
 
 _CITATION_RE = re.compile(r"\[\^\d+\]:\s*(.+)$", re.MULTILINE)
 _WIKI_LINK_RE = re.compile(r"(?<!!)\[(?:[^\]]*)\]\(([^)]+)\)")
-# Concept/chat pages list sources as plain "- file.pdf" bullets under a
-# "## Sources" heading (summary pages use the "[^N]: file" footnote form above).
-# Capture the body of the Sources section, then each bullet within it.
-_SOURCES_SECTION_RE = re.compile(r"^##\s+Sources\s*$(.*?)(?=^##\s|\Z)", re.MULTILINE | re.DOTALL)
+# Concept/chat pages list sources as plain "- file.pdf" bullets under the
+# sources heading (summary pages use the "[^N]: file" footnote form above).
+# The heading is written from the wiki's locale (`## Sources`, `## Fuentes`, …),
+# so the pattern accepts every registered locale's `h_sources`: matching only
+# the English heading left every Spanish concept page with no cites edge.
+# Capture the body of the section, then each bullet within it.
+
+
+def _sources_section_pattern() -> re.Pattern[str]:
+    headings = sorted(
+        {get_locale(lang).h_sources for lang in SUPPORTED_LANGUAGES},
+        key=len, reverse=True,
+    )
+    alternation = "|".join(re.escape(h) for h in headings)
+    return re.compile(
+        rf"^##\s+(?:{alternation})\s*$(.*?)(?=^##\s|\Z)", re.MULTILINE | re.DOTALL
+    )
+
+
+_SOURCES_SECTION_RE = _sources_section_pattern()
 _SOURCE_BULLET_RE = re.compile(r"^\s*[-*]\s+(.+?)\s*$", re.MULTILINE)
 _FOOTNOTE_PREFIX_RE = re.compile(r"^\[\^\w+\]:\s*")
 
@@ -99,7 +116,7 @@ def update_references(
 
         # Citation candidates come from two on-page formats:
         #  1. "[^N]: file.pdf, p.3" footnote markers anywhere (summary pages)
-        #  2. plain "- file.pdf" bullets under a "## Sources" heading (concept/chat pages)
+        #  2. plain "- file.pdf" bullets under the localized sources heading (concept/chat pages)
         citation_raws: list[str] = [m.group(1) for m in _CITATION_RE.finditer(content)]
         for section in _SOURCES_SECTION_RE.finditer(content):
             for bullet in _SOURCE_BULLET_RE.finditer(section.group(1)):

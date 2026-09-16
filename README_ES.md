@@ -71,7 +71,7 @@ vivos y calcula asesoramiento con fundamento sobre ellos.*
 - **Paquete de evaluación con LLM-como-juez** — un comando reúne las preguntas, las propias respuestas del modelo, la evidencia citada y los pares página-fuente vs. página-generada contra una rúbrica *congelada* de 1–5, para puntuar la calidad del chat **y** de la ingesta (y comparar modelos).
 - **Comprobación de idoneidad del modelo** — un PASS/FAIL de un solo comando sobre si un modelo dado supera el umbral de rechazo fuera del corpus, citas y síntesis citada.
 - **Prompting basado en evidencia** — el prompt de sistema por defecto incluye un ejemplo resuelto y completamente citado, porque las pruebas demostraron que eso es lo que hizo falta para una citación fiable entre documentos.
-- **Wiki que se auto-mantiene** — nueve comprobaciones de lint (contradicciones, páginas obsoletas, huérfanas, conceptos faltantes, referencias cruzadas faltantes, vacíos de datos, vacíos ya cubiertos, deriva de vocabulario, páginas flacas) con auto-reparación de las seguras.
+- **Wiki que se auto-mantiene** — diez comprobaciones de lint (contradicciones, páginas obsoletas, huérfanas, conceptos faltantes, referencias cruzadas faltantes, vacíos de datos, vacíos ya cubiertos, deriva de vocabulario, páginas flacas, fuentes que no produjeron página) con auto-reparación de las seguras.
 - **Agnóstica del proveedor, con modelo dividido** — cualquier endpoint compatible con OpenAI; usa un modelo local barato para el chat y uno más potente para la ingesta, solo con `.env`.
 
 **Calidad de ingeniería**
@@ -88,7 +88,7 @@ vivos y calcula asesoramiento con fundamento sobre ellos.*
 
 - **Grafo de citas en SQLite** — cada arista página→fuente y página→página se registra y se reconstruye de forma determinista, así que la procedencia es consultable.
 - **Trazado opcional** (`WIKI_TRACE=1`) — emite una traza JSONL del flujo completo LLM + datos por cada ingesta, visualizable en una app de informe de trazas dedicada.
-- **Documentada de punta a punta** — un manual del programador de 72 KB, un diccionario de datos de SQLite, un plan UAT de tres partes y una matriz honesta de alineación con Karpathy que califica lo hecho, lo parcial y lo diferido.
+- **Documentada de punta a punta** — un manual del programador con su referencia de apps / flujos / internos, un diccionario de datos de SQLite, un plan UAT de tres partes y una matriz honesta de alineación con Karpathy que califica lo hecho, lo parcial y lo diferido.
 
 ---
 

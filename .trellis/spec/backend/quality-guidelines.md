@@ -174,10 +174,28 @@ run in a sandboxed/offline environment — pull the branch to a machine with a k
 
    ```bash
    HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s
-   HEADLESS=1 uv run pytest tests/e2e/test_read_app.py -v -s
+   HEADLESS=1 uv run pytest tests/e2e/test_read_app_tabs.py -v -s
    ```
 
    Or run the whole suite (ingest collected first): `HEADLESS=1 uv run pytest tests/e2e/ -v -s`.
+
+4. **Two opt-in tests stay off by default**, both in `test_ingest_app_v2.py`:
+
+   ```bash
+   E2E_FULL=1 …        # the wiki-wide lint & repair sweep: ~31 model calls, ~35 s
+   E2E_DESTRUCTIVE=1 … # deletes a source and its derived pages; must run last
+   ```
+
+   `E2E_FULL=1` is the only automated exercise of the two LLM-backed lint checks
+   (`contradiction`, `data_gap`). Run it before shipping a change to `lint/` or
+   `repair/`; the deterministic suite cannot see a regression there.
+
+   > **Gotcha**: the Activity Log panel keeps the *previous* run's lines until the
+   > next run writes its first one, and every run ends with `total: …`. A test that
+   > polls for `total:` right after triggering an action reads the stale marker and
+   > asserts against the wrong log. Wait for the new run's **opening** marker first.
+   > This is what made the sweep test fail on its first run while the sweep itself
+   > was working.
 
 ---
 

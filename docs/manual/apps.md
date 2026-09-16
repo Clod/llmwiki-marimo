@@ -227,10 +227,10 @@ python3 quickstart.py --demo fairy-tales --provider ollama \
 ```bash
 # Opens on $WIKI_PATH from .env (the default) — switch wikis in-app via the picker (§7.1)
 uv run marimo run --no-sandbox marimo/ingest_app.py --port 2718
-uv run marimo run --no-sandbox marimo/read_app.py --port 2720
+uv run marimo run --no-sandbox marimo/read_app_tabs.py --port 2720
 
 # Start on a specific workspace (still switchable in-app afterwards)
-WIKI_PATH=/path/to/workspace uv run marimo run --no-sandbox marimo/read_app.py --port 2720
+WIKI_PATH=/path/to/workspace uv run marimo run --no-sandbox marimo/read_app_tabs.py --port 2720
 ```
 
 ---

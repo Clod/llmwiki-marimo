@@ -15,7 +15,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Callable, Iterable, Literal
 
 from . import trace
 from .chunker import chunk_pages
@@ -35,7 +35,7 @@ from .wiki_generator import (
 )
 from .alias_generation import regenerate_dataset_aliases, update_generated_aliases
 from domain.i18n import get_locale
-from domain.tools.db import open_db
+from domain.tools.db import get_connection, open_db
 from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
 from domain.tools.references import update_references
 from domain.tools.git_ops import init_wiki_repo, auto_commit
@@ -579,7 +579,12 @@ def scan_and_ingest(
     # page created early can still link to concepts extracted from a later
     # document. Deterministic; runs only when something was actually ingested.
     if ingested:
-        n_linked = crosslink_wiki_pages(workspace, db_path, language=language, progress_cb=_cb)
+        touched = pages_touched_by(
+            db_path, [r.doc_id for r in results if r.status == "ingested" and r.doc_id]
+        )
+        n_linked = crosslink_wiki_pages(
+            workspace, db_path, language=language, progress_cb=_cb, touched=touched,
+        )
         if n_linked:
             _cb(f"🔗 Cross-linked {n_linked} page(s)")
 
@@ -591,14 +596,26 @@ def crosslink_wiki_pages(
     db_path: str,
     language: str = "en",
     progress_cb: Callable[[str], None] | None = None,
+    touched: Iterable[str] | None = None,
 ) -> int:
-    """Inject a localized "See also" section into every concept/summary page.
+    """Inject a localized "See also" section into concept/summary pages.
 
     Runs as a final ingestion pass, after all documents are ingested, so
     cross-links are complete regardless of ingest order (a page written early
     can still link to a concept extracted from a later document). Deterministic —
     no LLM. Idempotent: ``inject_see_also`` skips pages already linked, so
     re-running adds nothing. Returns the number of pages whose content changed.
+
+    ``touched`` narrows the pass to one ingest. It is the set of wiki pages that
+    ingest wrote (relative paths such as ``wiki/concepts/x.md``; a leading
+    ``/`` is tolerated). The pages rewritten are then those pages plus every
+    page whose text mentions one of them, found with one substring scan per
+    page, so the pass costs O(touched × pages) instead of the O(pages²)
+    regular-expression work of the full sweep: measured, the full sweep took
+    0.1 s on 73 pages and 7.2 s on 601, and it ran after every scan that
+    ingested a single file. ``None`` keeps the full sweep, which the ingest
+    app's wiki-wide button still uses. Every candidate is still matched against
+    the whole page list, so the links it gains are the same as in a full sweep.
 
     This is the ingestion counterpart of the chat "Save to wiki" cross-linking
     (``wiki_tools.save_to_wiki`` → ``inject_see_also``); without it, pipeline-
@@ -623,8 +640,9 @@ def crosslink_wiki_pages(
         conn.close()
 
     pages = [dict(r) for r in rows]
+    targets = pages if touched is None else _crosslink_candidates(pages, touched)
     updated = 0
-    for page in pages:
+    for page in targets:
         cur_in_concepts = "/concepts/" in page["relative_path"]
         related = [
             {"title": o["title"], "rel_path": _rel_path(cur_in_concepts, o["relative_path"])}
@@ -645,6 +663,48 @@ def crosslink_wiki_pages(
         if progress_cb:
             progress_cb(f"🔗 cross-linked {page['relative_path']}")
     return updated
+
+
+def _crosslink_candidates(pages: list[dict], touched: Iterable[str]) -> list[dict]:
+    """The pages an ingest can have changed the links of: the pages it wrote,
+    plus every page whose text mentions one of them by slug (the same
+    hyphens-to-spaces text ``inject_see_also`` matches on)."""
+    wanted = {t.lstrip("/") for t in touched}
+    slug_texts = {Path(t).stem.replace("-", " ").lower() for t in wanted}
+    if not wanted:
+        return []
+    candidates = []
+    for page in pages:
+        if page["relative_path"] in wanted:
+            candidates.append(page)
+            continue
+        text = (page["content"] or "").lower()
+        if any(slug in text for slug in slug_texts):
+            candidates.append(page)
+    return candidates
+
+
+def pages_touched_by(db_path: str, source_doc_ids: list[str]) -> set[str]:
+    """Wiki pages written from the given sources: their summary pages plus every
+    page that cites them. Returned as relative paths (``wiki/concepts/x.md``),
+    the shape ``crosslink_wiki_pages(touched=...)`` takes."""
+    if not source_doc_ids:
+        return set()
+    placeholders = ",".join("?" * len(source_doc_ids))
+    with get_connection(db_path) as conn:
+        summaries = conn.execute(
+            f"SELECT relative_path FROM documents "
+            f"WHERE source_kind='wiki' AND source_document_id IN ({placeholders})",
+            source_doc_ids,
+        ).fetchall()
+        citing = conn.execute(
+            f"SELECT d.relative_path FROM document_references dr "
+            f"JOIN documents d ON dr.source_document_id = d.id "
+            f"WHERE dr.target_document_id IN ({placeholders}) "
+            f"AND dr.reference_type = 'cites' AND d.source_kind = 'wiki'",
+            source_doc_ids,
+        ).fetchall()
+    return {r["relative_path"] for r in summaries} | {r["relative_path"] for r in citing}
 
 
 def regenerate_wiki_pages(

@@ -46,6 +46,62 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   blocking — the bundled demos ship pre-ingested and open without a Java runtime.
 
 ### Fixed
+- **Concept pages of a Spanish wiki recorded no citation edge.**
+  `references.py` looked for the literal `## Sources` heading when parsing the
+  plain `- file.pdf` bullets a concept page lists its sources with, while
+  `build_concept_page` writes that heading from the wiki's locale — `## Fuentes`
+  for `language = "es"`. Every concept page of a Spanish wiki therefore had zero
+  `cites` edges, and everything downstream read that silence as "nothing to do":
+  `contradiction_check` and `missing_xref_check` build their pairs by joining on
+  those edges and found none, `staleness_check` could never mark a concept page
+  when its source changed, and `delete_source` left the concept pages of a
+  deleted source unmarked. Both shipped Spanish demos measure it — 0 concept
+  `cites` edges in `examples/cuentos-de-hadas` and in
+  `examples/finanzas-argentinas`, against 14 in the English
+  `examples/fairy-tales`. The pattern now accepts the `h_sources` of every
+  registered locale, so adding a language keeps adding one `Locale` entry.
+  Existing Spanish wikis repopulate their graph by re-running
+  `update_references` over their pages, which calls no model.
+
+- **A Java runtime installed only under `JAVA_HOME` still failed the ingest.**
+  `check_java` accepts a runtime found through `JAVA_HOME` for an installation
+  that was never added to `PATH`, but the extractor it clears the way for runs
+  the bare `java` command through `subprocess`, which resolves against `PATH`
+  alone. That configuration therefore passed the preflight added last month and
+  failed a few frames later with `PDF extraction failed: [Errno 2] No such file
+  or directory: 'java'` — the raw dependency error the preflight exists to
+  replace. `extract` now prepends the found runtime's `bin` directory to `PATH`
+  for the duration of the extraction and restores it afterwards; when `java` is
+  already on `PATH`, nothing changes.
+
+- **`quickstart.py` died at step 5 on a stock Debian or Ubuntu.** Those
+  distributions ship `python3` without `ensurepip`, so `python3 -m venv` fails
+  with "ensurepip is not available" — after the demo choice, the provider wizard
+  and the `.env` write, with a message that names neither the cause nor the fix.
+  The installer now checks for `ensurepip` before creating the environment and
+  names `python3-venv`. The README's "all you need is Python 3.12+ and git" was
+  wrong there and nothing said so.
+
+- **The `E2E_FULL=1` sweep test could not pass.** Its first recorded run failed:
+  after confirming the widget it polled the Activity Log for `total:`, but the
+  panel still showed the previous scan, which ends in `total: 0.0s`, so the
+  first read matched the stale marker and the assertions ran against the wrong
+  log while the sweep was still working. The test now waits for the sweep's own
+  opening line first. The sweep itself is sound — driven directly against the
+  same workspace it makes 31 model calls in 34 s, reports 7 findings and repairs
+  6 of them.
+
+- **Documentation figures that had gone stale.** Both READMEs said "nine lint
+  checks" and listed nine; `lint_wiki` runs ten (`unpaged_source_check` was the
+  missing one). Both said "a 72 KB programmer manual", a size from before that
+  manual was split into `docs/manual/`; the figure is replaced by what the
+  documentation *is* rather than how big it was. `ROADMAP.md` linked PR #7 as
+  `github.com/Clod/llmwiki/pull/7`, which returns 404 — the repository is
+  `llmwiki-marimo`, so the only pointer to the rollback design was broken.
+  `CONTRIBUTING.md` and `docs/manual/apps.md` still told a reader to run
+  `marimo/read_app.py` and test `test_read_app.py`, the three-column app the
+  rest of the documentation has moved off.
+
 - **The installer launched the app the documentation does not show.**
   `quickstart.py` ended with `marimo run marimo/read_app.py`, the three-column
   app, while the README screenshots, the demo video and the rest of the
@@ -117,6 +173,18 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   demo's own config — so a user copying the template had no way to learn it exists.
 
 ### Changed
+- **The cross-link pass is scoped to the pages an ingest touched.**
+  `crosslink_wiki_pages` compared every wiki page against every other one, with
+  a regular-expression search per pair, and ran in full after any scan that
+  ingested a single file. Measured on synthetic corpora through the real
+  pipeline: 0.1 s at 73 pages, 2.0 s at 460, 7.2 s at 601 — quadratic in the
+  page count, in a step that runs on the way in. It now takes the set of pages
+  the ingest wrote (from the new `pages_touched_by`) and rewrites those plus the
+  pages whose text mentions them. On a 601-page wiki, ingesting one further
+  document: 0.07 s and 5 pages linked, with a full pass straight afterwards
+  finding 0 further pages to link, so the scoped pass loses nothing. The
+  wiki-wide button and regeneration still run the full sweep.
+
 - **Both walkthroughs were reviewed line by line by a first-time reader, and
   repaired.** Twenty-seven commits of prose, no production code touched and the
   generated appendix unchanged. The review found errors that a check against the

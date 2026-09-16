@@ -87,6 +87,37 @@ def test_update_references_creates_cites_edge_from_plain_bullet(
     assert edge["reference_type"] == "cites"
 
 
+def test_update_references_creates_cites_edge_from_localized_sources_heading(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """A Spanish wiki writes `## Fuentes` (Locale.h_sources) on concept pages.
+
+    The parser used to accept only the literal `## Sources`, so every Spanish
+    concept page had zero cites edges and the pairwise lint checks, staleness
+    and the delete cascade silently saw nothing for that language.
+    """
+    source_id = _insert_source(tmp_workspace.db_path, "Cenicienta.pdf", "Cenicienta")
+    content = (
+        "# Cenicienta\n\n"
+        "## Definición\nUn cuento sobre una joven maltratada.\n\n"
+        "## Fuentes\n- Cenicienta.pdf\n"
+    )
+    result = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "cenicienta", "Cenicienta", content, [],
+    )
+    update_references(tmp_workspace.db_path, result["id"], content, "/wiki/concepts/")
+
+    with get_connection(tmp_workspace.db_path) as conn:
+        edge = conn.execute(
+            "SELECT reference_type FROM document_references "
+            "WHERE source_document_id=? AND target_document_id=?",
+            (result["id"], source_id),
+        ).fetchone()
+    assert edge is not None
+    assert edge["reference_type"] == "cites"
+
+
 def test_update_references_parses_plain_bullet_with_page(
     tmp_workspace: WorkspaceFixture,
 ) -> None:
