@@ -6,11 +6,13 @@ DOCX: LibreOffice headless → PDF → opendataloader-pdf
 Returns list[tuple[int, str]] — (page_number, markdown_content).
 """
 
+import contextlib
 import shutil
 import subprocess
 import tempfile
 import logging
 from pathlib import Path
+from typing import Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -91,11 +93,36 @@ def extract(file_path: Path, cache_dir: Path) -> tuple[list[tuple[int, str]], st
     ext = file_path.suffix.lower()
     if ext not in (".pdf", ".docx"):
         raise ValueError(f"Unsupported file type: {ext}")
-    if not check_java():
+    java = check_java()
+    if not java:
         raise JavaNotInstalledError(file_path.name)
-    if ext == ".pdf":
-        return _extract_pdf(file_path)
-    return _extract_docx(file_path, cache_dir)
+    with _java_on_path(java):
+        if ext == ".pdf":
+            return _extract_pdf(file_path)
+        return _extract_docx(file_path, cache_dir)
+
+
+@contextlib.contextmanager
+def _java_on_path(java: str) -> Iterator[None]:
+    """Make the runtime check_java found reachable as the bare `java` command.
+
+    opendataloader-pdf runs `["java", ...]` through subprocess and resolves it
+    against PATH only; it never reads JAVA_HOME. So a runtime that check_java
+    accepted through the JAVA_HOME fallback still failed inside the dependency
+    with "No such file or directory: 'java'". Prepending that runtime's bin
+    directory to PATH for the duration of the extraction closes the gap; when
+    java is already on PATH nothing changes.
+    """
+    import os
+    if shutil.which("java"):
+        yield
+        return
+    previous = os.environ.get("PATH", "")
+    os.environ["PATH"] = str(Path(java).parent) + os.pathsep + previous
+    try:
+        yield
+    finally:
+        os.environ["PATH"] = previous
 
 
 def _extract_pdf(file_path: Path) -> tuple[list[tuple[int, str]], str]:
