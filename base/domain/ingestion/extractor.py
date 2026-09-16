@@ -29,6 +29,41 @@ class LibreOfficeNotInstalledError(RuntimeError):
         super().__init__(msg)
 
 
+class JavaNotInstalledError(RuntimeError):
+    def __init__(self, filename: str = ""):
+        msg = (
+            f"A Java runtime is required to extract text from '{filename}'. "
+            "The PDF extractor (opendataloader-pdf) runs a .jar through the "
+            "'java' command, and a DOCX is converted to PDF before the same "
+            "extractor reads it, so both file types need a Java runtime. "
+            "Install one and restart:\n"
+            "  macOS:   brew install --cask temurin\n"
+            "  Linux:   sudo apt-get install default-jre\n"
+            "  Windows: winget install EclipseAdoptium.Temurin.21.JRE"
+        )
+        super().__init__(msg)
+
+
+def check_java() -> str | None:
+    """Return the java executable path, or None if no Java runtime is installed.
+
+    opendataloader-pdf shells out to `java` to run its bundled .jar, so text
+    extraction fails without a Java runtime on PATH. JAVA_HOME is honoured for
+    an installation that was never added to PATH.
+    """
+    found = shutil.which("java")
+    if found:
+        return found
+
+    import os
+    java_home = os.environ.get("JAVA_HOME", "").strip()
+    if java_home:
+        candidate = Path(java_home) / "bin" / "java"
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
 def check_libreoffice() -> str | None:
     """Return the LibreOffice executable path, or None if not installed."""
     found = shutil.which("libreoffice") or shutil.which("soffice")
@@ -48,15 +83,19 @@ def extract(file_path: Path, cache_dir: Path) -> tuple[list[tuple[int, str]], st
 
     Returns (page_contents, parser_name).
     page_contents is list of (page_number, markdown).
+    Raises JavaNotInstalledError when no Java runtime is installed: both file
+    types reach opendataloader-pdf, which runs a .jar.
     Raises LibreOfficeNotInstalledError for DOCX when LibreOffice is missing.
     Raises RuntimeError on extraction failure.
     """
     ext = file_path.suffix.lower()
+    if ext not in (".pdf", ".docx"):
+        raise ValueError(f"Unsupported file type: {ext}")
+    if not check_java():
+        raise JavaNotInstalledError(file_path.name)
     if ext == ".pdf":
         return _extract_pdf(file_path)
-    if ext == ".docx":
-        return _extract_docx(file_path, cache_dir)
-    raise ValueError(f"Unsupported file type: {ext}")
+    return _extract_docx(file_path, cache_dir)
 
 
 def _extract_pdf(file_path: Path) -> tuple[list[tuple[int, str]], str]:

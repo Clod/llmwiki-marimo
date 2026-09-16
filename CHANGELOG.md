@@ -12,6 +12,48 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 ## [Unreleased]
 
 ### Added
+- **An index built with an older schema is reported instead of crashing.** The
+  schema in `database/sqlite_schema.sql` is applied with
+  `CREATE TABLE IF NOT EXISTS` every time a database is opened, and no
+  `ALTER TABLE` ever runs, so a table created by an earlier version keeps the
+  columns that version declared. The mismatch used to surface later, as a raw
+  `sqlite3.OperationalError` — "no such column: relative_path" — thrown by
+  whatever query happened to run first, which named neither the cause nor a way
+  out. `open_db` now compares, before applying the schema, the columns of every
+  existing table against the columns the current schema declares, and raises
+  `SchemaMismatchError` naming the table, the missing columns, the file, and the
+  recovery: the wiki pages are markdown under git and are unaffected, so
+  deleting the index and re-ingesting `sources/` rebuilds it. The reference is
+  built by applying the schema to an in-memory database rather than by parsing
+  SQL, so the comparison stays exact as the schema evolves, and the reference is
+  computed once per process. A table the schema declares and the database lacks
+  is not a mismatch: that table is created, as before. A table the schema never
+  declares is left alone.
+
+- **Ingestion checks for a Java runtime before it starts.** `opendataloader-pdf`
+  runs a bundled `.jar` through the `java` command, and a DOCX is converted to
+  PDF before that same extractor reads it, so both supported file types need a
+  Java runtime. Nothing said so: no document mentioned Java, and there was no
+  check matching the `check_libreoffice()` that has always guarded the DOCX
+  path, so a machine without a Java runtime failed inside a `subprocess` call in
+  a dependency. `check_java()` now mirrors `check_libreoffice()`, honouring
+  `JAVA_HOME` for a runtime that was never added to `PATH`; `extract` raises
+  `JavaNotInstalledError` with installation commands for the three platforms;
+  the pipeline reports the same message as a failed ingest rather than an
+  exception; and the ingest app shows the runtime's status next to LibreOffice's.
+  The prerequisite is now stated in both READMEs, in the format table of both,
+  in `docs/manual/workflows.md`, and by `quickstart.py`, which warns without
+  blocking — the bundled demos ship pre-ingested and open without a Java runtime.
+
+### Fixed
+- **The installer launched the app the documentation does not show.**
+  `quickstart.py` ended with `marimo run marimo/read_app.py`, the three-column
+  app, while the README screenshots, the demo video and the rest of the
+  documentation show the tabbed app. A first run therefore opened a different
+  interface from the advertised one. The installer now launches
+  `marimo/read_app_tabs.py`, and its repository-layout check looks for that same
+  file.
+
 - **Lint reports a source that produced no wiki page.** Ingestion commits the
   source row as `status='ready'` at step 6, before the model writes anything, so
   that a failure in the steps after it cannot lose the document. The cost of that
