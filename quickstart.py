@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -269,10 +270,28 @@ def venv_executable(venv_dir: Path, name: str) -> Path:
     return venv_dir / bindir / name
 
 
+def check_venv_support() -> None:
+    """Die with the fix when `python3 -m venv` cannot work on this interpreter.
+
+    Debian and Ubuntu ship `python3` without `ensurepip`; `python3 -m venv`
+    then fails after the demo and provider prompts with "ensurepip is not
+    available". Checking up front turns that into one line naming the package.
+    """
+    if importlib.util.find_spec("ensurepip") is not None:
+        return
+    die(
+        "This Python cannot create virtual environments: the 'ensurepip' module "
+        "is missing.\n"
+        "  Debian/Ubuntu: sudo apt install python3-venv   (or python3.12-venv)\n"
+        "  Then re-run:   python3 quickstart.py"
+    )
+
+
 def create_venv(venv_dir: Path) -> None:
     if venv_python(venv_dir).exists():
         say(f"  Reusing existing venv at {venv_dir}")
         return
+    check_venv_support()
     _run([sys.executable, "-m", "venv", str(venv_dir)], "create the virtual environment")
 
 

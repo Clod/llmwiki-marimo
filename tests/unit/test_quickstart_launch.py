@@ -54,3 +54,24 @@ def test_java_runtime_check_is_silent_when_java_is_installed(monkeypatch, capsys
     quickstart.check_java_runtime()
 
     assert capsys.readouterr().out == ""
+
+
+def test_venv_support_check_names_the_debian_package(monkeypatch, capsys):
+    """Debian/Ubuntu ship python3 without ensurepip, so `python3 -m venv` fails
+    after the demo and provider prompts. The installer must say which package
+    fixes it before it gets there."""
+    import pytest
+    quickstart = _load_quickstart()
+    monkeypatch.setattr(quickstart.importlib.util, "find_spec", lambda name: None)
+
+    with pytest.raises(SystemExit):
+        quickstart.check_venv_support()
+
+    printed = capsys.readouterr().out
+    assert "python3-venv" in printed
+
+
+def test_venv_support_check_is_silent_when_ensurepip_exists(capsys):
+    quickstart = _load_quickstart()
+    quickstart.check_venv_support()
+    assert capsys.readouterr().out == ""
