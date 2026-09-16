@@ -31,7 +31,7 @@ from .index_manager import update_index, remove_index_entry
 from .wiki_generator import (
     build_wiki_page, make_wiki_slug,
     extract_structured, extract_dataset_aliases, build_summary_page, build_concept_page,
-    update_overview, inject_see_also,
+    update_overview, inject_see_also, strip_accents,
 )
 from .alias_generation import regenerate_dataset_aliases, update_generated_aliases
 from domain.i18n import get_locale
@@ -668,7 +668,11 @@ def crosslink_wiki_pages(
 def _crosslink_candidates(pages: list[dict], touched: Iterable[str]) -> list[dict]:
     """The pages an ingest can have changed the links of: the pages it wrote,
     plus every page whose text mentions one of them by slug (the same
-    hyphens-to-spaces text ``inject_see_also`` matches on)."""
+    hyphens-to-spaces, accent-stripped text ``inject_see_also`` matches on).
+
+    The normalisation has to stay the same as ``inject_see_also``'s: this set is
+    a superset of the pages that end up linked only while both halves compare
+    the same string, and a page left out here is never offered a link."""
     wanted = {t.lstrip("/") for t in touched}
     slug_texts = {Path(t).stem.replace("-", " ").lower() for t in wanted}
     if not wanted:
@@ -678,7 +682,7 @@ def _crosslink_candidates(pages: list[dict], touched: Iterable[str]) -> list[dic
         if page["relative_path"] in wanted:
             candidates.append(page)
             continue
-        text = (page["content"] or "").lower()
+        text = strip_accents((page["content"] or "").lower())
         if any(slug in text for slug in slug_texts):
             candidates.append(page)
     return candidates

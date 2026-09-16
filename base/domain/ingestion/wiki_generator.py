@@ -645,6 +645,20 @@ def make_wiki_slug(filename: str) -> str:
     return slug
 
 
+def strip_accents(text: str) -> str:
+    """Drop combining marks: 'Panel Líder' → 'Panel Lider'.
+
+    ``slugify`` already strips them when it builds a slug, so a page filed as
+    'Panel Líder' is stored as ``panel-lider.md``. ``inject_see_also`` matches
+    that slug against page text, and the text keeps its accents, so the two
+    never met until the text is stripped the same way.
+    """
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", text or "")
+        if not unicodedata.combining(c)
+    )
+
+
 def _prepare_content(page_contents: list[tuple[int, str]]) -> str:
     if not page_contents:
         return "(no content extracted)"
@@ -673,8 +687,9 @@ def inject_see_also(
 
     related_pages: list of {"title": str, "rel_path": str}
 
-    Matching is case-insensitive: if the slug (hyphens→spaces) appears anywhere in the
-    content body, the page is included. Already-linked pages are skipped.
+    Matching is case-insensitive and accent-insensitive: if the slug
+    (hyphens→spaces) appears anywhere in the content body, the page is included.
+    Already-linked pages are skipped.
 
     The section header and the anchor header used to position the block are taken
     from the locale — so an ``es`` page inserts ``## Véase también`` before
@@ -682,7 +697,10 @@ def inject_see_also(
     This is the one position-sensitive spot where a localized header matters.
     """
     loc = get_locale(language)
-    content_lower = content.lower()
+    # Accents are stripped from the haystack, not from the needle: slugify has
+    # already stripped them from every slug, so 'Panel Líder' in the prose and
+    # 'panel-lider.md' on disk now match.
+    content_lower = strip_accents(content.lower())
     matches = []
     for page in related_pages:
         slug_text = (
