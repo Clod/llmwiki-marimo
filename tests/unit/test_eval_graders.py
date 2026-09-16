@@ -68,5 +68,44 @@ def test_extract_citations_preserves_first_seen_order_and_dedupes() -> None:
     ]
 
 
+def test_a_fuente_line_written_as_a_markdown_link_counts_once() -> None:
+    """The model sometimes writes the trailing line as a link rather than a bare
+    path. _CITATION then matches the "(href)" half and _CITATION_LINE captures
+    the whole link, so the same citation used to arrive as two strings and the
+    count read 2 for one citation. Measured on the finance demo's chat trace."""
+    text = (
+        "Las cauciones rinden X.\n\n"
+        "Fuente: [wiki/concepts/cauciones-bursatiles.md]"
+        "(wiki/concepts/cauciones-bursatiles.md)"
+    )
+    assert graders.citation_count(text) == 1
+    assert graders.extract_citations(text) == ["wiki/concepts/cauciones-bursatiles.md"]
+
+
+def test_a_markdown_link_yields_the_href_not_the_link_text() -> None:
+    """build_eval_packet resolves the returned reference to a file, so the href
+    is the half that has to survive — the visible text may be anything."""
+    text = "Texto.\n\nFuente: [la página de cauciones](wiki/concepts/caucion-bursatil.md)"
+    assert graders.extract_citations(text) == ["wiki/concepts/caucion-bursatil.md"]
+
+
+def test_a_fuente_line_of_prose_around_a_link_still_yields_two_refs() -> None:
+    """Known limit, unchanged by the canonicalisation and older than it.
+
+    _CITATION_LINE captures everything after the colon, so when the line is
+    prose *containing* a link the capture is a sentence, not a reference. The
+    canonicalisation is anchored at both ends and leaves that sentence alone —
+    correctly, since truncating it to the href would discard the prose — while
+    _CITATION separately captures the href. One citation therefore still reads
+    as two on this shape. The fix would have to change what _CITATION_LINE
+    captures, which is a wider change than the one this test file pins.
+    """
+    text = "Texto.\n\nFuente: ver [el informe](https://example.com/x.pdf) de 2026"
+    assert graders.extract_citations(text) == [
+        "https://example.com/x.pdf",
+        "ver [el informe](https://example.com/x.pdf) de 2026",
+    ]
+
+
 def test_extract_citations_empty_when_none() -> None:
     assert graders.extract_citations("No citation here at all.") == []

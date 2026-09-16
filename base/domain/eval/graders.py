@@ -26,6 +26,31 @@ _CITATION_LINE = re.compile(
 )
 
 
+# A reference the model wrote as a markdown link: "[text](href)". The two
+# citation patterns capture different slices of such a line — _CITATION matches
+# the "(href)" half, _CITATION_LINE captures the whole link — so the same
+# citation reaches the callers as two different strings unless it is reduced to
+# one form first. Anchored at both ends: a link *inside* a longer reference is
+# left alone, since that reference is not a link, it merely contains one.
+_MD_LINK = re.compile(r"^\[(?P<text>[^\]]*)\]\((?P<href>[^)]+)\)$")
+
+
+def _canonical_ref(ref: str) -> str:
+    """The href of a reference written as a markdown link; the reference itself
+    otherwise.
+
+        "[wiki/x.md](wiki/x.md)"  ->  "wiki/x.md"
+        "wiki/x.md"               ->  "wiki/x.md"
+        "ambito.com"              ->  "ambito.com"
+
+    The href is the form that resolves to a file on disk, which is what
+    ``build_eval_packet.py`` needs to inline the cited evidence.
+    """
+    ref = (ref or "").strip()
+    m = _MD_LINK.match(ref)
+    return m.group("href").strip() if m else ref
+
+
 def _line_refs(answer: str) -> list[str]:
     """References from any 'Referencia:'/'Fuente:' lines (comma-split, trimmed)."""
     refs: list[str] = []
@@ -35,6 +60,23 @@ def _line_refs(answer: str) -> list[str]:
             if part:
                 refs.append(part)
     return refs
+
+
+def _distinct_refs(answer: str) -> list[str]:
+    """Every citation in the answer, canonical, deduplicated, first-seen order.
+
+    The single pass both ``citation_count`` and ``extract_citations`` read, so
+    the count and the list cannot disagree about what one citation is.
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+    raw = [m.group("ref") for m in _CITATION.finditer(answer or "")] + _line_refs(answer)
+    for ref in (_canonical_ref(r) for r in raw):
+        key = ref.lower()
+        if ref and key not in seen:
+            seen.add(key)
+            out.append(ref)
+    return out
 
 
 def answered_off_corpus(answer: str) -> bool:
@@ -57,9 +99,7 @@ def has_citation(answer: str) -> bool:
 
 def citation_count(answer: str) -> int:
     """Number of distinct citations in the answer."""
-    refs = {m.group("ref").lower() for m in _CITATION.finditer(answer)}
-    refs.update(r.lower() for r in _line_refs(answer))
-    return len(refs)
+    return len(_distinct_refs(answer))
 
 
 def extract_citations(answer: str) -> list[str]:
@@ -69,11 +109,4 @@ def extract_citations(answer: str) -> list[str]:
     ``"wiki/summaries/cinderella.md"`` or ``"Cinderella.pdf, p. 3"``. Used to
     resolve and inline the cited evidence into the eval packet.
     """
-    out: list[str] = []
-    seen: set[str] = set()
-    for ref in [m.group("ref").strip() for m in _CITATION.finditer(answer)] + _line_refs(answer):
-        key = ref.lower()
-        if key not in seen:
-            seen.add(key)
-            out.append(ref)
-    return out
+    return _distinct_refs(answer)
