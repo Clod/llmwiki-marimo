@@ -1,12 +1,12 @@
 # LLMWiki — Internals (§4, §5, §14)
 
-> Part of the [LLMWiki Programmer Manual](../programmer_manual.md). Section
+> Part of the [LLMWiki Programmer Manual](programmer_manual.md). Section
 > numbers are **global** — a `§N` always means the same section wherever it is
 > cited. Where each lives:
 >
 > | Sections | File |
 > |---|---|
-> | §1 §2 §3 §10 §11 §13 | [`programmer_manual.md`](../programmer_manual.md) — orientation, layers, directory map, constraints, glossary |
+> | §1 §2 §3 §10 §11 §13 | [`programmer_manual.md`](programmer_manual.md) — orientation, layers, directory map, constraints, glossary |
 > | §6 | [`workflows.md`](workflows.md) — one entry per workflow, with contracts |
 > | §4 §5 §14 | [`internals.md`](internals.md) — schema, tool layer, tracing |
 > | §7 §8 §9 §15 | [`apps.md`](apps.md) — Marimo apps, configuration, testing, datasets |

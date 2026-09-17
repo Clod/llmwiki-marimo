@@ -1333,7 +1333,7 @@ where Karpathy imagined discussing a document with the model before it wrote
 anything; the save-to-wiki flow above only partly makes up for it. And image
 handling, web search and alternate outputs are not built.
 
-§1 of the [Programmer Manual](programmer_manual.md#karpathy-coverage-matrix)
+§1 of the [Programmer Manual](manual/programmer_manual.md#karpathy-coverage-matrix)
 takes all fifteen ideas from the note one at a time and marks each one done,
 partly done, deferred or not applicable, with a pointer to the reasoning behind
 every mark. If you want the scorecard rather than the argument, read that.
@@ -1360,7 +1360,7 @@ doing, on any given question, without asking a model to report on itself.
 
 You have now seen both halves: how the wiki is built, and what happens when it is
 asked something. If you read only one more thing, make it the coverage matrix in
-§1 of the [Programmer Manual](programmer_manual.md#karpathy-coverage-matrix) —
+§1 of the [Programmer Manual](manual/programmer_manual.md#karpathy-coverage-matrix) —
 it is the scorecard behind the previous section.
 
 Otherwise:

@@ -1,7 +1,7 @@
 # Design: Per-wiki multilingual content (en/es, extensible)
 
 > **Status: IMPLEMENTED** on branch `feat/multilingual-content`. The user-facing
-> summary now lives in `docs/programmer_manual.md` §8; this document is retained as
+> summary now lives in `docs/manual/programmer_manual.md` §8; this document is retained as
 > the design record. Two write paths not in the original §7 were found and
 > localized during implementation: the **lint/repair pass**
 > (`repair_stale` / `repair_missing_concept` / `repair_missing_xref`, threaded via
@@ -523,7 +523,7 @@ defaults.
 5. **App wiring + example config:** `ingest_app.py`, `read_app.py`,
    `wiki_config.example.toml`. Manual smoke: a fresh `es` wiki, ingest one PDF,
    confirm Spanish pages + Spanish chat answer with citations intact.
-6. **Docs:** note the feature in `docs/programmer_manual.md`, add the FTS §8 note
+6. **Docs:** note the feature in `docs/manual/programmer_manual.md`, add the FTS §8 note
    to `docs/sqlite_data_dictionary.md`, and (if relevant) a line in the README
    alignment matrix. Remove the PROPOSED banner from this file or delete it.
 

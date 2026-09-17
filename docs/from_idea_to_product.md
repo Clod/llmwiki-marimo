@@ -475,6 +475,6 @@ never be answered from a model's memory of a document it read last month.
 ---
 
 *This document is the argument that complements the point-by-point Karpathy
-alignment matrix in the [Programmer Manual](programmer_manual.md#1-philosophy--karpathy-alignment):
+alignment matrix in the [Programmer Manual](manual/programmer_manual.md#1-philosophy--karpathy-alignment):
 that one grades what is done; this one explains, in plain language, why each
 point matters and what breaks without it.*

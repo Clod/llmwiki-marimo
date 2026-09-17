@@ -6,7 +6,7 @@
 > reference is [Karpathy's LLM Wiki note](https://x.com/karpathy/status/2039805659525644595) (a local working copy, `Karpathy_concepts.md`, is kept untracked at the repo root).
 >
 > **Companion document:** **§6 Workflows** lives in its own file —
-> [`docs/manual/workflows.md`](manual/workflows.md) — because it's the largest,
+> [`docs/manual/workflows.md`](workflows.md) — because it's the largest,
 > most cross-referenced section. Section numbers are global: a `§6.x` reference is
 > in `workflows.md`, every other `§N` is here. Everything else stays in this file.
 
@@ -18,22 +18,22 @@
 2. [Architecture Overview](#2-architecture-overview) — including the nine layers and where each section lives
 3. [Directory Structure](#3-directory-structure)
 10. [Known Constraints & Gotchas](#10-known-constraints--gotchas)
-11. [Pending Work & Future Enhancements](#11-pending-work--future-enhancements) — pointer to [`ROADMAP.md`](../ROADMAP.md)
+11. [Pending Work & Future Enhancements](#11-pending-work--future-enhancements) — pointer to [`ROADMAP.md`](../../ROADMAP.md)
 13. [Glossary](#13-glossary)
 
-**In [`manual/workflows.md`](manual/workflows.md)**
+**In [`workflows.md`](workflows.md)**
 
 6. Workflows — lint · repair · ingest · batch · scan · regenerate · chat/RAG ·
    chat→wiki · source/page deletion. See also the narrative counterparts, both
    with real, regenerable numbers: the
-   [Ingestion Walkthrough](ingestion_walkthrough.md) (what ingestion builds) and
-   the [Query Walkthrough](query_walkthrough.md) (how a question is routed).
+   [Ingestion Walkthrough](../ingestion_walkthrough.md) (what ingestion builds) and
+   the [Query Walkthrough](../query_walkthrough.md) (how a question is routed).
 
-**In [`manual/internals.md`](manual/internals.md)**
+**In [`internals.md`](internals.md)**
 
 4. Database Schema · 5. Native Tool Layer · 14. Tracing & Observability
 
-**In [`manual/apps.md`](manual/apps.md)**
+**In [`apps.md`](apps.md)**
 
 7. Marimo Apps · 8. Configuration · 9. Testing · 15. Datasets, Grounding
    Guardrail & the `finance_argentina` Overlay
@@ -80,7 +80,7 @@ Two operating principles flow from this:
 ### Karpathy coverage matrix
 
 Which ideas from Karpathy's original note this project implements. ✅ done ·
-✅➕ done + goes beyond the concept doc · 🟡 partial · ❌ deferred (→ [ROADMAP](../ROADMAP.md)) · N/A.
+✅➕ done + goes beyond the concept doc · 🟡 partial · ❌ deferred (→ [ROADMAP](../../ROADMAP.md)) · N/A.
 
 | Karpathy concept | | Notes |
 | --- | --- | --- |
@@ -187,9 +187,9 @@ cross-references between these documents valid.
 | Sections | File | For |
 |---|---|---|
 | §1 §2 §3 §10 §11 §13 | this file | what the project is, how it is shaped, what it does not do |
-| §6 | [`manual/workflows.md`](manual/workflows.md) | one entry per workflow, with contracts |
-| §4 §5 §14 | [`manual/internals.md`](manual/internals.md) | schema, tool layer, tracing |
-| §7 §8 §9 §15 | [`manual/apps.md`](manual/apps.md) | Marimo apps, configuration, testing, datasets |
+| §6 | [`workflows.md`](workflows.md) | one entry per workflow, with contracts |
+| §4 §5 §14 | [`internals.md`](internals.md) | schema, tool layer, tracing |
+| §7 §8 §9 §15 | [`apps.md`](apps.md) | Marimo apps, configuration, testing, datasets |
 
 
 ### The nine layers
@@ -309,7 +309,11 @@ llmwiki/
 │   ├── cuentos-de-hadas/             # Spanish (es) mirror of fairy-tales
 │   └── finanzas-argentinas/          # Spanish advisor demo: datasets/ + GUIA_DEMO.md
 ├── docs/
-│   ├── programmer_manual.md            # THIS FILE
+│   ├── manual/                         # The programmer manual, one file per section group
+│   │   ├── programmer_manual.md        # THIS FILE — §1 §2 §3 §10 §11 §13
+│   │   ├── workflows.md                # §6
+│   │   ├── internals.md                # §4 §5 §14
+│   │   └── apps.md                     # §7 §8 §9 §15
 │   ├── sqlite_data_dictionary.md       # Per-column DB reference
 │   ├── CODEMAPS/                       # Auto-generated code maps
 │   └── archive/                        # Superseded design docs
@@ -375,7 +379,7 @@ surfaces this as `status='failed'`.
 
 ## 11. Pending Work & Future Enhancements
 
-**Both now live in [`ROADMAP.md`](../ROADMAP.md)**, which is versioned, linked
+**Both now live in [`ROADMAP.md`](../../ROADMAP.md)**, which is versioned, linked
 from the READMEs and checked by the docs link test. This section used to hold two
 lists — near-term work and aspirational features — and a third appeared when the
 roadmap was written. Three lists of the same thing diverge; one does not.
@@ -390,12 +394,12 @@ ingestion, image handling, and output formats beyond markdown.
 lint+repair hook, source deletion, the page-deletion widget, and the finished
 repairs are all shipped; each is described where it belongs rather than in a
 changelog-shaped list — §6.8, §6.9, §6.10 of
-[Workflows](manual/workflows.md), and §7 here for the interface. The directory
+[Workflows](workflows.md), and §7 here for the interface. The directory
 map in §3 names every module involved.
 
 **On "no open bugs".** This section used to say none were tracked. That was true
 of *bugs*; it was never true of known limits, and
-[`ROADMAP.md`](../ROADMAP.md#known-limits-and-open-questions) now records five —
+[`ROADMAP.md`](../../ROADMAP.md#known-limits-and-open-questions) now records five —
 measured, reproduced, and deliberately not fixed yet.
 
 ---
@@ -413,7 +417,7 @@ measured, reproduced, and deliberately not fixed yet.
 | **Slug**                    | `make_wiki_slug(name)` — NFKD-normalise → strip combining marks → lowercase → spaces/underscores → hyphens → remove non-`[a-z0-9-]` chars. Used as the filename of every wiki page. Example: `"Política Común"` → `politica-comun`. |
 | **Filing Cabinet**          | The SQLite + FTS5 layer (`workspace/.llmwiki/index.db`).                                                                                                                                                                            |
 | **Encyclopedia**            | The human-readable markdown layer (`workspace/wiki/`).                                                                                                                                                                              |
-| **Phase 1 / 2 / 3 / 4 RAG** | The agent's routing cascade: index → wiki search → raw chunks → web search (Phase 4 deliberately not built — see the [ROADMAP](../ROADMAP.md)).                                                                                                                                 |
+| **Phase 1 / 2 / 3 / 4 RAG** | The agent's routing cascade: index → wiki search → raw chunks → web search (Phase 4 deliberately not built — see the [ROADMAP](../../ROADMAP.md)).                                                                                                                                 |
 | **Trace (ingestion)**       | Opt-in (`WIKI_TRACE=1`) write-only JSONL record of every LLM exchange + the data-flow path of an ingestion run, correlated to DB rows via a `db_join_map` header. For debugging, not replay. See §14.                                |
 | **Sidecar**                 | A content-addressed file under a trace's `payloads/<sha256>.<ext>` holding one heavy payload (prompt, response, extracted text, chunks, or a generated page), referenced from the event by `ref` + `sha256` + `bytes`. See §14.4.     |
 

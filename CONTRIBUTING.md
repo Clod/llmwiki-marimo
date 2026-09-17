@@ -57,7 +57,7 @@ CI runs the unit and regression suites and `ruff` on every push and PR to `maste
   which resets sibling widgets and hurts responsiveness. Split UI by interaction
   concern and use `@app.cell(column=N)` for side-by-side layout.
 - **Handle errors explicitly** and validate input at system boundaries.
-- Keep the developer reference in [`docs/programmer_manual.md`](docs/programmer_manual.md)
+- Keep the developer reference in [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md)
   in sync when you change a workflow.
 
 ## Pull requests

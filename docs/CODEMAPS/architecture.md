@@ -7,7 +7,7 @@ into a curated wiki (summaries + concept pages) backed by SQLite. A chat agent
 answers questions wiki-first, falling back to raw source chunks. A lint→repair
 cycle keeps the wiki internally consistent. Both apps can switch the active wiki
 at runtime via a picker (`base/domain/wiki_registry.py`, §7.1); `WIKI_PATH` in
-`.env` is only the default. See `docs/programmer_manual.md` for the authoritative
+`.env` is only the default. See `docs/manual/programmer_manual.md` for the authoritative
 §-by-§ spec.
 
 ## Layers

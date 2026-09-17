@@ -75,7 +75,7 @@ onto this project like this:
 | The schema — the conventions the LLM writes to | the system prompt, plus an optional per-wiki `wiki_config.toml` |
 
 That note proposes fifteen things in total. §1 of the [Programmer
-Manual](programmer_manual.md#1-philosophy--karpathy-alignment) goes through them
+Manual](manual/programmer_manual.md#1-philosophy--karpathy-alignment) goes through them
 one by one and marks each as done, partly done, or deliberately skipped. If what
 you want is the scorecard, read that instead of this.
 
@@ -897,7 +897,7 @@ The numbers above are Act 1's, so you can check every one of them against the
   and both are cheaper and easier to inspect than embeddings would be. Whether
   that is the right trade is a fair thing to argue about, and the project does
   not claim to have settled it: §1 of the [Programmer
-  Manual](programmer_manual.md#why-the-wiki-search-engine-is-partial) marks the
+  Manual](manual/programmer_manual.md#why-the-wiki-search-engine-is-partial) marks the
   wiki's search as only *partly* built for exactly this reason, and says what it
   would take to finish it.
 

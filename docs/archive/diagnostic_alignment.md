@@ -1,5 +1,5 @@
 > **ARCHIVED — historical reference only.**
-> Superseded by [`docs/programmer_manual.md`](../programmer_manual.md).
+> Superseded by [`docs/manual/programmer_manual.md`](../manual/programmer_manual.md).
 > Preserved for design rationale and traceability.
 
 ---

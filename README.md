@@ -119,7 +119,7 @@ and only falls back to raw chunks when needed.
 4. **Maintain** — run lint to surface orphans, stale pages, missing cross-references, and missing concepts; run repair to auto-fix the safe ones.
 
 > **For developers:** the canonical reference is  
-> [`docs/programmer_manual.md`](docs/programmer_manual.md) — workflows, prompts,  
+> [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) — workflows, prompts,  
 > entry points, gaps, and the pending-work roadmap. Earlier design notes are in  
 > [`docs/archive/`](docs/archive/).
 >
@@ -217,7 +217,11 @@ database/
 └── sqlite_schema.sql      # Canonical DB schema
 
 docs/
-├── programmer_manual.md   # Canonical developer reference
+├── manual/                # Canonical developer reference, one shared §-numbering
+│   ├── programmer_manual.md          # §1 §2 §3 §10 §11 §13 — orientation, layers, glossary
+│   ├── workflows.md                  # §6 — one entry per workflow
+│   ├── internals.md                  # §4 §5 §14 — schema, tool layer, tracing
+│   └── apps.md                       # §7 §8 §9 §15 — apps, config, testing, datasets
 ├── ingestion_walkthrough.md          # One corpus, end to end — the narrative view
 ├── ingestion_walkthrough_appendix.md # Its artifact inventory (generated, regenerable)
 ├── query_walkthrough.md              # Seven questions, and how each was routed
@@ -490,7 +494,7 @@ language = "es"   # "en" (default) | "es"; extensible — add a Locale in base/d
 
 Language is a *per-wiki* property, so you can keep an English wiki and a Spanish
 wiki side by side. Set it **before the first ingest**; an absent or unknown value
-falls back to English. See [`docs/programmer_manual.md`](docs/programmer_manual.md) §8.
+falls back to English. See [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) §8.
 
 ---
 
@@ -572,7 +576,7 @@ generated — plus the rubric and a blank scorecard. It covers **chat quality** 
 are comparable, and is written to a gitignored `eval_reports/`. Generation is
 automated; judging stays human-in-the-loop (paste to as many judges as you like and
 average), so it doubles as a way to compare the models your wiki engine uses. Details
-in [`docs/programmer_manual.md`](docs/programmer_manual.md) §9.
+in [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) §9.
 
 ---
 

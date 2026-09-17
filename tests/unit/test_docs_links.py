@@ -146,7 +146,7 @@ def test_workflows_prompt_constants_exist() -> None:
 # ── the manual's global section numbering ───────────────────────────────────
 
 _MANUAL_FILES = (
-    "docs/programmer_manual.md",
+    "docs/manual/programmer_manual.md",
     "docs/manual/workflows.md",
     "docs/manual/internals.md",
     "docs/manual/apps.md",

@@ -1,12 +1,12 @@
 # LLMWiki Workflows (§6)
 
-> Part of the [LLMWiki Programmer Manual](../programmer_manual.md) — this file
+> Part of the [LLMWiki Programmer Manual](programmer_manual.md) — this file
 > is **§6 Workflows**. Section numbers are **global**: a `§N` means the same
 > section wherever it is cited. Where each lives:
 >
 > | Sections | File |
 > |---|---|
-> | §1 §2 §3 §10 §11 §13 | [`programmer_manual.md`](../programmer_manual.md) — orientation, the nine layers, directory map, constraints, glossary |
+> | §1 §2 §3 §10 §11 §13 | [`programmer_manual.md`](programmer_manual.md) — orientation, the nine layers, directory map, constraints, glossary |
 > | §6 | this file |
 > | §4 §5 §14 | [`internals.md`](internals.md) — schema, tool layer, tracing |
 > | §7 §8 §9 §15 | [`apps.md`](apps.md) — Marimo apps, configuration, testing, datasets |
