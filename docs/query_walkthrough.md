@@ -399,7 +399,7 @@ has no such folder, so here it really is three.) Alongside them the model gets a
 **system prompt** — standing instructions prepended to every conversation, which
 the user never sees — telling it the order to use the tools in: the index first,
 the curated wiki second, the raw sources only if the pages fall short. §6.7 of
-[Workflows](manual/workflows.md) is the reference for it.
+[Workflows](manual/workflows/6.7-chat-rag.md) is the reference for it.
 
 This arrangement is what people usually mean by **agentic**: the plan is not in
 the code, it is in the model. Nothing in this project decides which tool gets
@@ -1368,7 +1368,7 @@ Otherwise:
 - [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
   — the current, authoritative contract for the plan order, the roster gate and
   the citation format.
-- [Workflows](manual/workflows.md) §6.7 — the per-operation reference for the
+- [Workflows](manual/workflows/6.7-chat-rag.md) §6.7 — the per-operation reference for the
   agentic mode of Part 1: the tool inventory, the prompt-driven routing order,
   and what each phase is for.
 - [`preguntas_frecuentes.md`](preguntas_frecuentes.md) — the questions people

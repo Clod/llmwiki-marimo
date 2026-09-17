@@ -311,7 +311,8 @@ llmwiki/
 ├── docs/
 │   ├── manual/                         # The programmer manual, one file per section group
 │   │   ├── programmer_manual.md        # THIS FILE — §1 §2 §3 §10 §11 §13
-│   │   ├── workflows.md                # §6
+│   │   ├── workflows.md                # §6 — index: status table + write matrix
+│   │   ├── workflows/                  # §6.1–§6.10, one file per workflow
 │   │   ├── internals.md                # §4 §5 §14
 │   │   └── apps.md                     # §7 §8 §9 §15
 │   ├── sqlite_data_dictionary.md       # Per-column DB reference

@@ -221,7 +221,8 @@ database/
 docs/
 ├── manual/                # Referencia canónica, con una numeración de § compartida
 │   ├── programmer_manual.md          # §1 §2 §3 §10 §11 §13 — orientación, capas, glosario
-│   ├── workflows.md                  # §6 — una entrada por flujo de trabajo
+│   ├── workflows.md                  # §6 — índice: tabla de estado y matriz de escritura
+│   ├── workflows/                    # §6.1–§6.10, un archivo por flujo de trabajo
 │   ├── internals.md                  # §4 §5 §14 — esquema, capa de herramientas, trazas
 │   └── apps.md                       # §7 §8 §9 §15 — apps, configuración, pruebas, datasets
 ├── ingestion_walkthrough.md          # Un corpus de punta a punta — la visión narrativa

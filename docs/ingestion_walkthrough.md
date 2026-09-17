@@ -553,7 +553,7 @@ holds for 8b, which files away alternate names step 7 already returned.
 **Where these numbers come from.** `ingestion/pipeline.py:ingest_file` marks each
 step with a comment banner — `# ── Step 6: Atomic source document DB write ──` —
 and every later reference in this document, and in §6.3 of
-[Workflows](manual/workflows.md#63-single-document-ingestion-), uses that
+[Workflows](manual/workflows/6.3-single-document-ingestion.md), uses that
 numbering. Here it is in full, so you never have to leave this page to decode a
 step number:
 
@@ -598,7 +598,7 @@ that moment sits exactly there, before any LLM has run.
 **The model is used in one stage only.** The other nine steps are ordinary code,
 which is why re-ingesting an unchanged file costs nothing (Act 3a).
 
-§6.3 of [Workflows](manual/workflows.md#63-single-document-ingestion-) lists the
+§6.3 of [Workflows](manual/workflows/6.3-single-document-ingestion.md) lists the
 same steps function by function, and is the version to trust if the two ever
 disagree. The table above is only the outline this story needs.
 

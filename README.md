@@ -219,7 +219,8 @@ database/
 docs/
 ├── manual/                # Canonical developer reference, one shared §-numbering
 │   ├── programmer_manual.md          # §1 §2 §3 §10 §11 §13 — orientation, layers, glossary
-│   ├── workflows.md                  # §6 — one entry per workflow
+│   ├── workflows.md                  # §6 — index: status table + write matrix
+│   ├── workflows/                    # §6.1–§6.10, one file per workflow
 │   ├── internals.md                  # §4 §5 §14 — schema, tool layer, tracing
 │   └── apps.md                       # §7 §8 §9 §15 — apps, config, testing, datasets
 ├── ingestion_walkthrough.md          # One corpus, end to end — the narrative view
