@@ -399,7 +399,7 @@ has no such folder, so here it really is three.) Alongside them the model gets a
 **system prompt** — standing instructions prepended to every conversation, which
 the user never sees — telling it the order to use the tools in: the index first,
 the curated wiki second, the raw sources only if the pages fall short. §6.7 of
-[Workflows](manual/workflows.md) is the reference for it.
+[Workflows](manual/workflows/6.7-chat-rag.md) is the reference for it.
 
 This arrangement is what people usually mean by **agentic**: the plan is not in
 the code, it is in the model. Nothing in this project decides which tool gets
@@ -1333,7 +1333,7 @@ where Karpathy imagined discussing a document with the model before it wrote
 anything; the save-to-wiki flow above only partly makes up for it. And image
 handling, web search and alternate outputs are not built.
 
-§1 of the [Programmer Manual](programmer_manual.md#karpathy-coverage-matrix)
+§1 of the [Programmer Manual](manual/programmer_manual.md#karpathy-coverage-matrix)
 takes all fifteen ideas from the note one at a time and marks each one done,
 partly done, deferred or not applicable, with a pointer to the reasoning behind
 every mark. If you want the scorecard rather than the argument, read that.
@@ -1360,7 +1360,7 @@ doing, on any given question, without asking a model to report on itself.
 
 You have now seen both halves: how the wiki is built, and what happens when it is
 asked something. If you read only one more thing, make it the coverage matrix in
-§1 of the [Programmer Manual](programmer_manual.md#karpathy-coverage-matrix) —
+§1 of the [Programmer Manual](manual/programmer_manual.md#karpathy-coverage-matrix) —
 it is the scorecard behind the previous section.
 
 Otherwise:
@@ -1368,7 +1368,7 @@ Otherwise:
 - [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
   — the current, authoritative contract for the plan order, the roster gate and
   the citation format.
-- [Workflows](manual/workflows.md) §6.7 — the per-operation reference for the
+- [Workflows](manual/workflows/6.7-chat-rag.md) §6.7 — the per-operation reference for the
   agentic mode of Part 1: the tool inventory, the prompt-driven routing order,
   and what each phase is for.
 - [`preguntas_frecuentes.md`](preguntas_frecuentes.md) — the questions people

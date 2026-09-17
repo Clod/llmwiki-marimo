@@ -302,7 +302,7 @@ What the other three would look like, for when you meet them:
 > These go stale on their own as a wiki grows: `vocab_covered` can only fire
 > *after* an ingest gives a blacklisted term a page. Reading lint output after an
 > ingest is the only thing that surfaces it. See
-> [`docs/manual/workflows.md`](manual/workflows.md#maintaining-the-vocabulary-lists)
+> [`docs/manual/workflows.md`](manual/workflows/6.1-lint.md#maintaining-the-vocabulary-lists)
 > for the maintenance loop.
 
 ## B6. Multi-wiki picker (GUI)

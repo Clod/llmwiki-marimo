@@ -497,7 +497,7 @@ are edited in a text editor. This is deliberate — the pipeline never rewrites 
 file a human wrote, and the automatic repair for a colliding alias refuses to
 touch your config and says so — but it does mean the maintenance loop is manual.
 It is documented in
-[`docs/manual/workflows.md`](docs/manual/workflows.md#maintaining-the-vocabulary-lists).
+[`docs/manual/workflows.md`](docs/manual/workflows/6.1-lint.md#maintaining-the-vocabulary-lists).
 
 ---
 

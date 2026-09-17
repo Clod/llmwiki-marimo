@@ -119,7 +119,7 @@ solo recurre a los fragmentos en bruto cuando hace falta.
 4. **Mantener** — ejecuta el lint para detectar huérfanas, páginas obsoletas, referencias cruzadas faltantes y conceptos faltantes; ejecuta la reparación para arreglar automáticamente las seguras.
 
 > **Para desarrolladores:** la referencia canónica es  
-> [`docs/programmer_manual.md`](docs/programmer_manual.md) — flujos de trabajo, prompts,  
+> [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) — flujos de trabajo, prompts,  
 > puntos de entrada, brechas y la hoja de ruta de trabajo pendiente. Las notas de diseño  
 > anteriores están en [`docs/archive/`](docs/archive/).
 >
@@ -219,7 +219,12 @@ database/
 └── sqlite_schema.sql      # Esquema canónico de la BD
 
 docs/
-├── programmer_manual.md   # Referencia canónica para desarrolladores
+├── manual/                # Referencia canónica, con una numeración de § compartida
+│   ├── programmer_manual.md          # §1 §2 §3 §10 §11 §13 — orientación, capas, glosario
+│   ├── workflows.md                  # §6 — índice: tabla de estado y matriz de escritura
+│   ├── workflows/                    # §6.1–§6.10, un archivo por flujo de trabajo
+│   ├── internals.md                  # §4 §5 §14 — esquema, capa de herramientas, trazas
+│   └── apps.md                       # §7 §8 §9 §15 — apps, configuración, pruebas, datasets
 ├── ingestion_walkthrough.md          # Un corpus de punta a punta — la visión narrativa
 ├── ingestion_walkthrough_appendix.md # Su inventario de artefactos (generado, regenerable)
 ├── query_walkthrough.md              # Siete preguntas y cómo se ruteó cada una
@@ -495,7 +500,7 @@ language = "es"   # "en" (predeterminado) | "es"; extensible — agrega un Local
 
 El idioma es una propiedad *por wiki*, así que puedes mantener una wiki en inglés y una en
 español en paralelo. Defínelo **antes de la primera ingesta**; un valor ausente o
-desconocido recae en inglés. Ver [`docs/programmer_manual.md`](docs/programmer_manual.md) §8.
+desconocido recae en inglés. Ver [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) §8.
 
 ---
 
@@ -578,7 +583,7 @@ la **calidad de la ingesta**, registra los dos modelos que midió y un hash del 
 los paquetes sean comparables, y se escribe en un `eval_reports/` en .gitignore. La generación
 está automatizada; el juicio se mantiene con humano en el bucle (pégalo a tantos jueces como
 quieras y promedia), así que también sirve para comparar los modelos que usa tu motor de wiki.
-Detalles en [`docs/programmer_manual.md`](docs/programmer_manual.md) §9.
+Detalles en [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) §9.
 
 ---
 

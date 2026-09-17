@@ -7,7 +7,7 @@ Thanks for using llmwiki-marimo! Here's where to go depending on what you need.
 Most questions are answered in:
 
 - The [README](README.md) — setup, quick start, LLM providers, limitations
-- The [programmer manual](docs/programmer_manual.md) — architecture and internals
+- The [programmer manual](docs/manual/programmer_manual.md) — architecture and internals
 - The [SQLite data dictionary](docs/sqlite_data_dictionary.md) — what ends up on disk
 
 ## ❓ Questions and usage help

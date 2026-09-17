@@ -75,7 +75,7 @@ onto this project like this:
 | The schema — the conventions the LLM writes to | the system prompt, plus an optional per-wiki `wiki_config.toml` |
 
 That note proposes fifteen things in total. §1 of the [Programmer
-Manual](programmer_manual.md#1-philosophy--karpathy-alignment) goes through them
+Manual](manual/programmer_manual.md#1-philosophy--karpathy-alignment) goes through them
 one by one and marks each as done, partly done, or deliberately skipped. If what
 you want is the scorecard, read that instead of this.
 
@@ -553,7 +553,7 @@ holds for 8b, which files away alternate names step 7 already returned.
 **Where these numbers come from.** `ingestion/pipeline.py:ingest_file` marks each
 step with a comment banner — `# ── Step 6: Atomic source document DB write ──` —
 and every later reference in this document, and in §6.3 of
-[Workflows](manual/workflows.md#63-single-document-ingestion-), uses that
+[Workflows](manual/workflows/6.3-single-document-ingestion.md), uses that
 numbering. Here it is in full, so you never have to leave this page to decode a
 step number:
 
@@ -598,7 +598,7 @@ that moment sits exactly there, before any LLM has run.
 **The model is used in one stage only.** The other nine steps are ordinary code,
 which is why re-ingesting an unchanged file costs nothing (Act 3a).
 
-§6.3 of [Workflows](manual/workflows.md#63-single-document-ingestion-) lists the
+§6.3 of [Workflows](manual/workflows/6.3-single-document-ingestion.md) lists the
 same steps function by function, and is the version to trust if the two ever
 disagree. The table above is only the outline this story needs.
 
@@ -897,7 +897,7 @@ The numbers above are Act 1's, so you can check every one of them against the
   and both are cheaper and easier to inspect than embeddings would be. Whether
   that is the right trade is a fair thing to argue about, and the project does
   not claim to have settled it: §1 of the [Programmer
-  Manual](programmer_manual.md#why-the-wiki-search-engine-is-partial) marks the
+  Manual](manual/programmer_manual.md#why-the-wiki-search-engine-is-partial) marks the
   wiki's search as only *partly* built for exactly this reason, and says what it
   would take to finish it.
 

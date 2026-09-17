@@ -114,7 +114,7 @@ def test_the_checker_actually_scans_the_docs() -> None:
     assert any("manual" in f.parts for f in files)
 
 
-# ── workflows.md names real symbols ─────────────────────────────────────────
+# ── §6 names real symbols ───────────────────────────────────────────────────
 
 def test_workflows_prompt_constants_exist() -> None:
     """§6's prompt tables name the constants each workflow builds its prompt from.
@@ -123,10 +123,17 @@ def test_workflows_prompt_constants_exist() -> None:
     of the eleven checked had rotted, by 3 to 163 lines, because a line number
     breaks the moment anyone edits above it. The numbers are gone; the names stay,
     and this test is what keeps them honest.
+
+    §6 is an index (`workflows.md`) plus one file per workflow under
+    `workflows/`, and the prompt tables live in the per-workflow files, so the
+    whole set is read rather than the index alone.
     """
     import re
 
-    doc = (_PROJECT_ROOT / "docs" / "manual" / "workflows.md").read_text()
+    _WORKFLOWS = _PROJECT_ROOT / "docs" / "manual" / "workflows"
+    doc = "\n".join(
+        f.read_text() for f in [_WORKFLOWS.with_suffix(".md"), *sorted(_WORKFLOWS.glob("*.md"))]
+    )
     # Every module, so the test does not need to know which file a constant
     # lives in — moving one between modules is a refactor, not a doc defect.
     haystack = "\n".join(
@@ -134,11 +141,11 @@ def test_workflows_prompt_constants_exist() -> None:
     )
 
     named = {m for m in re.findall(r"`(_[A-Z][A-Z0-9_]{4,})`", doc)}
-    assert named, "no prompt constants found in workflows.md — did the tables change shape?"
+    assert named, "no prompt constants found in §6 — did the tables change shape?"
 
     missing = sorted(n for n in named if f"{n} " not in haystack and f"{n}:" not in haystack)
     assert not missing, (
-        f"workflows.md names constants that no longer exist: {missing}. "
+        f"§6 names constants that no longer exist: {missing}. "
         "Either they were renamed and the doc was not updated, or the doc invented them."
     )
 
@@ -146,7 +153,7 @@ def test_workflows_prompt_constants_exist() -> None:
 # ── the manual's global section numbering ───────────────────────────────────
 
 _MANUAL_FILES = (
-    "docs/programmer_manual.md",
+    "docs/manual/programmer_manual.md",
     "docs/manual/workflows.md",
     "docs/manual/internals.md",
     "docs/manual/apps.md",
@@ -155,7 +162,10 @@ _MANUAL_FILES = (
 
 def test_every_cited_manual_section_exists_somewhere() -> None:
     """The manual is four files with one shared numbering, and ~190 `§N`
-    references cross between them and the rest of the docs.
+    references cross between them and the rest of the docs. §6 is additionally
+    split into one file per workflow under `docs/manual/workflows/`, but those
+    files define no `## N.` heading of their own: §6 stays owned by the index,
+    `workflows.md`, which is why only the four are listed here.
 
     That only works while every cited number is actually defined by one of the
     four. A `§N` is a bare reference — no link to resolve, so the link checker

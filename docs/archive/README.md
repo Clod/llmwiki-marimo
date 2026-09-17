@@ -1,7 +1,7 @@
 # Archived Documentation
 
 These documents predate the current canonical reference at
-[`../programmer_manual.md`](../programmer_manual.md). They are kept for
+[`../manual/programmer_manual.md`](../manual/programmer_manual.md). They are kept for
 historical traceability — to see how the design evolved and why certain
 decisions were made — but they should **not** be consulted for current
 behaviour. The programmer manual is the only living source of truth.
