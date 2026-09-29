@@ -11,7 +11,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from domain.chat import preretrieval
-from domain.chat.guardrail import REFUSAL_ES
 from domain.chat.preretrieval import pre_retrieval_answer
 
 CFG = SimpleNamespace(
@@ -59,6 +58,9 @@ def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(),
     monkeypatch.setattr(preretrieval, "LocalMarkdownSource", lambda p: _NoDatasets())
     monkeypatch.setattr(preretrieval, "concept_page_names", lambda db: list(concepts))
     monkeypatch.setattr(preretrieval, "retrieve_collection_pages", lambda ws: list(collection))
+    # Suggestions read the index; these tests have no database.
+    monkeypatch.setattr(preretrieval, "roster_suggestions", lambda *a, **k: [])
+    monkeypatch.setattr(preretrieval, "search_suggestions", lambda *a, **k: [])
     return _run(pre_retrieval_answer(
         question, config=CFG, db_path="db", workspace=Path("/tmp/wp"),
         history=[], language="es", run_agent=run_agent,
@@ -68,7 +70,7 @@ def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(),
 def test_off_limits_refuses_without_calling_agent(monkeypatch):
     agent = _fake_agent("no debería llamarse")
     out = _answer("¿qué son los cedears?", agent, wiki=["algo"], monkeypatch=monkeypatch)
-    assert out == REFUSAL_ES
+    assert out.startswith("No puedo responder esta pregunta: menciona «cedears»")
     assert agent.calls == []  # model never invoked
 
 
@@ -89,7 +91,7 @@ def test_tier1_curated_hit_not_in_roster_refuses(monkeypatch):
     out = _answer("¿cuál es la capital de Francia?", agent,
                   wiki=["[panel-lider.md]\nEl panel líder concentra el capital..."],
                   monkeypatch=monkeypatch)
-    assert out == REFUSAL_ES
+    assert out.startswith("No puedo responder esta pregunta: no nombra ninguno")
     assert agent.calls == []  # model never invoked
 
 
@@ -100,7 +102,7 @@ def test_tier2_unsupported_answer_is_refused(monkeypatch):
     out = _answer("¿qué es una caución bursátil?", agent, concepts={"caución bursátil"},
                   wiki=[], docs=["[12 Cauciones.docx]\nLa caución bursátil es un préstamo garantizado."],
                   monkeypatch=monkeypatch)
-    assert out == REFUSAL_ES
+    assert out.startswith("Encontré el documento «12 Cauciones.docx»")
 
 
 def test_tier2_supported_answer_gets_warning(monkeypatch):
@@ -118,7 +120,7 @@ def test_uncovered_topic_with_docs_refuses_before_model(monkeypatch):
     out = _answer("¿qué es la fotosíntesis?", agent, vocab={"dolar"},
                   wiki=[], docs=["[bio.pdf]\nla clorofila capta la luz"],
                   monkeypatch=monkeypatch)
-    assert out == REFUSAL_ES
+    assert out.startswith("No puedo responder esta pregunta: no nombra ninguno")
     assert agent.calls == []
 
 
@@ -126,7 +128,7 @@ def test_nothing_found_refuses(monkeypatch):
     agent = _fake_agent("no debería llamarse")
     out = _answer("¿capital de Francia?", agent, wiki=[], docs=[], vocab={"dolar"},
                   monkeypatch=monkeypatch)
-    assert out == REFUSAL_ES
+    assert out.startswith("No puedo responder esta pregunta: no nombra ninguno")
     assert agent.calls == []
 
 
@@ -167,7 +169,7 @@ def test_collection_question_without_collection_pages_still_refuses(monkeypatch)
         "What tales are in this wiki?", agent, wiki=[], docs=[], vocab=frozenset(),
         collection=[], monkeypatch=monkeypatch,
     )
-    assert out == REFUSAL_ES
+    assert out.startswith("No puedo responder esta pregunta: no nombra ninguno")
     assert agent.calls == []
 
 

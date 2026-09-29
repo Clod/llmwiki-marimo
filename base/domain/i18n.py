@@ -185,9 +185,15 @@ def with_content_directive(base_prompt: str, language: str) -> str:
 
 
 def apply_chat_directive(system_prompt: str, language: str) -> str:
-    """Append the answer-language directive to the chat system prompt.
+    """Append the answer-language directive and the refusal directive.
 
-    Returns the prompt unchanged for English (empty directive → no-op).
+    The answer-language directive is empty for English. The refusal directive
+    is appended in every language: it asks the model to open its own refusal
+    with the fixed sentence the code recognises (design_refusal_messages.md,
+    decision 8). A wiki's `system_prompt` replaces the default prompt entirely,
+    so the instruction cannot live in the prompt text.
     """
-    directive = get_locale(language).chat_directive
-    return f"{system_prompt}\n\n{directive}" if directive else system_prompt
+    from domain.chat.refusal import refusal_directive
+
+    parts = [system_prompt, get_locale(language).chat_directive, refusal_directive(language)]
+    return "\n\n".join(p for p in parts if p)

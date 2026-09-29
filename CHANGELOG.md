@@ -13,6 +13,20 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **Every pre-retrieval refusal states its cause.** The single text "Eso no
+  está en mi base de conocimiento." is replaced by one message per cause,
+  built by the code (`base/domain/chat/refusal.py`): the blacklist term, a
+  question that names no topic of the wiki, a topic with no text found, an
+  answer not grounded in its source document, an answer with no evidence, and
+  the model's own refusal. Every message except the blacklist's lists up to
+  five related page titles, or points to the wiki's index when there are none.
+  The chat system prompt of every language now asks the model to open its own
+  refusal with *"No encontré la respuesta en los documentos."* / *"I did not
+  find the answer in the documents."*, and the three demo prompts use that
+  sentence. The strict and streaming modes are unchanged.
+
+### Changed
+
 - **Search, the coverage gate and the Tier-2 check stem words in the wiki's
   language.** One Snowball stemmer per wiki language (`snowballstemmer`,
   `base/domain/text/stemming.py`) serves the FTS index, the queries, the roster

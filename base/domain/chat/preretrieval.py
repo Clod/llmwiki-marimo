@@ -17,7 +17,15 @@ from dataclasses import dataclass, field, replace
 
 from domain import tracing
 from domain.chat.dataset_tools import format_rows_as_table
-from domain.chat.guardrail import enforce_grounding, refusal_for
+from domain.chat.guardrail import has_grounding
+from domain.chat.refusal import (
+    Refusal,
+    RefusalCause,
+    fixed_sentence,
+    render,
+    roster_suggestions,
+    search_suggestions,
+)
 from domain.chat.overlap import coverage
 from domain.chat.postprocess import answer_with_table, ensure_citation
 from domain.chat.scope import (
@@ -26,6 +34,7 @@ from domain.chat.scope import (
     advisory_intent,
     collection_intent,
     is_off_limits,
+    off_limits_term,
     mentions_known_data,
 )
 from domain.datasets.frontmatter import split_frontmatter
@@ -453,7 +462,6 @@ async def _pre_retrieval_turn(
 ) -> str:
     """The body of `pre_retrieval_answer`, inside the turn's root span."""
     R = tracing.READING
-    refusal = refusal_for(language)
     stem_language = language or language_for_db(db_path)
     tracing.mark("Q2", R, normalized=_normalize(question))
 
@@ -464,6 +472,7 @@ async def _pre_retrieval_turn(
     tracing.mark("Q3", R, answer=off_limits)
 
     has_data = in_roster = False
+    categories: set[str] = set()
     wiki_hits: list[str] = []
     doc_hits: list[str] = []
     collection_hits: list[str] = []
@@ -516,12 +525,29 @@ async def _pre_retrieval_turn(
         collection_hits=collection_hits,
     )
 
-    if plan.action == "refuse":
-        cause = "R1" if off_limits else ("R2b" if in_roster else "R2a")
-        tracing.mark(cause, R, final_answer=refusal)
+    def refuse(node_id: str, refusal: Refusal, *, raw: str = "", result=None) -> str:
+        """Render the refusal, record its node, and report it to the caller."""
+        text = render(refusal, language)
+        tracing.mark(node_id, R, cause=refusal.cause.value, final_answer=text,
+                     suggestions=[title for title, _ in refusal.suggestions])
         if on_trace:
-            on_trace(raw="", final=refusal, result=None, refusal_substituted=True)
-        return refusal
+            on_trace(raw=raw, final=text, result=result, refusal_substituted=True)
+        return text
+
+    def suggestions() -> list[tuple[str, str]]:
+        """Roster pages for a question in the roster (decision 13), else the search."""
+        if in_roster:
+            return roster_suggestions(db_path, question, categories, stem_language)
+        return search_suggestions(db_path, question, stem_language)
+
+    if plan.action == "refuse":
+        if off_limits:
+            return refuse("R1", Refusal(
+                RefusalCause.BLACKLIST, term=off_limits_term(question, config.off_limits),
+            ))
+        if in_roster:
+            return refuse("R2b", Refusal(RefusalCause.NOTHING_FOUND, suggestions=suggestions()))
+        return refuse("R2a", Refusal(RefusalCause.NOT_IN_ROSTER, suggestions=suggestions()))
 
     # Tier 1 from wiki pages: the code adds the dataset the question names
     # (decision 16) — the pages hold no values, and the model, told to answer
@@ -554,23 +580,31 @@ async def _pre_retrieval_turn(
         tracing.mark("Q17", R, answer=supported, coverage=round(score, 3),
                      min_coverage=min_coverage)
         if not supported:
-            tracing.mark("R3", R, final_answer=refusal)
-            if on_trace:
-                on_trace(raw=raw, final=refusal, result=result, refusal_substituted=True)
-            return refusal
+            document = _hit_labels(doc_hits)[0].rsplit("/", 1)[-1] if doc_hits else ""
+            return refuse("R3", Refusal(
+                RefusalCause.UNSUPPORTED, document=document, suggestions=suggestions(),
+            ), raw=raw, result=result)
 
     # Grounding: injected context IS the grounding for Tier 1/2 (skip the
     # tool-based guardrail, which would wrongly refuse a context-only answer);
     # for a data/advisory question (no injected context) keep the guardrail.
     if plan.context is None:
-        gated = enforce_grounding(raw, messages, refusal=refusal)
-        grounded = not (gated == refusal and raw != refusal)
+        grounded = has_grounding(messages)
         tracing.mark("Q19", R, answer=grounded)
         if not grounded:
-            tracing.mark("R4", R, final_answer=refusal)
-    else:
-        gated = raw
-    refusal_substituted = gated == refusal and raw != refusal
+            return refuse("R4", Refusal(RefusalCause.UNGROUNDED, suggestions=suggestions()),
+                          raw=raw, result=result)
+    gated = raw
+
+    # The model's own refusal (cause 5): the code keeps the model's text and
+    # adds the cause line and the suggestions (decision 8).
+    opens_with_fixed = raw.lstrip().startswith(fixed_sentence(language))
+    tracing.mark("Q20", R, answer=opens_with_fixed)
+    if opens_with_fixed:
+        return refuse("R5", Refusal(
+            RefusalCause.MODEL, model_text=raw, suggestions=suggestions(),
+        ), raw=raw, result=result)
+    refusal_substituted = False
 
     with_table = answer_with_table(gated, messages)
     tabled = offer_available_keys(with_table, messages, injection, language)
@@ -580,7 +614,7 @@ async def _pre_retrieval_turn(
         extra_references=injection.references, extra_fuentes=injection.fuentes,
     )
     citation_added = answer != tabled
-    if plan.tier == "crudo" and answer != refusal:
+    if plan.tier == "crudo":
         answer = f"{answer}\n\n{_TIER2_WARNING}"
         tracing.mark("Q18", R)
 

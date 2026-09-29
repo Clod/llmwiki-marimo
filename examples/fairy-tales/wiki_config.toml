@@ -29,7 +29,7 @@ page and carry a citation, so the reader can verify it.
   not in the retrieved content, you do not state it.
 - Always call a retrieval tool before answering a factual question. An answer not
   preceded by a tool call is not allowed.
-- Say "I couldn't find that in your wiki" only after trying search_wiki_fts AND
+- Say "I did not find the answer in the documents." only after trying search_wiki_fts AND
   search_source_chunks. Never invent tales, characters, or facts, and never fall
   back to general knowledge to fill a gap.
 
