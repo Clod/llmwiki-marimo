@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from pydantic_ai.messages import ModelMessage, ToolReturnPart
 
+from domain.chat import refusal
+
 # Refusal text, by wiki language. Must match the system prompt's exact phrase.
 REFUSAL_ES = "Eso no está en mi base de conocimiento."
 REFUSAL_EN = "That isn't in my knowledge base."
@@ -101,9 +103,9 @@ def strip_refused_exchanges(messages: list) -> list:
     msgs = list(messages)
     drop: set[int] = set()
     for i, m in enumerate(msgs):
-        is_refusal = (
-            getattr(m, "role", None) == "assistant"
-            and (getattr(m, "content", "") or "").strip() in (REFUSAL_ES, REFUSAL_EN)
+        content = (getattr(m, "content", "") or "").strip()
+        is_refusal = getattr(m, "role", None) == "assistant" and (
+            content in (REFUSAL_ES, REFUSAL_EN) or refusal.is_refusal(content)
         )
         if is_refusal:
             drop.add(i)

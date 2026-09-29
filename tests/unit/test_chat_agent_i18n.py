@@ -14,9 +14,11 @@ def test_apply_chat_directive_spanish_appends_directive() -> None:
     assert get_locale("es").chat_directive in result
 
 
-def test_apply_chat_directive_english_is_noop() -> None:
+def test_apply_chat_directive_english_adds_the_refusal_directive() -> None:
     base = "You are a helpful assistant."
-    assert apply_chat_directive(base, "en") == base
+    result = apply_chat_directive(base, "en")
+    assert result.startswith(base)
+    assert "I did not find the answer in the documents." in result
 
 
 def test_create_agent_spanish_system_prompt_contains_chat_directive() -> None:
@@ -38,9 +40,9 @@ def test_create_agent_spanish_system_prompt_contains_chat_directive() -> None:
     assert effective_prompt != base_prompt
 
 
-def test_create_agent_english_system_prompt_unchanged() -> None:
-    """The default language="en" must leave the system prompt byte-identical —
-    this is the backward-compat guarantee for existing English wikis."""
+def test_create_agent_english_system_prompt_gets_only_the_refusal_directive() -> None:
+    """The default language="en" adds no answer-language directive; only the
+    refusal directive (design_refusal_messages.md, decision 8) is appended."""
     base_prompt = "Base system prompt for testing."
     agent = create_agent(
         base_url="http://localhost:1234/v1",
@@ -49,7 +51,7 @@ def test_create_agent_english_system_prompt_unchanged() -> None:
         system_prompt=base_prompt,
     )
     (effective_prompt,) = agent._system_prompts
-    assert effective_prompt == base_prompt
+    assert effective_prompt == apply_chat_directive(base_prompt, "en")
 
 
 def test_create_agent_calls_apply_chat_directive_with_given_language(monkeypatch) -> None:

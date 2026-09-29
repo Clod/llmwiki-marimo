@@ -40,8 +40,13 @@ def _mentions(question_norm: str, term: str) -> bool:
 
 def is_off_limits(question: str, off_limits: Iterable[str]) -> bool:
     """True if the question mentions a blacklisted (never-covered) term."""
+    return off_limits_term(question, off_limits) is not None
+
+
+def off_limits_term(question: str, off_limits: Iterable[str]) -> str | None:
+    """The first blacklisted term the question mentions, by whole word, or None."""
     q = _normalize(question)
-    return any(_mentions(q, term) for term in off_limits)
+    return next((term for term in off_limits if _mentions(q, term)), None)
 
 
 def _mentions_stem(question_stemmed: str, term: str, language: str) -> bool:

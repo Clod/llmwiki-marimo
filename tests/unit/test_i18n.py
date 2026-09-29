@@ -125,15 +125,21 @@ def test_with_content_directive_es_appends_directive() -> None:
 # ── apply_chat_directive ──────────────────────────────────────────────────────
 
 
-def test_apply_chat_directive_en_is_noop() -> None:
+def test_apply_chat_directive_en_appends_only_the_refusal_directive() -> None:
+    # English has no answer-language directive; the refusal directive is
+    # appended in every language (design_refusal_messages.md, decision 8).
+    from domain.chat.refusal import refusal_directive
+
     base = "You are a chat assistant."
     result = apply_chat_directive(base, "en")
-    assert result == base
+    assert result == f"{base}\n\n{refusal_directive('en')}"
 
 
 def test_apply_chat_directive_es_appends_directive() -> None:
     base = "You are a chat assistant."
     result = apply_chat_directive(base, "es")
+    from domain.chat.refusal import refusal_directive
+
     es_directive = get_locale("es").chat_directive
-    assert result == f"{base}\n\n{es_directive}"
-    assert result.endswith(es_directive)
+    assert result == f"{base}\n\n{es_directive}\n\n{refusal_directive('es')}"
+    assert "No encontré la respuesta en los documentos." in result

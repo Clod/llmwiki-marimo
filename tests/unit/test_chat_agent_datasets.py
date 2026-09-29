@@ -9,6 +9,7 @@ query_dataset is additionally registered and the prompt gains routing lines.
 
 from pydantic_ai import RunContext
 
+from domain.i18n import apply_chat_directive
 from domain.chat.agent import create_agent
 
 _DEFAULT_TOOLS = {"read_wiki_page", "search_wiki_fts", "search_source_chunks"}
@@ -70,7 +71,7 @@ def test_no_datasets_dir_prompt_is_byte_identical(tmp_path) -> None:
     )
     (prompt_without,) = agent_without_workspace._system_prompts
     (prompt_with,) = agent_with_empty_workspace._system_prompts
-    assert prompt_with == prompt_without == base_prompt
+    assert prompt_with == prompt_without == apply_chat_directive(base_prompt, "en")
 
 
 def test_default_workspace_none_registers_exactly_default_tools() -> None:
@@ -163,7 +164,7 @@ def test_extra_prompt_is_appended() -> None:
         system_prompt="Base.", extra_prompt="\n\nOVERLAY ROUTING.",
     )
     (prompt,) = agent._system_prompts
-    assert prompt == "Base.\n\nOVERLAY ROUTING."
+    assert prompt == apply_chat_directive("Base.", "en") + "\n\nOVERLAY ROUTING."
 
 
 def test_no_extra_is_byte_identical() -> None:
@@ -175,4 +176,4 @@ def test_no_extra_is_byte_identical() -> None:
     )
     assert _agent_tool_names(agent) == _DEFAULT_TOOLS
     (prompt,) = agent._system_prompts
-    assert prompt == base
+    assert prompt == apply_chat_directive(base, "en")
