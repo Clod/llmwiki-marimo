@@ -108,41 +108,20 @@ def wiki_state(mo, ENV_DEFAULT):
 
 @app.cell
 def wiki_context(active_wiki, logger):
-    """Derive WORKSPACE/DB_PATH/SOURCES_DIR from the active wiki; init its DB.
+    """Open the active wiki (services/wiki.py); re-runs whenever it changes.
 
-    Re-runs whenever the active wiki changes, so every downstream cell that
-    consumes these names (ingest/scan/regen/delete runners, tables, debug panel)
-    automatically retargets the new wiki — no signature changes needed.
+    Every downstream cell that consumes these names (ingest/scan/regen/delete
+    runners, tables, debug panel) retargets the new wiki with no signature change.
     """
-    import uuid as _uuid
-    from pathlib import Path as _Path
-    from domain.ingestion.pipeline import open_db as _open_db
+    from services.wiki import open_wiki as _open_wiki
 
-    WORKSPACE = _Path(active_wiki()).resolve()
-    DB_PATH = str(WORKSPACE / ".llmwiki" / "index.db")
-    SOURCES_DIR = WORKSPACE / "sources"
-    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Resolve this wiki's content language from wiki_config.toml ([wiki].language,
-    # → "en" when absent). Threaded into the ingest/scan/regen runners below so a
-    # Spanish wiki is generated in Spanish; re-resolved whenever the wiki changes.
-    from domain.wiki_settings import load_wiki_language as _load_wiki_language
-    WIKI_LANG = _load_wiki_language(WORKSPACE)
-
-    _conn = _open_db(DB_PATH)
-    _row = _conn.execute("SELECT id FROM workspace LIMIT 1").fetchone()
-    if not _row:
-        _ws_id = str(_uuid.uuid4())
-        _conn.execute(
-            "INSERT INTO workspace (id, name, description, user_id) VALUES (?,?,?,?)",
-            (_ws_id, WORKSPACE.name, "", _ws_id),
-        )
-        _conn.commit()
-        logger.info("Created workspace row: %s", _ws_id)
-    _conn.close()
+    wiki = _open_wiki(active_wiki())
+    WORKSPACE = wiki.path
+    DB_PATH = wiki.db_path
+    SOURCES_DIR = wiki.sources_dir
+    WIKI_LANG = wiki.language
     logger.info("Active wiki — WORKSPACE=%s  DB=%s  LANG=%s", WORKSPACE, DB_PATH, WIKI_LANG)
-    return WORKSPACE, DB_PATH, SOURCES_DIR, WIKI_LANG
-
+    return WORKSPACE, DB_PATH, SOURCES_DIR, WIKI_LANG, wiki
 
 @app.cell
 def wiki_picker(mo, active_wiki, recent_list, set_active_wiki, WIKI_HOME):
@@ -504,8 +483,7 @@ def activity_log(mo, log_lines, clear_btn, auto_refresh):
 
 @app.cell
 def ingest_runner(
-    mo, ingest_trigger,
-    WORKSPACE, DB_PATH, llm_client, llm_model, WIKI_LANG,
+    mo, ingest_trigger, wiki, llm_client, llm_model,
     set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Runs ingestion when ingest_trigger changes, then a lint+repair pass.
@@ -530,42 +508,8 @@ def ingest_runner(
         set_log_lines(["⚠️ No files uploaded — drop a PDF or DOCX first."])
         mo.stop(True)
 
-    try:
-        from domain.ingestion import ingest_file as _if
-        from domain.ingestion import crosslink_wiki_pages as _crosslink
-        from domain import tracing as _tracing
-        from domain.lint.runner import lint_wiki as _lw
-        from domain.lint.report import LintReport as _LintReport
-        from domain.repair.runner import repair_wiki as _rw
-        from domain.tools.db import get_connection as _get_conn
-    except Exception as _e:
-        logger.error("Import error: %s", _e, exc_info=True)
-        set_log_lines([f"❌ Import error: {_e}"])
-        mo.stop(True)
-
-    def _related_pages(src_ids):
-        """Wiki pages touched by this ingest: summaries of the ingested sources
-        plus every wiki page that cites them. Returns a set of '/wiki/.../x.md'."""
-        if not src_ids:
-            return set()
-        _ph = ",".join("?" * len(src_ids))
-        _paths = set()
-        with _get_conn(DB_PATH) as _conn:
-            for _r in _conn.execute(
-                f"SELECT path || filename AS p FROM documents "
-                f"WHERE source_kind='wiki' AND source_document_id IN ({_ph})",
-                src_ids,
-            ).fetchall():
-                _paths.add(_r["p"])
-            for _r in _conn.execute(
-                f"SELECT d.path || d.filename AS p FROM document_references dr "
-                f"JOIN documents d ON dr.source_document_id = d.id "
-                f"WHERE dr.target_document_id IN ({_ph}) "
-                f"AND dr.reference_type = 'cites' AND d.source_kind = 'wiki'",
-                src_ids,
-            ).fetchall():
-                _paths.add(_r["p"])
-        return _paths
+    from services.ingest import Upload as _Upload
+    from services.ingest import ingest_uploads as _ingest_uploads
 
     _cb, _finish = make_timed_logger(set_log_lines, logger, "ingest")
     _cb("⏳ Ingestion started…")
@@ -573,56 +517,12 @@ def ingest_runner(
     def _run():
         set_running_op("ingest")
         try:
-            # One `ingest` root span covers the files, the reconciliation pass and
-            # the cross-links (WIKI_TRACE=1; domain/tracing.py).
-            with _tracing.root("ingest", WORKSPACE, kind="upload", files=len(_files)):
-                _results = []
-                for _f in _files:
-                    _fp = WORKSPACE / "sources" / _f.name
-                    if not _fp.exists():
-                        _fp.write_bytes(_f.contents)
-                    _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb, language=WIKI_LANG)
-                    _results.append(_result)
-                    logger.info("Result: %s — %s", _result.status, _result.message)
-
-                # Reconciliation pass — deterministic by default (client=None → the LLM
-                # checks/repairs are skipped), full when the checkbox was ticked. Scoped
-                # to the pages this ingest touched so unrelated pages are never rewritten.
-                _src_ids = [r.doc_id for r in _results if r.status == "ingested" and r.doc_id]
-                _related = _related_pages(_src_ids)
-                _client = llm_client if _full_repair else None
-                _mode = "full LLM" if _full_repair else "deterministic"
-                _cb(f"🩺 Running {_mode} lint on {len(_related)} ingested page(s)…")
-                with _tracing.node("I15", _tracing.WRITING, mode=_mode, pages=len(_related)) as _i15:
-                    _report = _lw(DB_PATH, WORKSPACE, client=_client, model=llm_model, progress_cb=_cb)
-                    _fixable = [
-                        i for i in _report.issues
-                        if i.check != "orphan" and i.page in _related
-                    ]
-                    _i15.set(issues=len(_report.issues), fixable=len(_fixable))
-                    if _fixable:
-                        _cb(f"🔧 {len(_fixable)} issue(s) on ingested pages — repairing ({_mode})…")
-                        _rw(
-                            _LintReport(issues=_fixable, checked_at=_report.checked_at),
-                            DB_PATH, WORKSPACE,
-                            llm_client=_client, model=llm_model, progress_cb=_cb,
-                            language=WIKI_LANG,
-                        )
-                    else:
-                        _cb("✅ Ingested pages consistent — no repairs needed.")
-
-                # Refresh "See also" cross-links now that this batch is ingested — an
-                # older page may reference a freshly-added concept. Scoped to the pages
-                # this ingest touched plus the pages that mention them: the full sweep
-                # is quadratic in the page count and belongs to the wiki-wide button.
-                if _src_ids:
-                    with _tracing.node("I16", _tracing.WRITING, touched=len(_related)) as _i16:
-                        _n_linked = _crosslink(
-                            WORKSPACE, DB_PATH, language=WIKI_LANG, progress_cb=_cb, touched=_related,
-                        )
-                        _i16.set(linked=_n_linked)
-                    if _n_linked:
-                        _cb(f"🔗 Cross-linked {_n_linked} page(s)")
+            _results = _ingest_uploads(
+                wiki, [_Upload(_f.name, _f.contents) for _f in _files],
+                llm_client, llm_model, full_repair=_full_repair, progress=_cb,
+            )
+            for _result in _results:
+                logger.info("Result: %s — %s", _result.status, _result.message)
         finally:
             _finish()
             set_running_op(None)
@@ -798,24 +698,17 @@ def stale_pages_widget_cell(mo, DB_PATH, running_op):
 
 
 @app.cell
-def debug_panel(mo, ingest_form, scan_btn, upload, DB_PATH, debug_mode, logger):
+def debug_panel(mo, ingest_form, scan_btn, upload, DB_PATH, wiki, debug_mode, logger):
     """Debug panel — only visible when WIKI_DEBUG=1."""
-    from domain.ingestion.pipeline import open_db
+    from services.ingest import wiki_stats as _wiki_stats
 
     if not debug_mode:
         debug_view = mo.Html("")
     else:
         upload_names = [f.name for f in upload.value] if upload.value else []
         try:
-            _conn_dbg = open_db(DB_PATH)
-            doc_count = _conn_dbg.execute(
-                "SELECT COUNT(*) FROM documents WHERE source_kind='source'"
-            ).fetchone()[0]
-            wiki_count = _conn_dbg.execute(
-                "SELECT COUNT(*) FROM documents WHERE source_kind='wiki'"
-            ).fetchone()[0]
-            _conn_dbg.close()
-            db_info = f"source docs: {doc_count} | wiki pages: {wiki_count}"
+            _stats = _wiki_stats(wiki)
+            db_info = f"source docs: {_stats['sources']} | wiki pages: {_stats['pages']}"
         except Exception as exc:
             db_info = f"DB error: {exc}"
 
@@ -838,22 +731,13 @@ def debug_panel(mo, ingest_form, scan_btn, upload, DB_PATH, debug_mode, logger):
 
 
 @app.cell
-def sources_table_cell(mo, DB_PATH, log_lines):
+def sources_table_cell(mo, wiki, log_lines):
     """Searchable table of indexed sources. Selection arms the delete widget."""
-    import sqlite3 as _sqlite3
-    from domain.ingestion.pipeline import open_db as _open_db
+    from services.ingest import list_sources as _list_sources
 
     log_lines()  # reactive refresh after any operation
 
-    _conn = _open_db(DB_PATH)
-    try:
-        _src_rows = _conn.execute(
-            "SELECT id, filename, status, page_count, parser, error_message, updated_at "
-            "FROM documents WHERE source_kind='source' ORDER BY filename"
-        ).fetchall()
-    except _sqlite3.OperationalError:
-        _src_rows = []
-    _conn.close()
+    _src_rows = _list_sources(wiki)
 
     _icon_map = {"ready": "✅", "processing": "⏳", "failed": "❌", "pending": "🕐"}
     _table_data = [
@@ -952,7 +836,7 @@ def delete_runner(
 def stale_pages_runner(
     mo, stale_pages_widget,
     get_last_stale_event, set_last_stale_event,
-    WORKSPACE, DB_PATH,
+    DB_PATH, wiki,
     set_log_lines, set_running_op, logger,
 ):
     """Fires when the delete-stale-pages widget is confirmed.
@@ -966,33 +850,20 @@ def stale_pages_runner(
     set_last_stale_event(_event_id)
 
     from domain.tools.references import find_stale_pages as _find_stale_pages
-    from domain.tools.wiki_fs import delete_page as _delete_page
+    from services.ingest import delete_stale_pages as _delete_stale_pages
 
-    _pages = _find_stale_pages(DB_PATH)
-    if not _pages:
+    _count = len(_find_stale_pages(DB_PATH))
+    if not _count:
         set_log_lines(["✅ No stale pages to delete."])
         mo.stop(True)
 
     set_running_op("delete_stale")
-    _lines: list[str] = []
     try:
-        with mo.status.spinner(title=f"Deleting {len(_pages)} stale page(s)…"):
-            for _p in _pages:
-                _slug = _p["filename"].removesuffix(".md")
-                try:
-                    _gone = _delete_page(DB_PATH, WORKSPACE, _p["path"], _slug)
-                    _lines.append(
-                        f"{'🗑' if _gone else '⚠️'} {_p['path']}{_p['filename']}"
-                        f"{'' if _gone else ' — not found on disk'}"
-                    )
-                except Exception as _e:  # noqa: BLE001 — one bad page must not stop the rest
-                    logger.warning("delete stale page failed: %s", _p, exc_info=True)
-                    _lines.append(f"❌ {_p['filename']} — {_e}")
+        with mo.status.spinner(title=f"Deleting {_count} stale page(s)…"):
+            _ok, _lines = _delete_stale_pages(wiki)
     finally:
         set_running_op(None)
-
-    _ok = sum(1 for line in _lines if line.startswith("🗑"))
-    set_log_lines([f"🏁 Deleted {_ok} of {len(_pages)} stale page(s).", *_lines])
+    set_log_lines([f"🏁 Deleted {_ok} of {_count} stale page(s).", *_lines])
     return
 
 
@@ -1000,7 +871,7 @@ def stale_pages_runner(
 def lint_repair_runner(
     mo, lint_repair_widget,
     get_last_lint_event, set_last_lint_event,
-    WORKSPACE, DB_PATH, llm_client, llm_model, WIKI_LANG,
+    wiki, llm_client, llm_model,
     set_log_lines, set_running_op, logger, make_timed_logger,
 ):
     """Fires when the lint & repair widget is confirmed."""
@@ -1010,12 +881,7 @@ def lint_repair_runner(
     mo.stop(_event_id <= _last)
     set_last_lint_event(_event_id)
 
-    try:
-        from domain.lint.runner import lint_wiki as _lw
-        from domain.repair.runner import repair_wiki as _rw
-    except Exception as _e:
-        set_log_lines([f"❌ Import error: {_e}"])
-        mo.stop(True)
+    from services.ingest import lint_and_repair as _lint_and_repair
 
     _cb, _finish = make_timed_logger(set_log_lines, logger, "lint-repair")
     _cb("⏳ Wiki lint & repair started…")
@@ -1023,17 +889,7 @@ def lint_repair_runner(
     def _run():
         set_running_op("lint_repair")
         try:
-            _lint_report = _lw(DB_PATH, WORKSPACE, client=llm_client, model=llm_model, progress_cb=_cb)
-            _issue_count = len(_lint_report.issues)
-            if _issue_count == 0:
-                _cb("✅ No issues found.")
-            else:
-                _cb(f"🔧 Found {_issue_count} issue(s) — running repairs…")
-                _rw(
-                    _lint_report, DB_PATH, WORKSPACE,
-                    llm_client=llm_client, model=llm_model,
-                    progress_cb=_cb, language=WIKI_LANG,
-                )
+            _lint_and_repair(wiki, llm_client, llm_model, progress=_cb)
         finally:
             _finish()
             set_running_op(None)

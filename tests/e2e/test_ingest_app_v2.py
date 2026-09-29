@@ -417,7 +417,10 @@ async def test_app_loads_targeting_the_env_wiki(page: Page) -> None:
         f"got {await picker.input_value()!r}"
     )
 
+    # count() does not wait, and the upload cell can render after the picker:
+    # wait for the input the same way the picker is awaited above.
     upload_input = page.locator("input[type='file']")
+    await upload_input.first.wait_for(state="attached", timeout=10_000)
     assert await upload_input.count() > 0, "Upload widget (input[type='file']) not found"
 
 

@@ -53,8 +53,6 @@ with app.setup:
     sys.modules.pop("config", None)
 
     from config import settings, require_llm_config
-    from domain.chat.agent import create_agent
-    from domain.chat.config import load_config
     from domain.wiki_registry import (
         clean_path_input,
         load_recent,
@@ -85,28 +83,18 @@ def styles():
 
 
 @app.cell
-def wiki_helpers(WIKI_PATH):
-    """File helpers: scan and read wiki pages for the active wiki."""
-    wiki_dir = (WIKI_PATH / "wiki") if WIKI_PATH else None
-    if wiki_dir is not None:
-        wiki_dir.mkdir(parents=True, exist_ok=True)
+def wiki_helpers(wiki):
+    """Page listing and reading for the active wiki (services/wiki.py)."""
+    from services.wiki import list_pages as _list_pages
+    from services.wiki import read_page as _read_page
 
     def scan_pages():
-        if wiki_dir is None:
-            return []
-        return sorted(
-            str(p.relative_to(wiki_dir).with_suffix(""))
-            for p in wiki_dir.rglob("*.md")
-        )
+        return _list_pages(wiki) if wiki is not None else []
 
     def read_page(rel_path):
-        if wiki_dir is None:
-            return ""
-        path = wiki_dir / f"{rel_path}.md"
-        return path.read_text(encoding="utf-8") if path.exists() else ""
+        return _read_page(wiki, rel_path) if wiki is not None else ""
 
     return read_page, scan_pages
-
 
 @app.cell
 def page_state(scan_pages):
@@ -290,21 +278,9 @@ def page_links_nav(
     so resolve them against that directory before matching the scanned page list,
     which stores directory-prefixed stems like `concepts/cinderella`.
     """
-    import posixpath
+    from services.wiki import page_links
 
-    # (?<!!) excludes image embeds ![alt](src) — matches references.py:_WIKI_LINK_RE.
-    raw_links = re.findall(r'(?<!!)\[([^\]]+)\]\(([^)]+)\)', current_content or "")
-    current_dir = posixpath.dirname(selected_stem or "")
-    all_pages = page_list()
-    seen = set()
-    valid = {}
-    for _label, _target in raw_links:
-        if _target.startswith("http") or _target.startswith("mailto"):
-            continue
-        resolved = posixpath.normpath(posixpath.join(current_dir, _target.removesuffix(".md")))
-        if resolved in all_pages and resolved not in seen:
-            seen.add(resolved)
-            valid[_label] = resolved
+    valid = page_links(current_content, selected_stem, page_list())
 
     def _make_handler(page):
         def _go(_v):
@@ -358,10 +334,8 @@ def guardrail_flag():
 
 
 @app.cell(column=2)
-def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, wiki_db_path):
+def chat_panel(chat_agents, grounding_flag, wiki, wiki_chat_config):
     """AI chat assistant with FTS5 retrieval — column 2."""
-    from pydantic_ai.messages import ModelRequest, UserPromptPart, ModelResponse, TextPart
-
     last_response, set_last_response = mo.state("")
 
     # One conversation identifier per chat: every turn's trace carries it, so
@@ -377,96 +351,31 @@ def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, 
         #          Cannot stream — you can't retract text already shown.
         #   OFF -> normal: stream token-by-token (original UX), no gating.
         # Strict+streaming is incoherent, so the two move together by necessity.
-        from domain import tracing
-        from domain.chat.guardrail import (
-            enforce_grounding,
-            has_grounding,
-            refusal_for,
-            strip_refused_exchanges,
-        )
-        from domain.chat.postprocess import answer_with_table, ensure_citation
-        from domain.chat.history import trim_history
+        # The turn itself runs in services/chat.py; this cell only picks the mode.
+        from services.chat import PRE_RETRIEVAL, STRICT, chat_turn, chat_turn_stream
 
-        # Drop prior refusals from the context: a citation-less "not in my
-        # knowledge base" turn primes the model to answer the next question
-        # without a citation too (verified). They carry nothing forward.
-        history = []
-        for msg in trim_history(strip_refused_exchanges(messages[:-1])):
-            if msg.role == "user":
-                history.append(ModelRequest(parts=[UserPromptPart(content=msg.content)]))
-            elif msg.role == "assistant":
-                history.append(ModelResponse(parts=[TextPart(content=msg.content)]))
-
-        _lang = wiki_chat_config.language if wiki_chat_config else None
-        _question = messages[-1].content
-        _ws = Path(wiki_db_path).parent.parent if wiki_db_path else None
-        if grounding_flag.get("pre_retrieval") and wiki_agent_preret is not None:
-            _mode = "pre-retrieval"
+        if grounding_flag.get("pre_retrieval"):
+            _mode = PRE_RETRIEVAL
         elif grounding_flag["strict"]:
-            _mode = "strict"
+            _mode = STRICT
         else:
-            _mode = "streaming"
-        # The root span of the turn (WIKI_TRACE=1). Every span the engine and the
-        # agent write during the turn is its child.
-        _turn = dict(
-            conversation_id=_conversation_id,
-            turn=sum(1 for m in messages if m.role == "user"),
-            mode=_mode, question=_question, language=_lang,
-            history_messages=len(history),
-        )
-
-        if _mode == "pre-retrieval":
-            # Hybrid pre-retrieval (live toggle): the CODE retrieves + gates; the
-            # tool-less agent answers only from the injected context. Read live
-            # from grounding_flag so flipping the checkbox mid-chat takes effect on
-            # the next message. See domain/chat/preretrieval.py.
-            from domain.chat.preretrieval import pre_retrieval_answer
-
-            async def _run_agent(_prompt, _hist):
-                return await wiki_agent_preret.run(_prompt, deps=wiki_db_path, message_history=_hist)
-
-            with tracing.root("turn", _ws, **_turn):
-                answer = await pre_retrieval_answer(
-                    _question, config=wiki_chat_config, db_path=wiki_db_path,
-                    workspace=_ws, history=history, language=_lang,
-                    run_agent=_run_agent,
-                )
+            _mode = None
+        if _mode is not None:
+            answer = await chat_turn(
+                wiki, chat_agents, messages, mode=_mode, conversation_id=_conversation_id,
+            )
             set_last_response(answer)
             yield answer
             return
+        full_text = ""
+        async for chunk in chat_turn_stream(
+            wiki, chat_agents, messages, conversation_id=_conversation_id,
+        ):
+            full_text += chunk
+            yield chunk
+        set_last_response(full_text)
 
-        if _mode == "strict":
-            with tracing.root("turn", _ws, **_turn) as _root:
-                result = await wiki_agent.run(
-                    _question, deps=wiki_db_path, message_history=history
-                )
-                raw = result.output
-                _msgs = result.all_messages()
-                answer = enforce_grounding(raw, _msgs, refusal=refusal_for(_lang))
-                refusal_substituted = answer != raw
-                # Deterministic post-processing (domain/chat/postprocess.py): guarantee
-                # the advisory table and a source citation regardless of whether the
-                # model reproduced them under history priming. Both no-op on a refusal.
-                answer = answer_with_table(answer, _msgs)
-                answer = ensure_citation(answer, _msgs)
-                _root.set(raw_output=raw, final_answer=answer,
-                          grounded=has_grounding(_msgs),
-                          refusal_substituted=refusal_substituted)
-            set_last_response(answer)
-            yield answer
-        else:
-            full_text = ""
-            with tracing.root("turn", _ws, **_turn) as _root:
-                async with wiki_agent.run_stream(
-                    _question, deps=wiki_db_path, message_history=history
-                ) as result:
-                    async for chunk in result.stream_text(delta=True):
-                        full_text += chunk
-                        yield chunk
-                _root.set(raw_output=full_text, final_answer=full_text)
-            set_last_response(full_text)
-
-    if wiki_agent is None:
+    if chat_agents is None:
         _body = mo.md("*Select a wiki (top-left) to start chatting.*")
     else:
         _body = mo.ui.chat(
@@ -552,29 +461,24 @@ def save_form(last_response, save_tick):
 
 @app.cell
 def save_action(
-    WIKI_PATH,
     form,
     last_response,
     set_save_tick,
     set_saved_notice,
+    wiki,
     wiki_chat_config,
-    wiki_db_path,
 ):
     """Perform the save exactly once per submission, store the result, then bump
     `save_tick` to clear the form. Rendering is handled by `save_notice`."""
-    from openai import OpenAI
-    from domain.chat.wiki_tools import save_to_wiki
+    from services.chat import save_answer
 
     if form.value is not None:
-        _client = OpenAI(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY)
-        _title = (form.value.get("title") or "").strip()
-        _category = form.value.get("category", "concept")
-        # Save chat-sourced pages in this wiki's content language (no-op for "en").
-        _language = wiki_chat_config.language if wiki_chat_config else "en"
         try:
-            _msg = save_to_wiki(
-                wiki_db_path, WIKI_PATH, _title, last_response(), _category,
-                client=_client, model=settings.LLM_MODEL, language=_language,
+            _msg = save_answer(
+                wiki, wiki_chat_config, form.value.get("title") or "", last_response(),
+                form.value.get("category", "concept"),
+                base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY,
+                model=settings.LLM_MODEL,
             )
             set_saved_notice(("success", _msg))
         except Exception as exc:
@@ -582,7 +486,6 @@ def save_action(
         # Rebuild the form: clears the title box and resets form.value (→ no re-save).
         set_save_tick(lambda t: t + 1)
     return
-
 
 @app.cell
 def save_notice(saved_notice):
@@ -609,7 +512,10 @@ def wiki_state():
 
 @app.cell
 def wiki_context(active_wiki):
-    """Derive path-bound objects from the active wiki; re-runs on switch."""
+    """Open the active wiki and build its chat agents (services/); re-runs on switch."""
+    from services.chat import build_agents
+    from services.wiki import open_wiki
+
     _ap = active_wiki()
     WIKI_PATH = Path(_ap) if _ap else None
     if WIKI_PATH is not None and WIKI_PATH.is_dir():
@@ -617,50 +523,18 @@ def wiki_context(active_wiki):
             settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
             purpose="chat",
         )
-        wiki_db_path = str(WIKI_PATH / ".llmwiki" / "index.db")
-        wiki_chat_config = load_config(WIKI_PATH)
-        # Optional Argentine-finance overlay: registers the `estimar_alternativas`
-        # tool only when this workspace's data satisfies the finance manifest.
-        # The engine stays finance-agnostic; activation is decided here (the
-        # composition root) and injected via extra_tools/extra_prompt.
-        from domain.finance_argentina.agent_tool import activate as _activate_finance
-        _fin_tools, _fin_prompt = _activate_finance(WIKI_PATH)
-        # Retrieval-mode block for the pre-retrieval agent: it has NO wiki-search
-        # tools, so its prompt must say so (otherwise the shared system prompt's
-        # search steps name tools it can't call). The data/advisory tools stay.
-        _PRERET_PROMPT = (
-            "\n\n## Modo pre-retrieval\n"
-            "NO tenés herramientas de búsqueda de wiki (search_wiki_fts, "
-            "read_wiki_page, search_source_chunks): ignorá cualquier paso que las "
-            "mencione. Las páginas relevantes del wiki ya te vienen inyectadas en el "
-            "CONTEXTO de cada pregunta — respondé exclusivamente desde ese contexto, "
-            "citando la fuente; si no alcanza, decilo. Las herramientas de datos "
-            "(query_dataset) y de cálculo (estimar_alternativas) sí siguen disponibles."
+        wiki = open_wiki(WIKI_PATH)
+        chat_agents = build_agents(
+            wiki, settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
         )
-        _common = dict(
-            system_prompt=wiki_chat_config.system_prompt,
-            language=wiki_chat_config.language,
-            workspace=WIKI_PATH,
-            extra_tools=_fin_tools,
-        )
-        # Two pre-built agents so the pre-retrieval toggle switches instantly
-        # (just picks one) without rebuilding — a rebuild would re-parent the chat.
-        wiki_agent = create_agent(
-            settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
-            extra_prompt=_fin_prompt, include_wiki_tools=True, **_common,
-        )
-        wiki_agent_preret = create_agent(
-            settings.LLM_BASE_URL, settings.LLM_API_KEY, settings.LLM_MODEL,
-            extra_prompt=(_fin_prompt or "") + _PRERET_PROMPT,
-            include_wiki_tools=False, **_common,
-        )
+        wiki_db_path = wiki.db_path
+        wiki_chat_config = chat_agents.config
     else:
+        wiki = None
+        chat_agents = None
         wiki_db_path = None
         wiki_chat_config = None
-        wiki_agent = None
-        wiki_agent_preret = None
-    return WIKI_PATH, wiki_agent, wiki_agent_preret, wiki_chat_config, wiki_db_path
-
+    return WIKI_PATH, chat_agents, wiki, wiki_chat_config, wiki_db_path
 
 @app.cell
 def wiki_picker(active_wiki, recent_list, set_active_wiki):

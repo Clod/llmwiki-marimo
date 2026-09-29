@@ -13,6 +13,18 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The application logic moved out of the marimo cells into `base/services/`.**
+  `services/wiki.py` opens a wiki, lists and reads its pages, resolves their
+  links, and saves an edited page (front-matter kept, references rebuilt, one
+  git commit, refused when the page changed since it was opened).
+  `services/chat.py` builds a wiki's two agents and answers one turn in the
+  pre-retrieval, strict or streaming mode. `services/ingest.py` holds the upload
+  path with its reconciliation and cross-links, the maintenance passes, and the
+  views of the sources. The three marimo apps now call these functions; their
+  behaviour is unchanged. This is the layer a web interface will call.
+
+### Changed
+
 - **Every pre-retrieval refusal states its cause.** The single text "Eso no
   está en mi base de conocimiento." is replaced by one message per cause,
   built by the code (`base/domain/chat/refusal.py`): the blacklist term, a
