@@ -219,7 +219,7 @@ def _gate(case: Case, cfg, db_path: str, vocab, coverage, aliases) -> Decision:
 async def _answer(d: Decision, cfg, db_path: str, agent) -> None:
     """The live half — one turn through the real pre-retrieval engine."""
     from domain.chat.preretrieval import pre_retrieval_answer
-    from domain.chat.trace import _looks_cited
+    from domain.chat.postprocess import looks_cited
 
     async def run_agent(prompt, history):
         return await agent.run(prompt, deps=db_path, message_history=history)
@@ -237,7 +237,7 @@ async def _answer(d: Decision, cfg, db_path: str, agent) -> None:
         d.case.question, config=cfg, db_path=db_path, workspace=DEMO,
         history=[], language=cfg.language, run_agent=run_agent, on_trace=on_trace,
     )
-    d.cited = _looks_cited(d.answer)
+    d.cited = looks_cited(d.answer)
 
 
 async def _answer_plain(turn: PlainTurn, db_path: str, agent, language: str) -> None:
@@ -252,7 +252,7 @@ async def _answer_plain(turn: PlainTurn, db_path: str, agent, language: str) -> 
     """
     from domain.chat.guardrail import has_grounding, refusal_for
     from domain.chat.postprocess import ensure_citation
-    from domain.chat.trace import _looks_cited
+    from domain.chat.postprocess import looks_cited
 
     result = await agent.run(turn.case.question, deps=db_path, message_history=[])
     messages = result.all_messages()
@@ -261,7 +261,7 @@ async def _answer_plain(turn: PlainTurn, db_path: str, agent, language: str) -> 
             if getattr(part, "part_kind", None) == "tool-call":
                 turn.tool_calls.append(getattr(part, "tool_name", "?"))
     turn.answer = result.output
-    turn.cited = _looks_cited(turn.answer)
+    turn.cited = looks_cited(turn.answer)
 
     # `Strict mode`, replayed over this run. A run with no substantive tool
     # return is replaced wholesale by the refusal; otherwise the answer stands and

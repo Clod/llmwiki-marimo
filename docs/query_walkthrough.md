@@ -1048,11 +1048,11 @@ numbers a user sees are never trusted to model arithmetic even in the worst case
 **One measurement error worth recording.** The appendix records
 `carries a citation: False` for this act. The answer *is* cited — every row
 of the table ends in a `fuente` column, exactly as the system prompt
-specifies — but the trace's `_looks_cited` heuristic
-(`chat/trace.py:_looks_cited`) only recognizes a citation by looking for one
+specifies — but the `looks_cited` heuristic
+(`chat/postprocess.py:looks_cited`) only recognizes a citation by looking for one
 of a fixed set of file-extension markers (`.md`, `.docx`, `.doc`, `.pdf`,
 `.txt`, `.csv`) anywhere in the text. A source cited as `bcra.gob.ar` in a
-table cell matches none of them. That is a gap in what the *trace*
+table cell matches none of them. That is a gap in what `looks_cited`
 recognizes, not in what the *answer* does — the citation is there, in the
 form the system prompt actually specifies (§2 of the contract lists the
 `fuente` column explicitly as a valid citation carrier), and this document

@@ -17,7 +17,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable, Literal
 
-from . import trace
 from .chunker import chunk_pages
 from .detector import needs_ingestion
 from .extractor import (
@@ -34,6 +33,7 @@ from .wiki_generator import (
     update_overview, inject_see_also, strip_accents,
 )
 from .alias_generation import regenerate_dataset_aliases, update_generated_aliases
+from domain import tracing
 from domain.i18n import get_locale
 from domain.tools.db import get_connection, open_db
 from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
@@ -112,6 +112,64 @@ def ingest_file(
 ) -> IngestResult:
     """Run the full ingestion pipeline for a single file.
 
+    With WIKI_TRACE=1 the run is one `document` span, inside the `ingest` root
+    span of the batch or scan that called it (or a root of its own). Each step
+    is a child span named by its node in the writing diagram (I1–I13, W1, W3),
+    and the end state is one of E1–E4 (domain/tracing.py).
+    """
+    with tracing.root("ingest", workspace), tracing.node(
+        "document", tracing.WRITING, filename=Path(file_path).name, batch=_batch_mode,
+    ) as doc:
+        result = _ingest_file(
+            file_path, db_path, workspace, llm_client, model,
+            progress_cb=progress_cb, lint_after_ingest=lint_after_ingest,
+            _batch_mode=_batch_mode, language=language, doc=doc,
+        )
+        doc.set(status=result.status, message=result.message)
+        if result.status == "failed" and result.doc_id is None:
+            tracing.mark("E1", tracing.WRITING, message=result.message)
+        elif result.status == "skipped":
+            tracing.mark("E2", tracing.WRITING)
+        elif result.status == "ingested":
+            tracing.mark("E4", tracing.WRITING)
+        return result
+
+
+def _validation_error(file_path: Path) -> str | None:
+    """The reason `file_path` cannot be ingested, or None (node I1)."""
+    if not file_path.is_file():
+        return f"File not found: {file_path}"
+
+    ext = file_path.suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        return f"Unsupported file type '{ext}'. Supported: {', '.join(SUPPORTED_EXTENSIONS)}"
+
+    if ext == ".docx" and not check_libreoffice():
+        return LibreOfficeNotInstalledError(file_path.name).args[0]
+
+    # Both extensions end up in opendataloader-pdf, which runs a .jar: a DOCX is
+    # converted to PDF first. Without a Java runtime the extractor raises deep in
+    # a subprocess call, so the check happens here, next to the LibreOffice one.
+    if not check_java():
+        return JavaNotInstalledError(file_path.name).args[0]
+    return None
+
+
+def _ingest_file(
+    file_path: Path,
+    db_path: str,
+    workspace: Path,
+    llm_client,
+    model: str,
+    progress_cb: Callable[[str], None] | None = None,
+    lint_after_ingest: bool = False,
+    _batch_mode: bool = False,
+    language: str = "en",
+    *,
+    doc: tracing.Node,
+) -> IngestResult:
+    """The body of `ingest_file`, inside the document's span `doc`.
+
     Returns IngestResult with status 'ingested', 'skipped', or 'failed'.
     On failure, the source document record is set to status='failed' in the DB.
 
@@ -126,35 +184,16 @@ def ingest_file(
         if progress_cb:
             progress_cb(msg)
 
-    # Tracing is opt-in (WIKI_TRACE=1); these no-op defaults make the early-return
-    # and skip paths safe before a real tracer is started (after step 3).
-    tracer: object = trace.NULL
-    _created = False
-    ok = False
+    W = tracing.WRITING
 
     _cb(f"🔍 Validating {file_path.name}")
 
     # ── Step 1: Validate ──────────────────────────────────────────────────────
-    if not file_path.is_file():
-        return IngestResult(file_path, "failed", f"File not found: {file_path}")
-
+    error = _validation_error(file_path)
+    tracing.mark("I1", W, answer=error is None, error=error)
+    if error is not None:
+        return IngestResult(file_path, "failed", error)
     ext = file_path.suffix.lower()
-    if ext not in SUPPORTED_EXTENSIONS:
-        return IngestResult(
-            file_path, "failed",
-            f"Unsupported file type '{ext}'. Supported: {', '.join(SUPPORTED_EXTENSIONS)}"
-        )
-
-    if ext == ".docx" and not check_libreoffice():
-        msg = LibreOfficeNotInstalledError(file_path.name).args[0]
-        return IngestResult(file_path, "failed", msg)
-
-    # Both extensions end up in opendataloader-pdf, which runs a .jar: a DOCX is
-    # converted to PDF first. Without a Java runtime the extractor raises deep in
-    # a subprocess call, so the check happens here, next to the LibreOffice one.
-    if not check_java():
-        msg = JavaNotInstalledError(file_path.name).args[0]
-        return IngestResult(file_path, "failed", msg)
 
     _init_wiki_workspace(workspace, language)
 
@@ -165,6 +204,7 @@ def ingest_file(
 
         # ── Step 2: Detect changes ────────────────────────────────────────────
         should_process, current_hash = needs_ingestion(file_path, conn)
+        tracing.mark("I2", W, answer=should_process, content_hash=current_hash)
         if not should_process:
             _cb(f"⏭ {file_path.name} — already up to date")
             return IngestResult(file_path, "skipped", "already up to date")
@@ -198,10 +238,9 @@ def ingest_file(
             )
         conn.commit()
 
-        # ── Trace: join or start a run, wrap the client, open the document ─────
-        tracer, _created = trace.active_or_start(workspace, db_path)
-        llm_client = tracer.wrap(llm_client)
-        tracer.document_start(doc_id, file_path.name, relative)
+        tracing.mark("I3", W, document_id=doc_id, relative_path=relative)
+        doc.set(document_id=doc_id, relative_path=relative)
+        llm_client = tracing.wrap_openai(llm_client)
 
         _cb(f"⚙️ Extracting text from {file_path.name}")
 
@@ -210,29 +249,28 @@ def ingest_file(
         try:
             # ── Step 4: Extract text ──────────────────────────────────────────
             cache_dir = workspace / ".llmwiki" / "cache" / "local" / doc_id
-            with tracer.stage("extract"):
+            with tracing.node("I4", W) as i4:
                 page_contents, parser = extract(file_path, cache_dir)
                 full_content = "\n\n---\n\n".join(md for _, md in page_contents)
                 # Trace intermediate data so the path can be followed end to end.
-                tracer.artifact(
-                    "extracted_text", "extracted_text", full_content,
-                    page_count=len(page_contents), parser=parser,
-                )
+                i4.payload("extracted_text", full_content, channel="extracted_text")
+                i4.set(page_count=len(page_contents), parser=parser)
             _cb(f"✅ Extracted {len(page_contents)} pages")
 
             # ── Step 5: Chunk source document ─────────────────────────────────
-            with tracer.stage("chunk"):
+            with tracing.node("W1", W, document_id=doc_id) as w1:
                 chunks = chunk_pages(page_contents)
-                tracer.artifact(
-                    "chunks", "chunks",
+                w1.payload(
+                    "chunks",
                     json.dumps(
                         [{"chunk_index": c.index, "page": c.page,
                           "token_count": c.token_count, "start_char": c.start_char,
                           "content": c.content} for c in chunks],
                         ensure_ascii=False, indent=2,
                     ),
-                    ext="json", count=len(chunks),
+                    channel="chunks", ext="json",
                 )
+                w1.set(fragments=len(chunks))
             _cb(f"✂️ Chunked into {len(chunks)} chunks")
 
             # ── Step 6: Atomic source document DB write ────────────────────────
@@ -259,6 +297,7 @@ def ingest_file(
                         for c in chunks
                     ],
                 )
+            tracing.mark("W3", W, document_id=doc_id, fragments=len(chunks))
             # Source doc now committed — subsequent tools can open their own connections.
             conn.close()
             conn = None
@@ -272,13 +311,14 @@ def ingest_file(
 
             # ── Step 7: Structured extraction ─────────────────────────────────
             _cb("🤖 Extracting knowledge structure...")
-            with tracer.stage("structured_extraction"):
+            with tracing.node("I5", W) as i5:
                 extraction = extract_structured(doc_meta, page_contents, llm_client, model, language=language)
+                i5.set(concepts=[c.name for c in extraction.concepts])
             _cb(f"📋 Found {len(extraction.concepts)} concept(s)")
 
             # ── Step 8: Create/update concept pages ───────────────────────────
             concept_slugs: list[str] = []
-            with tracer.stage("concepts", concept_count=len(extraction.concepts)):
+            with tracing.node("I6", W, concept_count=len(extraction.concepts)) as i6:
                 for concept in extraction.concepts:
                     slug = make_wiki_slug(concept.name)
                     concept_slugs.append(slug)
@@ -301,32 +341,32 @@ def ingest_file(
                     update_references(
                         db_path, concept_result["id"], concept_md, "/wiki/concepts/",
                     )
-                    tracer.artifact(
-                        "markdown", f"concept:{slug}", concept_md, ext="md",
-                        relative_path=f"wiki/concepts/{slug}.md",
-                        concept_name=concept.name, category=concept.category,
-                    )
+                    i6.payload(f"concept.{slug}", concept_md, channel="markdown", ext="md")
                     one_liner = concept.insight[:80] if concept.insight else concept.name
                     update_index(workspace, f"concepts/{slug}.md", one_liner, "concepts", language=language)
+                i6.set(pages=[f"wiki/concepts/{s}.md" for s in concept_slugs])
 
             # ── Step 8b: Update the generated alias artifact (best-effort) ────
             # Concepts contribute their name + aliases to .llmwiki/aliases.generated.toml,
             # validated against the wiki's coverage. Never abort ingest on failure —
             # the pages are the deliverable; an alias is secondary.
-            try:
-                _alias_result = update_generated_aliases(
-                    workspace,
-                    _all_concept_names(db_path),
-                    [(c.name, c.aliases) for c in extraction.concepts],
-                )
-                if _alias_result.collisions:
-                    _cb(f"⚠️ {len(_alias_result.collisions)} alias collision(s) dropped")
-            except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail ingest
-                logger.warning("alias generation failed for %s: %s", file_path.name, exc)
+            with tracing.node("I7", W) as i7:
+                try:
+                    _alias_result = update_generated_aliases(
+                        workspace,
+                        _all_concept_names(db_path),
+                        [(c.name, c.aliases) for c in extraction.concepts],
+                    )
+                    i7.set(collisions=len(_alias_result.collisions))
+                    if _alias_result.collisions:
+                        _cb(f"⚠️ {len(_alias_result.collisions)} alias collision(s) dropped")
+                except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail ingest
+                    i7.set(error=str(exc))
+                    logger.warning("alias generation failed for %s: %s", file_path.name, exc)
 
             # ── Step 9: Create summary page ───────────────────────────────────
             _cb("📄 Writing summary page...")
-            with tracer.stage("summary"):
+            with tracing.node("I8", W) as i8:
                 summary_md = build_summary_page(doc_meta, extraction, language=language)
                 wiki_slug = make_wiki_slug(file_path.name)
                 prior_summary = _snapshot_wiki_page(db_path, f"wiki/summaries/{wiki_slug}.md")
@@ -342,11 +382,8 @@ def ingest_file(
                 update_references(
                     db_path, summary_result["id"], summary_md, "/wiki/summaries/",
                 )
-                tracer.artifact(
-                    "markdown", f"summary:{wiki_slug}", summary_md, ext="md",
-                    relative_path=f"wiki/summaries/{wiki_slug}.md",
-                    source_document_id=doc_id,
-                )
+                i8.payload("summary", summary_md, channel="markdown", ext="md")
+                i8.set(page=f"wiki/summaries/{wiki_slug}.md")
                 update_index(
                     workspace,
                     f"summaries/{wiki_slug}.md",
@@ -355,10 +392,11 @@ def ingest_file(
                     language=language,
                 )
 
+            tracing.mark("I9", W, answer=_batch_mode)
             if not _batch_mode:
                 # ── Step 10: Rewrite overview ─────────────────────────────────
                 _cb("🌐 Updating overview...")
-                with tracer.stage("overview"):
+                with tracing.node("I10", W) as i10:
                     current_overview = (workspace / "wiki" / "overview.md").read_text(encoding="utf-8")
                     all_concept_names = _all_concept_names(db_path)
                     new_overview = update_overview(
@@ -366,10 +404,7 @@ def ingest_file(
                         all_concept_names, llm_client, model, language=language,
                     )
                     (workspace / "wiki" / "overview.md").write_text(new_overview, encoding="utf-8")
-                    tracer.artifact(
-                        "markdown", "overview", new_overview, ext="md",
-                        relative_path="wiki/overview.md",
-                    )
+                    i10.payload("overview", new_overview, channel="markdown", ext="md")
 
                 # ── Step 11: Append to log ────────────────────────────────────
                 timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
@@ -378,17 +413,21 @@ def ingest_file(
                     f"{extraction.document_summary[:200]}\n\n"
                     f"Concepts: {', '.join(c.name for c in extraction.concepts) or 'none'}\n"
                 )
-                append_to_page(db_path, workspace, "/wiki/", "log", log_entry)
+                with tracing.node("I11", W):
+                    append_to_page(db_path, workspace, "/wiki/", "log", log_entry)
 
                 # ── Step 12: Git commit ───────────────────────────────────────
-                init_wiki_repo(workspace)
-                auto_commit(workspace, f"ingest: {file_path.name}")
+                with tracing.node("I12", W):
+                    init_wiki_repo(workspace)
+                    auto_commit(workspace, f"ingest: {file_path.name}")
 
             # ── Step 13 (optional): Lint ──────────────────────────────────────
             if lint_after_ingest and not _batch_mode:
                 from domain.lint.runner import lint_wiki
                 _cb("🩺 Running lint checks...")
-                lint_report = lint_wiki(db_path, workspace)
+                with tracing.node("I13", W) as i13:
+                    lint_report = lint_wiki(db_path, workspace)
+                    i13.set(issues=len(lint_report.issues))
                 if lint_report.issues:
                     lint_lines = "\n".join(
                         f"- [{i.severity.upper()}] {i.check}: {i.description}"
@@ -400,7 +439,6 @@ def ingest_file(
                     )
                 _cb(f"🩺 Lint: {lint_report.summary()}")
 
-            ok = True
             _cb(f"✅ Done: {file_path.name} ({len(page_contents)} pages, {len(chunks)} chunks)")
             return IngestResult(file_path, "ingested", f"{len(page_contents)} pages", doc_id)
 
@@ -409,6 +447,7 @@ def ingest_file(
             # Roll back wiki pages this run created/overwrote so a failed ingest
             # leaves no orphaned or half-merged derived pages behind.
             rolled_back = _rollback_wiki_pages(db_path, workspace, wiki_compensations, language=language)
+            tracing.mark("E3", W, error=str(exc)[:500], rolled_back=rolled_back)
             if rolled_back:
                 _cb(f"↩️ Rolled back {rolled_back} partial wiki page(s)")
             if conn is None:
@@ -423,9 +462,6 @@ def ingest_file(
             return IngestResult(file_path, "failed", str(exc), doc_id)
 
     finally:
-        tracer.document_end(status="ok" if ok else "error")
-        if _created:
-            tracer.finish()
         if conn is not None:
             conn.close()
 
@@ -543,9 +579,9 @@ def scan_and_ingest(
     if not candidates:
         return []
 
-    # One trace run for the whole scan (no-op when WIKI_TRACE is unset).
-    with trace.run_scope(workspace, db_path) as tracer:
-        llm_client = tracer.wrap(llm_client)
+    # One trace for the whole scan (no-op when WIKI_TRACE is unset).
+    with tracing.root("ingest", workspace, kind="scan", files=len(candidates)):
+        llm_client = tracing.wrap_openai(llm_client)
         results: list[IngestResult] = []
         for fp in candidates:
             results.append(
@@ -557,36 +593,41 @@ def scan_and_ingest(
         # isn't part of ingest_file). Gated on a fingerprint of the vocabulary, so
         # the LLM runs only when the datasets/ actually changed. Best-effort — an
         # alias must never fail a scan.
-        try:
-            _ds = regenerate_dataset_aliases(
-                workspace,
-                _all_concept_names(db_path),
-                lambda terms: extract_dataset_aliases(terms, llm_client, model, language=language),
+        with tracing.node("I14", tracing.WRITING) as i14:
+            try:
+                _ds = regenerate_dataset_aliases(
+                    workspace,
+                    _all_concept_names(db_path),
+                    lambda terms: extract_dataset_aliases(terms, llm_client, model, language=language),
+                )
+                i14.set(regenerated=_ds is not None)
+                if _ds and _ds.collisions:
+                    _cb(f"⚠️ {len(_ds.collisions)} dataset-alias collision(s) dropped")
+                elif _ds:
+                    _cb(f"🔤 Generated aliases for {len(_ds.aliases)} data term(s)")
+            except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail the scan
+                i14.set(error=str(exc))
+                logger.warning("dataset alias generation failed: %s", exc)
+
+        ingested = sum(1 for r in results if r.status == "ingested")
+        skipped  = sum(1 for r in results if r.status == "skipped")
+        failed   = sum(1 for r in results if r.status == "failed")
+        _cb(f"🏁 Scan complete — ingested: {ingested}, skipped: {skipped}, failed: {failed}")
+
+        # Final pass: now that every page exists, inject "See also" cross-links so a
+        # page created early can still link to concepts extracted from a later
+        # document. Deterministic; runs only when something was actually ingested.
+        if ingested:
+            touched = pages_touched_by(
+                db_path, [r.doc_id for r in results if r.status == "ingested" and r.doc_id]
             )
-            if _ds and _ds.collisions:
-                _cb(f"⚠️ {len(_ds.collisions)} dataset-alias collision(s) dropped")
-            elif _ds:
-                _cb(f"🔤 Generated aliases for {len(_ds.aliases)} data term(s)")
-        except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail the scan
-            logger.warning("dataset alias generation failed: %s", exc)
-
-    ingested = sum(1 for r in results if r.status == "ingested")
-    skipped  = sum(1 for r in results if r.status == "skipped")
-    failed   = sum(1 for r in results if r.status == "failed")
-    _cb(f"🏁 Scan complete — ingested: {ingested}, skipped: {skipped}, failed: {failed}")
-
-    # Final pass: now that every page exists, inject "See also" cross-links so a
-    # page created early can still link to concepts extracted from a later
-    # document. Deterministic; runs only when something was actually ingested.
-    if ingested:
-        touched = pages_touched_by(
-            db_path, [r.doc_id for r in results if r.status == "ingested" and r.doc_id]
-        )
-        n_linked = crosslink_wiki_pages(
-            workspace, db_path, language=language, progress_cb=_cb, touched=touched,
-        )
-        if n_linked:
-            _cb(f"🔗 Cross-linked {n_linked} page(s)")
+            with tracing.node("I16", tracing.WRITING, touched=len(touched)) as i16:
+                n_linked = crosslink_wiki_pages(
+                    workspace, db_path, language=language, progress_cb=_cb, touched=touched,
+                )
+                i16.set(linked=n_linked)
+            if n_linked:
+                _cb(f"🔗 Cross-linked {n_linked} page(s)")
 
     return results
 

@@ -11,6 +11,27 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Changed
+- **The chat trace and the ingestion trace are replaced by one OpenTelemetry
+  span stream.** `base/domain/chat/trace.py` (`WIKI_CHAT_TRACE=1`,
+  `<workspace>/.llmwiki/chat_trace.jsonl`) and
+  `base/domain/ingestion/trace.py` (per-run `trace.jsonl` under
+  `<workspace>/.llmwiki/traces/<run_id>/`) are removed. `WIKI_TRACE=1` now
+  activates a single module, `base/domain/tracing.py`: every step of a chat
+  turn or an ingest opens a span named by its identifier in the diagrams of
+  `design_stemming.md` (`Q5`, `I4`, `W1`, …), so the span names of one trace
+  are the path the run took through the diagram. Spans append to
+  `<workspace>/.llmwiki/traces/spans.jsonl`, one JSON object per line
+  (`ReadableSpan.to_json`); heavy payloads still go to content-addressed
+  files under `.llmwiki/traces/payloads/`, gated by the unchanged
+  `WIKI_TRACE_CAPTURE`. Model calls are spans with `gen_ai.*` attributes,
+  written by Pydantic AI's own instrumentation for the chat agent and by a
+  proxied OpenAI client (`tracing.wrap_openai`) for ingestion.
+  `scripts/render_trace.py` is rewritten to render the span file — one
+  timeline per trace, filterable by `--trace`, `--conversation`, or `--doc` —
+  and `marimo/trace_report_app.py` is removed with no replacement viewer.
+  `WIKI_CHAT_TRACE` no longer has any effect.
+
 ### Fixed
 - **"See also" links now survive an accent.** `slugify` strips combining marks
   when it builds a page's file name, so a page titled "Panel Líder" is filed as

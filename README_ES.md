@@ -87,7 +87,7 @@ vivos y calcula asesoramiento con fundamento sobre ellos.*
 **Transparencia y documentación**
 
 - **Grafo de citas en SQLite** — cada arista página→fuente y página→página se registra y se reconstruye de forma determinista, así que la procedencia es consultable.
-- **Trazado opcional** (`WIKI_TRACE=1`) — emite una traza JSONL del flujo completo LLM + datos por cada ingesta, visualizable en una app de informe de trazas dedicada.
+- **Trazado opcional** (`WIKI_TRACE=1`) — emite un span de OpenTelemetry por nodo del diagrama, en cada turno de chat y en cada ingesta, escrito en `spans.jsonl` y renderizado por `scripts/render_trace.py`.
 - **Documentada de punta a punta** — un manual del programador con su referencia de apps / flujos / internos, un diccionario de datos de SQLite, un plan UAT de tres partes y una matriz honesta de alineación con Karpathy que califica lo hecho, lo parcial y lo diferido.
 
 ---
@@ -212,8 +212,7 @@ base/                   # Pipeline de ingesta + agente de chat (Python autoconte
 marimo/                # Apps de notebook de Marimo
 ├── ingest_app.py          # UI de subida → ingesta → generación de la wiki
 ├── read_app_tabs.py       # Visor de solo lectura + chat (pestañas 📖 Read · 💬 Chat)
-├── read_app.py            # la misma app como grilla de 3 columnas — en retirada
-└── trace_report_app.py    # Visor de trazas de ingesta (ejecuciones con WIKI_TRACE=1)
+└── read_app.py            # la misma app como grilla de 3 columnas — en retirada
 
 database/
 └── sqlite_schema.sql      # Esquema canónico de la BD

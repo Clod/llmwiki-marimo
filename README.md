@@ -88,7 +88,7 @@ that also keeps live data and computes grounded advice over it.*
 **Transparency & docs**
 
 - **Citation graph in SQLite** — every page→source and page→page edge is recorded and rebuilt deterministically, so provenance is queryable.
-- **Opt-in tracing** (`WIKI_TRACE=1`) — emits a JSONL trace of the full LLM + data-flow per ingest, viewable in a dedicated trace-report app.
+- **Opt-in tracing** (`WIKI_TRACE=1`) — emits an OpenTelemetry span per diagram node for every chat turn and ingest, written to `spans.jsonl` and rendered by `scripts/render_trace.py`.
 - **Documented end to end** — a programmer manual with its apps / workflows / internals reference, a SQLite data dictionary, a three-part UAT plan, and an honest Karpathy-alignment matrix grading what's done, partial, and deferred.
 
 ---
@@ -210,8 +210,7 @@ base/                   # Ingestion pipeline + chat agent (self-contained Python
 marimo/                # Marimo notebook apps
 ├── ingest_app.py          # Upload → ingest → wiki generation UI
 ├── read_app_tabs.py       # Read-only viewer + chat (📖 Read · 💬 Chat tabs)
-├── read_app.py            # the same app as a 3-column grid — being retired
-└── trace_report_app.py    # Ingestion trace viewer (WIKI_TRACE=1 runs)
+└── read_app.py            # the same app as a 3-column grid — being retired
 
 database/
 └── sqlite_schema.sql      # Canonical DB schema

@@ -176,16 +176,6 @@ retrieve-then-cite behaviour deterministic and reproducible — so a model's
 `eval_chat_model.py` verdict (§9) is a property of the model, not sampling luck.
 See the README "LLM providers" note for the empirical model-size floor (~12B local).
 
-### `trace_report_app.py`
-
-A read-only viewer for ingestion traces (§14). Point it at a directory, it
-discovers every `trace.jsonl` run underneath, and renders each run two ways: a
-human-readable per-document timeline (same layout as `scripts/render_trace.py`)
-and an `mo.tree` of the raw events grouped by document. Payload channels
-(`prompts`, `responses`, `extracted_text`, `chunks`, `markdown`) can be inlined
-on demand. It only reads traces produced by `WIKI_TRACE=1` runs — it never
-ingests or writes anything.
-
 ### Quick-start installer (`quickstart.py`)
 
 `quickstart.py` (repo root) is a **stdlib-only** onboarding script — the only
@@ -288,8 +278,8 @@ wiki with the default assistant). See `wiki_config.example.toml` (English) or
 | `WIKI_HOME=…`              | Folder the wiki picker scans for sibling wikis (default: parent of `WIKI_PATH`). See §7.1.   |
 | `WIKI_AUTOCOMMIT=0`        | Disable the per-ingest git auto-commit of `wiki/` in the workspace (default: on). Falsy values `0/false/no/off`; read by `git_ops.autocommit_enabled` — skips both `init_wiki_repo` and `auto_commit`. |
 | `HEADLESS=1`               | Used by the E2E test suite for non-interactive Playwright runs                               |
-| `WIKI_TRACE=1`             | Turns on the opt-in ingestion trace (LLM exchanges + data-flow). See §14.                    |
-| `WIKI_TRACE_CAPTURE=…`     | Selects trace payload channels: `all` (default) · `none` · CSV of `extracted_text,chunks,prompts,responses,markdown`. See §14. |
+| `WIKI_TRACE=1`             | Turns on the opt-in trace: one OpenTelemetry span per diagram node, for a chat turn and for an ingest. See §14.                    |
+| `WIKI_TRACE_CAPTURE=…`     | Selects the trace's payload channels: `all` (default) · `none` · CSV of `extracted_text,chunks,prompts,responses,markdown`. See §14. |
 
 ---
 

@@ -321,12 +321,13 @@ stay independent (ingesting one doesn't touch the other).
 ```bash
 WIKI_TRACE=1 uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
 # ingest one PDF, then:
-uv run marimo run marimo/trace_report_app.py --no-sandbox --port 2722
+python scripts/render_trace.py <workspace> --doc <document_id>
 ```
 
-**Accept:** a JSONL trace is written (opt-in via the env var) and the report app
-shows the LLM/data-flow steps — prompts, model calls, chunk flow — in a readable
-timeline. Useful for diagnosing a bad summary in B1.
+**Accept:** the spans of the ingestion are appended to
+`<workspace>/.llmwiki/traces/spans.jsonl` (opt-in via the env var), and
+`render_trace.py` renders the LLM/data-flow steps — prompts, model calls, chunk
+flow — in a readable timeline. Useful for diagnosing a bad summary in B1.
 
 ---
 

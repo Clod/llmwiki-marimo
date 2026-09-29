@@ -533,7 +533,7 @@ def ingest_runner(
     try:
         from domain.ingestion import ingest_file as _if
         from domain.ingestion import crosslink_wiki_pages as _crosslink
-        from domain.ingestion.trace import run_scope as _run_scope
+        from domain import tracing as _tracing
         from domain.lint.runner import lint_wiki as _lw
         from domain.lint.report import LintReport as _LintReport
         from domain.repair.runner import repair_wiki as _rw
@@ -573,8 +573,10 @@ def ingest_runner(
     def _run():
         set_running_op("ingest")
         try:
-            _results = []
-            with _run_scope(WORKSPACE, DB_PATH):
+            # One `ingest` root span covers the files, the reconciliation pass and
+            # the cross-links (WIKI_TRACE=1; domain/tracing.py).
+            with _tracing.root("ingest", WORKSPACE, kind="upload", files=len(_files)):
+                _results = []
                 for _f in _files:
                     _fp = WORKSPACE / "sources" / _f.name
                     if not _fp.exists():
@@ -583,40 +585,44 @@ def ingest_runner(
                     _results.append(_result)
                     logger.info("Result: %s — %s", _result.status, _result.message)
 
-            # Reconciliation pass — deterministic by default (client=None → the LLM
-            # checks/repairs are skipped), full when the checkbox was ticked. Scoped
-            # to the pages this ingest touched so unrelated pages are never rewritten.
-            _src_ids = [r.doc_id for r in _results if r.status == "ingested" and r.doc_id]
-            _related = _related_pages(_src_ids)
-            _client = llm_client if _full_repair else None
-            _mode = "full LLM" if _full_repair else "deterministic"
-            _cb(f"🩺 Running {_mode} lint on {len(_related)} ingested page(s)…")
-            _report = _lw(DB_PATH, WORKSPACE, client=_client, model=llm_model, progress_cb=_cb)
-            _fixable = [
-                i for i in _report.issues
-                if i.check != "orphan" and i.page in _related
-            ]
-            if _fixable:
-                _cb(f"🔧 {len(_fixable)} issue(s) on ingested pages — repairing ({_mode})…")
-                _rw(
-                    _LintReport(issues=_fixable, checked_at=_report.checked_at),
-                    DB_PATH, WORKSPACE,
-                    llm_client=_client, model=llm_model, progress_cb=_cb,
-                    language=WIKI_LANG,
-                )
-            else:
-                _cb("✅ Ingested pages consistent — no repairs needed.")
+                # Reconciliation pass — deterministic by default (client=None → the LLM
+                # checks/repairs are skipped), full when the checkbox was ticked. Scoped
+                # to the pages this ingest touched so unrelated pages are never rewritten.
+                _src_ids = [r.doc_id for r in _results if r.status == "ingested" and r.doc_id]
+                _related = _related_pages(_src_ids)
+                _client = llm_client if _full_repair else None
+                _mode = "full LLM" if _full_repair else "deterministic"
+                _cb(f"🩺 Running {_mode} lint on {len(_related)} ingested page(s)…")
+                with _tracing.node("I15", _tracing.WRITING, mode=_mode, pages=len(_related)) as _i15:
+                    _report = _lw(DB_PATH, WORKSPACE, client=_client, model=llm_model, progress_cb=_cb)
+                    _fixable = [
+                        i for i in _report.issues
+                        if i.check != "orphan" and i.page in _related
+                    ]
+                    _i15.set(issues=len(_report.issues), fixable=len(_fixable))
+                    if _fixable:
+                        _cb(f"🔧 {len(_fixable)} issue(s) on ingested pages — repairing ({_mode})…")
+                        _rw(
+                            _LintReport(issues=_fixable, checked_at=_report.checked_at),
+                            DB_PATH, WORKSPACE,
+                            llm_client=_client, model=llm_model, progress_cb=_cb,
+                            language=WIKI_LANG,
+                        )
+                    else:
+                        _cb("✅ Ingested pages consistent — no repairs needed.")
 
-            # Refresh "See also" cross-links now that this batch is ingested — an
-            # older page may reference a freshly-added concept. Scoped to the pages
-            # this ingest touched plus the pages that mention them: the full sweep
-            # is quadratic in the page count and belongs to the wiki-wide button.
-            if _src_ids:
-                _n_linked = _crosslink(
-                    WORKSPACE, DB_PATH, language=WIKI_LANG, progress_cb=_cb, touched=_related,
-                )
-                if _n_linked:
-                    _cb(f"🔗 Cross-linked {_n_linked} page(s)")
+                # Refresh "See also" cross-links now that this batch is ingested — an
+                # older page may reference a freshly-added concept. Scoped to the pages
+                # this ingest touched plus the pages that mention them: the full sweep
+                # is quadratic in the page count and belongs to the wiki-wide button.
+                if _src_ids:
+                    with _tracing.node("I16", _tracing.WRITING, touched=len(_related)) as _i16:
+                        _n_linked = _crosslink(
+                            WORKSPACE, DB_PATH, language=WIKI_LANG, progress_cb=_cb, touched=_related,
+                        )
+                        _i16.set(linked=_n_linked)
+                    if _n_linked:
+                        _cb(f"🔗 Cross-linked {_n_linked} page(s)")
         finally:
             _finish()
             set_running_op(None)

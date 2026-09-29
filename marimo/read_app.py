@@ -364,6 +364,11 @@ def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, 
 
     last_response, set_last_response = mo.state("")
 
+    # One conversation identifier per chat: every turn's trace carries it, so
+    # the turns of one conversation can be read in order (domain/tracing.py).
+    import uuid as _uuid
+    _conversation_id = _uuid.uuid4().hex
+
     async def respond(messages, config):
         # The "Strict mode" toggle (grounding_flag["strict"], read live at
         # call-time) controls two coupled behaviors:
@@ -372,16 +377,12 @@ def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, 
         #          Cannot stream — you can't retract text already shown.
         #   OFF -> normal: stream token-by-token (original UX), no gating.
         # Strict+streaming is incoherent, so the two move together by necessity.
+        from domain import tracing
         from domain.chat.guardrail import (
             enforce_grounding,
             has_grounding,
             refusal_for,
             strip_refused_exchanges,
-        )
-        from domain.chat.trace import (
-            build_turn_record,
-            chat_trace_enabled,
-            record_turn,
         )
         from domain.chat.postprocess import answer_with_table, ensure_citation
         from domain.chat.history import trim_history
@@ -398,81 +399,71 @@ def chat_panel(grounding_flag, wiki_agent, wiki_agent_preret, wiki_chat_config, 
 
         _lang = wiki_chat_config.language if wiki_chat_config else None
         _question = messages[-1].content
-
-        def _trace(*, raw_output, final_answer, result, refusal_substituted):
-            # Opt-in (WIKI_CHAT_TRACE=1): one JSONL row per turn so a session can
-            # be diagnosed offline — history, tool calls + retrieved content, the
-            # raw output vs the guardrail's final answer. See domain/chat/trace.py.
-            # Fully defensive: a trace failure must never break the chat turn.
-            if not chat_trace_enabled():
-                return
-            try:
-                msgs = result.all_messages()
-                workspace = Path(wiki_db_path).parent.parent if wiki_db_path else None
-                hist = [
-                    {"role": getattr(m, "role", None), "content": getattr(m, "content", None)}
-                    for m in messages[:-1]
-                ]
-                record_turn(workspace, build_turn_record(
-                    question=_question, language=_lang,
-                    strict_mode=grounding_flag["strict"], history=hist, messages=msgs,
-                    raw_output=raw_output, final_answer=final_answer,
-                    grounded=has_grounding(msgs), refusal_substituted=refusal_substituted,
-                ))
-            except Exception:  # noqa: BLE001 — tracing is best-effort
-                pass
-
+        _ws = Path(wiki_db_path).parent.parent if wiki_db_path else None
         if grounding_flag.get("pre_retrieval") and wiki_agent_preret is not None:
+            _mode = "pre-retrieval"
+        elif grounding_flag["strict"]:
+            _mode = "strict"
+        else:
+            _mode = "streaming"
+        # The root span of the turn (WIKI_TRACE=1). Every span the engine and the
+        # agent write during the turn is its child.
+        _turn = dict(
+            conversation_id=_conversation_id,
+            turn=sum(1 for m in messages if m.role == "user"),
+            mode=_mode, question=_question, language=_lang,
+            history_messages=len(history),
+        )
+
+        if _mode == "pre-retrieval":
             # Hybrid pre-retrieval (live toggle): the CODE retrieves + gates; the
             # tool-less agent answers only from the injected context. Read live
             # from grounding_flag so flipping the checkbox mid-chat takes effect on
             # the next message. See domain/chat/preretrieval.py.
             from domain.chat.preretrieval import pre_retrieval_answer
-            _ws = Path(wiki_db_path).parent.parent
 
             async def _run_agent(_prompt, _hist):
                 return await wiki_agent_preret.run(_prompt, deps=wiki_db_path, message_history=_hist)
 
-            def _pre_trace(*, raw, final, result, refusal_substituted):
-                _trace(raw_output=raw, final_answer=final, result=result,
-                       refusal_substituted=refusal_substituted)
-
-            answer = await pre_retrieval_answer(
-                _question, config=wiki_chat_config, db_path=wiki_db_path,
-                workspace=_ws, history=history, language=_lang,
-                run_agent=_run_agent, on_trace=_pre_trace,
-            )
+            with tracing.root("turn", _ws, **_turn):
+                answer = await pre_retrieval_answer(
+                    _question, config=wiki_chat_config, db_path=wiki_db_path,
+                    workspace=_ws, history=history, language=_lang,
+                    run_agent=_run_agent,
+                )
             set_last_response(answer)
             yield answer
             return
 
-        if grounding_flag["strict"]:
-            result = await wiki_agent.run(
-                _question, deps=wiki_db_path, message_history=history
-            )
-            raw = result.output
-            _msgs = result.all_messages()
-            answer = enforce_grounding(raw, _msgs, refusal=refusal_for(_lang))
-            refusal_substituted = answer != raw
-            # Deterministic post-processing (domain/chat/postprocess.py): guarantee
-            # the advisory table and a source citation regardless of whether the
-            # model reproduced them under history priming. Both no-op on a refusal.
-            answer = answer_with_table(answer, _msgs)
-            answer = ensure_citation(answer, _msgs)
-            _trace(raw_output=raw, final_answer=answer, result=result,
-                   refusal_substituted=refusal_substituted)
+        if _mode == "strict":
+            with tracing.root("turn", _ws, **_turn) as _root:
+                result = await wiki_agent.run(
+                    _question, deps=wiki_db_path, message_history=history
+                )
+                raw = result.output
+                _msgs = result.all_messages()
+                answer = enforce_grounding(raw, _msgs, refusal=refusal_for(_lang))
+                refusal_substituted = answer != raw
+                # Deterministic post-processing (domain/chat/postprocess.py): guarantee
+                # the advisory table and a source citation regardless of whether the
+                # model reproduced them under history priming. Both no-op on a refusal.
+                answer = answer_with_table(answer, _msgs)
+                answer = ensure_citation(answer, _msgs)
+                _root.set(raw_output=raw, final_answer=answer,
+                          grounded=has_grounding(_msgs),
+                          refusal_substituted=refusal_substituted)
             set_last_response(answer)
             yield answer
         else:
             full_text = ""
-            async with wiki_agent.run_stream(
-                _question, deps=wiki_db_path, message_history=history
-            ) as result:
-                async for chunk in result.stream_text(delta=True):
-                    full_text += chunk
-                    yield chunk
-            _trace(raw_output=full_text, final_answer=full_text, result=result,
-                   refusal_substituted=False)
+            with tracing.root("turn", _ws, **_turn) as _root:
+                async with wiki_agent.run_stream(
+                    _question, deps=wiki_db_path, message_history=history
+                ) as result:
+                    async for chunk in result.stream_text(delta=True):
+                        full_text += chunk
+                        yield chunk
+                _root.set(raw_output=full_text, final_answer=full_text)
             set_last_response(full_text)
 
     if wiki_agent is None:

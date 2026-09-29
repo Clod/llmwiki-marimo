@@ -528,11 +528,13 @@ exactos; los comportamientos honestos se detectan por su forma).
 
 Correr esta guía como UAT **real** —las nueve preguntas seguidas, en una misma
 sesión— no fue un trámite: destapó fallas concretas que no se ven pregunta por
-pregunta aislada. Un **trace opt-in** (`WIKI_CHAT_TRACE=1`,
-`base/domain/chat/trace.py`) que registra cada turno —herramientas llamadas,
-contenido recuperado, respuesta cruda vs. final— permitió diagnosticar cada caso
-**con datos, no con suposiciones**. Aparecieron dos problemas transversales, los
-dos por la **acumulación de contexto** turno a turno:
+pregunta aislada. Un **trace opt-in** (`WIKI_TRACE=1`, `base/domain/tracing.py`)
+que registra un span por nodo del diagrama de lectura de cada turno —qué
+herramienta se llamó, qué contenido se recuperó, la respuesta cruda del modelo
+frente a la final— permitió diagnosticar cada caso **con datos, no con
+suposiciones** (se lee con `scripts/render_trace.py WIKI_PATH --conversation
+<id>`). Aparecieron dos problemas transversales, los dos por la **acumulación
+de contexto** turno a turno:
 
 - **Contagio del historial (_priming_):** una respuesta previa en prosa —o un
   rechazo que quedaba en el contexto— arrastraba a las siguientes a imitar ese
