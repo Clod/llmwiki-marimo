@@ -229,6 +229,8 @@ output and is not committed, so this table is the version that ships.
 llmwiki/
 ├── base/
 │   ├── config.py                       # pydantic-settings (.env)
+│   ├── services/                       # What every interface calls: wiki.py (open, pages, save),
+│   │                                   #   chat.py (agents, one turn per mode), ingest.py (uploads, maintenance)
 │   └── domain/
 │       ├── chat/
 │       │   ├── agent.py                # create_agent() factory (+ extra_tools/extra_prompt seam)
