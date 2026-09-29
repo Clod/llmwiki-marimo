@@ -4,6 +4,7 @@ open_db() is the single entry point for opening the wiki index DB.
 All other modules import from here — do NOT define open_db elsewhere.
 """
 
+import logging
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -12,6 +13,12 @@ from pathlib import Path
 from typing import Iterator
 
 _SCHEMA_PATH = Path(__file__).parent.parent.parent.parent / "database" / "sqlite_schema.sql"
+
+logger = logging.getLogger(__name__)
+
+# The one schema gap `open_db` repairs by itself: an index built before the
+# stemmed column existed. Any other gap still raises SchemaMismatchError.
+_STEMMED_GAP = {"document_chunks": ["content_stemmed"], "chunks_fts": ["content_stemmed"]}
 
 
 class SchemaMismatchError(RuntimeError):
@@ -105,9 +112,49 @@ def _verify_schema(conn: sqlite3.Connection, db_path: str) -> None:
         gap = sorted(expected - _table_columns(conn, table))
         if gap:
             missing[table] = gap
+    if missing and all(_STEMMED_GAP.get(t) == cols for t, cols in missing.items()):
+        _rebuild_stemmed_index(conn, db_path)
+        return
     if missing:
         conn.close()
         raise SchemaMismatchError(db_path, missing)
+
+
+def _rebuild_stemmed_index(conn: sqlite3.Connection, db_path: str) -> None:
+    """Rebuild the FTS index of a wiki indexed before stemming; no model call.
+
+    Adds `document_chunks.content_stemmed`, fills it with `stem_text` in the
+    wiki's language, recreates `chunks_fts` and its triggers with the current
+    definition, and re-indexes. The wiki's language is read from the wiki
+    directory, `<wiki>/.llmwiki/index.db` → `<wiki>` (design_stemming.md,
+    decision 13); `load_wiki_language` returns "en" when there is no config.
+    """
+    from domain.text.stemming import stem_text
+    from domain.wiki_settings import language_for_db
+
+    language = language_for_db(db_path)
+    with conn:
+        for trigger in ("chunks_fts_insert", "chunks_fts_delete", "chunks_fts_update"):
+            conn.execute(f"DROP TRIGGER IF EXISTS {trigger}")
+        conn.execute("DROP TABLE IF EXISTS chunks_fts")
+        if "content_stemmed" not in _table_columns(conn, "document_chunks"):
+            conn.execute(
+                "ALTER TABLE document_chunks "
+                "ADD COLUMN content_stemmed TEXT NOT NULL DEFAULT ''"
+            )
+        rows = conn.execute("SELECT rowid, content FROM document_chunks").fetchall()
+        conn.executemany(
+            "UPDATE document_chunks SET content_stemmed = ? WHERE rowid = ?",
+            [(stem_text(row["content"], language), row["rowid"]) for row in rows],
+        )
+    _apply_base_schema(conn)
+    conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
+    conn.commit()
+    logger.warning(
+        "Rebuilt the search index of %s with %s stemming (%d fragments): the index "
+        "predated the stemmed column. No page changed.",
+        db_path, language, len(rows),
+    )
 
 
 @contextmanager

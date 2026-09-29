@@ -173,11 +173,17 @@ the overview rather than the tools. It cannot fire without something to inject:
 `retrieve_collection_pages` returns `[]` when the wiki has neither
 `wiki/overview.md` nor `wiki/index.md`, and the question then refuses as before.
 
-**Caller (`pre_retrieval_answer`) computes:**
-`has_data = mentions_known_data(q, vocab, aliases) or advisory_intent(q)` — the
-second disjunct routes a generic advisory question (an amount + horizon, no named
-instrument) to the tools instead of refusing. `in_roster = mentions_known_data(q,
-coverage, aliases)` where `coverage = dataset vocab ∪ concept page names`, and
+**Caller (`pre_retrieval_answer`) computes, in the reading diagram's order:**
+first `is_off_limits(q)`, by whole normalized word (the blacklist is never
+stemmed); for a question that passes it,
+`has_data = mentions_known_data(q, categories, aliases, language=…, exact=keys)
+or advisory_intent(q)` — the second disjunct routes a generic advisory question
+(an amount + horizon, no named instrument) to the tools instead of refusing.
+`in_roster = mentions_known_data(q, categories ∪ concept page names, aliases,
+language=…, exact=keys)`. Categories, concept-page titles and aliases compare by
+Snowball stem in the wiki's language (`domain/text/stemming.py`); the dataset
+keys compare by whole normalized word. The wiki search runs only when
+`in_roster` is true, and the source search only when it also found no page;
 `collection_hits = retrieve_collection_pages(workspace) if collection_intent(q)
 else []` — read off disk, since `overview.md` and `index.md` have no `documents`
 row and are invisible to FTS.

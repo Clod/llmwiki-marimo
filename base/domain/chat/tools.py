@@ -17,6 +17,9 @@ import aiosqlite
 # Import RunContext from pydantic_ai to access shared dependencies (the database path)
 from pydantic_ai import RunContext
 
+from domain.text.stemming import stem_fts_query
+from domain.wiki_settings import language_for_db
+
 # Set up logging for this module
 logger = logging.getLogger(__name__)
 
@@ -59,7 +62,9 @@ async def search_source_chunks(ctx: RunContext[str], query: str, limit: int = 10
                 ORDER BY rank
                 LIMIT ?
                 """,
-                (query, limit),
+                # The index holds stemmed text; the query is stemmed in the
+                # wiki's language, read from the wiki that owns the index.
+                (stem_fts_query(query, language_for_db(db_path)), limit),
             )
             # 4. Fetch all matching records asynchronously
             rows = await cursor.fetchall()

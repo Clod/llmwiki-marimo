@@ -28,7 +28,9 @@ import uuid
 from pathlib import Path
 
 # Specialized connection opener function from our local database utilities
+from domain.text.stemming import stem_text
 from domain.tools.db import open_db
+from domain.wiki_settings import load_wiki_language
 # Frontmatter writer/parser shared with dataset files — see module docstring
 from domain.datasets.frontmatter import parse_frontmatter, render_frontmatter, split_frontmatter
 
@@ -72,7 +74,9 @@ def _normalize_dir_path(dir_path: str) -> str:
     return f"/{p}/" if p else "/"
 
 
-def _insert_chunks(conn: sqlite3.Connection, doc_id: str, content: str) -> None:
+def _insert_chunks(
+    conn: sqlite3.Connection, doc_id: str, content: str, language: str,
+) -> None:
     """Deconstructs page text into search chunks and inserts them into the database.
 
     Uses standard chunk size logic to slice up long pages so the AI search system
@@ -92,10 +96,11 @@ def _insert_chunks(conn: sqlite3.Connection, doc_id: str, content: str) -> None:
     # 2. Bulk insert the chunks into the database using 'executemany' for high speed.
     conn.executemany(
         "INSERT INTO document_chunks "
-        "(id, document_id, chunk_index, content, page, start_char, "
-        "token_count, header_breadcrumb) VALUES (?,?,?,?,?,?,?,?)",
+        "(id, document_id, chunk_index, content, content_stemmed, page, "
+        "start_char, token_count, header_breadcrumb) VALUES (?,?,?,?,?,?,?,?,?)",
         [
-            (str(uuid.uuid4()), doc_id, c.index, c.content, c.page,
+            (str(uuid.uuid4()), doc_id, c.index, c.content,
+             stem_text(c.content, language), c.page,
              c.start_char, c.token_count, c.header_breadcrumb)
             for c in chunks
         ],
@@ -185,7 +190,7 @@ def _strip_dead_links(
             # Remove old search chunks
             conn.execute("DELETE FROM document_chunks WHERE document_id=?", (ref["id"],))
             # Insert brand new search chunks for the cleaned content
-            _insert_chunks(conn, ref["id"], new_content)
+            _insert_chunks(conn, ref["id"], new_content, load_wiki_language(workspace))
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -300,6 +305,7 @@ def create_page(
     sources: list[str] | None = None,
     replace_sources: bool = False,
     clear_stale: bool = False,
+    language: str | None = None,
 ) -> dict:
     """Write a wiki page to disk and insert/update the DB record.
 
@@ -452,7 +458,7 @@ def create_page(
                 )
 
             # Reconstruct and insert search chunks to match the new text content
-            _insert_chunks(conn, doc_id, final_content)
+            _insert_chunks(conn, doc_id, final_content, language or load_wiki_language(workspace))
     finally:
         # Always close connection to prevent database locks or memory leaks
         conn.close()
@@ -483,6 +489,7 @@ def write_page_content(
     dir_path: str,
     slug: str,
     new_content: str,
+    language: str | None = None,
 ) -> bool:
     """Replace an existing wiki page's text (disk + DB). Returns True on success.
 
@@ -520,7 +527,7 @@ def write_page_content(
                 conn.execute(
                     "DELETE FROM document_chunks WHERE document_id=?", (doc_id,)
                 )
-                _insert_chunks(conn, doc_id, new_content)
+                _insert_chunks(conn, doc_id, new_content, language or load_wiki_language(workspace))
     finally:
         conn.close()
 

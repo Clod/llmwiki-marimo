@@ -29,7 +29,7 @@ def test_retrieve_wiki_formats_and_drops_empty(monkeypatch):
 def test_retrieve_wiki_uses_wiki_scope(monkeypatch):
     captured = {}
 
-    def fake(db, query, limit=10, scope="all"):
+    def fake(db, query, limit=10, scope="all", language=None):
         captured["scope"] = scope
         return []
 
@@ -41,7 +41,7 @@ def test_retrieve_wiki_uses_wiki_scope(monkeypatch):
 def test_retrieve_source_uses_sources_scope_and_filename(monkeypatch):
     captured = {}
 
-    def fake(db, query, limit=10, scope="all"):
+    def fake(db, query, limit=10, scope="all", language=None):
         captured["scope"] = scope
         return [{"content": "chunk crudo", "filename": "05 Bonos.docx"}]
 
@@ -62,7 +62,7 @@ def _capture_query(monkeypatch):
     """Monkeypatch search_chunks to record the query string it receives."""
     seen = {}
 
-    def fake(db, query, limit=10, scope="all"):
+    def fake(db, query, limit=10, scope="all", language=None):
         seen["query"] = query
         return []
 

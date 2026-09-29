@@ -42,3 +42,13 @@ def load_wiki_language(wiki_path: Path) -> str:
         return get_locale(None).code
     raw = data.get("wiki", {}).get("language")
     return get_locale(raw).code  # normalize + validate + fallback in one place
+
+
+def language_for_db(db_path: str | Path) -> str:
+    """The language of the wiki that owns the index at `db_path`.
+
+    The index lives at `<wiki>/.llmwiki/index.db`, so the wiki directory is
+    `Path(db_path).parent.parent` — the same derivation the read app uses. For a
+    path outside a wiki, `load_wiki_language` finds no config and returns "en".
+    """
+    return load_wiki_language(Path(db_path).parent.parent)

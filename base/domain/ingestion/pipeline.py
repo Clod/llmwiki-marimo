@@ -34,6 +34,7 @@ from .wiki_generator import (
 )
 from .alias_generation import regenerate_dataset_aliases, update_generated_aliases
 from domain import tracing
+from domain.text.stemming import stem_text
 from domain.i18n import get_locale
 from domain.tools.db import get_connection, open_db
 from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
@@ -289,10 +290,11 @@ def _ingest_file(
                 conn.execute("DELETE FROM document_chunks WHERE document_id=?", (doc_id,))
                 conn.executemany(
                     "INSERT INTO document_chunks "
-                    "(id, document_id, chunk_index, content, page, start_char, "
-                    "token_count, header_breadcrumb) VALUES (?,?,?,?,?,?,?,?)",
+                    "(id, document_id, chunk_index, content, content_stemmed, page, "
+                    "start_char, token_count, header_breadcrumb) VALUES (?,?,?,?,?,?,?,?,?)",
                     [
-                        (str(uuid.uuid4()), doc_id, c.index, c.content, c.page,
+                        (str(uuid.uuid4()), doc_id, c.index, c.content,
+                         stem_text(c.content, language), c.page,
                          c.start_char, c.token_count, c.header_breadcrumb)
                         for c in chunks
                     ],

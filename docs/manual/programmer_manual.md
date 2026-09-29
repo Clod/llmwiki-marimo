@@ -118,7 +118,7 @@ read `index.md`", which is why this isn't ❌.
 
 | Karpathy's bar | Here |
 | --- | --- |
-| **Vector / semantic** retrieval | ❌ FTS5 is purely lexical — matches tokens, not meaning. A query for "central bank" won't surface a page that only says "the Fed". (Porter stemming handles word forms, not synonyms.) |
+| **Vector / semantic** retrieval | ❌ FTS5 is purely lexical — matches tokens, not meaning. A query for "central bank" won't surface a page that only says "the Fed". (Snowball stemming, per wiki language, handles word forms, not synonyms.) |
 | **Hybrid** BM25 + vector fusion | ❌ BM25 only |
 | **LLM re-ranking** | ❌ raw FTS5 `rank` order, no rerank pass |
 | **CLI + MCP** surface | ❌ an internal Python function, not a standalone tool an external LLM can shell out to or call over MCP |
@@ -348,7 +348,7 @@ snapshot. `.gitignore` excludes `.llmwiki/` and the raw `sources/`.
 
 ## 10. Known Constraints & Gotchas
 
-- **FTS5 hyphens.** The porter unicode61 tokenizer splits hyphens at index time.
+- **FTS5 hyphens.** The unicode61 tokenizer splits hyphens at index time.
 An unquoted `mortgage-backed` in a query raises a MATCH syntax error ("no such
 column: backed") which `search_chunks` swallows, returning `[]`. Use plain terms
 or quote the hyphenated phrase (`"mortgage-backed"`).

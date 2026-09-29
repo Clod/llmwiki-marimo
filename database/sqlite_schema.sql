@@ -191,6 +191,11 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     
     -- The plain text inside this specific chunk
     content TEXT NOT NULL,
+
+    -- The same text, stemmed with the Snowball stemmer of the wiki's language
+    -- (domain/text/stemming.py:stem_text). Only the FTS index reads it; the
+    -- reader always sees `content`.
+    content_stemmed TEXT NOT NULL DEFAULT '',
     
     -- Which page number of the document this chunk originated from (optional)
     page INTEGER,
@@ -244,19 +249,20 @@ CREATE TABLE IF NOT EXISTS document_references (
 -- A "VIRTUAL TABLE" is a special table backed by SQLite's internal code rather 
 -- than basic rows on disk.
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
-    -- The columns we want to index for search
-    content,
-    
-    -- Point FTS5 to index the 'content' column from our actual 'document_chunks' table
+    -- The column we index: the stemmed text of each chunk
+    content_stemmed,
+
+    -- Point FTS5 at the 'content_stemmed' column of the 'document_chunks' table
     content='document_chunks',
     
     -- Link the virtual search rows to standard table rows using the 'rowid'
     content_rowid='rowid',
     
     -- Tokenizer instructions:
-    -- 'unicode61' handles accent characters and diverse punctuation
-    -- 'porter' performs word stemming (e.g. searching "running" matches "runs" and "run")
-    tokenize='porter unicode61'
+    -- 'unicode61' splits words and folds accents. No stemming here: the text
+    -- arrives already stemmed by Python, in the wiki's language, and every
+    -- query is stemmed the same way before MATCH (domain/tools/search.py).
+    tokenize='unicode61'
 );
 
 
@@ -267,20 +273,20 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
 
 -- A. Automatically index new chunks when they are added
 CREATE TRIGGER IF NOT EXISTS chunks_fts_insert AFTER INSERT ON document_chunks BEGIN
-    INSERT INTO chunks_fts(rowid, content) VALUES (new.rowid, new.content);
+    INSERT INTO chunks_fts(rowid, content_stemmed) VALUES (new.rowid, new.content_stemmed);
 END;
 
 -- B. Automatically remove chunks from the search index when they are deleted
 CREATE TRIGGER IF NOT EXISTS chunks_fts_delete AFTER DELETE ON document_chunks BEGIN
-    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+    INSERT INTO chunks_fts(chunks_fts, rowid, content_stemmed) VALUES('delete', old.rowid, old.content_stemmed);
 END;
 
 -- C. Automatically update search indexing when chunks are edited
 CREATE TRIGGER IF NOT EXISTS chunks_fts_update AFTER UPDATE ON document_chunks BEGIN
     -- 1. Remove the old text index
-    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+    INSERT INTO chunks_fts(chunks_fts, rowid, content_stemmed) VALUES('delete', old.rowid, old.content_stemmed);
     -- 2. Insert the brand new text index
-    INSERT INTO chunks_fts(rowid, content) VALUES (new.rowid, new.content);
+    INSERT INTO chunks_fts(rowid, content_stemmed) VALUES (new.rowid, new.content_stemmed);
 END;
 
 

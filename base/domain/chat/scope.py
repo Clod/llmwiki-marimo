@@ -44,14 +44,45 @@ def is_off_limits(question: str, off_limits: Iterable[str]) -> bool:
     return any(_mentions(q, term) for term in off_limits)
 
 
+def _mentions_stem(question_stemmed: str, term: str, language: str) -> bool:
+    """True if the stems of `term` appear as whole words in the stemmed question."""
+    from domain.text.stemming import stem_text
+
+    stemmed_term = stem_text(term, language)
+    if not stemmed_term:
+        return False
+    return re.search(rf"\b{re.escape(stemmed_term)}\b", question_stemmed) is not None
+
+
 def mentions_known_data(
-    question: str, vocabulary: Iterable[str], aliases: Iterable[str] = ()
+    question: str,
+    vocabulary: Iterable[str],
+    aliases: Iterable[str] = (),
+    *,
+    language: str | None = None,
+    exact: Iterable[str] = (),
 ) -> bool:
-    """True if the question mentions a known data term (dataset category/key) or
-    a whitelisted alias."""
+    """True if the question mentions a known data term or a whitelisted alias.
+
+    With `language`, `vocabulary` and `aliases` are compared by stem in that
+    language, so "plazos fijos" matches the category `plazo_fijo`
+    (design_stemming.md, decision 15). `exact` holds the terms compared by whole
+    normalized word, without stemming — the dataset keys, which are proper names
+    and codes (`GGAL`, `Banco Galicia`). Without `language`, every term is
+    compared by whole normalized word.
+    """
     q = _normalize(question)
-    return any(_mentions(q, term) for term in vocabulary) or any(
-        _mentions(q, alias) for alias in aliases
+    if any(_mentions(q, term) for term in exact):
+        return True
+    if language is None:
+        return any(_mentions(q, term) for term in vocabulary) or any(
+            _mentions(q, alias) for alias in aliases
+        )
+    from domain.text.stemming import stem_text
+
+    q_stemmed = stem_text(question, language)
+    return any(_mentions_stem(q_stemmed, term, language) for term in vocabulary) or any(
+        _mentions_stem(q_stemmed, alias, language) for alias in aliases
     )
 
 

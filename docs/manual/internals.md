@@ -143,17 +143,19 @@ citations.
 
 ### FTS5 tokenizer
 
-`chunks_fts` uses `porter unicode61`, which **splits on hyphens**. An unquoted
+`chunks_fts` uses `unicode61`, which **splits on hyphens**. An unquoted
 `mortgage-backed` raises a MATCH syntax error ("no such column: backed") —
 FTS5 parses the hyphen as a column filter — which `search_chunks` swallows,
 returning `[]`. Quote the term (`"mortgage-backed"`) or use plain words.
 
-The tokenizer is unchanged for non-English wikis in v1: `unicode61` folds
-diacritics (`política` matches `politica` — accent-insensitive search already
-works), and the English `porter` stemmer is largely inert on Spanish. Since each
-wiki owns its `index.db`, a per-wiki tokenizer (e.g. `unicode61 remove_diacritics
-2` without `porter`) is a possible future refinement — see the multilingual
-design doc §8.
+The index holds `document_chunks.content_stemmed`: each fragment stemmed with
+the Snowball stemmer of the wiki's language (`base/domain/text/stemming.py`).
+`search_chunks` and the model's `search_source_chunks` stem each query the same
+way before `MATCH`, so `plazo fijo` and `plazos fijos` find the same fragments,
+and the results carry `content`, the original text. The coverage gate compares
+dataset categories, concept-page titles and aliases by stem too; the blacklist
+and the dataset keys compare by whole word. An index built before stemming is
+rebuilt by `open_db` on first open, with no model call.
 
 ---
 

@@ -84,9 +84,42 @@ class ValidatedVocabulary:
     collisions: tuple[Collision, ...] = ()
 
 
+class RosterKey:
+    """How a term is compared against the roster: the gate's comparison.
+
+    Without a language, every term compares by its normalized form. With a
+    language, categories, concept-page titles and aliases compare by Snowball
+    stem, and the terms in `exact` (the dataset keys) by normalized form
+    (design_stemming.md, decisions 7 and 15).
+    """
+
+    def __init__(self, language: str | None = None, exact: Iterable[str] = ()) -> None:
+        self.language = language
+        self.exact = {n for t in exact if (n := normalize(t))}
+
+    def of_roster_term(self, term: str) -> str:
+        n = normalize(term)
+        if self.language is None or n in self.exact:
+            return n
+        return self._stem(term)
+
+    def of_alias(self, alias: str) -> set[str]:
+        """The keys an alias can collide on: its normalized form and its stem."""
+        n = normalize(alias)
+        if self.language is None:
+            return {n} if n else set()
+        return {k for k in (n if n in self.exact else "", self._stem(alias)) if k}
+
+    def _stem(self, term: str) -> str:
+        from domain.text.stemming import stem_text
+
+        return stem_text(term, self.language)
+
+
 def validate_aliases(
     proposals: Mapping[str, Iterable[str]],
     roster: Iterable[str],
+    key: RosterKey | None = None,
 ) -> ValidatedVocabulary:
     """Clean proposed aliases and separate out the collisions.
 
@@ -97,24 +130,25 @@ def validate_aliases(
     and recorded as a `Collision` (the CEDEAR ← "acciones" bug), never silently
     kept. A canonical whose aliases are all removed drops out of the result.
     """
-    roster_by_norm = {n: t for t in roster if (n := normalize(t))}
+    key = key or RosterKey()
+    roster_by_key = {k: t for t in roster if (k := key.of_roster_term(t))}
     clean: dict[str, list[str]] = {}
     collisions: list[Collision] = []
 
     for canonical, proposed in proposals.items():
-        own = normalize(canonical)
+        own = key.of_alias(canonical) | {key.of_roster_term(canonical)}
         kept: list[str] = []
         seen: set[str] = set()
         for alias in proposed:
             if not isinstance(alias, str):
                 continue
             na = normalize(alias)
-            if not na or na == own or na in seen:
+            keys = key.of_alias(alias)
+            if not na or keys & own or na in seen:
                 continue
-            if na in roster_by_norm:
-                collisions.append(
-                    Collision(canonical=canonical, alias=alias, collides_with=roster_by_norm[na])
-                )
+            hit = next((roster_by_key[k] for k in keys if k in roster_by_key), None)
+            if hit is not None:
+                collisions.append(Collision(canonical=canonical, alias=alias, collides_with=hit))
                 continue
             seen.add(na)
             kept.append(alias.strip())

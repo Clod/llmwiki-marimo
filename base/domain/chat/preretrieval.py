@@ -31,16 +31,19 @@ from domain.chat.scope import (
 from domain.datasets.frontmatter import split_frontmatter
 from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
+from domain.text.stemming import stem_text
+from domain.text.stopwords import STOPWORDS, stopwords
 from domain.tools.search import search_chunks
 from domain.tools.wiki_fs import concept_page_names
+from domain.wiki_settings import language_for_db
 
 _INJECT_TEMPLATE = (
     "Respondé la pregunta usando EXCLUSIVAMENTE el siguiente contexto recuperado "
     "del wiki, citando la fuente. Si el contexto no alcanza para responder, decilo.\n\n"
     "{context}\n\n---\nPregunta: {question}"
 )
-# Tier-2 threshold of `is_supported` (overlap.py); the trace records it next to
-# the measured coverage.
+# Default Tier-2 threshold, used when the config carries none; a wiki sets its
+# own with `[pre_retrieval] min_coverage` (design_stemming.md, decision 12).
 _MIN_COVERAGE = 0.2
 _TIER2_WARNING = (
     "> ⚠️ Esta respuesta proviene de un documento fuente sin página curada del "
@@ -95,56 +98,10 @@ def _format_hits(rows: list[dict]) -> list[str]:
 # gate is the real coverage authority; this just keeps the lexical match on
 # content words.
 #
-# ── ADDING A LANGUAGE ────────────────────────────────────────────────────────
-# A new wiki language needs an entry here. Without one it falls back to English
-# (`_stopwords` below), which filters little in another language and leaves the
-# original defect: a word as common as "the" matches nearly every chunk, so
-# `wiki_hits` is never empty, and Tier 2 — reached only when `wiki_hits` IS
-# empty — becomes unreachable. That is exactly what happened to English before
-# `en` was added here. See `docs/manual/workflows.md` §6.7.
-#
-# The sets must stay language-SPECIFIC rather than merged into one. A function
-# word in one language is often a content word in another: Spanish "son" (they
-# are) is English "son", which appears in six chunks of the fairy-tale corpus.
-# Merging the sets would silently drop the most important word of "Who is the
-# king's son?".
-_STOPWORDS: dict[str, frozenset[str]] = {
-    "es": frozenset({
-        "que", "qué", "los", "las", "una", "unos", "unas", "con", "por", "para",
-        "del", "como", "cómo", "son", "sos", "está", "estan", "están", "este",
-        "esta", "esto", "estos", "estas", "cual", "cuál", "cuales", "cuáles",
-        "quien", "quién", "dame", "hago", "estoy", "más", "mas", "pero", "sus",
-        "nos", "les", "ese", "esa", "eso", "aquel", "sobre", "entre", "desde",
-        "hasta", "donde", "dónde", "cuando", "cuándo", "muy", "hay", "tengo",
-    }),
-    # Same categories as the Spanish set: articles, prepositions, pronouns,
-    # auxiliaries, question words, and the verbs a question is phrased with
-    # ("tell me", "explain") — the counterparts of "dame"/"hago"/"tengo".
-    # Deliberately excluded because they can be content in a wiki: "may"
-    # (month), "will" is kept (auxiliary use dominates), "son" is NOT here (it
-    # is a content word in English — see the note above).
-    "en": frozenset({
-        "the", "and", "for", "are", "was", "were", "has", "have", "had", "but",
-        "not", "you", "your", "this", "that", "these", "those", "with", "from",
-        "into", "about", "what", "which", "who", "whom", "whose", "when",
-        "where", "why", "how", "does", "did", "can", "could", "would", "should",
-        "will", "there", "their", "them", "they", "its", "his", "her", "hers",
-        "our", "ours", "any", "all", "some", "more", "most", "than", "then",
-        "also", "been", "being", "over", "under", "between", "off", "very",
-        "just", "only", "such", "too", "tell", "give", "show", "explain",
-        "describe", "please",
-    }),
-}
-
-
-def _stopwords(language: str | None) -> frozenset[str]:
-    """The stop-word set for `language`, falling back to English.
-
-    English is the fallback because it is the project's default wiki language
-    (`wiki_settings.load_wiki_language` resolves an absent or unknown value to
-    `"en"`), so this matches what such a wiki actually generates.
-    """
-    return _STOPWORDS.get((language or "en").lower(), _STOPWORDS["en"])
+# The stop-word sets live in domain/text/stopwords.py, shared with the Tier-2
+# verification (overlap.py). The two names stay importable from here.
+_STOPWORDS = STOPWORDS
+_stopwords = stopwords
 
 
 def _fts_query(text: str, language: str | None = None) -> str:
@@ -172,7 +129,7 @@ def retrieve_wiki(
 ) -> list[str]:
     """Top curated-wiki chunks for `query` (Tier 1). Empty list if none."""
     return _format_hits(
-        search_chunks(db_path, _fts_query(query, language), limit=limit, scope="wiki")
+        search_chunks(db_path, _fts_query(query, language), limit=limit, scope="wiki", language=language)
     )
 
 
@@ -181,7 +138,7 @@ def retrieve_source_chunks(
 ) -> list[str]:
     """Top raw source-document chunks for `query` (Tier 2). Empty if none."""
     return _format_hits(
-        search_chunks(db_path, _fts_query(query, language), limit=limit, scope="sources")
+        search_chunks(db_path, _fts_query(query, language), limit=limit, scope="sources", language=language)
     )
 
 
@@ -245,10 +202,21 @@ class DatasetInjection:
     key_names: dict[str, tuple[str, list[str]]] = field(default_factory=dict)
 
 
-def _names_term(question_norm: str, term: str, data_aliases: dict[str, list[str]]) -> bool:
-    """True if the question names `term`, or one of its data aliases, as whole words."""
-    return _mentions(question_norm, term) or any(
-        _mentions(question_norm, alias) for alias in data_aliases.get(term, [])
+def _names_term(
+    question: str, term: str, data_aliases: dict[str, list[str]], *,
+    language: str, stem_term: bool,
+) -> bool:
+    """True if the question names `term`, or one of its data aliases.
+
+    A category (`stem_term`) is compared by stem; a dataset key by whole
+    normalized word; an alias always by stem (design_stemming.md, decision 15).
+    """
+    matched = (
+        mentions_known_data(question, [term], language=language) if stem_term
+        else _mentions(_normalize(question), term)
+    )
+    return matched or mentions_known_data(
+        question, [], data_aliases.get(term, []), language=language,
     )
 
 
@@ -261,21 +229,26 @@ def dataset_injection(
     """Nodes Q7a–Q7d: read the dataset the question names, for a Tier-1 context.
 
     A category is named when the question names the category, one of its keys,
-    or an alias of either. For each named category: when the question names
+    or an alias of either: categories and aliases by stem, keys by whole word
+    (decision 15). For each named category: when the question names
     keys of it, the code injects those keys' rows (Q7c); otherwise it injects
     only the category's key names, without values (Q7d), so the model can say
     which keys have data — "Banco Comafi" is not a key of `plazo_fijo`, and the
-    eight banks that are become visible. Matching is by whole normalized word;
-    decision 15 of design_stemming.md stems the category match later.
+    eight banks that are become visible.
     """
     R = tracing.READING
-    question_norm = _normalize(question)
+    stem_language = language or "en"
     named: list[tuple[str, list[str], list[str], list]] = []
     for categoria in source.categories():
         rows = source.query(categoria)
         keys = list(dict.fromkeys(row.clave for row in rows))
-        named_keys = [k for k in keys if _names_term(question_norm, k, data_aliases)]
-        if named_keys or _names_term(question_norm, categoria, data_aliases):
+        named_keys = [
+            k for k in keys
+            if _names_term(question, k, data_aliases, language=stem_language, stem_term=False)
+        ]
+        if named_keys or _names_term(
+            question, categoria, data_aliases, language=stem_language, stem_term=True,
+        ):
             named.append((categoria, keys, named_keys, rows))
     tracing.mark("Q7a", R, answer=bool(named), categories=[n[0] for n in named])
 
@@ -406,8 +379,8 @@ def plan_retrieval(
     R = tracing.READING
     if is_off_limits(question, off_limits):
         return _REFUSE
-    tracing.mark("Q7", R, answer=bool(wiki_hits and in_roster),
-                 wiki_pages=len(wiki_hits), in_roster=in_roster)
+    if in_roster:
+        tracing.mark("Q7", R, answer=bool(wiki_hits), wiki_pages=len(wiki_hits))
     if wiki_hits and in_roster:
         return RetrievalPlan("invoke", "curado", "\n\n".join(wiki_hits), False)
     tracing.mark("Q9", R, answer=bool(collection_hits), collection_pages=len(collection_hits))
@@ -481,37 +454,56 @@ async def _pre_retrieval_turn(
     """The body of `pre_retrieval_answer`, inside the turn's root span."""
     R = tracing.READING
     refusal = refusal_for(language)
+    stem_language = language or language_for_db(db_path)
     tracing.mark("Q2", R, normalized=_normalize(question))
-    aliases = [alias for names in config.data_aliases.values() for alias in names]
-    source = LocalMarkdownSource(workspace / "datasets")
-    vocabulary = build_vocabulary(source)
-    # Route to the tools either by a NAMED data term or by generic advisory intent
-    # ("$1M, 3 meses, ¿qué alternativas?") — the latter names no instrument but
-    # still belongs on the query_dataset/estimar_alternativas path, not a refusal.
-    has_data = mentions_known_data(question, vocabulary, aliases) or advisory_intent(question)
-    # "In the padrón" = the question names something the wiki actually covers
-    # (a dataset term OR a concept page name OR a known alias). Tier-2 (raw docs)
-    # is allowed ONLY for a covered topic, so an uncovered question can't pull a
-    # tangential chunk as a fig leaf — that was the CEDEARs leak.
-    coverage_roster = set(vocabulary) | set(concept_page_names(db_path))
-    in_roster = mentions_known_data(question, coverage_roster, aliases)
-    tracing.mark("Q5", R, answer=in_roster, roster_size=len(coverage_roster),
-                 aliases=len(aliases))
 
+    # The blacklist first (design_stemming.md, decision 14): a blacklisted
+    # question is refused before the datasets are read or the index searched.
+    # The blacklist compares whole normalized words, never stems (decision 5).
     off_limits = is_off_limits(question, config.off_limits)
     tracing.mark("Q3", R, answer=off_limits)
-    if off_limits:
-        wiki_hits, doc_hits, collection_hits = [], [], []
-    else:
-        with tracing.node("Q6", R, fts_query=_fts_query(question, language)) as q6:
-            wiki_hits = retrieve_wiki(db_path, question, language=language)
-            q6.set(pages=_hit_labels(wiki_hits))
-        if not wiki_hits and in_roster:
-            with tracing.node("Q8", R, fts_query=_fts_query(question, language)) as q8:
-                doc_hits = retrieve_source_chunks(db_path, question, language=language)
-                q8.set(fragments=_hit_labels(doc_hits))
-        else:
-            doc_hits = []
+
+    has_data = in_roster = False
+    wiki_hits: list[str] = []
+    doc_hits: list[str] = []
+    collection_hits: list[str] = []
+    source = LocalMarkdownSource(workspace / "datasets")
+    if not off_limits:
+        tracing.mark("Q4", R, stemmed=stem_text(question, stem_language))
+        aliases = [alias for names in config.data_aliases.values() for alias in names]
+        vocabulary = build_vocabulary(source)
+        categories = set(source.categories())
+        # Dataset categories, concept-page titles and aliases are compared by
+        # stem; dataset keys (proper names, codes) by whole word (decision 15).
+        keys = vocabulary - categories
+        # Route to the tools either by a NAMED data term or by generic advisory
+        # intent ("$1M, 3 meses, ¿qué alternativas?") — the latter names no
+        # instrument but still belongs on the query_dataset/estimar_alternativas
+        # path, not a refusal.
+        has_data = mentions_known_data(
+            question, categories, aliases, language=stem_language, exact=keys,
+        ) or advisory_intent(question)
+        # "In the padrón" = the question names something the wiki actually covers
+        # (a dataset term OR a concept page name OR a known alias). Tier-2 (raw
+        # docs) is allowed ONLY for a covered topic, so an uncovered question
+        # can't pull a tangential chunk as a fig leaf — that was the CEDEARs leak.
+        roster_terms = categories | set(concept_page_names(db_path))
+        in_roster = mentions_known_data(
+            question, roster_terms, aliases, language=stem_language, exact=keys,
+        )
+        tracing.mark("Q5", R, answer=in_roster, roster_size=len(roster_terms) + len(keys),
+                     aliases=len(aliases))
+
+        # The wiki search runs only for a question in the roster: the plan uses
+        # its pages only then (decision 14).
+        if in_roster:
+            with tracing.node("Q6", R, fts_query=_fts_query(question, language)) as q6:
+                wiki_hits = retrieve_wiki(db_path, question, language=stem_language)
+                q6.set(pages=_hit_labels(wiki_hits))
+            if not wiki_hits:
+                with tracing.node("Q8", R, fts_query=_fts_query(question, language)) as q8:
+                    doc_hits = retrieve_source_chunks(db_path, question, language=stem_language)
+                    q8.set(fragments=_hit_labels(doc_hits))
         # Collection-shaped question ("what tales are in this wiki?") — inject
         # the overview/index read from disk. Empty when the wiki has neither
         # page, so an ordinary wiki with no collection page falls through to
@@ -556,10 +548,11 @@ async def _pre_retrieval_turn(
 
     # Tier 2 (raw doc): verify the answer actually draws on the retrieved chunk.
     if plan.verify:
-        score = coverage(raw, plan.context or "")
-        supported = score >= _MIN_COVERAGE
+        min_coverage = getattr(config, "min_coverage", _MIN_COVERAGE)
+        score = coverage(raw, plan.context or "", stem_language)
+        supported = score >= min_coverage
         tracing.mark("Q17", R, answer=supported, coverage=round(score, 3),
-                     min_coverage=_MIN_COVERAGE)
+                     min_coverage=min_coverage)
         if not supported:
             tracing.mark("R3", R, final_answer=refusal)
             if on_trace:
