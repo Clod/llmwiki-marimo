@@ -11,6 +11,20 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Pre-retrieval Tier 1 now carries the dataset the question names.** A data
+  question that also matches wiki pages (for example *"¿Qué tasa de plazo fijo
+  ofrece el Banco Galicia?"*) was answered from the pages alone: the pages hold
+  no rates, and the model called `query_dataset` only when the bank matched the
+  example in the tool's docstring (0 calls in 3 runs for Banco Galicia). The
+  code now injects the named key's rows next to the pages, or only the
+  category's key names when the question names no key, and cites the injected
+  rows (`dataset_injection`, `base/domain/chat/preretrieval.py`; spans `Q7a`–`Q7d`).
+  When the model asks `query_dataset` for a key the category lacks, such as
+  Banco Comafi, the code appends the keys that have data to the answer
+  (`offer_available_keys`).
+
 ### Changed
 - **The chat trace and the ingestion trace are replaced by one OpenTelemetry
   span stream.** `base/domain/chat/trace.py` (`WIKI_CHAT_TRACE=1`,

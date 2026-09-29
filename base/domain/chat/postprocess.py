@@ -26,6 +26,7 @@ observe over-citing, add a lenient lexical-overlap second filter.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 
 from pydantic_ai.messages import ModelMessage, ToolReturnPart
 
@@ -151,7 +152,13 @@ def deliberate_sources(messages: list[ModelMessage]) -> tuple[list[str], list[st
     return _dedupe(references), _dedupe(fuentes)
 
 
-def ensure_citation(answer: str, messages: list[ModelMessage]) -> str:
+def ensure_citation(
+    answer: str,
+    messages: list[ModelMessage],
+    *,
+    extra_references: Iterable[str] = (),
+    extra_fuentes: Iterable[str] = (),
+) -> str:
     """Append attribution the answer is missing, distinguishing the internal
     artifact from the external origin: `Referencia:` for a wiki page or dataset
     file, `Fuente:` for a dataset's external origin.
@@ -159,8 +166,14 @@ def ensure_citation(answer: str, messages: list[ModelMessage]) -> str:
     Each label is decided independently, so a dólar answer that already mentions
     its origin inline still gets its dataset `Referencia:` added. No-op when the
     answer already carries that kind of attribution (the word, or a named source
-    — including an advisory table's `fuente` column) and on refusals."""
+    — including an advisory table's `fuente` column) and on refusals.
+
+    `extra_references` / `extra_fuentes` cite dataset rows the code injected
+    into the context itself (pre-retrieval Tier 1, decision 16): those rows
+    carry no tool call, so `deliberate_sources` cannot see them."""
     references, fuentes = deliberate_sources(messages)
+    references = _dedupe([*references, *extra_references])
+    fuentes = _dedupe([*fuentes, *extra_fuentes])
     if not references and not fuentes:
         return answer
     low = answer.lower()

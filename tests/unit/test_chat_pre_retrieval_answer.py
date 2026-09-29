@@ -40,6 +40,13 @@ def _fake_agent(output, messages=None):
     return run_agent
 
 
+class _NoDatasets:
+    """A dataset source with no categories: the wiki has no datasets/ folder."""
+
+    def categories(self):
+        return []
+
+
 def _run(coro):
     return asyncio.run(coro)
 
@@ -49,7 +56,7 @@ def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(),
     monkeypatch.setattr(preretrieval, "build_vocabulary", lambda src: set(vocab))
     monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda db, q, **k: list(wiki))
     monkeypatch.setattr(preretrieval, "retrieve_source_chunks", lambda db, q, **k: list(docs))
-    monkeypatch.setattr(preretrieval, "LocalMarkdownSource", lambda p: object())
+    monkeypatch.setattr(preretrieval, "LocalMarkdownSource", lambda p: _NoDatasets())
     monkeypatch.setattr(preretrieval, "concept_page_names", lambda db: list(concepts))
     monkeypatch.setattr(preretrieval, "retrieve_collection_pages", lambda ws: list(collection))
     return _run(pre_retrieval_answer(

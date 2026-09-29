@@ -13,13 +13,15 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 
 from domain import tracing
+from domain.chat.dataset_tools import format_rows_as_table
 from domain.chat.guardrail import enforce_grounding, refusal_for
 from domain.chat.overlap import coverage
 from domain.chat.postprocess import answer_with_table, ensure_citation
 from domain.chat.scope import (
+    _mentions,
     _normalize,
     advisory_intent,
     collection_intent,
@@ -214,6 +216,138 @@ def retrieve_collection_pages(workspace) -> list[str]:
     return pages
 
 
+# Header of the key-names block of node Q7d, per content language.
+_KEY_NAMES_HEADER = {
+    "es": "[datasets/{categoria}.md] Valores de `{clave}` con datos en este dataset:",
+    "en": "[datasets/{categoria}.md] Values of `{clave}` with data in this dataset:",
+}
+# The line the code appends when the model asked for a key the category lacks.
+_KEYS_OFFERED = {
+    "es": "Datos disponibles en `{categoria}` ({clave}): {keys}.",
+    "en": "Data available in `{categoria}` ({clave}): {keys}.",
+}
+
+
+@dataclass(frozen=True)
+class DatasetInjection:
+    """The dataset context a Tier-1 turn adds next to the wiki pages (decision 16).
+
+    blocks:     the text blocks to inject — a row table (node Q7c) or a list of
+                key names (node Q7d) per category the question names.
+    references: the dataset files whose ROWS were injected, for the citation.
+    fuentes:    the external origins of those rows, for the citation.
+    """
+
+    blocks: list[str]
+    references: list[str]
+    fuentes: list[str]
+    # Categories injected as key names (Q7d): categoria -> (key column, keys).
+    key_names: dict[str, tuple[str, list[str]]] = field(default_factory=dict)
+
+
+def _names_term(question_norm: str, term: str, data_aliases: dict[str, list[str]]) -> bool:
+    """True if the question names `term`, or one of its data aliases, as whole words."""
+    return _mentions(question_norm, term) or any(
+        _mentions(question_norm, alias) for alias in data_aliases.get(term, [])
+    )
+
+
+def dataset_injection(
+    question: str,
+    source: DatasetSource,
+    data_aliases: dict[str, list[str]],
+    language: str | None,
+) -> DatasetInjection:
+    """Nodes Q7a–Q7d: read the dataset the question names, for a Tier-1 context.
+
+    A category is named when the question names the category, one of its keys,
+    or an alias of either. For each named category: when the question names
+    keys of it, the code injects those keys' rows (Q7c); otherwise it injects
+    only the category's key names, without values (Q7d), so the model can say
+    which keys have data — "Banco Comafi" is not a key of `plazo_fijo`, and the
+    eight banks that are become visible. Matching is by whole normalized word;
+    decision 15 of design_stemming.md stems the category match later.
+    """
+    R = tracing.READING
+    question_norm = _normalize(question)
+    named: list[tuple[str, list[str], list[str], list]] = []
+    for categoria in source.categories():
+        rows = source.query(categoria)
+        keys = list(dict.fromkeys(row.clave for row in rows))
+        named_keys = [k for k in keys if _names_term(question_norm, k, data_aliases)]
+        if named_keys or _names_term(question_norm, categoria, data_aliases):
+            named.append((categoria, keys, named_keys, rows))
+    tracing.mark("Q7a", R, answer=bool(named), categories=[n[0] for n in named])
+
+    header = _KEY_NAMES_HEADER.get((language or "es").lower(), _KEY_NAMES_HEADER["en"])
+    blocks: list[str] = []
+    references: list[str] = []
+    fuentes: list[str] = []
+    key_names: dict[str, tuple[str, list[str]]] = {}
+    for categoria, keys, named_keys, rows in named:
+        tracing.mark("Q7b", R, category=categoria, answer=bool(named_keys), keys=named_keys)
+        if named_keys:
+            key_rows = [row for row in rows if row.clave in named_keys]
+            blocks.append(f"[datasets/{categoria}.md]\n{format_rows_as_table(categoria, key_rows)}")
+            references.append(f"{categoria}.md")
+            fuentes.extend(row.fuente for row in key_rows)
+            tracing.mark("Q7c", R, category=categoria, keys=named_keys, rows=len(key_rows))
+        else:
+            clave = str(source.attributes(categoria).get("clave") or "clave")
+            key_names[categoria] = (clave, keys)
+            blocks.append(
+                header.format(categoria=categoria, clave=clave) + "\n"
+                + "\n".join(f"- {k}" for k in keys)
+            )
+            tracing.mark("Q7d", R, category=categoria, key_names=keys)
+    return DatasetInjection(blocks, references, list(dict.fromkeys(fuentes)), key_names)
+
+
+def _requested_keys(messages: list) -> list[tuple[str, str]]:
+    """(categoria, clave) of every `query_dataset` call that named a key."""
+    requested: list[tuple[str, str]] = []
+    for message in messages:
+        for part in getattr(message, "parts", []):
+            if getattr(part, "part_kind", None) != "tool-call":
+                continue
+            if getattr(part, "tool_name", None) != "query_dataset":
+                continue
+            try:
+                args = part.args_as_dict()
+            except Exception:  # noqa: BLE001 — unparseable args name no key
+                continue
+            if args.get("categoria") and args.get("clave"):
+                requested.append((str(args["categoria"]), str(args["clave"])))
+    return requested
+
+
+def offer_available_keys(
+    answer: str, messages: list, injection: DatasetInjection, language: str | None,
+) -> str:
+    """Append the keys that have data when the model asked for one that does not.
+
+    Applies to a category injected as key names (Q7d): when the model called
+    `query_dataset` with a key that category lacks — "Banco Comafi" in
+    `plazo_fijo` — and the answer names none of the category's keys, the code
+    appends one line listing them, so the user can ask again for one that has
+    data. A concept question makes no such call, so its answer is left alone.
+    """
+    template = _KEYS_OFFERED.get((language or "es").lower(), _KEYS_OFFERED["en"])
+    lines: list[str] = []
+    for categoria, clave in _requested_keys(messages):
+        if categoria not in injection.key_names:
+            continue
+        column, keys = injection.key_names[categoria]
+        if clave in keys or any(k in answer for k in keys):
+            continue
+        line = template.format(categoria=categoria, clave=column, keys=", ".join(keys))
+        if line not in lines:
+            lines.append(line)
+    if not lines:
+        return answer
+    return f"{answer.rstrip()}\n\n" + "\n".join(lines)
+
+
 @dataclass(frozen=True)
 class RetrievalPlan:
     """What to do with a question after the deterministic gate + retrieval.
@@ -349,7 +483,8 @@ async def _pre_retrieval_turn(
     refusal = refusal_for(language)
     tracing.mark("Q2", R, normalized=_normalize(question))
     aliases = [alias for names in config.data_aliases.values() for alias in names]
-    vocabulary = build_vocabulary(LocalMarkdownSource(workspace / "datasets"))
+    source = LocalMarkdownSource(workspace / "datasets")
+    vocabulary = build_vocabulary(source)
     # Route to the tools either by a NAMED data term or by generic advisory intent
     # ("$1M, 3 meses, ¿qué alternativas?") — the latter names no instrument but
     # still belongs on the query_dataset/estimar_alternativas path, not a refusal.
@@ -396,6 +531,15 @@ async def _pre_retrieval_turn(
             on_trace(raw="", final=refusal, result=None, refusal_substituted=True)
         return refusal
 
+    # Tier 1 from wiki pages: the code adds the dataset the question names
+    # (decision 16) — the pages hold no values, and the model, told to answer
+    # from the context, does not reliably call query_dataset on its own.
+    injection = DatasetInjection([], [], [])
+    if _answer_node(plan, wiki_hits, in_roster) == "Q13":
+        injection = dataset_injection(question, source, config.data_aliases, language)
+        if injection.blocks:
+            plan = replace(plan, context="\n\n".join([plan.context or "", *injection.blocks]))
+
     prompt = (
         _INJECT_TEMPLATE.format(context=plan.context, question=question)
         if plan.context else question
@@ -435,15 +579,21 @@ async def _pre_retrieval_turn(
         gated = raw
     refusal_substituted = gated == refusal and raw != refusal
 
-    tabled = answer_with_table(gated, messages)
-    answer = ensure_citation(tabled, messages)
+    with_table = answer_with_table(gated, messages)
+    tabled = offer_available_keys(with_table, messages, injection, language)
+    keys_offered = tabled != with_table
+    answer = ensure_citation(
+        tabled, messages,
+        extra_references=injection.references, extra_fuentes=injection.fuentes,
+    )
     citation_added = answer != tabled
     if plan.tier == "crudo" and answer != refusal:
         answer = f"{answer}\n\n{_TIER2_WARNING}"
         tracing.mark("Q18", R)
 
     if not refusal_substituted:
-        tracing.mark("Q21", R, final_answer=answer, citation_added=citation_added)
+        tracing.mark("Q21", R, final_answer=answer, citation_added=citation_added,
+                     keys_offered=keys_offered)
     if on_trace:
         on_trace(raw=raw, final=answer, result=result, refusal_substituted=refusal_substituted)
     return answer
