@@ -73,10 +73,15 @@ def query_dataset(
             f", clave='{clave}'" if clave else ""
         ) + (f", metrica='{metrica}'" if metrica else "") + "."
 
-    return _format_rows_as_table(categoria, rows)
+    return format_rows_as_table(categoria, rows)
 
 
-def _format_rows_as_table(categoria: str, rows: list[DatasetRow]) -> str:
+def format_rows_as_table(categoria: str, rows: list[DatasetRow]) -> str:
+    """Render dataset rows as the markdown table `query_dataset` returns.
+
+    Also used by the pre-retrieval flow to inject rows into a Tier-1 context
+    (decision 16), so the model sees the same table either way.
+    """
     lines = [f"**{len(rows)} dataset row(s)** for categoria='{categoria}':\n"]
     lines.append("| clave | metrica | valor | unidad | dims | as_of | fuente |")
     lines.append("|---|---|---|---|---|---|---|")

@@ -184,3 +184,34 @@ row and are invisible to FTS.
 
 Tests: `test_chat_retrieval_plan.py`, `test_chat_pre_retrieval_answer.py`,
 `test_chat_scope.py`.
+
+## 3b. Tier 1 from wiki pages also carries the dataset the question names
+
+**Contract.** When the plan is Tier 1 from wiki pages (branch 2 of section 3,
+span `Q13`), `pre_retrieval_answer` calls
+`dataset_injection(question, source, config.data_aliases, language)` and appends
+its blocks to the injected context. A category is named when the question names
+the category, one of its keys, or an alias of either, by whole normalized word.
+For each named category:
+
+1. The question names keys of it → the code injects those keys' rows, rendered
+   by `format_rows_as_table` (`domain/chat/dataset_tools.py`), under the label
+   `[datasets/<categoria>.md]` (span `Q7c`).
+2. The question names no key → the code injects only the category's key names,
+   without values (span `Q7d`).
+
+**Why.** The wiki pages hold no values, and the model, told to answer from the
+context, called `query_dataset` only when the bank in the question matched the
+example in the tool's docstring: 0 of 3 runs for Banco Galicia (measured
+2026-09-28). With the rows injected, 3 of 3 runs give the dataset's rates.
+
+**Citation.** Injected rows carry no tool call, so the caller passes
+`extra_references` (`<categoria>.md`) and `extra_fuentes` (the rows' `fuente`)
+to `ensure_citation`.
+
+**Keys offered.** `offer_available_keys` appends one line,
+``Datos disponibles en `<categoria>` (<clave>): …``, when the model called
+`query_dataset` with a key the category lacks and the answer names none of the
+category's keys. A concept question makes no such call and gets no line.
+
+Tests: `test_chat_dataset_injection.py`.
