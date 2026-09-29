@@ -3,6 +3,7 @@
 import uuid
 
 from domain.tools.db import get_connection
+from domain.text.stemming import stem_text
 from domain.tools.search import search_chunks
 from domain.tools.wiki_fs import create_page
 from tests.helpers.workspace import WorkspaceFixture
@@ -40,9 +41,9 @@ def _insert_source_doc(db_path: str, content: str, term: str) -> str:
             )
             conn.execute(
                 "INSERT INTO document_chunks "
-                "(id, document_id, chunk_index, content, page, start_char, token_count) "
-                "VALUES (?,?,0,?,1,0,?)",
-                (chunk_id, doc_id, content, len(content) // 4),
+                "(id, document_id, chunk_index, content, content_stemmed, page, "
+                "start_char, token_count) VALUES (?,?,0,?,?,1,0,?)",
+                (chunk_id, doc_id, content, stem_text(content, "en"), len(content) // 4),
             )
     return doc_id
 

@@ -210,27 +210,21 @@ Represents the directed graph of linkages and citations between workspace docume
 
 ```sql
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
-    content,
+    content_stemmed,
     content='document_chunks',
     content_rowid='rowid',
-    tokenize='porter unicode61'
+    tokenize='unicode61'
 );
 ```
 
 #### Key Virtual Options:
-1. **External Content (`content='document_chunks'`):** FTS5 does not duplicate the text data in its own physical storage. Instead, it references the `'content'` column in the standard `document_chunks` table, saving significant database space.
+1. **External Content (`content='document_chunks'`):** FTS5 does not duplicate the text data in its own physical storage. Instead, it indexes the `content_stemmed` column of the `document_chunks` table. Search queries join back to `document_chunks` on `rowid` and return `content`, the original text.
 2. **Row Mapping (`content_rowid='rowid'`):** Maps the FTS virtual row IDs directly to the standard auto-incrementing SQLite `rowid` of the `document_chunks` table.
-3. **Dual Tokenizer (`tokenize='porter unicode61'`):**
-   * **`unicode61`:** Standard multilingual tokenizer that strips punctuation and normalizes accents (e.g. searching `"cliché"` matches `"cliche"`).
-   * **`porter`:** Applies the **Porter Stemming Algorithm**, converting words to their common base form. For instance, a search for `"investing"` will seamlessly match occurrences of `"invest"`, `"invests"`, and `"invested"`.
+3. **Tokenizer (`tokenize='unicode61'`):** splits words and folds accents. FTS5 does no stemming of its own: `content_stemmed` arrives already stemmed by Python with the Snowball stemmer of the wiki's language (`base/domain/text/stemming.py:stem_text`), and `search_chunks` stems every query the same way (`stem_fts_query`). `Los plazos fijos rinden` is stored as `los plaz fij rind`, so `plazo fijo` and `plazos fijos` find the same fragments.
 
-> **Multilingual wikis:** the tokenizer is unchanged for non-English wikis in v1.
-> `unicode61` folds diacritics, so accent-insensitive search already works for
-> Spanish (`política` matches `politica`), and the English `porter` stemmer is
-> largely inert on Spanish text. Because each wiki owns its own `index.db`, a
-> per-wiki tokenizer (e.g. `unicode61 remove_diacritics 2`, dropping `porter`)
-> chosen at schema-creation time is a possible future refinement — see
-> `docs/design_multilingual_content.md` §8.
+> **An index built before stemming** has no `content_stemmed` column. `open_db`
+> detects that and rebuilds the index by itself, with no model call, and logs
+> one warning (`base/domain/tools/db.py:_rebuild_stemmed_index`).
 
 ---
 

@@ -396,7 +396,8 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
     covers; an alias mapping to two canonicals; and an off-limits term now covered.
     """
     from domain.chat.config import load_config
-    from domain.chat.vocabulary import build_roster, normalize, validate_aliases
+    from domain.chat.vocabulary import RosterKey, build_roster, validate_aliases
+    from domain.datasets.source import LocalMarkdownSource
     from domain.ingestion.alias_generation import dataset_vocabulary
     from domain.tools.wiki_fs import concept_page_names
 
@@ -405,12 +406,22 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
     if not aliases and not config.off_limits:
         return []
 
-    roster = set(build_roster(dataset_vocabulary(Path(workspace)), concept_page_names(db_path)))
+    # Compare the way the coverage gate compares (design_stemming.md, decision
+    # 7): categories, concept-page titles and aliases by stem, dataset keys by
+    # whole normalized word.
+    vocabulary = dataset_vocabulary(Path(workspace))
+    categories = set(LocalMarkdownSource(Path(workspace) / "datasets").categories())
+    key = RosterKey(config.language, exact=vocabulary - categories)
+    roster = set(build_roster(vocabulary, concept_page_names(db_path)))
+    roster_keys = {key.of_roster_term(t) for t in roster}
+
+    def covered(term: str) -> bool:
+        return bool(key.of_alias(term) & roster_keys) or key.of_roster_term(term) in roster_keys
     issues: list[LintIssue] = []
     artifact = ".llmwiki/aliases.generated.toml"
 
     # 1. Collisions — an alias that is really another covered canonical's name.
-    for c in validate_aliases(aliases, roster).collisions:
+    for c in validate_aliases(aliases, roster, key).collisions:
         issues.append(LintIssue(
             check="vocab_collision", severity="error", page=artifact,
             description=(
@@ -422,7 +433,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
 
     # 2. Stale — an alias entry for a canonical the wiki no longer covers.
     for canonical in aliases:
-        if normalize(canonical) not in roster:
+        if not covered(canonical):
             issues.append(LintIssue(
                 check="vocab_stale", severity="warning", page=artifact,
                 description=f"Aliases for '{canonical}', which has no page or dataset",
@@ -433,9 +444,9 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
     owners: dict[str, list[str]] = {}
     for canonical, alias_list in aliases.items():
         for alias in alias_list:
-            owners.setdefault(normalize(alias), []).append(canonical)
+            owners.setdefault(key.of_roster_term(alias), []).append(canonical)
     for alias_norm, canonicals in owners.items():
-        if len({normalize(c) for c in canonicals}) > 1:
+        if len({key.of_roster_term(c) for c in canonicals}) > 1:
             issues.append(LintIssue(
                 check="vocab_ambiguous", severity="warning", page=artifact,
                 description=(
@@ -447,7 +458,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
 
     # 4. Covered — an off-limits term the wiki now actually covers.
     for term in config.off_limits:
-        if normalize(term) in roster:
+        if covered(term):
             issues.append(LintIssue(
                 check="vocab_covered", severity="info", page="wiki_config.toml",
                 description=f"'{term}' is in [fuera_de_alcance] but now has a page or dataset",
@@ -483,6 +494,7 @@ def thin_page_check(db_path: str) -> list[LintIssue]:
     false-alarms on every doc whose detail was split into concepts.
     """
     from domain.chat.overlap import is_supported
+    from domain.wiki_settings import language_for_db
 
     issues: list[LintIssue] = []
     with get_connection(db_path) as conn:
@@ -527,7 +539,8 @@ def thin_page_check(db_path: str) -> list[LintIssue]:
             pages_text = " ".join(texts)
             orphans = sum(
                 1 for ch in chunks
-                if not is_supported(ch, pages_text, min_coverage=_THIN_ORPHAN_COVERAGE)
+                if not is_supported(ch, pages_text, min_coverage=_THIN_ORPHAN_COVERAGE,
+                                    language=language_for_db(db_path))
             )
             if orphans / len(chunks) < _THIN_ORPHAN_RATIO:
                 continue

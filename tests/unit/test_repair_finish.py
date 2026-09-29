@@ -6,6 +6,8 @@ Implements PRD: .trellis/tasks/05-25-finish-repair-actions/prd.md
 
 import uuid
 
+from domain.text.stemming import stem_text
+
 from domain.lint.report import LintIssue
 from domain.lint.runner import lint_wiki
 from domain.repair.actions import (
@@ -56,18 +58,13 @@ def _insert_chunk(db_path: str, doc_id: str, content: str, chunk_index: int = 99
     """Insert a searchable chunk for a document directly."""
     with get_connection(db_path) as conn:
         with conn:
+            # The insert trigger keeps chunks_fts in sync with content_stemmed.
             conn.execute(
                 "INSERT INTO document_chunks "
-                "(id, document_id, chunk_index, content, token_count) "
-                "VALUES (?,?,?,?,?)",
-                (str(uuid.uuid4()), doc_id, chunk_index, content, len(content.split())),
-            )
-            # keep FTS in sync
-            conn.execute(
-                "INSERT INTO chunks_fts(rowid, content) "
-                "SELECT rowid, content FROM document_chunks "
-                "WHERE document_id=? ORDER BY chunk_index DESC LIMIT 1",
-                (doc_id,),
+                "(id, document_id, chunk_index, content, content_stemmed, token_count) "
+                "VALUES (?,?,?,?,?,?)",
+                (str(uuid.uuid4()), doc_id, chunk_index, content,
+                 stem_text(content, "en"), len(content.split())),
             )
 
 

@@ -109,11 +109,18 @@ def test_fts_rowcount_matches_chunks(golden) -> None:
 
 
 def test_fts_search_returns_hits(golden) -> None:
-    """§5: a keyword present across the corpus returns ranked hits (tokenizer ok)."""
+    """§5: a keyword present across the corpus returns ranked hits (tokenizer ok).
+
+    The index holds Snowball stems, so the query is stemmed the way
+    `search_chunks` stems it: `prince` → `princ`.
+    """
+    from domain.text.stemming import stem_fts_query
+
     db_path, _ = golden
     with get_connection(db_path) as conn:
         n = conn.execute(
-            "SELECT COUNT(*) FROM chunks_fts WHERE chunks_fts MATCH 'prince'"
+            "SELECT COUNT(*) FROM chunks_fts WHERE chunks_fts MATCH ?",
+            (stem_fts_query("prince", "en"),),
         ).fetchone()[0]
     assert n > 0, "no FTS hits for 'prince' on a corpus full of princes"
 

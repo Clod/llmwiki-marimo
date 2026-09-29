@@ -11,6 +11,21 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Changed
+
+- **Search, the coverage gate and the Tier-2 check stem words in the wiki's
+  language.** One Snowball stemmer per wiki language (`snowballstemmer`,
+  `base/domain/text/stemming.py`) serves the FTS index, the queries, the roster
+  and the Tier-2 overlap. *"¿Cuánto rinden los plazos fijos?"* now enters the
+  roster through the category `plazo_fijo`; before, the plural was refused.
+  The blacklist and the dataset keys still compare by whole word, so `ceder`
+  is no longer at risk of matching `cedear`. `document_chunks` gains
+  `content_stemmed`, which `chunks_fts` indexes with `unicode61` (no more
+  `porter`); an existing index is rebuilt on first open, with no model call.
+  The pre-retrieval turn now checks the blacklist first and searches the wiki
+  only for a question in the roster. The Tier-2 threshold is configurable as
+  `[pre_retrieval] min_coverage` (default 0.2).
+
 ### Fixed
 
 - **Pre-retrieval Tier 1 now carries the dataset the question names.** A data
