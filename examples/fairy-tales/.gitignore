@@ -5,7 +5,7 @@
 
 # Local or transient, never part of the example:
 .llmwiki/cache/
-.llmwiki/chat_trace.jsonl
+.llmwiki/traces/
 .llmwiki/*.db-wal
 .llmwiki/*.db-shm
 

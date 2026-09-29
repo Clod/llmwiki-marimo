@@ -125,7 +125,7 @@ form.
 **Any code that detects, counts, or extracts citations MUST recognize the
 line form** (and source-doc extensions `.docx`/`.pdf`, not only `.md`).
 Reference: `domain.eval.graders._CITATION_LINE` / `_line_refs`, and
-`domain.chat.trace._CITATION_MARKERS`.
+`domain.chat.postprocess._CITATION_MARKERS` / `looks_cited`.
 
 | Case | Answer ends with | `has_citation` / `cited` |
 |------|------------------|--------------------------|
@@ -134,11 +134,11 @@ Reference: `domain.eval.graders._CITATION_LINE` / `_line_refs`, and
 | Good | `... (wiki/summaries/x.md).` | True |
 | Bad  | no reference line, no `(…​.md)` | False |
 
-**Regression bugs this prevents (bit twice):** `trace._looks_cited` matched only
-`.md` → a curated answer citing a `.docx` read as uncited/ungrounded;
+**Regression bugs this prevents (bit twice):** `postprocess.looks_cited` matched
+only `.md` → a curated answer citing a `.docx` read as uncited/ungrounded;
 `graders.has_citation` matched only parenthesized refs → the `uat_finanzas`
 concept-citation check false-failed a correctly cited answer. Tests:
-`test_chat_trace.py`, `test_eval_graders.py`.
+`test_chat_postprocess.py`, `test_eval_graders.py`.
 
 ---
 

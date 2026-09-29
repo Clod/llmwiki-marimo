@@ -28,7 +28,7 @@ from typing import Callable
 # - _all_concept_names: Fetch list of all known wiki concepts from DB
 # - _init_wiki_workspace: Prepares folders like wiki/concepts/ if missing
 # - ingest_file: The standard single-file ingestion executor
-from . import trace
+from domain import tracing
 from .pipeline import IngestResult, _all_concept_names, _init_wiki_workspace, ingest_file
 # Import the function that uses LLMs to structure a global wiki overview document
 from .wiki_generator import update_overview
@@ -82,11 +82,11 @@ def batch_ingest(
     _init_wiki_workspace(workspace, language)
     _cb(f"📦 Batch ingesting {len(files)} file(s)...")
 
-    # Own a single trace run for the whole batch so every file (and the batch
-    # overview LLM call) lands in one trace.jsonl. No-op when WIKI_TRACE is unset.
-    # The `with` guarantees the run is finalized even if a later step raises.
-    with trace.run_scope(workspace, db_path) as tracer:
-        llm_client = tracer.wrap(llm_client)
+    # One trace for the whole batch, so every file (and the batch overview model
+    # call) lands under one `ingest` root span. No-op when WIKI_TRACE is unset.
+    W = tracing.WRITING
+    with tracing.root("ingest", workspace, kind="batch", files=len(files)):
+        llm_client = tracing.wrap_openai(llm_client)
 
         results: list[IngestResult] = []
         summaries: list[str] = []
@@ -113,6 +113,7 @@ def batch_ingest(
 
         # 3. If no files were actually ingested (e.g., they were all skipped or failed),
         #    we terminate early to avoid useless Git commits or overview rewrites.
+        tracing.mark("I9a", W, ingested=len(summaries))
         if not summaries:
             _cb("⚠️  No files were ingested — skipping overview and commit.")
             return results
@@ -122,7 +123,7 @@ def batch_ingest(
         # we rewrite the global wiki introduction exactly once using the combined summaries.
         _cb("🌐 Rewriting overview for batch...")
         try:
-            with tracer.stage("overview"):
+            with tracing.node("I10", W) as i10:
                 # A. Read the current overview markdown content
                 current_overview = (workspace / "wiki" / "overview.md").read_text(encoding="utf-8")
 
@@ -139,10 +140,7 @@ def batch_ingest(
                 )
                 # E. Save the updated overview back to disk
                 (workspace / "wiki" / "overview.md").write_text(new_overview, encoding="utf-8")
-                tracer.artifact(
-                    "markdown", "overview", new_overview, ext="md",
-                    relative_path="wiki/overview.md",
-                )
+                i10.payload("overview", new_overview, channel="markdown", ext="md")
         except Exception as exc:
             logger.warning("Batch overview update failed: %s", exc)
 
@@ -153,7 +151,9 @@ def batch_ingest(
             try:
                 from domain.lint.runner import lint_wiki
                 _cb("🩺 Running lint on batch result...")
-                lint_report = lint_wiki(db_path, workspace)
+                with tracing.node("I13", W) as i13:
+                    lint_report = lint_wiki(db_path, workspace)
+                    i13.set(issues=len(lint_report.issues))
                 _cb(f"🩺 Lint: {lint_report.summary()}")
             except Exception as exc:
                 logger.warning("Batch lint failed: %s", exc)
@@ -184,13 +184,15 @@ def batch_ingest(
             log_lines.append(f"- Lint: {lint_report.summary()}\n")
 
         # Append this structured markdown block into "/wiki/log.md" on disk and in the DB
-        append_to_page(db_path, workspace, "/wiki/", "log", "".join(log_lines))
+        with tracing.node("I11", W):
+            append_to_page(db_path, workspace, "/wiki/", "log", "".join(log_lines))
 
         # ── Single git commit ─────────────────────────────────────────────────────
         # Make a single git snapshot commit containing all updated/inserted files
         # to record this batch operation.
-        init_wiki_repo(workspace)
-        auto_commit(workspace, f"batch ingest: {len(ingested)} file(s)")
+        with tracing.node("I12", W):
+            init_wiki_repo(workspace)
+            auto_commit(workspace, f"batch ingest: {len(ingested)} file(s)")
 
         ingested_count = len(ingested)
         _cb(f"🏁 Batch complete — ingested: {ingested_count}, skipped: {len(skipped)}, failed: {len(failed)}")

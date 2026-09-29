@@ -181,20 +181,24 @@ hyphenated filenames like `fed-paper.pdf` are not truncated to `fed`.
 
 ## 14. Tracing & Observability
 
-**Entry point:** `base/domain/ingestion/trace.py`. **Activation:** `WIKI_TRACE=1`.
-**Status:** ✅ ingestion only (chat agent, lint, and repair are out of scope for v1).
+**Entry point:** `base/domain/tracing.py`. **Activation:** `WIKI_TRACE=1`.
+**Status:** ✅ one chat turn, and one ingestion (a single file or a batch); lint
+and repair are out of scope for v1.
 
-The trace is a **write-only observability layer** for the ingestion pipeline. With
-`WIKI_TRACE=1` set, a run records (a) **every LLM exchange** and (b) **the path each
-piece of information takes** through the pipeline — extract → chunk →
-structured_extraction → concepts → summary → overview — so a single PDF can be
-followed end to end and the result cross-checked against the database.
+The trace records one [OpenTelemetry](https://opentelemetry.io/) span per step
+of the code, named by the identifier of its node in the diagrams of
+`design_stemming.md` — `Q5` for the coverage-roster check, `I4` for text
+extraction, `W1` for chunking. The span names of one trace are therefore the
+path the run took through the diagram, and the path can be compared with the
+diagram node by node. Model calls are spans too: Pydantic AI's own
+instrumentation for the chat agent, and a proxied OpenAI client
+(`tracing.wrap_openai`) for ingestion.
 
 ### 14.1 What it is — and what it is *not*
 
 | | |
 | --- | --- |
-| ✅ **Is** | A debugging/observability artifact you read after a run (or feed to an LLM to audit). One JSONL event stream per run + content-addressed sidecars for heavy payloads. |
+| ✅ **Is** | A debugging/observability artifact you read after a run (or feed to an LLM to audit). One JSONL span stream per workspace, in OpenTelemetry's own `ReadableSpan.to_json` format, plus content-addressed sidecars for heavy payloads. |
 | ❌ **Is not** | A record/replay or regression mechanism. There is **no replay and no assertion** anywhere. |
 
 > **Why not record/replay?** A "cassette" approach (freeze the LLM responses, replay
@@ -208,59 +212,63 @@ followed end to end and the result cross-checked against the database.
 
 | Variable | Values | Effect |
 | -------- | ------ | ------ |
-| `WIKI_TRACE` | `1` to enable (anything but unset/`0`/`false`) | Master switch. Unset → a `NullTracer` no-op; ingestion behaviour and output are byte-identical to an untraced run. |
-| `WIKI_TRACE_CAPTURE` | `all` (default when unset) · `none` · CSV of channels | Which payload channels write sidecars (see §14.4). Unknown channel names are ignored with a warning. |
+| `WIKI_TRACE` | `1` to enable (anything but unset/`0`/`false`) | Master switch, read by `tracing.enabled()`. Unset → a no-op tracer; chat and ingestion behaviour and output are byte-identical to an untraced run. |
+| `WIKI_TRACE_CAPTURE` | `all` (default when unset) · `none` · CSV of channels | Which payload channels write sidecar files (see §14.4). Read by `tracing._channels()`. Unknown channel names are ignored with a warning. |
 
 Output goes under the workspace (which is gitignored via `.llmwiki/`):
 
 ```
-<workspace>/.llmwiki/traces/<run_id>/
-├── trace.jsonl              # the event stream; line 1 is the meta header
+<workspace>/.llmwiki/traces/
+├── spans.jsonl              # every span of every trace of this workspace, one per line
 └── payloads/
     └── <sha256>.<ext>       # one content-addressed sidecar per captured payload
 ```
 
-`run_id` = `YYYYMMDDTHHMMSSZ-<6hex>` (UTC timestamp + short uuid), e.g.
-`20260528T203202Z-bea166`.
+Every run — a chat turn or an ingest — appends to the same `spans.jsonl`;
+there is no per-run directory. A run is identified by its `trace_id` (one chat
+turn, or one ingest of a single file or a batch); one document inside a batch
+is identified by the `document_id` on its `document` span.
 
-### 14.3 The trace file (`trace.jsonl`)
+### 14.3 The span file (`spans.jsonl`)
 
-One self-describing JSON object per line. Every event carries `seq` (monotonic),
-`ts` (UTC ISO-8601 ms), `event`, and `run_id`; events inside a document/stage scope
-also carry `document_id`, `relative_path`, and `stage` so each line stands alone.
+One JSON object per line, in the shape of `ReadableSpan.to_json`: `name`,
+`context.trace_id`, `context.span_id`, `parent_id` (`null` for a root),
+`start_time`, `end_time`, `status`, `attributes`, `events`. All spans of one
+run share a `trace_id`; `parent_id` arranges them as a tree.
 
-| `event` | Emitted when | Key fields (beyond the common ones) |
-| ------- | ------------ | ----------------------------------- |
-| `meta` | first line | `schema_version`, `workspace`, `db_path`, `capture`, `channels_available`, **`db_join_map`** |
-| `run_start` / `run_end` | run open / close | `workspace`, `db_path` |
-| `document_start` / `document_end` | per source file | `document_id`, `filename`, `relative_path`; `status` (`ok`/`error`) on end |
-| `stage_start` / `stage_end` | per pipeline stage | `stage`; on end: `status`, `elapsed_ms` |
-| `llm_call` | every `client.chat.completions.create` | `model`, `params` (kwargs minus `model`/`messages`), `latency_ms`, `usage` (prompt/completion/total tokens), `prompt_sha256`/`prompt_bytes`/`prompt_ref`, `response_sha256`/`response_bytes`/`response_ref` |
-| `artifact` | intermediate data produced | `channel`, `name`, `sha256`, `bytes`, `ref`, plus structural meta (`relative_path`, `page_count`, `parser`, `count`, `concept_name`, `category`, `source_document_id`) |
+Root spans are named `turn` (one chat turn) or `ingest` (one ingestion). An
+`ingest` root has one child span named `document` per file, carrying
+`llmwiki.document_id` and `llmwiki.relative_path`
+(`tracing.node("document", ...)`, `base/domain/ingestion/pipeline.py:120`).
 
-**The `db_join_map` header is the point.** It maps trace fields to the columns they
-correspond to, so an LLM (or a script) can join `trace.jsonl` against `index.db`
-without guessing:
+Our own attributes carry the prefix `llmwiki.`:
 
-| Trace field | DB column |
-| ----------- | --------- |
-| `document_id` | `documents.id` |
-| `relative_path` | `documents.relative_path` |
-| `filename` | `documents.filename` |
-| `status` | `documents.status` |
-| `page` | `document_pages.page` |
-| `chunk_index` | `document_chunks.chunk_index` |
-| `reference.{source,target}_document_id`, `reference.reference_type` | `document_references.*` |
+| Attribute | Carried by | Meaning |
+| --- | --- | --- |
+| `llmwiki.node` | every node span | the diagram node identifier, same as the span name |
+| `llmwiki.diagram` | every node span | `reading` or `writing` |
+| `llmwiki.workspace` | the root span only | the workspace path; read by the file processor to route the span to its `spans.jsonl` |
+| `llmwiki.conversation_id`, `llmwiki.turn`, `llmwiki.mode` | the `turn` root | which conversation and turn, and the chat mode |
+| `llmwiki.<name>` | any node | the values that node computed, e.g. `llmwiki.answer` and `llmwiki.roster_size` on `Q5` |
+| `llmwiki.<name>.sha256`, `llmwiki.<name>.bytes`, `llmwiki.<name>.ref` | a node with a heavy payload | written by `Node.payload`; `ref` is relative to `.llmwiki/traces/` |
+
+Model calls are spans with `gen_ai.*` attributes: Pydantic AI's own spans for
+the chat agent (`Agent.instrument_all`, wired in `tracing._get_provider`,
+`base/domain/tracing.py:132`), and spans named `chat <model>` for ingestion,
+written by `tracing.wrap_openai` (`base/domain/tracing.py:345`), with
+`gen_ai.request.model`, `gen_ai.usage.input_tokens`,
+`gen_ai.usage.output_tokens`, and the payloads `prompt`/`response`.
 
 ### 14.4 Sidecars & unpluggable channels
 
-Heavy payloads never bloat the event stream — they are written to
-`payloads/<sha256>.<ext>` and referenced from the event by `ref` + `sha256` + `bytes`.
-Sidecars are **content-addressed**, so identical payloads are stored once (and a
-generated concept page's `artifact.sha256` equals the `response_sha256` of the
-`llm_call` that produced it — the page *is* the model output).
+Heavy payloads never bloat the span file — `Node.payload`
+(`base/domain/tracing.py:196`) writes them to `payloads/<sha256>.<ext>` and
+records `sha256` and `bytes` on the span; the sidecar file itself is written
+only when its channel is on. Sidecars are **content-addressed**, so identical
+payloads are stored once.
 
-The five channels are independently **unpluggable** via `WIKI_TRACE_CAPTURE`:
+The five channels are independently **unpluggable** via `WIKI_TRACE_CAPTURE`
+(`tracing.CHANNELS`):
 
 | Channel | Captures |
 | ------- | -------- |
@@ -271,82 +279,92 @@ The five channels are independently **unpluggable** via `WIKI_TRACE_CAPTURE`:
 | `markdown` | each generated concept / summary / overview page |
 
 **Key invariant:** turning a channel *off* does **not** blind the trace structurally —
-the `artifact`/`llm_call` event still records `sha256` + `bytes`; only the sidecar
-file is skipped (`ref` is `null`). So `WIKI_TRACE_CAPTURE=none` still lets you verify
+the node's span still carries `sha256` and `bytes`; only `ref` is absent, so the
+sidecar was never written. So `WIKI_TRACE_CAPTURE=none` still lets you verify
 *that* content existed and *whether it changed*, just not read it.
 
 ### 14.5 How it's wired
 
-- **Transparent client proxy.** `tracer.wrap(client)` returns a `TracingClient` that
-  delegates everything to the real client and returns the real response object
-  untouched — it only *observes* `chat.completions.create`. This is why none of the
-  five `chat.completions.create` call sites in `wiki_generator.py` changed. `wrap()` is idempotent (a client
-  already wrapped for this run is returned as-is), which matters on the batch path.
-- **Correlation via contextvars.** `tracer.document(...)`/`tracer.stage(...)` set
-  `_current_doc`/`_current_stage`, so the proxy can tag each `llm_call` with the
-  document and stage that triggered it without threading the tracer through every
-  signature.
-- **Run ownership.** `trace.run_scope(workspace, db_path)` (used by `batch_ingest`
-  and `scan_and_ingest`) opens one run for the whole operation; `ingest_file` calls
-  `trace.active_or_start(...)` and **joins** that run if one is active, else creates
-  and finalises its own. Net effect: a batch or a scan is **one** `trace.jsonl`; a
-  lone `ingest_file` is its own.
-- **Disabled = free.** When `WIKI_TRACE` is unset, `active_or_start` returns the
-  shared `NULL` tracer: `wrap()` returns the client unchanged, every method is a
-  no-op, and no directory is created. Tracing failures are swallowed (logged at
-  debug) and can never break an ingest.
+- **One root per run.** `tracing.root(name, workspace, **attrs)` opens the run's
+  root span. `chat/preretrieval.py:321` opens `turn`; `ingestion/pipeline.py:120`
+  and `ingestion/batch.py:88` open `ingest`. Called from inside a run already in
+  progress — a batch ingesting several files — `root` reuses the current span
+  instead of opening a second one (`base/domain/tracing.py:235`), so a batch is
+  one trace.
+- **One span per diagram node.** `tracing.node(node_id, diagram, **attrs)` opens
+  the span of a node that does work; `tracing.mark(node_id, diagram, **attrs)`
+  records a decision or a value as a zero-duration span. Both are called
+  throughout `chat/preretrieval.py` (e.g. `:363` for `Q5`, `:394` for a refusal)
+  and `ingestion/pipeline.py` (e.g. `:252` for `I4`, `:300` for `W3`).
+- **Transparent client proxy.** `tracing.wrap_openai(client)`
+  (`base/domain/tracing.py:345`) returns a client whose `chat.completions.create`
+  is a span and whose real response object is returned untouched. It is
+  idempotent (a client already wrapped is returned as-is), which matters on the
+  batch path, and returns the client unchanged when tracing is off.
+- **Disabled = free.** `tracing.enabled()` (`base/domain/tracing.py:68`) gates a
+  module-level no-op tracer; every function above becomes a no-op and no file is
+  created.
+- **Best-effort.** A span-attribute or payload failure is caught and logged at
+  debug level (`base/domain/tracing.py:182`, `:213`); tracing never breaks a
+  chat turn or an ingest.
 
-### 14.6 What each stage emits
+### 14.6 What each node covers
 
-| Stage | `llm_call` | `artifact` |
-| ----- | ---------- | ---------- |
-| `extract` | — | `extracted_text` (`page_count`, `parser`) |
-| `chunk` | — | `chunks` (`count`) |
-| `structured_extraction` | 1 (the extraction JSON lands in the `responses` channel) | — |
-| `concepts` | 1 per concept | `markdown` `concept:<slug>` per concept (`relative_path`, `concept_name`, `category`) |
-| `summary` | — (`build_summary_page` is deterministic) | `markdown` `summary:<slug>` (`relative_path`, `source_document_id`) |
-| `overview` | 1 (single-file path, and once per batch at batch level) | `markdown` `overview` (`relative_path`) |
+The node identifiers of one ingestion and one chat turn are the ones tabulated
+in `design_stemming.md` §1.1.1 (writing: I1–I16, E1–E4, W1–W4) and §1.2.1
+(reading: Q1–Q21, Q7a–Q7d, refusal causes R1, R2a, R2b, R3 and R4). Those two tables are the reference
+for which node covers which line of code; this section does not repeat them.
 
 ### 14.7 Rendering — `scripts/render_trace.py`
 
-`trace.jsonl` is machine-first; the render script turns a run into a readable
-per-document timeline.
+`spans.jsonl` is machine-first; the render script turns it into a readable
+timeline, one trace at a time, with spans indented by depth under their parent.
 
 ```bash
-# Timeline (events only)
-python scripts/render_trace.py <run_dir-or-trace.jsonl>
+# Every trace in the file, in start order
+python scripts/render_trace.py <workspace-or-spans.jsonl>
+
+# One trace only
+python scripts/render_trace.py <workspace> --trace <trace_id>
+
+# Every turn of one conversation, in turn order
+python scripts/render_trace.py <workspace> --conversation <conversation_id>
+
+# One document, from its `document` span down
+python scripts/render_trace.py <workspace> --doc <document_id>
 
 # Inline the actual prompts + responses (resolves the sidecars)
-python scripts/render_trace.py <run_dir> --show prompts,responses
-
-# One document only
-python scripts/render_trace.py <run_dir> --doc <document_id> --show markdown
+python scripts/render_trace.py <workspace> --show prompts,responses
 ```
 
 ### 14.8 Cross-checking a trace against the DB
 
-The intended audit: every `document_start` should have a matching `documents` row,
-and the `chunks` artifact `count` should equal the rows in `document_chunks`. The
-`db_join_map` makes this a straightforward join — e.g. for a real 4-PDF run the
-trace's `document_id`/`relative_path`/chunk counts matched the DB exactly (10, 2, 13,
-5 chunks; all `status='ready'`). Hand the `trace.jsonl` (its header included) to an
-LLM and ask it to reconcile against `index.db`, or script it in a few lines of SQL +
-`json`.
+The intended audit: the `document` span's `llmwiki.document_id` and
+`llmwiki.relative_path` should match a row of `documents`, and the fragment
+count `W3` records (`fragments=len(chunks)`, `ingestion/pipeline.py:300`)
+should equal the rows of `document_chunks` for that document. Since every span
+that touches a document carries the same `document_id` — set once on `I3`
+(`ingestion/pipeline.py:241`) and again on the `document` span — filtering
+`spans.jsonl` by that value and joining on `documents.id` recovers the same
+audit the ingestion trace's former `db_join_map` header gave directly. Hand
+the filtered spans to an LLM and ask it to reconcile against `index.db`, or
+script the join in a few lines of SQL + `json`.
 
 ### 14.9 Guarantees & references
 
-- **No credentials.** Only `messages`, non-secret `params` (the proxy drops `model`
-  and `messages` from `params`), and response text are recorded — never the API key
-  (it lives on the client, which is never serialised).
-- **Crash-safe.** Each line is flushed on write, so a trace is useful even if a long
-  run is interrupted.
-- **Code:** `base/domain/ingestion/trace.py` — `IngestionTracer`, `NullTracer`/`NULL`,
-  `TracingClient`, `active_or_start`, `run_scope`, `CHANNELS`, `DB_JOIN_MAP`,
-  `SCHEMA_VERSION`. Instrumentation lives in `pipeline.py` (`ingest_file`,
-  `scan_and_ingest`) and `batch.py` (`batch_ingest`).
-- **Tests:** `tests/unit/test_trace.py` — channel resolution, disabled no-op, proxy
-  transparency, sha/size-always-present, meta header shape, contextvar tagging, and an
-  end-to-end ingest whose trace joins against the DB.
+- **No credentials.** Only the request `messages`, the response text, and
+  token counts are recorded — never the API key (it lives on the client,
+  which is never serialised).
+- **Crash-safe.** Each span is appended on close (`_WorkspaceFileProcessor.on_end`,
+  `base/domain/tracing.py:110`), so a trace is useful even if a long run is
+  interrupted.
+- **Code:** `base/domain/tracing.py` — `enabled`, `root`, `node`, `mark`,
+  `Node.set`, `Node.payload`, `wrap_openai`, and the constants `READING`,
+  `WRITING`, `CHANNELS`, `SPAN_FILE`, `ENV_VAR`, `CAPTURE_ENV_VAR`.
+- **Tests:** `tests/unit/test_tracing.py` — activation, workspace routing,
+  parent/child trace-id sharing, attribute coercion, payload channel
+  toggling, root reuse, two workspaces in one process, and `wrap_openai`.
+  `tests/unit/test_render_trace.py` covers the render script.
 
 ---
 

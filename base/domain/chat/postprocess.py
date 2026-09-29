@@ -174,3 +174,16 @@ def ensure_citation(answer: str, messages: list[ModelMessage]) -> str:
     if add_refs:
         lines.append(f"Referencia: {', '.join(add_refs)}")
     return f"{answer.rstrip()}\n\n" + "\n".join(lines)
+
+
+_CITATION_MARKERS = (".md", ".docx", ".doc", ".pdf", ".txt", ".csv")
+
+
+def looks_cited(text: str) -> bool:
+    """Heuristic: a grounded answer names its source.
+
+    A curated wiki page (``*.md``) or the source document it came from
+    (``*.docx`` / ``*.pdf`` …) — the pre-retrieval curated path cites the source
+    document, so matching only ``.md`` would miss it and read as uncited.
+    """
+    return any(marker in (text or "") for marker in _CITATION_MARKERS)

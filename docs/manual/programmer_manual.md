@@ -263,7 +263,6 @@ llmwiki/
 │       │   ├── extractor.py            # PDF/DOCX → list[(page, markdown)]
 │       │   ├── index_manager.py        # wiki/index.md upsert (deterministic)
 │       │   ├── pdf_extract.py          # opendataloader-pdf (text PDFs; no OCR yet)
-│       │   ├── trace.py                # opt-in ingestion trace (see §14)
 │       │   └── wiki_generator.py       # all LLM prompt builders (see §6)
 │       ├── lint/
 │       │   ├── checks.py               # 7 check functions (incl. gap_filled)
@@ -281,11 +280,11 @@ llmwiki/
 │       │   ├── references.py           # citation graph CRUD + queries
 │       │   ├── search.py               # search_chunks() scoped FTS5
 │       │   └── wiki_fs.py              # create/read/append/delete_page
+│       ├── tracing.py                  # opt-in OpenTelemetry spans, one per diagram node (see §14)
 │       └── wiki_registry.py            # wiki discovery + recent list + path hygiene (the picker, §7.1)
 ├── marimo/
 │   ├── ingest_app.py                   # Wiki picker + upload + ingest + scan + regenerate UI
 │   ├── read_app.py                     # Wiki picker + 3-pane reader + chat + save_to_wiki
-│   ├── trace_report_app.py             # WIKI_TRACE run viewer (see §7, §14)
 │   ├── widgets/
 │   │   ├── __init__.py
 │   │   └── delete_confirm.py           # DeleteConfirmWidget (anywidget) — reusable
@@ -297,7 +296,7 @@ llmwiki/
 │   ├── eval_chat_model.py              # PASS/FAIL smoke test of the chat model (§9)
 │   ├── build_eval_packet.py            # Generate the half-automated UAT eval packet (§9)
 │   ├── uat_finanzas.py                 # Run the finanzas-argentinas demo UAT (9 GUIA_DEMO.md questions)
-│   └── render_trace.py                 # Render a trace.jsonl run to a timeline (§14.7)
+│   └── render_trace.py                 # Render a spans.jsonl trace to a timeline (§14.7)
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
@@ -419,8 +418,8 @@ measured, reproduced, and deliberately not fixed yet.
 | **Filing Cabinet**          | The SQLite + FTS5 layer (`workspace/.llmwiki/index.db`).                                                                                                                                                                            |
 | **Encyclopedia**            | The human-readable markdown layer (`workspace/wiki/`).                                                                                                                                                                              |
 | **Phase 1 / 2 / 3 / 4 RAG** | The agent's routing cascade: index → wiki search → raw chunks → web search (Phase 4 deliberately not built — see the [ROADMAP](../../ROADMAP.md)).                                                                                                                                 |
-| **Trace (ingestion)**       | Opt-in (`WIKI_TRACE=1`) write-only JSONL record of every LLM exchange + the data-flow path of an ingestion run, correlated to DB rows via a `db_join_map` header. For debugging, not replay. See §14.                                |
-| **Sidecar**                 | A content-addressed file under a trace's `payloads/<sha256>.<ext>` holding one heavy payload (prompt, response, extracted text, chunks, or a generated page), referenced from the event by `ref` + `sha256` + `bytes`. See §14.4.     |
+| **Trace**                   | Opt-in (`WIKI_TRACE=1`) write-only record of one chat turn or one ingest, as OpenTelemetry spans appended to `spans.jsonl`, one span per diagram node. For debugging, not replay. See §14.                                |
+| **Sidecar**                 | A content-addressed file under a trace's `payloads/<sha256>.<ext>` holding one heavy payload (prompt, response, extracted text, chunks, or a generated page), referenced from the span by `ref` + `sha256` + `bytes`. See §14.4.     |
 
 ---
 

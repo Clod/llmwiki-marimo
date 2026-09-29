@@ -23,7 +23,8 @@ si un tema está cubierto o no. Es la prueba de aceptación de las piezas de
    - el artefacto de apodos: `WIKI_PATH/.llmwiki/aliases.generated.toml`;
    - el aviso de colisiones y el lint: el **log de ingesta** y el panel de **lint**
      en el ingest app;
-   - el detalle turno a turno: `WIKI_CHAT_TRACE=1` antes de lanzar el chat.
+   - el detalle turno a turno: `WIKI_TRACE=1` antes de lanzar el chat, y
+     `python scripts/render_trace.py WIKI_PATH --conversation <id>` para leerlo.
 
 ---
 

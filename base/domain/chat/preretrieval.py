@@ -15,10 +15,12 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from domain import tracing
 from domain.chat.guardrail import enforce_grounding, refusal_for
-from domain.chat.overlap import is_supported
+from domain.chat.overlap import coverage
 from domain.chat.postprocess import answer_with_table, ensure_citation
 from domain.chat.scope import (
+    _normalize,
     advisory_intent,
     collection_intent,
     is_off_limits,
@@ -35,6 +37,9 @@ _INJECT_TEMPLATE = (
     "del wiki, citando la fuente. Si el contexto no alcanza para responder, decilo.\n\n"
     "{context}\n\n---\nPregunta: {question}"
 )
+# Tier-2 threshold of `is_supported` (overlap.py); the trace records it next to
+# the measured coverage.
+_MIN_COVERAGE = 0.2
 _TIER2_WARNING = (
     "> ⚠️ Esta respuesta proviene de un documento fuente sin página curada del "
     "wiki; verificá."
@@ -262,12 +267,19 @@ def plan_retrieval(
     `retrieve_collection_pages`), so this branch is a no-op — not a special
     case — on a wiki without one.
     """
+    # Each decision is recorded as its node of the reading diagram
+    # (design_stemming.md, section 1.2), in the order the code evaluates it.
+    R = tracing.READING
     if is_off_limits(question, off_limits):
         return _REFUSE
+    tracing.mark("Q7", R, answer=bool(wiki_hits and in_roster),
+                 wiki_pages=len(wiki_hits), in_roster=in_roster)
     if wiki_hits and in_roster:
         return RetrievalPlan("invoke", "curado", "\n\n".join(wiki_hits), False)
+    tracing.mark("Q9", R, answer=bool(collection_hits), collection_pages=len(collection_hits))
     if collection_hits:
         return RetrievalPlan("invoke", "curado", "\n\n".join(collection_hits), False)
+    tracing.mark("Q10", R, answer=has_data)
     if has_data:
         # A question that names known data goes to the tools (query_dataset /
         # advisory) before any raw-doc fallback: the dataset value/date beats
@@ -275,8 +287,11 @@ def plan_retrieval(
         # divert "¿a cuánto está el billete verde?" to Tier-2 and starve it of
         # the actual number.
         return RetrievalPlan("invoke", None, None, False)
+    tracing.mark("Q11", R, answer=bool(doc_hits and in_roster),
+                 source_fragments=len(doc_hits), in_roster=in_roster)
     if doc_hits and in_roster:
         return RetrievalPlan("invoke", "crudo", "\n\n".join(doc_hits), True)
+    tracing.mark("Q12", R, answer=in_roster)
     return _REFUSE
 
 
@@ -303,7 +318,36 @@ async def pre_retrieval_answer(
     object with `.output` (str) and `.all_messages()`. `on_trace`, if given, is
     called with (raw, final, result, refusal_substituted) for the chat trace.
     """
+    with tracing.root(
+        "turn", workspace, mode="pre-retrieval", question=question, language=language,
+    ):
+        return await _pre_retrieval_turn(
+            question, config=config, db_path=db_path, workspace=workspace,
+            history=history, language=language, run_agent=run_agent, on_trace=on_trace,
+        )
+
+
+def _hit_labels(hits: list[str]) -> list[str]:
+    """The page label of each injected block: its first line, without brackets."""
+    return [h.split("\n", 1)[0].strip("[]") for h in hits]
+
+
+def _answer_node(plan: RetrievalPlan, wiki_hits: list[str], in_roster: bool) -> str:
+    """The reading-diagram node that injects the plan's context and runs the model."""
+    if plan.tier == "curado":
+        return "Q13" if (wiki_hits and in_roster) else "Q14"
+    if plan.tier == "crudo":
+        return "Q16"
+    return "Q15"
+
+
+async def _pre_retrieval_turn(
+    question: str, *, config, db_path, workspace, history, language, run_agent, on_trace,
+) -> str:
+    """The body of `pre_retrieval_answer`, inside the turn's root span."""
+    R = tracing.READING
     refusal = refusal_for(language)
+    tracing.mark("Q2", R, normalized=_normalize(question))
     aliases = [alias for names in config.data_aliases.values() for alias in names]
     vocabulary = build_vocabulary(LocalMarkdownSource(workspace / "datasets"))
     # Route to the tools either by a NAMED data term or by generic advisory intent
@@ -314,17 +358,25 @@ async def pre_retrieval_answer(
     # (a dataset term OR a concept page name OR a known alias). Tier-2 (raw docs)
     # is allowed ONLY for a covered topic, so an uncovered question can't pull a
     # tangential chunk as a fig leaf — that was the CEDEARs leak.
-    coverage = set(vocabulary) | set(concept_page_names(db_path))
-    in_roster = mentions_known_data(question, coverage, aliases)
+    coverage_roster = set(vocabulary) | set(concept_page_names(db_path))
+    in_roster = mentions_known_data(question, coverage_roster, aliases)
+    tracing.mark("Q5", R, answer=in_roster, roster_size=len(coverage_roster),
+                 aliases=len(aliases))
 
-    if is_off_limits(question, config.off_limits):
+    off_limits = is_off_limits(question, config.off_limits)
+    tracing.mark("Q3", R, answer=off_limits)
+    if off_limits:
         wiki_hits, doc_hits, collection_hits = [], [], []
     else:
-        wiki_hits = retrieve_wiki(db_path, question, language=language)
-        doc_hits = (
-            retrieve_source_chunks(db_path, question, language=language)
-            if (not wiki_hits and in_roster) else []
-        )
+        with tracing.node("Q6", R, fts_query=_fts_query(question, language)) as q6:
+            wiki_hits = retrieve_wiki(db_path, question, language=language)
+            q6.set(pages=_hit_labels(wiki_hits))
+        if not wiki_hits and in_roster:
+            with tracing.node("Q8", R, fts_query=_fts_query(question, language)) as q8:
+                doc_hits = retrieve_source_chunks(db_path, question, language=language)
+                q8.set(fragments=_hit_labels(doc_hits))
+        else:
+            doc_hits = []
         # Collection-shaped question ("what tales are in this wiki?") — inject
         # the overview/index read from disk. Empty when the wiki has neither
         # page, so an ordinary wiki with no collection page falls through to
@@ -338,6 +390,8 @@ async def pre_retrieval_answer(
     )
 
     if plan.action == "refuse":
+        cause = "R1" if off_limits else ("R2b" if in_roster else "R2a")
+        tracing.mark(cause, R, final_answer=refusal)
         if on_trace:
             on_trace(raw="", final=refusal, result=None, refusal_substituted=True)
         return refusal
@@ -346,26 +400,50 @@ async def pre_retrieval_answer(
         _INJECT_TEMPLATE.format(context=plan.context, question=question)
         if plan.context else question
     )
-    result = await run_agent(prompt, history)
-    raw = result.output
-    messages = result.all_messages()
+    with tracing.node(
+        _answer_node(plan, wiki_hits, in_roster), R,
+        tier=plan.tier or "data", context_chars=len(plan.context or ""),
+    ) as answer_node:
+        answer_node.payload("prompt", prompt, channel="prompts")
+        result = await run_agent(prompt, history)
+        raw = result.output
+        messages = result.all_messages()
+        answer_node.set(raw_output=raw)
 
     # Tier 2 (raw doc): verify the answer actually draws on the retrieved chunk.
-    if plan.verify and not is_supported(raw, plan.context or ""):
-        if on_trace:
-            on_trace(raw=raw, final=refusal, result=result, refusal_substituted=True)
-        return refusal
+    if plan.verify:
+        score = coverage(raw, plan.context or "")
+        supported = score >= _MIN_COVERAGE
+        tracing.mark("Q17", R, answer=supported, coverage=round(score, 3),
+                     min_coverage=_MIN_COVERAGE)
+        if not supported:
+            tracing.mark("R3", R, final_answer=refusal)
+            if on_trace:
+                on_trace(raw=raw, final=refusal, result=result, refusal_substituted=True)
+            return refusal
 
     # Grounding: injected context IS the grounding for Tier 1/2 (skip the
     # tool-based guardrail, which would wrongly refuse a context-only answer);
     # for a data/advisory question (no injected context) keep the guardrail.
-    gated = enforce_grounding(raw, messages, refusal=refusal) if plan.context is None else raw
+    if plan.context is None:
+        gated = enforce_grounding(raw, messages, refusal=refusal)
+        grounded = not (gated == refusal and raw != refusal)
+        tracing.mark("Q19", R, answer=grounded)
+        if not grounded:
+            tracing.mark("R4", R, final_answer=refusal)
+    else:
+        gated = raw
     refusal_substituted = gated == refusal and raw != refusal
 
-    answer = ensure_citation(answer_with_table(gated, messages), messages)
+    tabled = answer_with_table(gated, messages)
+    answer = ensure_citation(tabled, messages)
+    citation_added = answer != tabled
     if plan.tier == "crudo" and answer != refusal:
         answer = f"{answer}\n\n{_TIER2_WARNING}"
+        tracing.mark("Q18", R)
 
+    if not refusal_substituted:
+        tracing.mark("Q21", R, final_answer=answer, citation_added=citation_added)
     if on_trace:
         on_trace(raw=raw, final=answer, result=result, refusal_substituted=refusal_substituted)
     return answer

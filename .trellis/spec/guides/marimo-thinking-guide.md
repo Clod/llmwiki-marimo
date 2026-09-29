@@ -110,21 +110,23 @@ def navigate_to(page):
 
 ## Before Writing a Multi-File Runner Cell That Uses WIKI_TRACE
 
-`ingest_file` owns its own trace scope: when no outer scope is active it creates
-a new `trace.jsonl`, finalises it, and resets `_active` to `None` — so a bare loop
-produces **one trace file per file**, not one per run.
+`ingest_file` opens its own `ingest` root span (`tracing.root("ingest",
+workspace)`, `base/domain/ingestion/pipeline.py:120`) when none is open — so a
+bare loop produces **one trace per file**, not one per run.
 
-Always wrap the loop in `trace.run_scope` so all files land in a single trace:
+Always wrap the loop in `tracing.root` so every file's spans land under one
+trace; a nested `ingest_file` call reuses the open root instead of starting a
+second one (`base/domain/tracing.py:235`):
 
 ```python
-from domain.ingestion.trace import run_scope as _run_scope
+from domain import tracing
 
-with _run_scope(WORKSPACE, DB_PATH):
+with tracing.root("ingest", WORKSPACE):
     for _f in _files:
         _result = _if(_fp, DB_PATH, WORKSPACE, llm_client, llm_model, _cb)
 ```
 
-`run_scope` is a no-op when `WIKI_TRACE` is unset, so it is always safe to add.
+`tracing.root` is a no-op when `WIKI_TRACE` is unset, so it is always safe to add.
 
 ---
 

@@ -178,3 +178,15 @@ def test_ensure_citation_skips_when_advisory_table_present():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
     answer = f"Alternativas:\n\n{TABLE}"  # already has the fuente column
     assert ensure_citation(answer, messages) == answer
+
+
+# ── looks_cited ─────────────────────────────────────────────────────────────
+
+def test_looks_cited_recognizes_wiki_page_and_source_document():
+    from domain.chat.postprocess import looks_cited
+
+    assert looks_cited("Ver [Caución](/wiki/concepts/caucion.md).")
+    # A curated pre-retrieval answer cites the SOURCE document, not a .md.
+    assert looks_cited("El plazo fijo tradicional… Referencia: 10 Plazos Fijos.docx")
+    assert not looks_cited("Eso no está en mi base de conocimiento.")
+    assert not looks_cited("")

@@ -85,6 +85,9 @@ def _insert_chunks(conn: sqlite3.Connection, doc_id: str, content: str) -> None:
     # 1. Break down the content into a list of semantic chunks.
     #    We pass the text as page 1 (since standard wiki pages are single-page markdown).
     chunks = chunk_pages([(1, content)])
+    # Node W1 of the writing diagram, for a wiki page (domain/tracing.py).
+    from domain import tracing
+    tracing.mark("W1", tracing.WRITING, document_id=doc_id, fragments=len(chunks))
 
     # 2. Bulk insert the chunks into the database using 'executemany' for high speed.
     conn.executemany(
