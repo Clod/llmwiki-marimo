@@ -1,0 +1,14 @@
+/* The text of a page, as the reading screen and the preview of the editor show it. */
+.prose { font: var(--weight-regular) var(--text-md)/var(--leading-prose) var(--font-sans); max-width: var(--prose-w); }
+.prose > :first-child { margin-top: 0; }
+.prose h1 { font: var(--weight-semibold) var(--text-2xl)/var(--leading-tight) var(--font-sans); margin: 0 0 var(--space-3); }
+.prose h2 { font: var(--weight-semibold) var(--text-lg)/var(--leading-tight) var(--font-sans); margin: var(--space-4) 0 var(--space-2); }
+.prose h3 { font: var(--weight-semibold) var(--text-md)/var(--leading-tight) var(--font-sans); margin: var(--space-3) 0 var(--space-1); }
+.prose p, .prose ul, .prose ol { margin: 0 0 var(--space-3); }
+.prose ul, .prose ol { padding-left: var(--space-5); }
+.prose table { border-collapse: collapse; font: var(--text-sm)/var(--leading-normal) var(--font-sans); margin: var(--space-3) 0; }
+.prose th, .prose td { border-bottom: var(--border); padding: var(--space-2) var(--space-4) var(--space-2) 0; text-align: left; }
+.prose blockquote { margin: var(--space-3) 0; padding: var(--space-1) var(--space-4); border-left: 3px solid var(--color-selected-border); color: var(--color-text-secondary); }
+.prose code { background: var(--color-canvas); padding: 0 var(--space-1); border-radius: var(--radius-sm); }
+.prose pre { background: var(--color-canvas); padding: var(--space-3); overflow: auto; border-radius: var(--radius); }
+.prose mark { background: var(--color-attention); color: var(--color-text); padding: 0 2px; border-radius: 2px; }

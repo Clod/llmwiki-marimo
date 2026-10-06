@@ -1,0 +1,16 @@
+<section class="diff" aria-label="{{ _('Comparison with the current version') }}">
+  {% if not exists_now %}<p class="notice">{{ _("The page no longer exists: every line of this version is shown as removed.") }}</p>{% endif %}
+  {% if rows %}
+  <p class="diff-key">{% trans %}Lines with <b>−</b> were in this version and are gone; lines with <b>+</b> were added later.{% endtrans %}</p>
+  <table class="diff-table">
+    <tbody>
+    {% for r in rows %}
+    <tr class="row-{{ {'+': 'add', '-': 'del', '…': 'gap'}.get(r.sign, 'same') }}">
+      <td class="sign" aria-label="{{ {'+': _('added'), '-': _('removed'), '…': _('skipped')}.get(r.sign, _('unchanged')) }}">{{ r.sign }}</td>
+      <td class="text">{{ r.text }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="notice">{{ _("This version is identical to the current one.") }}</p>{% endif %}
+</section>

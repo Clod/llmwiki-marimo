@@ -1,0 +1,24 @@
+<dialog class="dataset" aria-labelledby="dataset-title">
+  <header class="dataset-head">
+    <h2 id="dataset-title" class="mono">{% if tables|length == 1 %}{{ tables[0].path }}{% else %}{{ _("Datasets that hold “%(name)s”", name=name) }}{% endif %}</h2>
+    <button class="btn dataset-close" type="button" aria-label="{{ _('Close the dataset') }}" title="{{ _('Close the dataset') }}" onclick="this.closest('dialog').close()">×</button>
+  </header>
+  <div class="dataset-body">
+    {% for t in tables %}
+    <section class="dataset-table" aria-label="{{ t.category }}">
+      <p class="dataset-meta">{% if tables|length > 1 %}<b class="mono">{{ t.path }}</b> · {% endif %}{{ t.metrics|join(", ") }}{% if t.unit %} · {{ t.unit }}{% endif %}{% if t.as_of %} · {{ _("as of %(date)s", date=t.as_of) }}{% endif %}{% if t.source %} · {{ _("source: %(source)s", source=t.source) }}{% endif %}</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th scope="col"></th>{% for c in t.columns %}<th scope="col" class="num">{{ c }}</th>{% endfor %}</tr></thead>
+        <tbody>
+        {% for key, cells in t.rows %}
+        <tr{% if key == t.marked %} class="marked" aria-current="true"{% endif %}><th scope="row">{{ key }}</th>{% for v in cells %}<td class="num">{{ v or "–" }}</td>{% endfor %}</tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+    </section>
+    {% endfor %}
+  </div>
+  <footer class="dataset-actions">
+    <button class="btn" type="button" onclick="this.closest('dialog').close()" title="{{ _('Close the dataset') }}">{{ _("Close") }}</button>
+  </footer>
+</dialog>

@@ -9,6 +9,7 @@ Workspace is derived as Path(db_path).parent.parent — always workspace/.llmwik
 
 # Import the standard logging library to log warnings and errors
 import logging
+from dataclasses import dataclass
 # Import Path from pathlib to easily handle file system paths in a cross-platform way
 from pathlib import Path
 
@@ -220,6 +221,140 @@ def _lint_and_repair_after_save(
 
 # ── Direct save (no RunContext) ───────────────────────────────────────────────
 
+_CATEGORY_DIRS = {"concept": "/wiki/concepts/", "summary": "/wiki/summaries/"}
+
+
+@dataclass(frozen=True)
+class PageDraft:
+    """A page drafted from chat content, not yet written.
+
+    `path` is the target, `wiki/concepts/<slug>.md`; `exists` is True when a page
+    with that slug is already there, in which case the draft merges into it and
+    writing replaces it.
+    """
+
+    title: str
+    category: str
+    slug: str
+    path: str
+    markdown: str
+    exists: bool
+
+
+def _model_client(client, model):
+    """The client and model given, else the ones of the global settings."""
+    if client is None or model is None:
+        from openai import OpenAI
+        from config import settings
+        base_url = settings.WIKI_LLM_BASE_URL or settings.LLM_BASE_URL
+        api_key = settings.WIKI_LLM_API_KEY or settings.LLM_API_KEY
+        client = client or OpenAI(base_url=base_url, api_key=api_key)
+        model = model or settings.WIKI_LLM_MODEL or settings.LLM_MODEL
+    return client, model
+
+
+def draft_wiki_page(
+    db_path: str,
+    workspace: Path,
+    title: str,
+    content: str,
+    category: str = "concept",
+    *,
+    client=None,
+    model: str | None = None,
+    language: str = "en",
+) -> PageDraft:
+    """Step 1 of `save_to_wiki`: draft the page. Writes nothing.
+
+    The model structures `content` (merging it into the existing page when the
+    slug exists), then the See-also section is injected from the related pages.
+    """
+    from domain.ingestion.wiki_generator import make_wiki_slug, structure_chat_content, inject_see_also
+    from domain.tools.wiki_fs import read_page
+
+    client, model = _model_client(client, model)
+    dir_path = _CATEGORY_DIRS.get(category, "/wiki/summaries/")
+    slug = make_wiki_slug(title)
+    existing = read_page(db_path, workspace, dir_path, slug)
+    structured = structure_chat_content(
+        title, category, content, existing, client, model, language=language
+    )
+    structured = inject_see_also(structured, _related_pages_for(workspace, slug, dir_path), language=language)
+    return PageDraft(title=title, category=category, slug=slug,
+                     path=f"{dir_path.lstrip('/')}{slug}.md", markdown=structured, exists=bool(existing))
+
+
+def write_wiki_page(
+    db_path: str,
+    workspace: Path,
+    title: str,
+    markdown: str,
+    category: str = "concept",
+    *,
+    client=None,
+    model: str | None = None,
+    language: str = "en",
+) -> str:
+    """Step 2 of `save_to_wiki`: write `markdown` as the page, as given.
+
+    Creates the page, or replaces it when the slug exists; rebuilds its
+    references and its entry in index.md; then runs the post-save lint and
+    repair on it. The repair is deterministic unless a `client` is passed.
+    Returns a confirmation string e.g. "Created wiki/concepts/my-concept.md".
+    """
+    from domain.ingestion.wiki_generator import make_wiki_slug
+    from domain.tools.wiki_fs import create_page, read_page
+    from domain.tools.references import update_references
+    from domain.ingestion.index_manager import update_index
+
+    dir_path = _CATEGORY_DIRS.get(category, "/wiki/summaries/")
+    slug = make_wiki_slug(title)
+    existing = read_page(db_path, workspace, dir_path, slug)
+    structured = markdown
+
+    # Write the file to disk, determining whether this is an Update or a fresh Creation
+    if existing:
+        result = create_page(
+            db_path, workspace, dir_path, slug, title, structured, [category],
+            overwrite=True, sources=["chat"],
+        )
+        action = "Updated"
+    else:
+        result = create_page(
+            db_path, workspace, dir_path, slug, title, structured, [category],
+            sources=["chat"],
+        )
+        action = "Created"
+    page_path = result["path"]
+
+    # Database citation tracking synchronization
+    try:
+        from domain.tools.db import get_connection
+        with get_connection(db_path) as conn:
+            row = conn.execute(
+                "SELECT id FROM documents WHERE relative_path=?", (page_path,)
+            ).fetchone()
+        if row:
+            update_references(db_path, row["id"], structured, dir_path)
+    except Exception:
+        # Ignore DB sync errors so the critical file-saving step is not disrupted,
+        # but log them so a broken references table is diagnosable.
+        logger.warning("reference sync failed for %s", page_path, exc_info=True)
+
+    # Update the main table-of-contents index file (index.md)
+    summary = structured.strip().splitlines()[0].lstrip("# ").strip()[:80] if structured.strip() else title
+    update_index(workspace, page_path, summary, category + "s", language=language)
+
+    # Post-save validator checks and fixes (lint + repair). page_path already
+    # begins with "wiki/", so it is used as-is.
+    msg = f"{action} {page_path}"
+    repair_summary = _lint_and_repair_after_save(db_path, workspace, page_path,
+                                                  client=client, model=model or "", language=language)
+    if repair_summary:
+        msg += f"\n🔧 Post-save repair: {repair_summary}"
+    return msg
+
+
 def save_to_wiki(
     db_path: str,
     workspace: Path,
@@ -233,93 +368,12 @@ def save_to_wiki(
 ) -> str:
     """Save content as a wiki page without requiring a PydanticAI RunContext.
 
-    Applies an LLM structuring pass before writing. Creates the page if it
-    doesn't exist; merges into existing if it does.
-
-    Args:
-        db_path: Path to the SQLite database.
-        workspace: Absolute path to the workspace root directory.
-        title: Human-readable page title.
-        content: Markdown body content to save.
-        category: "concept" or "summary" (determines folder placement).
-        client: Optional OpenAI-compatible client instance.
-        model: Optional model identifier.
-        language: ISO 639-1 code controlling the language of the generated page
-            (structured content, See-also section, index entry). Defaults to
-            English so existing call sites stay byte-identical.
-
-    Returns a confirmation string e.g. "Created wiki/concepts/my-concept.md".
+    Applies an LLM structuring pass before writing: `draft_wiki_page`, then
+    `write_wiki_page` on the draft. Creates the page if it doesn't exist; merges
+    into existing if it does. Returns e.g. "Created wiki/concepts/my-concept.md".
     """
-    # Dynamic imports to keep loading lightweight
-    from domain.ingestion.wiki_generator import make_wiki_slug, structure_chat_content, inject_see_also
-    from domain.tools.wiki_fs import create_page, read_page
-    from domain.tools.references import update_references
-    from domain.ingestion.index_manager import update_index
-
-    # 1. Fallback: If no client or model is explicitly provided, instantiate them from global settings
-    if client is None or model is None:
-        from openai import OpenAI
-        from config import settings
-        base_url = settings.WIKI_LLM_BASE_URL or settings.LLM_BASE_URL
-        api_key = settings.WIKI_LLM_API_KEY or settings.LLM_API_KEY
-        client = client or OpenAI(base_url=base_url, api_key=api_key)
-        model = model or settings.WIKI_LLM_MODEL or settings.LLM_MODEL
-
-    # 2. Determine target folder path and generate a safe filename (slug)
-    dir_path = "/wiki/concepts/" if category == "concept" else "/wiki/summaries/"
-    slug = make_wiki_slug(title)
-
-    # 3. Read any existing file content to support merging
-    existing = read_page(db_path, workspace, dir_path, slug)
-
-    # 4. Use LLM to structure/merge the content beautifully (in the wiki language)
-    structured = structure_chat_content(
-        title, category, content, existing, client, model, language=language
-    )
-    related = _related_pages_for(workspace, slug, dir_path)
-    structured = inject_see_also(structured, related, language=language)
-
-    # 5. Write the file to disk, determining whether this is an Update or a fresh Creation
-    if existing:
-        result = create_page(
-            db_path, workspace, dir_path, slug, title, structured, [category],
-            overwrite=True, sources=["chat"],
-        )
-        page_path = result["path"]
-        action = "Updated"
-    else:
-        result = create_page(
-            db_path, workspace, dir_path, slug, title, structured, [category],
-            sources=["chat"],
-        )
-        page_path = result["path"]
-        action = "Created"
-
-    # 6. Database citation tracking synchronization
-    try:
-        from domain.tools.db import get_connection
-        with get_connection(db_path) as conn:
-            # Look up unique document record identifier
-            row = conn.execute(
-                "SELECT id FROM documents WHERE relative_path=?", (page_path,)
-            ).fetchone()
-        if row:
-            update_references(db_path, row["id"], structured, dir_path)
-    except Exception:
-        # Ignore DB sync errors so the critical file-saving step is not disrupted,
-        # but log them so a broken references table is diagnosable.
-        logger.warning("reference sync failed for %s", page_path, exc_info=True)
-
-    # 7. Update the main table-of-contents index file (index.md)
-    summary = structured.strip().splitlines()[0].lstrip("# ").strip()[:80]
-    update_index(workspace, page_path, summary, category + "s", language=language)
-
-    # 8. Run automatic post-save validator checks and fixes (lint + repair)
-    #    page_path already begins with "wiki/" (e.g. "wiki/concepts/foo.md"), so it
-    #    is used as-is — prefixing another "wiki/" would double the segment.
-    msg = f"{action} {page_path}"
-    repair_summary = _lint_and_repair_after_save(db_path, workspace, page_path,
-                                                  client=client, model=model or "", language=language)
-    if repair_summary:
-        msg += f"\n🔧 Post-save repair: {repair_summary}"
-    return msg
+    client, model = _model_client(client, model)
+    draft = draft_wiki_page(db_path, workspace, title, content, category,
+                            client=client, model=model, language=language)
+    return write_wiki_page(db_path, workspace, title, draft.markdown, category,
+                           client=client, model=model, language=language)

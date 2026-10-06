@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} ({{ commit.short }}) — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/prose.css"><link rel="stylesheet" href="/static/css/history.css">{% endblock %}
+{% block body %}
+<main class="container history version">
+  <p class="crumbs">
+    <a href="/w/{{ wiki_id }}/history/page/{{ page }}" title="{{ _('Back to the list of versions of this page') }}">← {{ _("History of the page") }}</a>
+    {% if exists_now %}<a href="/w/{{ wiki_id }}/pages/{{ page }}" title="{{ _('Read the current version of the page') }}">{{ _("Current version") }}</a>{% endif %}
+  </p>
+  <p class="notice" role="status">{% trans title=title, date=commit.date[:16]|replace('T', ' '), message=commit.message, short=commit.short, link_title=_('Open the history of the wiki'), link_text=_('History') %}Version of “{{ title }}” from {{ date }} · {{ message }} · <code>{{ short }}</code>. Read-only: to go back to this point, use the <a href="/w/{{ wiki_id }}/history" title="{{ link_title }}">{{ link_text }}</a>.{% endtrans %}</p>
+  {% if exists_then %}
+  <div class="version-actions">
+    <button class="btn btn-sm" type="button" aria-controls="diff" title="{{ _('Show the lines that changed between this version and the current one') }}"
+            hx-get="/w/{{ wiki_id }}/history/page/{{ page }}/diff/{{ commit.sha }}" hx-target="#diff" hx-swap="innerHTML">{{ _("Compare with the current version") }}</button>
+    <button class="btn btn-sm" type="button" title="{{ _('Hide the comparison') }}" onclick="document.getElementById('diff').replaceChildren()">{{ _("Hide") }}</button>
+  </div>
+  <div id="diff" aria-live="polite"></div>
+  <article class="prose version-text">{{ html | safe }}</article>
+  {% else %}
+  <p class="missing">{{ _("The page did not exist at this point.") }}</p>
+  {% endif %}
+</main>
+{% endblock %}

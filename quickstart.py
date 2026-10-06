@@ -4,7 +4,7 @@
 Stdlib-only bootstrap. The *only* prerequisite on your machine is **Python
 3.12+** — this script creates an isolated virtual environment, installs the
 pinned dependencies into it, drops in a pre-ingested demo wiki, writes a
-``.env``, and (optionally) launches the read app.
+``.env``, and (optionally) launches the web interface.
 
 Run it from the repository root::
 
@@ -33,8 +33,10 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import urllib.error
 import urllib.request
+import webbrowser
 from pathlib import Path
 from typing import NoReturn
 
@@ -55,8 +57,32 @@ def say(msg: str = "") -> None:
     print(msg, flush=True)
 
 
+def use_color() -> bool:
+    """True when stdout is a terminal that renders ANSI escape sequences.
+
+    A pipe, a redirect, ``NO_COLOR`` and ``TERM=dumb`` get plain text. A classic
+    Windows console (``cmd.exe`` without virtual-terminal mode) prints the
+    sequences as text, so on Windows only the terminals that announce they
+    render them (Windows Terminal, ConEmu, ANSICON, or a ``TERM`` from Git Bash)
+    get color.
+    """
+    if not sys.stdout.isatty() or os.environ.get("NO_COLOR") or os.environ.get("TERM") == "dumb":
+        return False
+    if os.name == "nt":
+        return bool(
+            os.environ.get("WT_SESSION") or os.environ.get("ANSICON")
+            or os.environ.get("ConEmuANSI") == "ON" or os.environ.get("TERM")
+        )
+    return True
+
+
+def style(code: str, text: str) -> str:
+    """`text` wrapped in the ANSI SGR `code` (``1`` bold, ``31`` red, ``32`` green), or plain."""
+    return f"\033[{code}m{text}\033[0m" if use_color() else text
+
+
 def step(n: int, total: int, msg: str) -> None:
-    say(f"\n\033[1m[{n}/{total}] {msg}\033[0m")
+    say(f"\n{style('1', f'[{n}/{total}] {msg}')}")
 
 
 def ask(prompt: str, default: str = "") -> str:
@@ -79,7 +105,7 @@ def confirm(prompt: str, *, assume_yes: bool, default: bool = True) -> bool:
 
 
 def die(msg: str) -> NoReturn:
-    say(f"\n\033[31m✗ {msg}\033[0m")
+    say(f"\n{style('31', f'✗ {msg}')}")
     raise SystemExit(1)
 
 
@@ -100,9 +126,10 @@ def check_java_runtime() -> None:
     """Warn when no Java runtime is installed. Advisory: it does not block.
 
     The demo wikis ship pre-ingested, so reading and chatting work without a
-    Java runtime. Ingesting a document of your own does not: the text extractor
-    (opendataloader-pdf) runs a .jar through the `java` command, and a DOCX is
-    converted to PDF before that same extractor reads it.
+    Java runtime. Ingesting a PDF or an office document of your own does not: the
+    text extractor (opendataloader-pdf) runs a .jar through the `java` command,
+    and an office document is converted to PDF before that same extractor reads
+    it. A .md or .txt source needs no Java.
     """
     if shutil.which("java"):
         return
@@ -110,7 +137,7 @@ def check_java_runtime() -> None:
     if java_home and (Path(java_home) / "bin" / "java").exists():
         return
     say("  \u26a0 No Java runtime found. The demo wiki still opens and answers, "
-        "but ingesting your own PDF or DOCX will fail until you install one:")
+        "but ingesting your own PDF or office document will fail until you install one:")
     say("      macOS:   brew install --cask temurin")
     say("      Linux:   sudo apt-get install default-jre")
     say("      Windows: winget install EclipseAdoptium.Temurin.21.JRE")
@@ -119,7 +146,7 @@ def check_java_runtime() -> None:
 def check_repo_layout() -> None:
     needed = [
         REPO_ROOT / "requirements.txt",
-        REPO_ROOT / "marimo" / "read_app_tabs.py",
+        REPO_ROOT / "web" / "app.py",
         EXAMPLES_DIR,
     ]
     missing = [str(p.relative_to(REPO_ROOT)) for p in needed if not p.exists()]
@@ -363,21 +390,29 @@ def validate_model(venv_dir: Path) -> None:
 # ── Launch ────────────────────────────────────────────────────────────────────
 
 def launch_command(venv_dir: Path, port: int) -> list[str]:
-    marimo = venv_executable(venv_dir, "marimo")
-    return [str(marimo), "run", "marimo/read_app_tabs.py", "--no-sandbox", "--port", str(port)]
+    return [str(venv_python(venv_dir)), "-m", "uvicorn", "web.app:app", "--port", str(port)]
+
+
+def open_browser_soon(url: str, delay: float = 2.0) -> None:
+    """Open `url` in the default browser after `delay` seconds, so the server is up."""
+    timer = threading.Timer(delay, webbrowser.open, args=(url,))
+    timer.daemon = True
+    timer.start()
 
 
 def maybe_launch(venv_dir: Path, port: int, *, do_launch: bool, assume_yes: bool) -> None:
     cmd = launch_command(venv_dir, port)
     pretty = " ".join(cmd)
     if not do_launch:
-        say("\n\033[32m✓ Setup complete.\033[0m  Launch the read app with:\n")
+        say(f"\n{style('32', '✓ Setup complete.')}  Launch the web interface with:\n")
         say(f"    {pretty}\n")
         return
-    if not confirm("\nLaunch the read app now?", assume_yes=assume_yes, default=True):
+    if not confirm("\nLaunch the web interface now?", assume_yes=assume_yes, default=True):
         say(f"\nWhen ready, run:\n    {pretty}\n")
         return
-    say(f"\n  Starting marimo on http://localhost:{port} … (Ctrl-C to stop)\n")
+    url = f"http://localhost:{port}"
+    say(f"\n  Starting the web interface on {url} … (Ctrl-C to stop)\n")
+    open_browser_soon(url)
     try:
         subprocess.run(cmd, cwd=REPO_ROOT)
     except KeyboardInterrupt:
@@ -391,7 +426,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--demo", help="demo wiki to install (skips the prompt)")
     p.add_argument("--provider", choices=["ollama", "cloud"], help="LLM provider (skips the prompt)")
     p.add_argument("--wiki-home", type=Path, default=DEFAULT_WIKI_HOME, help="where demo wikis are created")
-    p.add_argument("--port", type=int, default=DEFAULT_PORT, help="port for the read app")
+    p.add_argument("--port", type=int, default=DEFAULT_PORT, help="port for the web interface")
     p.add_argument("--yes", action="store_true", help="assume yes for all confirmations")
     p.add_argument("--no-launch", action="store_true", help="don't offer to launch at the end")
     p.add_argument("--no-eval", action="store_true",
@@ -403,7 +438,7 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     total = 7
 
-    say("\033[1mLLM Wiki — quick start\033[0m")
+    say(style("1", "LLM Wiki — quick start"))
     check_python()
     check_repo_layout()
     check_java_runtime()

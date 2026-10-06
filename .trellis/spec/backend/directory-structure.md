@@ -54,7 +54,8 @@ base/                              # Ingestion pipeline + chat agent (self-conta
 
 marimo/                           # Marimo applications
 ├── ingest_app.py                     # Upload → ingest → wiki generation
-├── read_app.py                       # Read-only wiki viewer + FTS5 chat (3-column grid)
+├── read_app_tabs.py                  # Read-only wiki viewer + chat (Read · Chat tabs)
+├── read_app.py                       # The same app as a 3-column grid — being retired
 ├── layouts/
 │   └── read_app.grid.json            # Grid layout for read_app
 ├── widgets/                          # Reusable anywidget components (added to sys.path by apps)

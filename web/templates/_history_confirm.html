@@ -1,0 +1,37 @@
+{% if plan.problem %}
+<div class="confirm refused" role="alert">
+  <p><strong>{{ _("Cannot go back to this point.") }}</strong> {{ reason }}</p>
+  {% if plan.problem_code == 'dirty' %}
+  <ul class="files">{% for f in plan.files %}<li><code>{{ f }}</code></li>{% endfor %}</ul>
+  <p>{{ _("Save or discard those changes and try again.") }}</p>
+  {% endif %}
+  <div class="actions"><button class="btn cancel" type="button" title="{{ _('Close this notice') }}" onclick="this.closest('.confirm').remove()">{{ _("Close") }}</button></div>
+</div>
+{% else %}
+{% set added = plan.changes.added|length %}{% set changed = plan.changes.changed|length %}{% set removed = plan.changes.removed|length %}
+<div class="confirm">
+  <p>{{ _("Take the wiki back to the point “%(message)s” of %(date)s?", message=commit.message, date=commit.date[:16]|replace('T', ' ')) }}</p>
+  <p>{% trans added=added, changed=changed, removed=removed, total=added + changed + removed %}Since that point the wiki
+    <b>added {{ added }}</b>, <b>changed {{ changed }}</b> and <b>removed {{ removed }}</b>
+    page. Going back deletes the added ones, brings back the removed ones and restores the text of the changed ones.{% pluralize total %}Since that point the wiki
+    <b>added {{ added }}</b>, <b>changed {{ changed }}</b> and <b>removed {{ removed }}</b>
+    pages. Going back deletes the added ones, brings back the removed ones and restores the text of the changed ones.{% endtrans %}</p>
+  {% for label, pages in ((_('Will be deleted'), plan.changes.added), (_('Will come back'), plan.changes.removed), (_('Will recover their text'), plan.changes.changed)) %}
+  {% if pages %}<details class="pages"><summary title="{{ _('See the list of pages') }}">{{ label }} · {{ pages|length }}</summary><ul>{% for p in pages %}<li><code>{{ p }}</code></li>{% endfor %}</ul></details>{% endif %}
+  {% endfor %}
+  {% if plan.config_changes %}<p>{% trans %}The configuration of the wiki (<code>wiki_config.toml</code>, with its vocabulary lists) goes back to the one of this point.{% endtrans %}</p>{% endif %}
+  <p>{% trans %}<code>sources/</code> does not change: the documents you added after this point stay in the folder.{% endtrans %}</p>
+  {% if plan.db_via == 'snapshot' %}
+  <p>{{ _("The search index goes back to the copy saved at this point, instantly.") }}</p>
+  {% else %}
+  <p>{% trans %}This point has no index copy: it is rebuilt from <code>sources/</code> and <code>wiki/</code>, without calling the model. It takes longer, needs Java for PDF and office documents (and LibreOffice for the latter) and includes every document that is in <code>sources/</code> today.{% endtrans %}</p>
+  {% endif %}
+  <p>{{ _("The history is not rewritten: going back is recorded as a new point, and it can be undone by going back to the previous point.") }}</p>
+  <div class="actions">
+    <button class="btn btn-danger" title="{{ _('Take the wiki back to this point; progress appears in the console') }}"
+            hx-post="/w/{{ wiki_id }}/history/commit/{{ commit.sha }}/revert" hx-target="#progress" hx-swap="innerHTML"
+            hx-on::after-request="this.closest('.confirm')?.remove()">{{ _("Go back to this point") }}</button>
+    <button class="btn cancel" type="button" title="{{ _('Close without going back') }}" onclick="this.closest('.confirm').remove()">{{ _("Cancel") }}</button>
+  </div>
+</div>
+{% endif %}

@@ -100,7 +100,11 @@ def update_references(
 
         filename_to_doc: dict[str, dict] = {}
         wiki_path_to_doc: dict[str, dict] = {}
-        for doc in all_docs:
+        # Source documents are registered first: a summary page is named like
+        # its source (`notas.md` for the source `notas.md`), and a citation names
+        # the source. Without this order the wiki page could take the name and
+        # the citation would be dropped (a citation never targets a wiki page).
+        for doc in sorted(all_docs, key=lambda d: d["path"].startswith("/wiki/")):
             fn_lower = doc["filename"].lower()
             if fn_lower not in filename_to_doc:
                 filename_to_doc[fn_lower] = doc
@@ -129,7 +133,7 @@ def update_references(
             target = filename_to_doc.get(fn_lower)
             if not target:
                 base = re.sub(r"\.(pdf|docx?|pptx?|xlsx?|csv|html?|md|txt)$", "", fn_lower)
-                for doc in all_docs:
+                for doc in sorted(all_docs, key=lambda d: d["path"].startswith("/wiki/")):
                     doc_base = re.sub(r"\.(pdf|docx?|pptx?|xlsx?|csv|html?|md|txt)$", "", doc["filename"].lower())
                     if doc_base == base:
                         target = doc

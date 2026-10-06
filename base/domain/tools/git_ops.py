@@ -68,7 +68,7 @@ def init_wiki_repo(workspace: Path) -> None:
 
 
 def auto_commit(workspace: Path, message: str) -> None:
-    """Stage all wiki/ changes and commit. Silent if nothing to commit.
+    """Stage wiki/, .gitignore and wiki_config.toml, and commit. Silent if nothing to commit.
 
     No-op when WIKI_AUTOCOMMIT is disabled; graceful skip when git is unavailable.
     A git failure here never propagates — it must not fail an ingest.
@@ -78,7 +78,10 @@ def auto_commit(workspace: Path, message: str) -> None:
         return
 
     try:
-        _run(["git", "add", "wiki/", ".gitignore"], workspace)
+        # wiki_config.toml is part of a point: its vocabulary lists are edited from
+        # the Vocabulario screen, and going back to a point restores it.
+        paths = ["wiki/", ".gitignore"] + (["wiki_config.toml"] if (workspace / "wiki_config.toml").exists() else [])
+        _run(["git", "add", *paths], workspace)
         result = _run(
             ["git", "commit", "-m", message],
             workspace,
@@ -86,10 +89,40 @@ def auto_commit(workspace: Path, message: str) -> None:
         )
         if result.returncode == 0:
             logger.info("Git commit: %s", message)
+            _snapshot_index(workspace)
         else:
             logger.debug("Nothing to commit: %s", message)
     except (FileNotFoundError, subprocess.CalledProcessError) as exc:
         _warn_git_unavailable(exc)
+
+
+def head_sha(workspace: Path) -> str | None:
+    """The full sha of HEAD, or None when there is no commit or git is unavailable."""
+    try:
+        result = _run(["git", "rev-parse", "--verify", "-q", "HEAD"], workspace, check=False)
+    except FileNotFoundError:
+        return None
+    sha = result.stdout.strip()
+    return sha if result.returncode == 0 and sha else None
+
+
+def _snapshot_index(workspace: Path) -> None:
+    """Pair the commit just made with a copy of the index, and prune the old copies.
+
+    The index already matches the pages at commit time. A failure here is logged
+    and swallowed: the operation that committed has succeeded and must not fail.
+    """
+    try:
+        from domain.rollback import snapshots
+
+        if not snapshots.snapshots_enabled():
+            return
+        sha = head_sha(workspace)
+        if sha:
+            snapshots.capture(workspace, sha)
+            snapshots.prune(workspace, snapshots.snapshot_keep())
+    except Exception:  # noqa: BLE001 — the snapshot is a cache, never a reason to fail
+        logger.warning("Index snapshot failed; the commit stands", exc_info=True)
 
 
 def _run(

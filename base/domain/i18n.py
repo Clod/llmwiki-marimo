@@ -61,6 +61,9 @@ class Locale:
     # Default chat suggested prompts (used only when the user supplies none).
     suggested_prompts: tuple[str, ...]
 
+    # Warning appended to an answer built from a raw source fragment (Tier 2).
+    tier2_warning: str
+
 
 _EN = Locale(
     code="en",
@@ -94,6 +97,10 @@ _EN = Locale(
         "Summarize the main documents",
         "Which documents mention [term]?",
         "What are the key facts about [topic]?",
+    ),
+    tier2_warning=(
+        "> ⚠️ This answer comes from a source document with no curated wiki "
+        "page; please verify it."
     ),
 )
 
@@ -139,6 +146,10 @@ _ES = Locale(
         "Resume los documentos principales",
         "¿Qué documentos mencionan [término]?",
         "¿Cuáles son los datos clave sobre [tema]?",
+    ),
+    tier2_warning=(
+        "> ⚠️ Esta respuesta proviene de un documento fuente sin página curada del "
+        "wiki; verificá."
     ),
 )
 

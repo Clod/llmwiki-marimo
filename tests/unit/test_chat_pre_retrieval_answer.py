@@ -205,3 +205,51 @@ def test_advisory_intent_without_named_data_invokes_tools(monkeypatch):
     )
     assert "90.000" in out
     assert agent.calls  # the model WAS invoked (not refused at the gate)
+
+
+def _tier2_answer(monkeypatch, language):
+    src = "[12 Cauciones.docx]\nThe bursatil caucion is a short-term loan secured by securities."
+    agent = _fake_agent("The bursatil caucion is a short-term loan secured by securities.")
+    monkeypatch.setattr(preretrieval, "build_vocabulary", lambda s: set())
+    monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda db, q, **k: [])
+    monkeypatch.setattr(preretrieval, "retrieve_source_chunks", lambda db, q, **k: [src])
+    monkeypatch.setattr(preretrieval, "LocalMarkdownSource", lambda p: _NoDatasets())
+    monkeypatch.setattr(preretrieval, "concept_page_names", lambda db: ["bursatil caucion"])
+    monkeypatch.setattr(preretrieval, "retrieve_collection_pages", lambda ws: [])
+    monkeypatch.setattr(preretrieval, "roster_suggestions", lambda *a, **k: [])
+    monkeypatch.setattr(preretrieval, "search_suggestions", lambda *a, **k: [])
+    return _run(pre_retrieval_answer(
+        "what is the bursatil caucion?", config=CFG, db_path="db",
+        workspace=Path("/tmp/wp"), history=[], language=language, run_agent=agent,
+    ))
+
+
+def test_tier2_warning_is_english_in_an_english_wiki(monkeypatch):
+    from domain.i18n import get_locale
+
+    out = _tier2_answer(monkeypatch, "en")
+    assert out.endswith(get_locale("en").tier2_warning)
+    assert "verificá" not in out
+
+
+def test_tier2_warning_is_spanish_in_a_spanish_wiki(monkeypatch):
+    from domain.i18n import get_locale
+
+    out = _tier2_answer(monkeypatch, "es")
+    assert out.endswith(get_locale("es").tier2_warning)
+    assert "verificá" in out
+
+
+def test_tier2_warning_does_not_turn_an_answer_into_a_refusal():
+    # The warning is appended to answers that passed the gate; refusals open with
+    # a fixed sentence, so neither is_refusal nor strip_refused_exchanges read it.
+    from domain.chat.guardrail import strip_refused_exchanges
+    from domain.chat.refusal import is_refusal
+    from domain.i18n import SUPPORTED_LANGUAGES, get_locale
+
+    for lang in SUPPORTED_LANGUAGES:
+        answer = f"A grounded answer.\n\n{get_locale(lang).tier2_warning}"
+        assert not is_refusal(answer)
+        msgs = [SimpleNamespace(role="user", content="q"),
+                SimpleNamespace(role="assistant", content=answer)]
+        assert strip_refused_exchanges(msgs) == msgs

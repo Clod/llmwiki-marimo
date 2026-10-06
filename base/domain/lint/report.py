@@ -13,6 +13,7 @@ class LintIssue:
     related_page: str = ""  # the "other" page (path_b) for xref/contradiction
     topic: str = ""         # gap topic slug for data_gap / gap_filled
     alias: str = ""         # the offending alias for vocab_collision (drives the auto-repair)
+    terms: tuple[str, ...] = ()  # the vocabulary checks: the terms of the finding, for a screen to word it
 
 
 @dataclass

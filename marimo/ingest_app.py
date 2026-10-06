@@ -366,9 +366,9 @@ def timing_helper():
 def upload_widget(mo):
     """Upload widget — created alone so other cells can read its .value."""
     upload = mo.ui.file(
-        filetypes=[".pdf", ".docx"],
+        filetypes=[".pdf", ".docx", ".doc", ".odt", ".rtf", ".md", ".txt"],
         multiple=True,
-        label="Drop PDFs or DOCXs here",
+        label="Drop PDF, DOCX, DOC, ODT, RTF, MD or TXT files here",
     )
     return (upload,)
 
@@ -446,7 +446,7 @@ def upload_section(mo, upload, saved, ingest_form):
     """Upload column."""
     mo.vstack([
         mo.md("### 📂 Upload Documents"),
-        mo.md("Supports `.pdf` and `.docx`. Files are saved to `sources/`."),
+        mo.md("Supports `.pdf`, `.docx`, `.doc`, `.odt`, `.rtf`, `.md` and `.txt`. Files are saved to `sources/`."),
         upload,
         mo.vstack([mo.md(r) for r in saved]) if saved else mo.Html(""),
         ingest_form,
@@ -505,7 +505,7 @@ def ingest_runner(
 
     _, _files, _full_repair = ingest_trigger()  # snapshot at submit time
     if not _files:
-        set_log_lines(["⚠️ No files uploaded — drop a PDF or DOCX first."])
+        set_log_lines(["⚠️ No files uploaded — drop a PDF, office, .md or .txt file first."])
         mo.stop(True)
 
     from services.ingest import Upload as _Upload

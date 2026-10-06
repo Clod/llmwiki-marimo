@@ -54,8 +54,8 @@ def test_unsupported_extension_still_reports_the_extension(monkeypatch, tmp_path
     """The type check runs before the Java check, so the message stays precise."""
     monkeypatch.setattr(extractor, "check_java", lambda: None)
     with pytest.raises(ValueError) as excinfo:
-        extract(Path(tmp_path / "notas.txt"), tmp_path / "cache")
-    assert ".txt" in str(excinfo.value)
+        extract(Path(tmp_path / "notas.xlsx"), tmp_path / "cache")
+    assert ".xlsx" in str(excinfo.value)
 
 
 def test_pipeline_reports_the_missing_runtime_as_a_failed_ingest(monkeypatch, tmp_path):

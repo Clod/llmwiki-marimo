@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ _("History of %(title)s", title=title) }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/ingest.css"><link rel="stylesheet" href="/static/css/history.css">{% endblock %}
+{% block body %}
+<main class="container history">
+  <p class="crumbs">
+    {% if exists_now %}<a href="/w/{{ wiki_id }}/pages/{{ page }}" title="{{ _('Back to reading the page') }}">← {{ title }}</a>{% endif %}
+    <a href="/w/{{ wiki_id }}/history" title="{{ _('See all the points of the wiki') }}">{{ _("History of the wiki") }}</a>
+  </p>
+  <h1>{{ _("History of “%(title)s”", title=title) }}</h1>
+  <p class="lede"><code>{{ page }}</code>{% if not exists_now %} · {{ _("this page no longer exists in the wiki; its earlier versions can be read") }}{% endif %}</p>
+    <section class="panel" aria-labelledby="h-versions">
+      <div class="panel-head"><h2 id="h-versions">{{ _("Versions") }} · {{ commits|length }}</h2></div>
+      {% if commits %}
+      <ol class="commits">
+        {% for c in commits %}
+        <li class="commit">
+          <div class="commit-row">
+            <time class="when" datetime="{{ c.date }}">{{ c.date[:16]|replace('T', ' ') }}</time>
+            <span class="message">{{ c.message }}</span>
+            <code class="sha" title="{{ _('Identifier of this point in git') }}">{{ c.short }}</code>
+            {% if loop.first and exists_now %}<span class="pill current" title="{{ _('This is the version being read now') }}">{{ _("current") }}</span>{% endif %}
+            <span class="commit-actions">
+            <a class="btn" href="/w/{{ wiki_id }}/history/page/{{ page }}/at/{{ c.sha }}" title="{{ _('Read the page as it was at this point; it cannot be edited') }}">{{ _("See this version") }}</a>
+            </span>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}<p class="empty-row">{{ _("No point of the history touched this page.") }}</p>{% endif %}
+    </section>
+</main>
+{% endblock %}

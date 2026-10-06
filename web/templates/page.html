@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/prose.css"><link rel="stylesheet" href="/static/css/reader.css"><link rel="stylesheet" href="/static/css/review.css">{% endblock %}
+{% block bar_right %}
+  {% if model %}<span class="bar-model" title="{{ _('The model that answers in the conversation') }}">{{ model }}</span>{% endif %}
+  <button class="btn btn-sm" id="index-btn" aria-pressed="false" aria-controls="index" title="{{ _('Show or hide the index of pages') }}">☰ {{ _("Index") }}</button>
+  <button class="btn btn-sm" id="chat-btn" aria-pressed="true" aria-controls="chat" title="{{ _('Show or hide the conversation') }}">{{ _("Chat") }}</button>
+{% endblock %}
+{% block body %}
+<main class="reader">
+  <aside class="index" id="index" aria-label="{{ _('Index of pages') }}">
+    <div class="column panel">
+      <div class="index-filter">
+        <input class="field index-search" type="search" placeholder="{{ _('Search for a page…') }}" aria-label="{{ _('Filter pages') }}" title="{{ _('Filter the index by page title') }}"
+               oninput="filterIndex(this.value)">
+      </div>
+      <nav class="column-body index-nav" aria-label="{{ _('Pages') }}"><div id="index-groups">{% include "_index_groups.html" %}</div></nav>
+    </div>
+  </aside>
+
+  <article class="page column panel">
+    <div class="column-head page-head">
+      <span class="page-path mono" title="{{ _(kind) }}">{{ path_label }}</span>
+      {% if html and not source %}<div class="actions">
+        <a class="btn-link" href="/w/{{ wiki_id }}/edit/{{ page }}" title="{{ _('Edit the text of this page') }}">{{ _("Edit") }}</a>
+        {% if deletable %}<a class="btn-link" href="/w/{{ wiki_id }}/relations?page={{ page }}&depth=1" title="{{ _('See the graph of the pages and sources related to this page') }}">{{ _("Relations") }}</a>{% endif %}
+        <a class="btn-link" href="/w/{{ wiki_id }}/history/page/{{ page }}" title="{{ _('See the changes of this page over time and read earlier versions') }}">{{ _("History") }}</a>
+        {% if deletable %}<button class="btn-link destructive" type="button" aria-controls="confirm-delete" aria-expanded="false" title="{{ _('Delete this page from the wiki; asks for confirmation') }}" onclick="toggleConfirm(true)">{{ _("Delete") }}</button>{% endif %}
+      </div>{% endif %}
+    </div>
+    <div class="column-body">
+      <div class="page-inner">
+        {% if deleted %}<p class="notice dismissible" role="status"><span>{{ _("Deleted the page “%(title)s”.", title=deleted) }}</span><button class="notice-close" type="button" aria-label="{{ _('Close the notice') }}" title="{{ _('Close the notice') }}" onclick="this.parentElement.remove()">×</button></p>{% endif %}
+        {% if html and deletable %}
+        <div class="confirm" id="confirm-delete" hidden>
+          <p>{{ _("Delete the page “%(title)s”? The links from other pages to this page are removed. The deleted page stays in the git history of the wiki and can be recovered from there.", title=title) }}</p>
+          <form class="actions" method="post" action="/w/{{ wiki_id }}/delete/{{ page }}">
+            <input type="hidden" name="title" value="{{ title }}">
+            <button class="btn btn-danger" title="{{ _('Delete the page from the wiki for good') }}">{{ _("Delete the page") }}</button>
+            <button class="btn cancel" type="button" title="{{ _('Close without deleting') }}" onclick="toggleConfirm(false)">{{ _("Cancel") }}</button>
+          </form>
+        </div>
+        {% endif %}
+        {% if html %}<div class="prose">{{ html | safe }}</div>{% else %}<p class="missing">{{ _("The page does not exist.") }}</p>{% endif %}
+      </div>
+    </div>
+  </article>
+
+  <aside class="chat column panel" id="chat" aria-label="{{ _('Conversation') }}" data-wiki="{{ wiki_id }}" data-conversation="{{ conversation_id }}">
+    <div class="column-head">
+      <h2 class="chat-title">{{ _("Conversation") }}</h2>
+      {% if html and not source %}<span class="tag chat-context">{% trans %}about{% endtrans %} <b title="{{ _('The conversation receives this page as context') }}">{{ title }}</b></span>{% endif %}
+      <div class="chat-actions">
+        <button class="btn btn-sm" type="button" id="clear-btn" disabled title="{{ _('Delete the questions and answers and start a new conversation; saved pages do not change') }}"
+                hx-post="/w/{{ wiki_id }}/chat/clear" hx-include="#composer [name=conversation_id]" hx-target="#messages" hx-swap="innerHTML">{{ _("Clear") }}</button>
+        <button class="btn btn-sm" type="button" id="save-btn" disabled aria-controls="save-panel" aria-expanded="false"
+                title="{{ _('Save the whole conversation as a page of the wiki') }}" onclick="toggleSave(true)">{{ _("Save") }}</button>
+      </div>
+    </div>
+    <form class="save-panel" id="save-panel" hidden hx-post="/w/{{ wiki_id }}/chat/draft" hx-target="#save-result" hx-swap="innerHTML">
+      <input type="hidden" name="conversation_id" value="{{ conversation_id }}">
+      <input type="hidden" name="open_page" value="{{ page }}">
+      <input class="field" type="text" name="title" required placeholder="{{ _('Page title') }}" aria-label="{{ _('Page title') }}"
+             title="{{ _('Title of the page to create. If a page with that title already exists, the conversation is merged into that page') }}">
+      <div class="row">
+        <span class="where" title="{{ _('Conversations are saved as concept pages; summaries belong to source documents') }}">{{ _("Saved in Concepts") }}</span>
+        <div class="actions">
+          <button class="btn btn-sm" type="button" title="{{ _('Close without saving') }}" onclick="toggleSave(false)">{{ _("Cancel") }}</button>
+          <button class="btn btn-sm btn-primary primary" title="{{ _('The model drafts a page with all the questions and answers; you review it before saving') }}">{{ _("Save") }}</button>
+        </div>
+      </div>
+      <p class="saving" role="status">{{ _("Preparing the draft…") }}</p>
+    </form>
+    <div id="save-result" aria-live="polite"></div>
+    <div class="column-body thread" id="messages">
+      {% include "_chat_empty.html" %}
+    </div>
+    <form class="composer" id="composer" hx-post="/w/{{ wiki_id }}/chat" hx-target="#messages" hx-swap="beforeend"
+          hx-on::before-request="document.getElementById('empty')?.remove()"
+          hx-on::after-request="this.querySelector('textarea').value=''">
+      <input type="hidden" name="conversation_id" value="{{ conversation_id }}">
+      <input type="hidden" name="open_page" value="{{ page if html and not source else '' }}">
+      <textarea class="field" name="message" rows="2" placeholder="{{ _('Ask something…') }}" aria-label="{{ _('Question') }}" required title="{{ _('Enter sends the question; Shift+Enter adds a line') }}"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.requestSubmit();}"></textarea>
+      <div class="composer-row">
+        <label for="mode" class="muted">{{ _("Mode") }}</label>
+        <select class="field mode-select" id="mode" name="mode" title="{{ _('How the model answers the question') }}">
+          {% for value, label, tip in modes %}<option value="{{ value }}" title="{{ _(tip) }}"{% if loop.first %} selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-primary" title="{{ _('Send the question (Enter)') }}">{{ _("Send") }}</button>
+      </div>
+    </form>
+  </aside>
+</main>
+<script src="/static/js/reader.js"></script>
+{% endblock %}

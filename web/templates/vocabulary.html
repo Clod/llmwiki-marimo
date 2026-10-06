@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Vocabulary") }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/vocabulary.css">{% endblock %}
+{% block body %}
+<main class="vocab-screen">
+  <h1 class="sr-only">{{ _("Vocabulary") }}</h1>
+  {% include "_vocabulary_body.html" %}
+  <div id="dataset-slot"></div>
+</main>
+<script src="/static/js/vocabulary.js"></script>
+{% endblock %}

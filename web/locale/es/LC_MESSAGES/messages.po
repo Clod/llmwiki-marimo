@@ -1,0 +1,1950 @@
+# Catalog of the llmwiki web interface, language: es.
+msgid ""
+msgstr ""
+"Project-Id-Version: llmwiki \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-05 00:00+0000\n"
+"PO-Revision-Date: 2026-10-05 00:00+0000\n"
+"Last-Translator: \n"
+"Language: es\n"
+"Language-Team: \n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: web/app.py
+#, python-format
+msgid "That wiki does not exist: %(wiki)s"
+msgstr "Esa wiki no existe: %(wiki)s"
+
+#: web/app.py web/templates/base.html
+msgid "Back to the list of wikis"
+msgstr "Volver a la lista de wikis"
+
+#: web/app.py
+msgid "Cannot open the index of this wiki."
+msgstr "No se puede abrir el índice de esta wiki."
+
+#: web/deps.py
+msgid "Another operation is running on this wiki."
+msgstr "Hay otra operación en curso sobre esta wiki."
+
+#: web/deps.py
+msgid "Pre-retrieval"
+msgstr "Recuperación previa"
+
+#: web/deps.py
+msgid "The code searches the wiki before calling the model and passes it the pages found"
+msgstr "El código busca en la wiki antes de llamar al modelo y le pasa las páginas encontradas"
+
+#: web/deps.py
+msgid "Strict"
+msgstr "Estricto"
+
+#: web/deps.py
+msgid "The model queries the wiki with tools; if it did not, the answer is replaced by a refusal"
+msgstr "El modelo consulta la wiki con herramientas; si no la consultó, la respuesta se reemplaza por un rechazo"
+
+#: web/deps.py
+msgid "No verification"
+msgstr "Sin verificación"
+
+#: web/deps.py
+msgid "The answer appears as the model generates it. The code does not check that the answer comes from the wiki"
+msgstr "La respuesta aparece a medida que el modelo la genera. El código no comprueba que la respuesta salga de la wiki"
+
+#: web/deps.py web/templates/relations.html
+msgid "Concept"
+msgstr "Concepto"
+
+#: web/deps.py web/templates/relations.html
+msgid "Summary"
+msgstr "Resumen"
+
+#: web/deps.py web/templates/base.html web/templates/picker.html
+msgid "Wiki"
+msgstr "Wiki"
+
+#: web/deps.py
+msgid "Concepts"
+msgstr "Conceptos"
+
+#: web/deps.py
+msgid "Summaries"
+msgstr "Resúmenes"
+
+#: web/deps.py
+msgid "General"
+msgstr "General"
+
+#: web/deps.py
+msgid "pending"
+msgstr "pendiente"
+
+#: web/deps.py
+msgid "processing"
+msgstr "procesando"
+
+#: web/deps.py
+msgid "ready"
+msgstr "lista"
+
+#: web/deps.py
+msgid "failed"
+msgstr "fallida"
+
+#: web/deps.py
+msgid "Page"
+msgstr "Página"
+
+#: web/render.py web/templates/_sources_panel.html
+msgid "Open the source document in a new tab"
+msgstr "Abrir el documento fuente en una pestaña nueva"
+
+#: web/render.py
+#, python-format
+msgid "%(n)s unchanged line"
+msgid_plural "%(n)s unchanged lines"
+msgstr[0] "%(n)s línea sin cambios"
+msgstr[1] "%(n)s líneas sin cambios"
+
+#: web/state.py
+#, python-format
+msgid "The model is not configured: define %(names)s in the .env file (for ingestion the WIKI_LLM_* variables also work)."
+msgstr ""
+"Falta configurar el modelo: define %(names)s en el archivo .env (para la ingesta sirven también las variables "
+"WIKI_LLM_*)."
+
+#: web/routes/chat.py
+msgid "There is no answered question to save."
+msgstr "No hay ninguna pregunta con respuesta para guardar."
+
+#: web/routes/chat.py
+#, python-format
+msgid "unknown mode: %(mode)s"
+msgstr "modo desconocido: %(mode)s"
+
+#: web/routes/chat.py
+msgid "That question is no longer in progress."
+msgstr "Esa pregunta ya no está en curso."
+
+#: web/routes/chat.py
+#, python-format
+msgid "Could not answer: %(error)s"
+msgstr "No se pudo responder: %(error)s"
+
+#: web/routes/chat.py
+msgid "Enter a title for the page."
+msgstr "Escribí un título para la página."
+
+#: web/routes/chat.py
+#, python-format
+msgid "Could not prepare the draft: %(error)s"
+msgstr "No se pudo preparar el borrador: %(error)s"
+
+#: web/routes/chat.py
+msgid "The page cannot be empty."
+msgstr "La página no puede estar vacía."
+
+#: web/routes/chat.py
+#, python-format
+msgid "Could not save: %(error)s"
+msgstr "No se pudo guardar: %(error)s"
+
+#: web/routes/chat.py
+#, python-format
+msgid "Updated the page “%(title)s”."
+msgstr "Se actualizó la página «%(title)s»."
+
+#: web/routes/chat.py
+#, python-format
+msgid "Created the page “%(title)s”."
+msgstr "Se creó la página «%(title)s»."
+
+#: web/routes/chat.py web/templates/_vocabulary_body.html
+msgid "Open the page"
+msgstr "Abrir la página"
+
+#: web/routes/history.py
+msgid "⏪ Restoring the pages of "
+msgstr "⏪ Restaurando las páginas de "
+
+#: web/routes/history.py
+msgid "🗄 Restoring the index snapshot"
+msgstr "🗄 Restaurando la copia del índice"
+
+#: web/routes/history.py
+msgid "🗄 No snapshot to use: rebuilding the index from the files"
+msgstr "🗄 Este punto no tiene copia del índice: se reconstruye desde los archivos"
+
+#: web/routes/history.py
+msgid "This point has no index copy, and rebuilding it needs Java, which is not installed."
+msgstr "Este punto no tiene copia del índice, y reconstruirlo necesita Java, que no está instalado."
+
+#: web/routes/history.py
+msgid ""
+"This point has no index copy, and rebuilding it needs LibreOffice for the office documents of sources/, which is not "
+"installed."
+msgstr ""
+"Este punto no tiene copia del índice, y reconstruirlo necesita LibreOffice para los documentos de office de sources/,"
+" que no está instalado."
+
+#: web/routes/history.py
+msgid "This point has no index copy, and the text of no source could be extracted to rebuild it."
+msgstr "Este punto no tiene copia del índice, y no se pudo extraer el texto de ninguna fuente para reconstruirlo."
+
+#: web/routes/history.py
+msgid "The index of this point could not be restored."
+msgstr "No se pudo restaurar el índice de este punto."
+
+#: web/routes/history.py
+msgid "That point of the history does not exist."
+msgstr "Ese punto del historial no existe."
+
+#: web/routes/history.py
+#, python-format
+msgid "There is %(n)s unsaved change in wiki/ and going back would lose it."
+msgid_plural "There are %(n)s unsaved changes in wiki/ and going back would lose them."
+msgstr[0] "Hay %(n)s cambio sin guardar en wiki/ y volver lo perdería."
+msgstr[1] "Hay %(n)s cambios sin guardar en wiki/ y volver los perdería."
+
+#: web/routes/history.py
+msgid "The wiki has no history: WIKI_AUTOCOMMIT is 0 or git is not available."
+msgstr "La wiki no tiene historial: WIKI_AUTOCOMMIT está en 0 o git no está disponible."
+
+#: web/routes/history.py
+#, python-format
+msgid "Did not go back: there are unsaved changes in wiki/ and they would be lost. Files: %(files)s"
+msgstr "No se volvió atrás: hay cambios sin guardar en wiki/ y se perderían. Archivos: %(files)s"
+
+#: web/routes/history.py
+msgid "Nothing was changed: the pages and the index stay as they were."
+msgstr "No se cambió nada: las páginas y el índice quedan como estaban."
+
+#: web/routes/history.py
+#, python-format
+msgid "Did not go back: %(error)s"
+msgstr "No se volvió atrás: %(error)s"
+
+#: web/routes/history.py
+msgid "restored from its copy"
+msgstr "restaurado de su copia"
+
+#: web/routes/history.py
+msgid "rebuilt from the files"
+msgstr "reconstruido desde los archivos"
+
+#: web/routes/history.py
+#, python-format
+msgid "Recorded as point %(sha)s."
+msgstr "Quedó registrado como el punto %(sha)s."
+
+#: web/routes/history.py
+msgid "The pages were already identical, so no point was added."
+msgstr "Las páginas ya eran idénticas, así que no se agregó ningún punto."
+
+#: web/routes/history.py
+#, python-format
+msgid "🏁 The wiki went back to point %(sha)s: %(pages)s pages; index %(index)s."
+msgstr "🏁 La wiki volvió al punto %(sha)s: %(pages)s páginas; índice %(index)s."
+
+#: web/routes/history.py web/routes/pages.py web/routes/relations.py web/templates/page.html
+msgid "The page does not exist."
+msgstr "La página no existe."
+
+#: web/routes/ingest.py
+#, python-format
+msgid "%(formats)s or %(last)s"
+msgstr "%(formats)s o %(last)s"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 %(label)s: %(ingested)s ingested, %(skipped)s skipped, %(failed)s failed"
+msgstr "🏁 %(label)s: %(ingested)s ingestados, %(skipped)s omitidos, %(failed)s fallidos"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "⚠️ %(name)s: format not supported; supported formats are %(formats)s"
+msgstr "⚠️ %(name)s: formato no admitido; se admiten %(formats)s"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "⚠️ %(name)s: invalid file name"
+msgstr "⚠️ %(name)s: nombre de archivo no válido"
+
+#: web/routes/ingest.py
+msgid "file"
+msgstr "archivo"
+
+#: web/routes/ingest.py web/templates/ingest.html
+msgid "Ingestion"
+msgstr "Ingesta"
+
+#: web/routes/ingest.py
+msgid "Scan"
+msgstr "Escaneo"
+
+#: web/routes/ingest.py
+msgid "Regeneration"
+msgstr "Regeneración"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 Review and repair: %(issues)s problem(s) found"
+msgstr "🏁 Revisión y reparación: %(issues)s problema(s) encontrado(s)"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 Index rebuilt: %(sources)s sources, %(pages)s pages, %(references)s references"
+msgstr "🏁 Índice reconstruido: %(sources)s fuentes, %(pages)s páginas, %(references)s referencias"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "; %(failed)s sources with errors"
+msgstr "; %(failed)s fuentes con error"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "The text of no source could be extracted, so the current index stays as it was. First error: %(error)s"
+msgstr "No se pudo extraer el texto de ninguna fuente, así que el índice actual queda como estaba. Primer error: %(error)s"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "Deleted %(n)s stale page."
+msgid_plural "Deleted %(n)s stale pages."
+msgstr[0] "Se borró %(n)s página obsoleta."
+msgstr[1] "Se borraron %(n)s páginas obsoletas."
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🗑 Deleting the source “%(filename)s”"
+msgstr "🗑 Borrando la fuente «%(filename)s»"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "Could not delete the source “%(filename)s”: %(error)s"
+msgstr "No se pudo borrar la fuente «%(filename)s»: %(error)s"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "Deleted the summary page %(page)s"
+msgstr "Borrada la página de resumen %(page)s"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "%(count)s page marked as stale: %(pages)s"
+msgid_plural "%(count)s pages marked as stale: %(pages)s"
+msgstr[0] "%(count)s página marcada como obsoleta: %(pages)s"
+msgstr[1] "%(count)s páginas marcadas como obsoletas: %(pages)s"
+
+#: web/routes/ingest.py
+msgid "Removed the file from sources/"
+msgstr "Archivo quitado de sources/"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 Deleted the source “%(filename)s”."
+msgstr "🏁 Se borró la fuente «%(filename)s»."
+
+#: web/routes/ingest.py
+msgid "That operation has already finished."
+msgstr "Esa operación ya terminó."
+
+#: web/routes/pages.py
+#, python-format
+msgid "%(filename)s cannot be shown: %(error)s"
+msgstr "No se puede mostrar %(filename)s: %(error)s"
+
+#: web/routes/pages.py
+msgid "Source document"
+msgstr "Documento fuente"
+
+#: web/routes/pages.py
+msgid "The document is empty."
+msgstr "El documento está vacío."
+
+#: web/routes/pages.py
+#, python-format
+msgid "The page “%(page)s” is fixed and cannot be deleted."
+msgstr "La página «%(page)s» es fija y no se puede borrar."
+
+#: web/routes/picker.py
+msgid "Write an absolute path."
+msgstr "Escribí una ruta absoluta."
+
+#: web/routes/picker.py
+msgid "No folder at that path."
+msgstr "No hay una carpeta en esa ruta."
+
+#: web/routes/picker.py
+msgid "The folder cannot be read."
+msgstr "No se puede leer la carpeta."
+
+#: web/routes/picker.py
+msgid "Write a name for the folder."
+msgstr "Escribí un nombre para la carpeta."
+
+#: web/routes/picker.py
+msgid "A folder name cannot contain “/” nor start with a dot."
+msgstr "El nombre de una carpeta no puede contener «/» ni empezar con un punto."
+
+#: web/routes/picker.py
+msgid "A folder with that name already exists."
+msgstr "Ya existe una carpeta con ese nombre."
+
+#: web/routes/picker.py
+#, python-format
+msgid "The folder could not be created: %(reason)s"
+msgstr "No se pudo crear la carpeta: %(reason)s"
+
+#: web/routes/vocabulary.py
+msgid "Write a term."
+msgstr "Escribí un término."
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is already in the list."
+msgstr "«%(term)s» ya está en la lista."
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is not in the list."
+msgstr "«%(term)s» no está en la lista."
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is a topic the wiki covers: it cannot go to the blacklist."
+msgstr "«%(term)s» es un tema que la wiki cubre: no puede ir a la lista negra."
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is not in the roster: choose one of its names."
+msgstr "«%(term)s» no está en el padrón: elegí uno de sus nombres."
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is the name of another topic of the wiki."
+msgstr "«%(term)s» es el nombre de otro tema de la wiki."
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "The alias “%(alias)s” of “%(canonical)s” is the name of “%(other)s”."
+msgstr "El alias «%(alias)s» de «%(canonical)s» es el nombre de «%(other)s»."
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "There are aliases for “%(canonical)s”, which has no page nor dataset."
+msgstr "Hay alias para «%(canonical)s», que no tiene página ni dataset."
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(name)s”"
+msgstr "«%(name)s»"
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "The alias “%(alias)s” belongs to several names: %(names)s."
+msgstr "El alias «%(alias)s» pertenece a varios nombres: %(names)s."
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is in the blacklist, but the wiki now covers it."
+msgstr "«%(term)s» está en la lista negra, pero ahora la wiki lo cubre."
+
+#: web/routes/vocabulary.py
+msgid "No dataset holds that name."
+msgstr "Ningún dataset tiene ese nombre."
+
+#: web/templates/_browse_panel.html
+msgid "Open a folder"
+msgstr "Abrir una carpeta"
+
+#: web/templates/_browse_panel.html
+msgid "Close without opening"
+msgstr "Cerrar sin abrir"
+
+#: web/templates/_browse_panel.html
+msgid "Close without opening a folder"
+msgstr "Cerrar sin abrir ninguna carpeta"
+
+#: web/templates/_browse_panel.html
+msgid "Folder shown"
+msgstr "Carpeta que se muestra"
+
+#: web/templates/_browse_panel.html
+msgid "Absolute path of a folder; Enter shows it"
+msgstr "Ruta absoluta de una carpeta; Enter la muestra"
+
+#: web/templates/_browse_panel.html
+msgid "Show the folder written in the field"
+msgstr "Mostrar la carpeta escrita en el campo"
+
+#: web/templates/_browse_panel.html
+msgid "Go"
+msgstr "Ir"
+
+#: web/templates/_browse_panel.html
+msgid "Subfolders"
+msgstr "Subcarpetas"
+
+#: web/templates/_browse_panel.html
+#, python-format
+msgid "Go up to %(folder)s"
+msgstr "Subir a %(folder)s"
+
+#: web/templates/_browse_panel.html
+#, python-format
+msgid "Show the folder %(folder)s"
+msgstr "Mostrar la carpeta %(folder)s"
+
+#: web/templates/_browse_panel.html
+msgid "The folder has wiki/ or .llmwiki/"
+msgstr "La carpeta tiene wiki/ o .llmwiki/"
+
+#: web/templates/_browse_panel.html
+msgid "No subfolders."
+msgstr "No hay subcarpetas."
+
+#: web/templates/_browse_panel.html
+msgid "Name of a new folder"
+msgstr "Nombre de una carpeta nueva"
+
+#: web/templates/_browse_panel.html
+msgid "A folder created inside the folder shown"
+msgstr "Una carpeta que se crea dentro de la carpeta que se muestra"
+
+#: web/templates/_browse_panel.html
+msgid "Create the folder inside the folder shown and show it"
+msgstr "Crear la carpeta dentro de la carpeta que se muestra, y mostrarla"
+
+#: web/templates/_browse_panel.html
+msgid "Create folder"
+msgstr "Crear carpeta"
+
+#: web/templates/_browse_panel.html
+#, python-format
+msgid ""
+"A wiki will be created in <code>%(path)s</code>: the folders <code>wiki/</code> and <code>sources/</code>, the index "
+"<code>.llmwiki/</code> and a git repository."
+msgstr ""
+"Se va a crear una wiki en <code>%(path)s</code>: las carpetas <code>wiki/</code> y <code>sources/</code>, el índice "
+"<code>.llmwiki/</code> y un repositorio git."
+
+#: web/templates/_browse_panel.html
+msgid "Create the wiki in this folder and open it"
+msgstr "Crear la wiki en esta carpeta y abrirla"
+
+#: web/templates/_browse_panel.html
+msgid "Create the wiki"
+msgstr "Crear la wiki"
+
+#: web/templates/_browse_panel.html
+msgid "Close without creating anything"
+msgstr "Cerrar sin crear nada"
+
+#: web/templates/_browse_panel.html web/templates/_history_confirm.html web/templates/_review_dialog.html
+#: web/templates/_sources_panel.html web/templates/edit.html web/templates/maintain.html web/templates/page.html
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: web/templates/_browse_panel.html
+msgid "This folder is a wiki."
+msgstr "Esta carpeta es una wiki."
+
+#: web/templates/_browse_panel.html
+msgid "This folder has no wiki yet."
+msgstr "Esta carpeta todavía no tiene una wiki."
+
+#: web/templates/_browse_panel.html
+msgid "Open this folder and add it to the list of recent wikis"
+msgstr "Abrir esta carpeta y agregarla a la lista de wikis recientes"
+
+#: web/templates/_browse_panel.html
+msgid "Open this folder"
+msgstr "Abrir esta carpeta"
+
+#: web/templates/_browse_panel.html
+msgid "Create a wiki in this folder; asks for confirmation"
+msgstr "Crear una wiki en esta carpeta; pide confirmación"
+
+#: web/templates/_browse_panel.html
+msgid "Create a wiki here…"
+msgstr "Crear una wiki aquí…"
+
+#: web/templates/_chat_empty.html
+msgid "Ask about this page or about the wiki. For example:"
+msgstr "Preguntá sobre esta página o sobre la wiki. Por ejemplo:"
+
+#: web/templates/_chat_empty.html
+msgid "Send this question"
+msgstr "Enviar esta pregunta"
+
+#: web/templates/_chat_meta.html
+msgid "Open the page cited in the answer"
+msgstr "Abrir la página citada en la respuesta"
+
+#: web/templates/_dataset_dialog.html
+#, python-format
+msgid "Datasets that hold “%(name)s”"
+msgstr "Datasets que tienen «%(name)s»"
+
+#: web/templates/_dataset_dialog.html
+msgid "Close the dataset"
+msgstr "Cerrar el dataset"
+
+#: web/templates/_dataset_dialog.html
+#, python-format
+msgid "as of %(date)s"
+msgstr "al %(date)s"
+
+#: web/templates/_dataset_dialog.html
+#, python-format
+msgid "source: %(source)s"
+msgstr "fuente: %(source)s"
+
+#: web/templates/_dataset_dialog.html web/templates/_history_confirm.html
+msgid "Close"
+msgstr "Cerrar"
+
+#: web/templates/_history_confirm.html
+msgid "Cannot go back to this point."
+msgstr "No se puede volver a este punto."
+
+#: web/templates/_history_confirm.html
+msgid "Save or discard those changes and try again."
+msgstr "Guardá o descartá esos cambios y volvé a intentar."
+
+#: web/templates/_history_confirm.html
+msgid "Close this notice"
+msgstr "Cerrar este aviso"
+
+#: web/templates/_history_confirm.html
+#, python-format
+msgid "Take the wiki back to the point “%(message)s” of %(date)s?"
+msgstr "¿Volver la wiki al punto «%(message)s» del %(date)s?"
+
+#: web/templates/_history_confirm.html
+#, python-format
+msgid ""
+"Since that point the wiki <b>added %(added)s</b>, <b>changed %(changed)s</b> and <b>removed %(removed)s</b> page. "
+"Going back deletes the added ones, brings back the removed ones and restores the text of the changed ones."
+msgid_plural ""
+"Since that point the wiki <b>added %(added)s</b>, <b>changed %(changed)s</b> and <b>removed %(removed)s</b> pages. "
+"Going back deletes the added ones, brings back the removed ones and restores the text of the changed ones."
+msgstr[0] ""
+"Desde ese punto la wiki <b>agregó %(added)s</b>, <b>cambió %(changed)s</b> y <b>quitó %(removed)s</b> página. Al "
+"volver, las agregadas se borran, las quitadas vuelven y las cambiadas recuperan el texto que tenían."
+msgstr[1] ""
+"Desde ese punto la wiki <b>agregó %(added)s</b>, <b>cambió %(changed)s</b> y <b>quitó %(removed)s</b> páginas. Al "
+"volver, las agregadas se borran, las quitadas vuelven y las cambiadas recuperan el texto que tenían."
+
+#: web/templates/_history_confirm.html
+msgid "Will be deleted"
+msgstr "Se borrarán"
+
+#: web/templates/_history_confirm.html
+msgid "Will come back"
+msgstr "Volverán"
+
+#: web/templates/_history_confirm.html
+msgid "Will recover their text"
+msgstr "Recuperarán su texto"
+
+#: web/templates/_history_confirm.html
+msgid "See the list of pages"
+msgstr "Ver la lista de páginas"
+
+#: web/templates/_history_confirm.html
+msgid ""
+"The configuration of the wiki (<code>wiki_config.toml</code>, with its vocabulary lists) goes back to the one of this"
+" point."
+msgstr "La configuración de la wiki (<code>wiki_config.toml</code>, con sus listas de vocabulario) vuelve a la de ese punto."
+
+#: web/templates/_history_confirm.html
+msgid "<code>sources/</code> does not change: the documents you added after this point stay in the folder."
+msgstr "<code>sources/</code> no cambia: los documentos que agregaste después de este punto siguen en la carpeta."
+
+#: web/templates/_history_confirm.html
+msgid "The search index goes back to the copy saved at this point, instantly."
+msgstr "El índice de búsqueda vuelve a la copia guardada en este punto, al instante."
+
+#: web/templates/_history_confirm.html
+msgid ""
+"This point has no index copy: it is rebuilt from <code>sources/</code> and <code>wiki/</code>, without calling the "
+"model. It takes longer, needs Java for PDF and office documents (and LibreOffice for the latter) and includes every "
+"document that is in <code>sources/</code> today."
+msgstr ""
+"Este punto no tiene copia del índice: se reconstruye desde <code>sources/</code> y <code>wiki/</code>, sin llamar al "
+"modelo. Tarda más, necesita Java para PDF y documentos de office (y LibreOffice para estos últimos) e incluye todos "
+"los documentos que hoy están en <code>sources/</code>."
+
+#: web/templates/_history_confirm.html
+msgid ""
+"The history is not rewritten: going back is recorded as a new point, and it can be undone by going back to the "
+"previous point."
+msgstr "El historial no se reescribe: la vuelta queda como un punto nuevo, y se puede deshacer volviendo al punto anterior."
+
+#: web/templates/_history_confirm.html
+msgid "Take the wiki back to this point; progress appears in the console"
+msgstr "Volver la wiki a este punto; el progreso aparece en la consola"
+
+#: web/templates/_history_confirm.html web/templates/_history_list.html
+msgid "Go back to this point"
+msgstr "Volver a este punto"
+
+#: web/templates/_history_confirm.html
+msgid "Close without going back"
+msgstr "Cerrar sin volver"
+
+#: web/templates/_history_diff.html
+msgid "Comparison with the current version"
+msgstr "Comparación con la versión actual"
+
+#: web/templates/_history_diff.html
+msgid "The page no longer exists: every line of this version is shown as removed."
+msgstr "La página ya no existe: todas las líneas de esta versión figuran como quitadas."
+
+#: web/templates/_history_diff.html
+msgid "Lines with <b>−</b> were in this version and are gone; lines with <b>+</b> were added later."
+msgstr "Las líneas con <b>−</b> estaban en esta versión y ya no están; las líneas con <b>+</b> se agregaron después."
+
+#: web/templates/_history_diff.html
+msgid "added"
+msgstr "agregada"
+
+#: web/templates/_history_diff.html
+msgid "removed"
+msgstr "quitada"
+
+#: web/templates/_history_diff.html
+msgid "skipped"
+msgstr "omitidas"
+
+#: web/templates/_history_diff.html
+msgid "unchanged"
+msgstr "sin cambios"
+
+#: web/templates/_history_diff.html
+msgid "This version is identical to the current one."
+msgstr "Esta versión es idéntica a la actual."
+
+#: web/templates/_history_list.html
+msgid ""
+"There are unsaved changes in <code>wiki/</code>. While they exist, you cannot go back to an earlier point: they would"
+" be lost. Save or discard them and try again."
+msgstr ""
+"Hay cambios sin guardar en <code>wiki/</code>. Mientras existan, no se puede volver a un punto anterior: se "
+"perderían. Guardalos o descartalos y volvé a intentar."
+
+#: web/templates/_history_list.html web/templates/history_page.html
+msgid "Identifier of this point in git"
+msgstr "Identificador de este punto en git"
+
+#: web/templates/_history_list.html
+msgid "See which pages this point changed"
+msgstr "Ver qué páginas cambió este punto"
+
+#: web/templates/_history_list.html
+#, python-format
+msgid "%(count)s page"
+msgid_plural "%(count)s pages"
+msgstr[0] "%(count)s página"
+msgstr[1] "%(count)s páginas"
+
+#: web/templates/_history_list.html
+msgid "See the history of this page"
+msgstr "Ver el historial de esta página"
+
+#: web/templates/_history_list.html
+msgid "This point has a copy of the search index: going back to it is immediate"
+msgstr "Este punto tiene una copia del índice de búsqueda: volver a él es inmediato"
+
+#: web/templates/_history_list.html
+msgid "index copy"
+msgstr "copia del índice"
+
+#: web/templates/_history_list.html
+msgid "This point has no copy of the search index: going back to it rebuilds the index, without calling the model"
+msgstr "Este punto no tiene copia del índice de búsqueda: volver a él reconstruye el índice, sin llamar al modelo"
+
+#: web/templates/_history_list.html
+msgid "no copy"
+msgstr "sin copia"
+
+#: web/templates/_history_list.html
+msgid "This is the point the wiki is at now"
+msgstr "Es el punto en el que está la wiki ahora"
+
+#: web/templates/_history_list.html web/templates/history_page.html
+msgid "current"
+msgstr "actual"
+
+#: web/templates/_history_list.html
+msgid "See what changes if the wiki goes back to this point; asks for confirmation"
+msgstr "Ver qué cambia si la wiki vuelve a este punto; pide confirmación"
+
+#: web/templates/_history_list.html
+msgid ""
+"The wiki has no history yet. It appears with the first ingestion, or does not exist if the variable "
+"<code>WIKI_AUTOCOMMIT</code> is 0."
+msgstr ""
+"La wiki todavía no tiene historial. Aparece con la primera ingesta, o no existe si la variable "
+"<code>WIKI_AUTOCOMMIT</code> está en 0."
+
+#: web/templates/_review_dialog.html
+msgid "Review the page"
+msgstr "Revisar la página"
+
+#: web/templates/_review_dialog.html web/templates/page.html
+msgid "Close without saving"
+msgstr "Cerrar sin guardar"
+
+#: web/templates/_review_dialog.html
+msgid "Close without saving anything"
+msgstr "Cerrar sin guardar nada"
+
+#: web/templates/_review_dialog.html
+#, python-format
+msgid "The page “%(title)s” already exists. The draft merges the conversation into that page; saving replaces it."
+msgstr "Ya existe la página «%(title)s». El borrador integra la conversación a esa página; al guardar, la reemplaza."
+
+#: web/templates/_review_dialog.html
+msgid "Text of the page in Markdown"
+msgstr "Texto de la página en Markdown"
+
+#: web/templates/_review_dialog.html
+msgid "The draft of the page in Markdown; what you leave here is what is saved"
+msgstr "El borrador de la página en Markdown; lo que dejes acá es lo que se guarda"
+
+#: web/templates/_review_dialog.html web/templates/page.html
+msgid "Edit"
+msgstr "Editar"
+
+#: web/templates/_review_dialog.html web/templates/edit.html
+msgid "Preview"
+msgstr "Vista previa"
+
+#: web/templates/_review_dialog.html
+msgid "Switch between the Markdown text and how the page will look"
+msgstr "Alternar entre el texto en Markdown y cómo se verá la página"
+
+#: web/templates/_review_dialog.html
+msgid "Write the page to the wiki as it is in the editor"
+msgstr "Escribir la página en la wiki tal como está en el editor"
+
+#: web/templates/_review_dialog.html
+msgid "Save to wiki"
+msgstr "Guardar en la wiki"
+
+#: web/templates/_sources_panel.html web/templates/picker.html
+msgid "Sources"
+msgstr "Fuentes"
+
+#: web/templates/_sources_panel.html
+msgid "File"
+msgstr "Archivo"
+
+#: web/templates/_sources_panel.html
+msgid "Status"
+msgstr "Estado"
+
+#: web/templates/_sources_panel.html web/templates/page.html web/templates/picker.html
+msgid "Pages"
+msgstr "Páginas"
+
+#: web/templates/_sources_panel.html
+msgid "Updated"
+msgstr "Actualizado"
+
+#: web/templates/_sources_panel.html
+msgid "Actions"
+msgstr "Acciones"
+
+#: web/templates/_sources_panel.html
+msgid "Status of the source in the index of the wiki"
+msgstr "Estado de la fuente en el índice de la wiki"
+
+#: web/templates/_sources_panel.html
+msgid "Delete this source from the wiki; asks for confirmation"
+msgstr "Borrar esta fuente de la wiki; pide confirmación"
+
+#: web/templates/_sources_panel.html web/templates/maintain.html web/templates/page.html
+msgid "Delete"
+msgstr "Borrar"
+
+#: web/templates/_sources_panel.html
+#, python-format
+msgid "Delete the source “%(filename)s”? Its summary page is deleted. The pages that cite it are kept and marked as stale."
+msgstr ""
+"¿Borrar la fuente «%(filename)s»? Se borra su página de resumen. Las páginas que la citan se conservan y quedan "
+"marcadas como obsoletas."
+
+#: web/templates/_sources_panel.html
+msgid "Without this option, the file stays in sources/, and the next scan of sources/ ingests it again"
+msgstr "Sin esta opción, el archivo queda en sources/, y el próximo escaneo de sources/ lo vuelve a ingestar"
+
+#: web/templates/_sources_panel.html
+msgid "Also remove file from sources/"
+msgstr "Borrar también el archivo de sources/"
+
+#: web/templates/_sources_panel.html
+msgid "Delete the source from the wiki"
+msgstr "Borrar la fuente de la wiki"
+
+#: web/templates/_sources_panel.html
+msgid "Delete the source"
+msgstr "Borrar la fuente"
+
+#: web/templates/_sources_panel.html web/templates/maintain.html web/templates/page.html
+msgid "Close without deleting"
+msgstr "Cerrar sin borrar"
+
+#: web/templates/_sources_panel.html
+msgid "This wiki has no sources yet."
+msgstr "Esta wiki no tiene fuentes todavía."
+
+#: web/templates/_vocabulary_body.html
+msgid "Findings of the vocabulary review"
+msgstr "Hallazgos de la revisión del vocabulario"
+
+#: web/templates/_vocabulary_body.html
+msgid ""
+"The names the wiki covers: the categories and keys of datasets/ and the titles of the concept pages. A question that "
+"names none of them is refused. Read only: it changes with the pages and the datasets"
+msgstr ""
+"Los nombres que la wiki cubre: las categorías y claves de datasets/ y los títulos de las páginas de concepto. Una "
+"pregunta que no nombra ninguno se rechaza. Solo lectura: cambia con las páginas y los datasets"
+
+#: web/templates/_vocabulary_body.html
+msgid "Roster"
+msgstr "Padrón"
+
+#: web/templates/_vocabulary_body.html
+msgid "Search the roster…"
+msgstr "Buscar en el padrón…"
+
+#: web/templates/_vocabulary_body.html
+msgid "Search the roster"
+msgstr "Buscar en el padrón"
+
+#: web/templates/_vocabulary_body.html
+msgid "Shows only the names that contain what you type, without case nor accents"
+msgstr "Muestra solo los nombres que contienen lo que escribís, sin distinguir mayúsculas ni acentos"
+
+#: web/templates/_vocabulary_body.html
+msgid "See the dataset"
+msgstr "Ver el dataset"
+
+#: web/templates/_vocabulary_body.html
+msgid "Where the name comes from"
+msgstr "De dónde sale el nombre"
+
+#: web/templates/_vocabulary_body.html
+msgid "page"
+msgstr "página"
+
+#: web/templates/_vocabulary_body.html
+msgid "dataset"
+msgstr "dataset"
+
+#: web/templates/_vocabulary_body.html
+msgid "dataset key"
+msgstr "clave de dataset"
+
+#: web/templates/_vocabulary_body.html
+msgid "No name contains that text."
+msgstr "Ningún nombre contiene ese texto."
+
+#: web/templates/_vocabulary_body.html
+msgid ""
+"Other names a question may use for a name of the roster. The generated ones come from the ingestion; the hand-written"
+" ones, from this screen"
+msgstr ""
+"Otros nombres que una pregunta puede usar para un nombre del padrón. Los generados vienen de la ingesta; los "
+"manuales, de esta pantalla"
+
+#: web/templates/_vocabulary_body.html
+msgid "Aliases"
+msgstr "Alias"
+
+#: web/templates/_vocabulary_body.html
+msgid "Name of the roster"
+msgstr "Nombre del padrón"
+
+#: web/templates/_vocabulary_body.html
+msgid "The name the alias stands for; choose one of the roster"
+msgstr "El nombre al que reemplaza el alias; elegí uno del padrón"
+
+#: web/templates/_vocabulary_body.html
+msgid "Alias"
+msgstr "Alias"
+
+#: web/templates/_vocabulary_body.html
+msgid "New alias"
+msgstr "Alias nuevo"
+
+#: web/templates/_vocabulary_body.html
+msgid "Another name for it"
+msgstr "Otro nombre para ese nombre"
+
+#: web/templates/_vocabulary_body.html
+msgid "Add the alias as hand-written"
+msgstr "Agregar el alias como manual"
+
+#: web/templates/_vocabulary_body.html
+msgid "Add"
+msgstr "Agregar"
+
+#: web/templates/_vocabulary_body.html
+msgid "Written from this screen or in wiki_config.toml"
+msgstr "Escrito desde esta pantalla o en wiki_config.toml"
+
+#: web/templates/_vocabulary_body.html
+msgid "Proposed by the ingestion"
+msgstr "Propuesto por la ingesta"
+
+#: web/templates/_vocabulary_body.html
+msgid "hand-written"
+msgstr "manual"
+
+#: web/templates/_vocabulary_body.html
+msgid "generated"
+msgstr "generado"
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove the hand-written alias"
+msgstr "Quitar el alias manual"
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove"
+msgstr "Quitar"
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove the alias for good: it goes to the rejected aliases, and the ingestion does not propose it again"
+msgstr "Quitar el alias definitivamente: pasa a los alias descartados, y la ingesta no lo vuelve a proponer"
+
+#: web/templates/_vocabulary_body.html
+msgid "Reject"
+msgstr "Descartar"
+
+#: web/templates/_vocabulary_body.html
+msgid "The wiki has no aliases yet."
+msgstr "La wiki todavía no tiene alias."
+
+#: web/templates/_vocabulary_body.html
+msgid "Terms the wiki does not cover: a question that mentions one is refused at once, before any search"
+msgstr "Términos que la wiki no cubre: una pregunta que menciona uno se rechaza enseguida, antes de buscar"
+
+#: web/templates/_vocabulary_body.html
+msgid "Blacklist"
+msgstr "Lista negra"
+
+#: web/templates/_vocabulary_body.html
+msgid "Term"
+msgstr "Término"
+
+#: web/templates/_vocabulary_body.html
+msgid "New term of the blacklist"
+msgstr "Término nuevo de la lista negra"
+
+#: web/templates/_vocabulary_body.html
+msgid "A term the wiki does not cover"
+msgstr "Un término que la wiki no cubre"
+
+#: web/templates/_vocabulary_body.html
+msgid "Add the term to the blacklist"
+msgstr "Agregar el término a la lista negra"
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove the term from the blacklist"
+msgstr "Quitar el término de la lista negra"
+
+#: web/templates/_vocabulary_body.html
+msgid "The blacklist is empty."
+msgstr "La lista negra está vacía."
+
+#: web/templates/_vocabulary_body.html
+msgid "Aliases a name must never have. The ingestion does not write them, and the chat does not use them"
+msgstr "Alias que un nombre nunca debe tener. La ingesta no los escribe y el chat no los usa"
+
+#: web/templates/_vocabulary_body.html
+msgid "Rejected aliases"
+msgstr "Alias descartados"
+
+#: web/templates/_vocabulary_body.html
+msgid "Accept the alias again: the next ingestion may propose it"
+msgstr "Volver a aceptar el alias: la próxima ingesta puede proponerlo"
+
+#: web/templates/_vocabulary_body.html
+msgid "Accept again"
+msgstr "Volver a aceptar"
+
+#: web/templates/_vocabulary_body.html
+msgid "No alias has been rejected."
+msgstr "No hay alias descartados."
+
+#: web/templates/base.html
+msgid "Switch wiki"
+msgstr "Cambiar de wiki"
+
+#: web/templates/base.html
+msgid "Sections"
+msgstr "Secciones"
+
+#: web/templates/base.html
+msgid "Read the pages of the wiki and chat about them"
+msgstr "Leer las páginas de la wiki y conversar sobre ellas"
+
+#: web/templates/base.html
+msgid "Read"
+msgstr "Leer"
+
+#: web/templates/base.html
+msgid "Add documents to the wiki and see its sources"
+msgstr "Agregar documentos a la wiki y ver sus fuentes"
+
+#: web/templates/base.html web/templates/ingest.html
+msgid "Ingest"
+msgstr "Ingestar"
+
+#: web/templates/base.html
+msgid "Review, repair and rebuild what is already in the wiki"
+msgstr "Revisar, reparar y reconstruir lo que ya está en la wiki"
+
+#: web/templates/base.html
+msgid "Maintain"
+msgstr "Mantener"
+
+#: web/templates/base.html
+msgid "See the graph of relations between the pages and the sources of the wiki"
+msgstr "Ver el grafo de relaciones entre las páginas y las fuentes de la wiki"
+
+#: web/templates/base.html
+msgctxt "tab"
+msgid "Relations"
+msgstr "Ver relaciones"
+
+#: web/templates/base.html
+msgid "See and edit the names the wiki covers, their aliases and the blacklist"
+msgstr "Ver y editar los nombres que la wiki cubre, sus alias y la lista negra"
+
+#: web/templates/base.html web/templates/vocabulary.html
+msgid "Vocabulary"
+msgstr "Vocabulario"
+
+#: web/templates/base.html
+msgid "See the points of the wiki and go back to an earlier one"
+msgstr "Ver los puntos de la wiki y volver a uno anterior"
+
+#: web/templates/base.html web/templates/history.html web/templates/history_version.html web/templates/page.html
+msgid "History"
+msgstr "Historial"
+
+#: web/templates/base.html
+msgid "Interface language"
+msgstr "Idioma de la interfaz"
+
+#: web/templates/chat_turn.html
+msgid "Typing"
+msgstr "Escribiendo"
+
+#: web/templates/edit.html
+#, python-format
+msgid "Editing %(page)s"
+msgstr "Editando %(page)s"
+
+#: web/templates/edit.html
+msgid "Editing"
+msgstr "Editando"
+
+#: web/templates/edit.html
+msgid "The front-matter block is not edited: it is kept as it is."
+msgstr "El bloque de front-matter no se edita: se conserva tal como está."
+
+#: web/templates/edit.html
+msgid "Back to the page without saving"
+msgstr "Volver a la página sin guardar"
+
+#: web/templates/edit.html
+msgid "Save the changes and commit them to the git repository of the wiki"
+msgstr "Guardar los cambios y commitearlos en el repositorio git de la wiki"
+
+#: web/templates/edit.html web/templates/page.html
+msgid "Save"
+msgstr "Guardar"
+
+#: web/templates/edit.html
+msgid "Markdown text"
+msgstr "Texto en Markdown"
+
+#: web/templates/edit.html
+msgid "Markdown"
+msgstr "Markdown"
+
+#: web/templates/edit.html
+msgid "Page body"
+msgstr "Cuerpo de la página"
+
+#: web/templates/edit.html
+msgid "Body of the page in Markdown"
+msgstr "Cuerpo de la página en Markdown"
+
+#: web/templates/history.html
+msgid ""
+"Every ingestion, chat change, deletion and repair is recorded as a point of the wiki. Going back to a point restores "
+"the pages and the search index; the history is not rewritten."
+msgstr ""
+"Cada ingesta, cambio del chat, borrado y reparación queda como un punto de la wiki. Volver a un punto restaura las "
+"páginas y el índice de búsqueda; el historial no se reescribe."
+
+#: web/templates/history.html
+msgid "Points of the wiki"
+msgstr "Puntos de la wiki"
+
+#: web/templates/history.html web/templates/ingest.html web/templates/maintain.html
+msgid "Progress"
+msgstr "Progreso"
+
+#: web/templates/history.html web/templates/ingest.html web/templates/maintain.html web/templates/operation.html
+msgid "The progress of the operation appears here."
+msgstr "El progreso de la operación aparece acá."
+
+#: web/templates/history_page.html
+#, python-format
+msgid "History of %(title)s"
+msgstr "Historial de %(title)s"
+
+#: web/templates/history_page.html
+msgid "Back to reading the page"
+msgstr "Volver a leer la página"
+
+#: web/templates/history_page.html
+msgid "See all the points of the wiki"
+msgstr "Ver todos los puntos de la wiki"
+
+#: web/templates/history_page.html
+msgid "History of the wiki"
+msgstr "Historial de la wiki"
+
+#: web/templates/history_page.html
+#, python-format
+msgid "History of “%(title)s”"
+msgstr "Historial de «%(title)s»"
+
+#: web/templates/history_page.html
+msgid "this page no longer exists in the wiki; its earlier versions can be read"
+msgstr "esta página ya no existe en la wiki; sus versiones anteriores se pueden leer"
+
+#: web/templates/history_page.html
+msgid "Versions"
+msgstr "Versiones"
+
+#: web/templates/history_page.html
+msgid "This is the version being read now"
+msgstr "Es la versión que se lee ahora"
+
+#: web/templates/history_page.html
+msgid "Read the page as it was at this point; it cannot be edited"
+msgstr "Leer la página como estaba en este punto; no se puede editar"
+
+#: web/templates/history_page.html
+msgid "See this version"
+msgstr "Ver esta versión"
+
+#: web/templates/history_page.html
+msgid "No point of the history touched this page."
+msgstr "Ningún punto del historial tocó esta página."
+
+#: web/templates/history_version.html
+msgid "Back to the list of versions of this page"
+msgstr "Volver a la lista de versiones de esta página"
+
+#: web/templates/history_version.html
+msgid "History of the page"
+msgstr "Historial de la página"
+
+#: web/templates/history_version.html
+msgid "Read the current version of the page"
+msgstr "Leer la versión actual de la página"
+
+#: web/templates/history_version.html
+msgid "Current version"
+msgstr "Versión actual"
+
+#: web/templates/history_version.html
+#, python-format
+msgid ""
+"Version of “%(title)s” from %(date)s · %(message)s · <code>%(short)s</code>. Read-only: to go back to this point, use"
+" the <a href=\"/w/%(wiki_id)s/history\" title=\"%(link_title)s\">%(link_text)s</a>."
+msgstr ""
+"Versión de «%(title)s» del %(date)s · %(message)s · <code>%(short)s</code>. Solo lectura: para volver a este punto, "
+"usá el <a href=\"/w/%(wiki_id)s/history\" title=\"%(link_title)s\">%(link_text)s</a>."
+
+#: web/templates/history_version.html
+msgid "Open the history of the wiki"
+msgstr "Abrir el historial de la wiki"
+
+#: web/templates/history_version.html
+msgid "Show the lines that changed between this version and the current one"
+msgstr "Mostrar las líneas que cambiaron entre esta versión y la actual"
+
+#: web/templates/history_version.html
+msgid "Compare with the current version"
+msgstr "Comparar con la versión actual"
+
+#: web/templates/history_version.html
+msgid "Hide the comparison"
+msgstr "Ocultar la comparación"
+
+#: web/templates/history_version.html
+msgid "Hide"
+msgstr "Ocultar"
+
+#: web/templates/history_version.html
+msgid "The page did not exist at this point."
+msgstr "La página no existía en este punto."
+
+#: web/templates/ingest.html web/templates/maintain.html web/templates/page.html
+msgid "Close the notice"
+msgstr "Cerrar el aviso"
+
+#: web/templates/ingest.html
+msgid "Add documents"
+msgstr "Agregar documentos"
+
+#: web/templates/ingest.html
+msgid ""
+"Choose one or more files. The ODT, RTF, DOC and DOCX formats need LibreOffice (and Java); MD and TXT files need "
+"neither Java nor LibreOffice"
+msgstr ""
+"Elegir uno o más archivos. Los formatos ODT, RTF, DOC y DOCX necesitan LibreOffice (y Java); los archivos MD y TXT no"
+" necesitan ni Java ni LibreOffice"
+
+#: web/templates/ingest.html
+msgid ""
+"Besides the deterministic repair, the model reviews and repairs the pages this ingestion touched. It calls the model "
+"and takes longer."
+msgstr ""
+"Además de la reparación determinista, el modelo revisa y repara las páginas que tocó esta ingesta. Hace llamadas al "
+"modelo y tarda más."
+
+#: web/templates/ingest.html
+msgid "Full repair with the model, slower"
+msgstr "Reparación completa con el modelo, más lenta"
+
+#: web/templates/ingest.html
+msgid "Ingest the chosen files and show the progress"
+msgstr "Ingestar los archivos elegidos y mostrar el progreso"
+
+#: web/templates/ingest.html
+msgid "Folder <span class=\"mono\">sources/</span>"
+msgstr "Carpeta <span class=\"mono\">sources/</span>"
+
+#: web/templates/ingest.html
+msgid "For files copied to <code>sources/</code> without going through the upload form."
+msgstr "Para los archivos copiados a <code>sources/</code> sin pasar por el formulario de carga."
+
+#: web/templates/ingest.html
+msgid "Ingest the files of sources/ that are new or changed since their last ingestion"
+msgstr "Ingestar los archivos de sources/ que son nuevos o cambiaron desde su última ingesta"
+
+#: web/templates/ingest.html
+msgid "Scan sources/ for changes"
+msgstr "Escanear sources/"
+
+#: web/templates/maintain.html
+msgid "Maintenance"
+msgstr "Mantenimiento"
+
+#: web/templates/maintain.html
+msgid "Configuration"
+msgstr "Configuración"
+
+#: web/templates/maintain.html
+msgid "Model"
+msgstr "Modelo"
+
+#: web/templates/maintain.html
+msgid "The model that builds the pages in ingestion and repair"
+msgstr "El modelo que arma las páginas en la ingesta y en la reparación"
+
+#: web/templates/maintain.html
+msgid "Server"
+msgstr "Servidor"
+
+#: web/templates/maintain.html
+msgid "The address of the model service"
+msgstr "La dirección del servicio del modelo"
+
+#: web/templates/maintain.html
+msgid "Ingesting PDF and office documents needs Java: the text extractor runs a .jar. .md and .txt files do not need it"
+msgstr ""
+"La ingesta de PDF y de documentos de office necesita Java: el extractor de texto ejecuta un .jar. Los archivos .md y "
+".txt no lo necesitan"
+
+#: web/templates/maintain.html
+msgid ""
+"Without Java, ingesting PDF and office documents (DOCX, DOC, ODT, RTF) fails; MD and TXT files do not need it. macOS:"
+" brew install --cask temurin"
+msgstr ""
+"Sin Java falla la ingesta de PDF y de documentos de office (DOCX, DOC, ODT, RTF); los archivos MD y TXT no lo "
+"necesitan. macOS: brew install --cask temurin"
+
+#: web/templates/maintain.html
+msgid "Not installed"
+msgstr "No está instalado"
+
+#: web/templates/maintain.html
+msgid "LibreOffice converts each office document (DOCX, DOC, ODT, RTF) to PDF"
+msgstr "LibreOffice convierte cada documento de office (DOCX, DOC, ODT, RTF) a PDF"
+
+#: web/templates/maintain.html
+#, python-format
+msgid ""
+"%(path)s exists, but it did not convert a test DOCX. The Writer component is usually missing (Linux: sudo apt-get "
+"install libreoffice-writer). Ingesting DOCX, DOC, ODT and RTF fails; MD and TXT files do not need it."
+msgstr ""
+"%(path)s existe, pero no convirtió un DOCX de prueba. Suele faltar el componente Writer (Linux: sudo apt-get install "
+"libreoffice-writer). La ingesta de DOCX, DOC, ODT y RTF falla; los archivos MD y TXT no lo necesitan."
+
+#: web/templates/maintain.html
+msgid "Installed, but it does not convert documents"
+msgstr "Instalado, pero no convierte documentos"
+
+#: web/templates/maintain.html
+msgid ""
+"Without LibreOffice, ingesting DOCX, DOC, ODT and RTF fails; MD and TXT files do not need it. macOS: brew install "
+"--cask libreoffice"
+msgstr ""
+"Sin LibreOffice falla la ingesta de DOCX, DOC, ODT y RTF; los archivos MD y TXT no lo necesitan. macOS: brew install "
+"--cask libreoffice"
+
+#: web/templates/maintain.html
+msgid "Summary pages"
+msgstr "Páginas de resumen"
+
+#: web/templates/maintain.html
+msgid ""
+"Regenerates with the model the summary page of each source, from the text already extracted. Concept pages do not "
+"change."
+msgstr ""
+"Vuelve a generar con el modelo la página de resumen de cada fuente, a partir del texto ya extraído. Las páginas de "
+"concepto no cambian."
+
+#: web/templates/maintain.html
+msgid "Regenerate the summary pages of all the sources; asks for confirmation"
+msgstr "Regenerar las páginas de resumen de todas las fuentes; pide confirmación"
+
+#: web/templates/maintain.html
+msgid "Regenerate summary pages"
+msgstr "Regenerar las páginas de resumen"
+
+#: web/templates/maintain.html
+#, python-format
+msgid "Regenerate the %(count)s summary page? The page is rewritten whole, and changes made by hand to it are lost."
+msgid_plural ""
+"Regenerate the %(count)s summary pages? Each page is rewritten whole, and changes made by hand to those pages are "
+"lost."
+msgstr[0] ""
+"¿Regenerar la página de resumen (%(count)s)? La página se reescribe entera, y los cambios hechos a mano en ella se "
+"pierden."
+msgstr[1] ""
+"¿Regenerar las %(count)s páginas de resumen? Cada página se reescribe entera, y los cambios hechos a mano en esas "
+"páginas se pierden."
+
+#: web/templates/maintain.html
+msgid "Start the regeneration; progress appears in the console"
+msgstr "Empezar la regeneración; el progreso aparece en la consola"
+
+#: web/templates/maintain.html
+msgid "Regenerate"
+msgstr "Regenerar"
+
+#: web/templates/maintain.html
+msgid "Close without regenerating"
+msgstr "Cerrar sin regenerar"
+
+#: web/templates/maintain.html
+msgid "Lint and repair"
+msgstr "Lint y reparación"
+
+#: web/templates/maintain.html
+msgid "Reviews every page of the wiki and repairs the problems it finds. It calls the model."
+msgstr "Revisa todas las páginas de la wiki y repara los problemas que encuentra. Hace llamadas al modelo."
+
+#: web/templates/maintain.html
+msgid "Review and repair the whole wiki; asks for confirmation"
+msgstr "Revisar y reparar toda la wiki; pide confirmación"
+
+#: web/templates/maintain.html
+msgid "Run Wiki Lint & Repair"
+msgstr "Revisar y reparar la wiki"
+
+#: web/templates/maintain.html
+msgid "Review and repair every page of the wiki? The repair can rewrite and delete pages."
+msgstr "¿Revisar y reparar todas las páginas de la wiki? La reparación puede reescribir y borrar páginas."
+
+#: web/templates/maintain.html
+msgid "Start the review; progress appears in the console"
+msgstr "Empezar la revisión; el progreso aparece en la consola"
+
+#: web/templates/maintain.html
+msgid "Review and repair"
+msgstr "Revisar y reparar"
+
+#: web/templates/maintain.html
+msgid "Close without reviewing"
+msgstr "Cerrar sin revisar"
+
+#: web/templates/maintain.html
+msgid "Stale pages"
+msgstr "Páginas obsoletas"
+
+#: web/templates/maintain.html
+msgid ""
+"A page becomes stale when a source it cites is deleted and the page was not regenerated afterwards. The page may "
+"still rely on other sources."
+msgstr ""
+"Una página queda obsoleta cuando se borra una fuente que cita y la página no se regeneró después. La página puede "
+"apoyarse todavía en otras fuentes."
+
+#: web/templates/maintain.html
+msgid "Open the page to review it"
+msgstr "Abrir la página para revisarla"
+
+#: web/templates/maintain.html
+#, python-format
+msgid "since %(date)s"
+msgstr "desde %(date)s"
+
+#: web/templates/maintain.html
+msgid "Delete all the stale pages; asks for confirmation"
+msgstr "Borrar todas las páginas obsoletas; pide confirmación"
+
+#: web/templates/maintain.html
+#, python-format
+msgid "Delete %(count)s stale page"
+msgid_plural "Delete %(count)s stale pages"
+msgstr[0] "Borrar %(count)s página obsoleta"
+msgstr[1] "Borrar %(count)s páginas obsoletas"
+
+#: web/templates/maintain.html
+#, python-format
+msgid "Delete the %(count)s stale page? Its sources do not change: what they still cover can be rebuilt by ingesting again."
+msgid_plural ""
+"Delete the %(count)s stale pages? Their sources do not change: what they still cover can be rebuilt by ingesting "
+"again."
+msgstr[0] ""
+"¿Borrar la página obsoleta (%(count)s)? Su fuente no cambia: lo que todavía cubre se puede reconstruir volviendo a "
+"ingestar."
+msgstr[1] ""
+"¿Borrar las %(count)s páginas obsoletas? Sus fuentes no cambian: lo que todavía cubren se puede reconstruir volviendo"
+" a ingestar."
+
+#: web/templates/maintain.html
+msgid "Delete the stale pages of the wiki"
+msgstr "Borrar las páginas obsoletas de la wiki"
+
+#: web/templates/maintain.html
+msgid "There are no stale pages."
+msgstr "No hay páginas obsoletas."
+
+#: web/templates/maintain.html
+msgid "Index of the wiki"
+msgstr "Índice de la wiki"
+
+#: web/templates/maintain.html
+msgid ""
+"Rebuilds the search database from <code>sources/</code> and <code>wiki/</code>, without calling the model. It changes"
+" no page and no source. Use it when the index was lost or damaged."
+msgstr ""
+"Vuelve a armar la base de datos de búsqueda a partir de <code>sources/</code> y <code>wiki/</code>, sin llamar al "
+"modelo. No cambia ninguna página ni ninguna fuente. Sirve cuando el índice se perdió o se dañó."
+
+#: web/templates/maintain.html
+msgid "Rebuild the index from the files of the wiki, without the model; asks for confirmation"
+msgstr "Reconstruir el índice desde los archivos de la wiki, sin el modelo; pide confirmación"
+
+#: web/templates/maintain.html
+msgid "Rebuild the index"
+msgstr "Reconstruir el índice"
+
+#: web/templates/maintain.html
+msgid ""
+"Rebuild the index? The text of each source is extracted again: Java is needed for PDF and office documents, and "
+"LibreOffice for the latter; MD and TXT files need neither. The current index is kept as "
+"<code>.llmwiki/index.db.bak</code>. Internal counters and page creation dates are reset, and stale pages stop being "
+"marked."
+msgstr ""
+"¿Reconstruir el índice? El texto de cada fuente se extrae de nuevo: hace falta Java para PDF y documentos de office, "
+"y LibreOffice para estos últimos; los archivos MD y TXT no necesitan ninguno. El índice actual queda guardado como "
+"<code>.llmwiki/index.db.bak</code>. Los contadores internos y las fechas de creación de las páginas se reinician, y "
+"las páginas obsoletas dejan de estar marcadas."
+
+#: web/templates/maintain.html
+msgid "Start the rebuild; progress appears in the console"
+msgstr "Empezar la reconstrucción; el progreso aparece en la consola"
+
+#: web/templates/maintain.html
+msgid "Rebuild"
+msgstr "Reconstruir"
+
+#: web/templates/maintain.html
+msgid "Close without rebuilding"
+msgstr "Cerrar sin reconstruir"
+
+#: web/templates/page.html
+msgid "The model that answers in the conversation"
+msgstr "El modelo que responde en la conversación"
+
+#: web/templates/page.html
+msgid "Show or hide the index of pages"
+msgstr "Mostrar u ocultar el índice de páginas"
+
+#: web/templates/page.html
+msgid "Index"
+msgstr "Índice"
+
+#: web/templates/page.html
+msgid "Show or hide the conversation"
+msgstr "Mostrar u ocultar la conversación"
+
+#: web/templates/page.html
+msgid "Chat"
+msgstr "Chat"
+
+#: web/templates/page.html
+msgid "Index of pages"
+msgstr "Índice de páginas"
+
+#: web/templates/page.html web/templates/relations.html
+msgid "Search for a page…"
+msgstr "Buscar una página…"
+
+#: web/templates/page.html
+msgid "Filter pages"
+msgstr "Filtrar páginas"
+
+#: web/templates/page.html
+msgid "Filter the index by page title"
+msgstr "Filtrar el índice por el título de la página"
+
+#: web/templates/page.html
+msgid "Edit the text of this page"
+msgstr "Editar el texto de esta página"
+
+#: web/templates/page.html
+msgid "See the graph of the pages and sources related to this page"
+msgstr "Ver el grafo de las páginas y fuentes relacionadas con esta página"
+
+#: web/templates/page.html web/templates/relations.html
+msgid "Relations"
+msgstr "Relaciones"
+
+#: web/templates/page.html
+msgid "See the changes of this page over time and read earlier versions"
+msgstr "Ver los cambios de esta página a lo largo del tiempo y leer versiones anteriores"
+
+#: web/templates/page.html
+msgid "Delete this page from the wiki; asks for confirmation"
+msgstr "Borrar esta página de la wiki; pide confirmación"
+
+#: web/templates/page.html
+#, python-format
+msgid "Deleted the page “%(title)s”."
+msgstr "Se borró la página «%(title)s»."
+
+#: web/templates/page.html
+#, python-format
+msgid ""
+"Delete the page “%(title)s”? The links from other pages to this page are removed. The deleted page stays in the git "
+"history of the wiki and can be recovered from there."
+msgstr ""
+"¿Borrar la página «%(title)s»? Los enlaces de otras páginas hacia esta página se quitan. La página borrada queda en "
+"el historial git de la wiki y se puede recuperar desde ahí."
+
+#: web/templates/page.html
+msgid "Delete the page from the wiki for good"
+msgstr "Borrar la página definitivamente de la wiki"
+
+#: web/templates/page.html
+msgid "Delete the page"
+msgstr "Borrar la página"
+
+#: web/templates/page.html
+msgid "Conversation"
+msgstr "Conversación"
+
+#: web/templates/page.html
+msgid "about"
+msgstr "sobre"
+
+#: web/templates/page.html
+msgid "The conversation receives this page as context"
+msgstr "La conversación recibe esta página como contexto"
+
+#: web/templates/page.html
+msgid "Delete the questions and answers and start a new conversation; saved pages do not change"
+msgstr "Borrar las preguntas y respuestas y empezar una conversación nueva; las páginas guardadas no cambian"
+
+#: web/templates/page.html
+msgid "Clear"
+msgstr "Limpiar"
+
+#: web/templates/page.html
+msgid "Save the whole conversation as a page of the wiki"
+msgstr "Guardar la conversación entera como una página de la wiki"
+
+#: web/templates/page.html
+msgid "Page title"
+msgstr "Título de la página"
+
+#: web/templates/page.html
+msgid "Title of the page to create. If a page with that title already exists, the conversation is merged into that page"
+msgstr "Título de la página que se crea. Si ya existe una página con ese título, la conversación se integra a esa página"
+
+#: web/templates/page.html
+msgid "Conversations are saved as concept pages; summaries belong to source documents"
+msgstr "Las conversaciones se guardan como páginas de concepto; los resúmenes son de documentos fuente"
+
+#: web/templates/page.html
+msgid "Saved in Concepts"
+msgstr "Se guarda en Conceptos"
+
+#: web/templates/page.html
+msgid "The model drafts a page with all the questions and answers; you review it before saving"
+msgstr "El modelo prepara un borrador de la página con todas las preguntas y respuestas; lo revisás antes de guardarlo"
+
+#: web/templates/page.html
+msgid "Preparing the draft…"
+msgstr "Preparando el borrador…"
+
+#: web/templates/page.html
+msgid "Ask something…"
+msgstr "Preguntá algo…"
+
+#: web/templates/page.html
+msgid "Question"
+msgstr "Pregunta"
+
+#: web/templates/page.html
+msgid "Enter sends the question; Shift+Enter adds a line"
+msgstr "Enter envía la pregunta; Mayúsculas+Enter agrega una línea"
+
+#: web/templates/page.html
+msgid "Mode"
+msgstr "Modo"
+
+#: web/templates/page.html
+msgid "How the model answers the question"
+msgstr "Cómo responde el modelo a la pregunta"
+
+#: web/templates/page.html
+msgid "Send the question (Enter)"
+msgstr "Enviar la pregunta (Enter)"
+
+#: web/templates/page.html
+msgid "Send"
+msgstr "Enviar"
+
+#: web/templates/picker.html
+msgid "Choose a wiki"
+msgstr "Elegí una wiki"
+
+#: web/templates/picker.html
+#, python-format
+msgid "Each wiki is a folder with its documents, its pages and its index. %(count)s in <span class=\"mono\">%(home)s</span>"
+msgstr ""
+"Cada wiki es una carpeta con sus documentos, sus páginas y su índice. %(count)s en <span "
+"class=\"mono\">%(home)s</span>"
+
+#: web/templates/picker.html
+msgid "Path"
+msgstr "Ruta"
+
+#: web/templates/picker.html
+msgid "Language"
+msgstr "Idioma"
+
+#: web/templates/picker.html
+msgid "Action"
+msgstr "Acción"
+
+#: web/templates/picker.html
+#, python-format
+msgid "Open the wiki %(wiki)s"
+msgstr "Abrir la wiki %(wiki)s"
+
+#: web/templates/picker.html
+msgid "The wiki you opened most recently"
+msgstr "La wiki que abriste más recientemente"
+
+#: web/templates/picker.html
+msgid "last opened"
+msgstr "última abierta"
+
+#: web/templates/picker.html
+msgid "Open"
+msgstr "Abrir"
+
+#: web/templates/picker.html
+msgid "Take this wiki out of the list of recent wikis; the folder and its wiki stay on disk"
+msgstr "Sacar esta wiki de la lista de wikis recientes; la carpeta y su wiki quedan en el disco"
+
+#: web/templates/picker.html
+msgid "Remove from the list"
+msgstr "Quitar de la lista"
+
+#: web/templates/picker.html
+msgid "Choose or create a folder that is not in the list, and open it as a wiki"
+msgstr "Elegir o crear una carpeta que no está en la lista, y abrirla como wiki"
+
+#: web/templates/picker.html
+msgid "Open another folder…"
+msgstr "Abrir otra carpeta…"
+
+#: web/templates/relations.html
+#, python-brace-format
+msgid "{nodes} nodes · {edges} relations"
+msgstr "{nodes} nodos · {edges} relaciones"
+
+#: web/templates/relations.html
+msgid "Graph controls"
+msgstr "Controles del grafo"
+
+#: web/templates/relations.html
+msgid "Search for a page in the graph"
+msgstr "Buscar una página en el grafo"
+
+#: web/templates/relations.html
+msgid "Type the title of a page and press Enter: the graph centres and highlights it"
+msgstr "Escribí el título de una página y presioná Enter: el grafo la centra y la resalta"
+
+#: web/templates/relations.html
+msgid "Show or hide the nodes of the summary pages"
+msgstr "Mostrar u ocultar los nodos de las páginas de resumen"
+
+#: web/templates/relations.html
+msgid "Show summaries"
+msgstr "Mostrar resúmenes"
+
+#: web/templates/relations.html
+msgid "Show or hide the source documents the pages cite"
+msgstr "Mostrar u ocultar los documentos fuente que citan las páginas"
+
+#: web/templates/relations.html
+msgid "Show sources"
+msgstr "Mostrar fuentes"
+
+#: web/templates/relations.html
+msgid "The graph shows only this page and the related ones up to the chosen depth"
+msgstr "El grafo muestra solo esta página y las relacionadas hasta la profundidad elegida"
+
+#: web/templates/relations.html
+#, python-format
+msgid "Relations of “%(title)s”"
+msgstr "Relaciones de «%(title)s»"
+
+#: web/templates/relations.html
+msgid "Only the directly linked pages"
+msgstr "Solo las páginas enlazadas directamente"
+
+#: web/templates/relations.html
+msgid "Depth 1"
+msgstr "Profundidad 1"
+
+#: web/templates/relations.html
+msgid "The linked pages and the pages they link to"
+msgstr "Las páginas enlazadas y las enlazadas por ellas"
+
+#: web/templates/relations.html
+msgid "Depth 2"
+msgstr "Profundidad 2"
+
+#: web/templates/relations.html
+msgid "Back to the graph of the whole wiki"
+msgstr "Volver al grafo de toda la wiki"
+
+#: web/templates/relations.html
+msgid "See the whole graph"
+msgstr "Ver todo el grafo"
+
+#: web/templates/relations.html
+msgid "Back to reading this page"
+msgstr "Volver a leer esta página"
+
+#: web/templates/relations.html
+msgid "Read the page"
+msgstr "Leer la página"
+
+#: web/templates/relations.html
+msgid "Legend"
+msgstr "Leyenda"
+
+#: web/templates/relations.html
+msgid "Concept pages"
+msgstr "Páginas de concepto"
+
+#: web/templates/relations.html
+msgid "Summary pages of a source document"
+msgstr "Páginas de resumen de un documento fuente"
+
+#: web/templates/relations.html
+msgid "Source documents of the sources/ folder"
+msgstr "Documentos fuente de la carpeta sources/"
+
+#: web/templates/relations.html
+msgid "Source"
+msgstr "Fuente"
+
+#: web/templates/relations.html
+msgid "Nodes and relations shown now"
+msgstr "Nodos y relaciones que se ven ahora"
+
+#: web/templates/relations.html
+msgid "Relations graph of the wiki"
+msgstr "Grafo de relaciones de la wiki"
+
+#: web/templates/relations.html
+msgid "Graph zoom"
+msgstr "Zoom del grafo"
+
+#: web/templates/relations.html
+msgid "Zoom in"
+msgstr "Acercar"
+
+#: web/templates/relations.html
+msgid "Zoom the graph in"
+msgstr "Acercar el grafo"
+
+#: web/templates/relations.html
+msgid "Zoom out"
+msgstr "Alejar"
+
+#: web/templates/relations.html
+msgid "Zoom the graph out"
+msgstr "Alejar el grafo"
+
+#: web/templates/relations.html
+msgid "Adjust the zoom to see the whole graph"
+msgstr "Ajustar el zoom para ver todo el grafo"
+
+#: web/templates/relations.html
+msgid "Fit"
+msgstr "Encuadrar"
+
+#: web/templates/relations.html
+msgid "The wiki has no pages to show yet."
+msgstr "La wiki todavía no tiene páginas para mostrar."
+
+#~ msgid "Dataset"
+#~ msgstr "Dataset"
+
+#~ msgid "Deleted the source “%(filename)s”."
+#~ msgstr "Se borró la fuente «%(filename)s»."
+
+#~ msgid "This folder has no wiki yet: opening it starts one."
+#~ msgstr "Esta carpeta todavía no tiene una wiki: abrirla la empieza."
+

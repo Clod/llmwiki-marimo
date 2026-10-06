@@ -9,7 +9,7 @@
 > | §1 §2 §3 §10 §11 §13 | [`programmer_manual.md`](programmer_manual.md) — orientation, layers, directory map, constraints, glossary |
 > | §6 | [`workflows.md`](workflows.md) — one entry per workflow, with contracts |
 > | §4 §5 §14 | [`internals.md`](internals.md) — schema, tool layer, tracing |
-> | §7 §8 §9 §15 | [`apps.md`](apps.md) — Marimo apps, configuration, testing, datasets |
+> | §7 §8 §9 §15 | [`apps.md`](apps.md) — the web interface, configuration, testing, datasets |
 
 The parts you touch when changing how data is stored, read, or observed: the
 SQLite schema and its citation graph, the tool layer built on it, and the opt-in
@@ -134,7 +134,7 @@ citations.
 
 | Column                     | Values                                  | Meaning                                    |
 | -------------------------- | --------------------------------------- | ------------------------------------------ |
-| `source_kind`              | `'source'` / `'wiki'`                   | Raw PDF/DOCX vs LLM-generated markdown     |
+| `source_kind`              | `'source'` / `'wiki'`                   | Raw source file (PDF, office, md, txt) vs LLM-generated markdown     |
 | `status`                   | `'processing'` / `'ready'` / `'failed'` | Pipeline stage (see §10)                   |
 | `path`                     | e.g. `/wiki/summaries/`                 | Directory path                             |
 | `relative_path`            | UNIQUE                                  | Full path from workspace root — upsert key |

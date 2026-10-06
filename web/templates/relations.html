@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Relations") }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/relations.css">{% endblock %}
+{% block body %}
+<main class="relations" id="relations" data-url="/w/{{ wiki_id }}/relations.json" data-wiki="{{ wiki_id }}"
+      data-page="{{ page }}" data-depth="{{ depth }}"
+      data-counts-label="{{ _('{nodes} nodes · {edges} relations') }}">
+  <section class="panel controls" aria-label="{{ _('Graph controls') }}">
+    <input class="field" id="search" type="search" list="titles" placeholder="{{ _('Search for a page…') }}" aria-label="{{ _('Search for a page in the graph') }}"
+           title="{{ _('Type the title of a page and press Enter: the graph centres and highlights it') }}" autocomplete="off">
+    <datalist id="titles"></datalist>
+    <label class="check" title="{{ _('Show or hide the nodes of the summary pages') }}">
+      <input type="checkbox" id="show-summary" checked> {{ _("Show summaries") }}</label>
+    <label class="check" title="{{ _('Show or hide the source documents the pages cite') }}">
+      <input type="checkbox" id="show-source"> {{ _("Show sources") }}</label>
+    {% if page %}
+    <div class="local">
+      <p class="local-title" title="{{ _('The graph shows only this page and the related ones up to the chosen depth') }}">{{ _("Relations of “%(title)s”", title=page_title) }}</p>
+      <div class="row">
+        <a class="btn btn-sm" href="?page={{ page }}&depth=1" {% if depth == 1 %}aria-pressed="true"{% endif %} title="{{ _('Only the directly linked pages') }}">{{ _("Depth 1") }}</a>
+        <a class="btn btn-sm" href="?page={{ page }}&depth=2" {% if depth == 2 %}aria-pressed="true"{% endif %} title="{{ _('The linked pages and the pages they link to') }}">{{ _("Depth 2") }}</a>
+      </div>
+      <a class="btn-link" href="/w/{{ wiki_id }}/relations" title="{{ _('Back to the graph of the whole wiki') }}">{{ _("See the whole graph") }}</a>
+      <a class="btn-link" href="/w/{{ wiki_id }}/pages/{{ page }}" title="{{ _('Back to reading this page') }}">{{ _("Read the page") }}</a>
+    </div>
+    {% endif %}
+    <ul class="legend" aria-label="{{ _('Legend') }}">
+      <li title="{{ _('Concept pages') }}"><span class="dot concept"></span>{{ _("Concept") }}</li>
+      <li title="{{ _('Summary pages of a source document') }}"><span class="dot summary"></span>{{ _("Summary") }}</li>
+      <li title="{{ _('Source documents of the sources/ folder') }}"><span class="dot source"></span>{{ _("Source") }}</li>
+    </ul>
+    <p class="counts" id="counts" role="status" title="{{ _('Nodes and relations shown now') }}"></p>
+  </section>
+  <div class="panel graph">
+    <div class="stage" id="stage" role="img" aria-label="{{ _('Relations graph of the wiki') }}"></div>
+    <div class="zoom" role="group" aria-label="{{ _('Graph zoom') }}">
+      <button class="btn zoom-step" type="button" id="zoom-in" aria-label="{{ _('Zoom in') }}" title="{{ _('Zoom the graph in') }}">+</button>
+      <button class="btn zoom-step" type="button" id="zoom-out" aria-label="{{ _('Zoom out') }}" title="{{ _('Zoom the graph out') }}">−</button>
+      <button class="btn" type="button" id="zoom-fit" title="{{ _('Adjust the zoom to see the whole graph') }}">{{ _("Fit") }}</button>
+    </div>
+    <p class="empty" id="empty" hidden>{{ _("The wiki has no pages to show yet.") }}</p>
+  </div>
+</main>
+<script src="/static/js/force-graph.min.js"></script>
+<script src="/static/js/relations.js"></script>
+{% endblock %}

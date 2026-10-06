@@ -38,6 +38,7 @@ from domain.chat.scope import (
     mentions_known_data,
 )
 from domain.datasets.frontmatter import split_frontmatter
+from domain.i18n import get_locale
 from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
 from domain.text.stemming import stem_text
@@ -54,10 +55,6 @@ _INJECT_TEMPLATE = (
 # Default Tier-2 threshold, used when the config carries none; a wiki sets its
 # own with `[pre_retrieval] min_coverage` (design_stemming.md, decision 12).
 _MIN_COVERAGE = 0.2
-_TIER2_WARNING = (
-    "> ⚠️ Esta respuesta proviene de un documento fuente sin página curada del "
-    "wiki; verificá."
-)
 
 
 def build_vocabulary(source: DatasetSource) -> set[str]:
@@ -421,8 +418,14 @@ async def pre_retrieval_answer(
     language: str | None,
     run_agent,
     on_trace=None,
+    open_page: str | None = None,
 ) -> str:
     """Run one turn through the hybrid pre-retrieval flow and return the answer.
+
+    `open_page` is the id of the page the user is reading (`concepts/x`), or
+    None. That page is injected first, and a question asked while reading it
+    counts as covered, so "¿cuánto rinde?" read next to the plazo fijo UVA page
+    is answered from it (node Q5a).
 
     The CODE retrieves (curated wiki, then raw docs) and decides the plan; the
     model is invoked (via the injected async `run_agent(prompt, history)`) only
@@ -440,7 +443,37 @@ async def pre_retrieval_answer(
         return await _pre_retrieval_turn(
             question, config=config, db_path=db_path, workspace=workspace,
             history=history, language=language, run_agent=run_agent, on_trace=on_trace,
+            open_page=open_page,
         )
+
+
+# The note that tells the model which page the user is reading, so a question
+# that names no topic ("¿cuánto rinde?") is read as a question about that page.
+_OPEN_PAGE_NOTE = {
+    "es": "(El usuario está leyendo la página /wiki/{page}.md. Si la pregunta se "
+          "refiere a «esto» o no nombra su tema, se refiere a esa página.)\n\n",
+    "en": "(The user is reading the page /wiki/{page}.md. If the question says "
+          "\"this\" or names no topic, it refers to that page.)\n\n",
+}
+
+
+def with_open_page(question: str, open_page: str | None, language: str | None) -> str:
+    """`question` preceded by the open-page note, or unchanged without a page."""
+    if not open_page:
+        return question
+    lang = "es" if (language or "en").lower().startswith("es") else "en"
+    return _OPEN_PAGE_NOTE[lang].format(page=open_page) + question
+
+
+def _open_page_block(workspace, open_page: str | None) -> str | None:
+    """The open page as an injectable block, labelled like a search hit."""
+    if not open_page:
+        return None
+    path = workspace / "wiki" / f"{open_page}.md"
+    if not path.is_file():
+        return None
+    _, body = split_frontmatter(path.read_text(encoding="utf-8"))
+    return f"[/wiki/{open_page}.md]\n{body.strip()}" if body.strip() else None
 
 
 def _hit_labels(hits: list[str]) -> list[str]:
@@ -459,6 +492,7 @@ def _answer_node(plan: RetrievalPlan, wiki_hits: list[str], in_roster: bool) -> 
 
 async def _pre_retrieval_turn(
     question: str, *, config, db_path, workspace, history, language, run_agent, on_trace,
+    open_page: str | None = None,
 ) -> str:
     """The body of `pre_retrieval_answer`, inside the turn's root span."""
     R = tracing.READING
@@ -473,6 +507,7 @@ async def _pre_retrieval_turn(
 
     has_data = in_roster = False
     categories: set[str] = set()
+    open_block: str | None = None
     wiki_hits: list[str] = []
     doc_hits: list[str] = []
     collection_hits: list[str] = []
@@ -502,12 +537,23 @@ async def _pre_retrieval_turn(
         )
         tracing.mark("Q5", R, answer=in_roster, roster_size=len(roster_terms) + len(keys),
                      aliases=len(aliases))
+        # The page the user is reading: injected first, and it makes the
+        # question covered — the user asks about what is on the screen.
+        open_block = _open_page_block(workspace, open_page)
+        tracing.mark("Q5a", R, answer=open_block is not None, page=open_page)
+        if open_block is not None:
+            in_roster = True
 
         # The wiki search runs only for a question in the roster: the plan uses
         # its pages only then (decision 14).
         if in_roster:
             with tracing.node("Q6", R, fts_query=_fts_query(question, language)) as q6:
                 wiki_hits = retrieve_wiki(db_path, question, language=stem_language)
+                if open_block is not None:
+                    open_label = _hit_labels([open_block])[0]
+                    wiki_hits = [open_block] + [
+                        h for h in wiki_hits if _hit_labels([h])[0] != open_label
+                    ]
                 q6.set(pages=_hit_labels(wiki_hits))
             if not wiki_hits:
                 with tracing.node("Q8", R, fts_query=_fts_query(question, language)) as q8:
@@ -558,9 +604,10 @@ async def _pre_retrieval_turn(
         if injection.blocks:
             plan = replace(plan, context="\n\n".join([plan.context or "", *injection.blocks]))
 
+    asked = with_open_page(question, open_page if open_block is not None else None, language)
     prompt = (
-        _INJECT_TEMPLATE.format(context=plan.context, question=question)
-        if plan.context else question
+        _INJECT_TEMPLATE.format(context=plan.context, question=asked)
+        if plan.context else asked
     )
     with tracing.node(
         _answer_node(plan, wiki_hits, in_roster), R,
@@ -615,7 +662,7 @@ async def _pre_retrieval_turn(
     )
     citation_added = answer != tabled
     if plan.tier == "crudo":
-        answer = f"{answer}\n\n{_TIER2_WARNING}"
+        answer = f"{answer}\n\n{get_locale(stem_language).tier2_warning}"
         tracing.mark("Q18", R)
 
     if not refusal_substituted:

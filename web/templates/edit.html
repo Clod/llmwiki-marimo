@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Editing %(page)s", page=page) }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/prose.css"><link rel="stylesheet" href="/static/css/editor.css">{% endblock %}
+{% block body %}
+<main class="editor">
+  {% if error %}<p class="warn" role="alert">{{ error }}</p>{% endif %}
+  <form class="editor-form" method="post">
+    <input type="hidden" name="version" value="{{ version if version is not none else '' }}">
+    <div class="panel editor-bar">
+      <strong>{{ _("Editing") }}</strong>
+      <span class="mono muted editor-path">wiki/{{ page }}.md</span>
+      <span class="tag">{{ _("The front-matter block is not edited: it is kept as it is.") }}</span>
+      <div class="editor-actions">
+        <a class="btn-link" href="/w/{{ wiki_id }}/pages/{{ page }}" title="{{ _('Back to the page without saving') }}">{{ _("Cancel") }}</a>
+        <button class="btn btn-primary" title="{{ _('Save the changes and commit them to the git repository of the wiki') }}">{{ _("Save") }}</button>
+      </div>
+    </div>
+    <div class="editor-panes">
+      <section class="panel editor-pane" aria-label="{{ _('Markdown text') }}">
+        <div class="pane-head muted">{{ _("Markdown") }}</div>
+        <textarea class="editor-text mono" name="body" spellcheck="true" aria-label="{{ _('Page body') }}" title="{{ _('Body of the page in Markdown') }}"
+                  hx-post="/w/{{ wiki_id }}/preview/{{ page }}" hx-trigger="input changed delay:500ms" hx-target="#preview" hx-swap="innerHTML">{{ body }}</textarea>
+      </section>
+      <section class="panel editor-pane" aria-label="{{ _('Preview') }}">
+        <div class="pane-head muted">{{ _("Preview") }}</div>
+        <article class="prose editor-preview" id="preview" aria-live="polite">{{ preview | safe }}</article>
+      </section>
+    </div>
+  </form>
+</main>
+{% endblock %}

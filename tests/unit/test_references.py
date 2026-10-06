@@ -285,3 +285,59 @@ def test_find_uncited_sources_returns_uncited(tmp_workspace: WorkspaceFixture) -
     uncited_ids = {u["id"] for u in uncited}
     assert cited_id not in uncited_ids
     assert uncited_id in uncited_ids
+
+
+# ── a source named like a wiki page ──────────────────────────────────────────
+
+def _edges(db_path: str, page_id: str) -> list[tuple[str, str]]:
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT target_document_id, reference_type FROM document_references "
+            "WHERE source_document_id=?", (page_id,),
+        ).fetchall()
+    return [(r["target_document_id"], r["reference_type"]) for r in rows]
+
+
+def _clash_workspace(tmp_workspace: WorkspaceFixture, source_first: bool):
+    """A source `notas.md` and its summary page, which is also `notas.md`."""
+    def make_summary() -> str:
+        return create_page(
+            tmp_workspace.db_path, tmp_workspace.workspace,
+            "/wiki/summaries/", "notas", "Notas", _WIKI_CONTENT, [],
+        )["id"]
+
+    if source_first:
+        source_id = _insert_source(tmp_workspace.db_path, "notas.md", "Notas")
+        summary_id = make_summary()
+    else:
+        summary_id = make_summary()
+        source_id = _insert_source(tmp_workspace.db_path, "notas.md", "Notas")
+    return source_id, summary_id
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("source_first", [True, False])
+@pytest.mark.parametrize("sources_block", [
+    "## Sources\n\n- notas.md\n",
+    "## Sources\n\n- [notas.md](notas.md)\n",
+    "[^1]: notas.md, p.1\n",
+])
+def test_a_source_named_like_a_wiki_page_is_cited_not_linked(
+    tmp_workspace: WorkspaceFixture, source_first: bool, sources_block: str
+) -> None:
+    """`notas.md` and the wiki page `summaries/notas.md` share a file name: a
+    sources list naming it makes a cites edge to the SOURCE and no links_to."""
+    source_id, summary_id = _clash_workspace(tmp_workspace, source_first)
+    content = "# Concepto\n\nTexto.\n\n" + sources_block
+    page = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "concepto", "Concepto", content, [],
+    )
+    update_references(tmp_workspace.db_path, page["id"], content, "/wiki/concepts/")
+
+    edges = _edges(tmp_workspace.db_path, page["id"])
+    assert (source_id, "cites") in edges
+    assert all(ref_type != "links_to" for _, ref_type in edges), edges
+    assert all(target != summary_id for target, _ in edges)

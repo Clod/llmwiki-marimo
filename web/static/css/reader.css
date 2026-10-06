@@ -1,0 +1,88 @@
+/* The reading screen: index, page and chat as three panels on the canvas. Each panel has
+   a head of the same height and a body that scrolls on its own. */
+/* One row of the window's remaining height: a long index, page or thread scrolls inside its panel and never grows the row. */
+.reader { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--chat-w);
+          grid-template-rows: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2); }
+body.index-open .reader { grid-template-columns: var(--index-w) minmax(0, 1fr) var(--chat-w); }
+body.chat-hidden .reader { grid-template-columns: minmax(0, 1fr); }
+body.chat-hidden.index-open .reader { grid-template-columns: var(--index-w) minmax(0, 1fr); }
+.index { display: none; }
+body.index-open .index { display: block; min-height: 0; }
+body.chat-hidden .chat { display: none; }
+
+.column { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.column-head { flex: none; display: flex; align-items: center; gap: var(--space-2); height: var(--column-head-h);
+               padding: 0 var(--space-3); border-bottom: var(--border); background: var(--color-surface);
+               border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.column-body { flex: 1; min-height: 0; overflow: auto; }
+
+/* ── Index: hidden until the user opens it ── */
+.index .column { height: 100%; }
+.index-filter { flex: none; padding: var(--space-2); }
+.index-search { height: var(--control-h-sm); border-color: var(--color-border); }
+.index-nav { padding: var(--space-1) var(--space-2) var(--space-3); }
+.index-group { display: flex; flex-direction: column; gap: 1px; }
+.index-group h4 { margin: 0; padding: var(--space-2) var(--space-2) var(--space-1); font: var(--weight-semibold) var(--text-2xs)/var(--leading-tight) var(--font-sans);
+                  text-transform: uppercase; color: var(--color-text-muted); }
+.index-group + .index-group h4 { padding-top: var(--space-3); }
+.index-group a { display: block; padding: 3px var(--space-2); border-radius: var(--radius-sm); color: var(--color-text); text-decoration: none; }
+.index-group a:hover { background: var(--color-canvas); }
+.index-group a.current { background: var(--color-selected); font-weight: var(--weight-semibold); }
+
+/* ── Page: the path at the left of the toolbar, the actions at the right ── */
+.page-head { gap: var(--space-3); padding: 0 var(--space-4); }
+.page-path { font-size: var(--text-xs); color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-head .actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
+.page-inner { padding: var(--space-5) var(--space-6) var(--space-7); max-width: calc(var(--prose-w) + 2 * var(--space-6)); }
+.page-inner > .notice, .page-inner > .confirm { margin-bottom: var(--space-4); }
+.missing { color: var(--color-text-muted); font-style: italic; }
+
+/* ── Chat ── */
+.chat-title { font: var(--weight-semibold) var(--text-sm)/var(--leading-tight) var(--font-sans); }
+.chat-context { max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-context b { font-weight: var(--weight-regular); }
+.chat-actions { margin-left: auto; display: flex; gap: var(--space-1); }
+.chat-actions .btn { border-color: var(--color-border); }
+.save-panel { flex: none; display: grid; gap: var(--space-2); padding: var(--space-3); border-bottom: var(--border); background: var(--color-surface); }
+.save-panel .row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.save-panel .where { font-size: var(--text-xs); color: var(--color-text-muted); }
+.save-panel .actions { display: flex; gap: var(--space-1); }
+.save-panel .saving { display: none; font-size: var(--text-xs); color: var(--color-text-muted); }
+.save-panel.htmx-request .saving { display: block; }
+.save-panel.htmx-request button { opacity: .5; pointer-events: none; }
+#save-result:not(:empty) { flex: none; padding: var(--space-2) var(--space-3); border-bottom: var(--border); }
+.save-msg { margin: 0; }
+.thread { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); }
+.empty { color: var(--color-text-muted); }
+.chips { display: grid; gap: var(--space-2); margin-top: var(--space-3); }
+.chip { text-align: left; border: 1px solid var(--color-selected-border); background: var(--color-bg); border-radius: var(--radius); padding: var(--space-2) var(--space-3);
+        color: var(--color-text); cursor: pointer; }
+.chip:hover { border-color: var(--color-accent); }
+.q { align-self: flex-end; max-width: 88%; padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); background: var(--color-selected); overflow-wrap: anywhere; }
+.a { overflow-wrap: anywhere; }
+.a p { margin: 0 0 var(--space-2); }
+.a > :last-child { margin-bottom: 0; }
+.a table { border-collapse: collapse; font-size: var(--text-xs); }
+.a th, .a td { border-bottom: var(--border); padding: var(--space-1) var(--space-3) var(--space-1) 0; text-align: left; }
+.meta { margin-top: calc(-1 * var(--space-2)); font-size: var(--text-xs); color: var(--color-text-muted); }
+.meta:empty { display: none; }
+.typing { display: inline-flex; gap: var(--space-1); padding: var(--space-2) 0; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-muted); animation: pulse 1.2s infinite ease-in-out; }
+.typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes pulse { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+.composer { flex: none; display: grid; gap: var(--space-2); padding: var(--space-3); border-top: var(--border); }
+.composer textarea { resize: none; border-color: var(--color-border); }
+.composer-row { display: flex; align-items: center; gap: var(--space-2); }
+.composer-row .mode-select { width: auto; height: var(--control-h-sm); padding: 0 var(--space-2); border-color: var(--color-border); }
+.composer-row .btn { margin-left: auto; height: var(--control-h-sm); padding: 0 var(--space-3); }
+
+/* ── Narrow screens: the chat keeps its column, the index becomes a drawer over the page ── */
+@media (max-width: 1100px) {
+  :root { --chat-w: clamp(300px, 42vw, 400px); }
+  .reader, body.index-open .reader { grid-template-columns: minmax(0, 1fr) var(--chat-w); }
+  body.chat-hidden .reader, body.chat-hidden.index-open .reader { grid-template-columns: minmax(0, 1fr); }
+  .index { display: block; position: absolute; top: var(--space-2); left: var(--space-2); bottom: var(--space-2); width: var(--index-w); z-index: 30;
+           transform: translateX(calc(-100% - var(--space-2))); transition: transform 200ms ease; }
+  body.index-open .index { transform: none; }
+}

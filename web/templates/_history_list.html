@@ -1,0 +1,33 @@
+{% if dirty %}
+<div class="warn dirty" role="alert">
+  <span>{% trans %}There are unsaved changes in <code>wiki/</code>. While they exist, you cannot go back to an earlier point: they would be lost. Save or discard them and try again.{% endtrans %}</span>
+  <ul class="files">{% for f in dirty %}<li><code>{{ f }}</code></li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% if commits %}
+<ol class="commits">
+  {% for c in commits %}
+  <li class="commit">
+    <div class="commit-row">
+      <time class="when" datetime="{{ c.date }}">{{ c.date[:16]|replace('T', ' ') }}</time>
+      <span class="message">{{ c.message }}</span>
+      <code class="sha" title="{{ _('Identifier of this point in git') }}">{{ c.short }}</code>
+      <details class="changed">
+        <summary title="{{ _('See which pages this point changed') }}">{% trans count=c.pages|length %}{{ count }} page{% pluralize %}{{ count }} pages{% endtrans %}</summary>
+        <ul>{% for p in c.pages %}<li><a href="/w/{{ wiki_id }}/history/page/{{ p }}" title="{{ _('See the history of this page') }}">{{ p }}</a></li>{% endfor %}</ul>
+      </details>
+      {% if c.has_snapshot %}<span class="pill snapshot" title="{{ _('This point has a copy of the search index: going back to it is immediate') }}">● {{ _("index copy") }}</span>
+      {% else %}<span class="pill quiet nosnapshot" title="{{ _('This point has no copy of the search index: going back to it rebuilds the index, without calling the model') }}">{{ _("no copy") }}</span>{% endif %}
+      <span class="commit-actions">
+        {% if loop.first %}<span class="pill current" title="{{ _('This is the point the wiki is at now') }}">{{ _("current") }}</span>
+        {% else %}<button class="btn" type="button" title="{{ _('See what changes if the wiki goes back to this point; asks for confirmation') }}"
+                hx-get="/w/{{ wiki_id }}/history/commit/{{ c.sha }}/confirm" hx-target="#confirm-{{ c.short }}" hx-swap="innerHTML">{{ _("Go back to this point") }}</button>{% endif %}
+      </span>
+    </div>
+    {% if not loop.first %}<div class="confirm-slot" id="confirm-{{ c.short }}"></div>{% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p class="empty-row">{% trans %}The wiki has no history yet. It appears with the first ingestion, or does not exist if the variable <code>WIKI_AUTOCOMMIT</code> is 0.{% endtrans %}</p>
+{% endif %}

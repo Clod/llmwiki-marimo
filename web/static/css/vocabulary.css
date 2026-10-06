@@ -1,0 +1,60 @@
+/* The Vocabulario screen takes the height of the window, as Leer and Ingestar do:
+   the findings on top, then three columns (roster, aliases, blacklist over rejected
+   aliases), each list in its own panel that scrolls inside. */
+.vocab-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-2); }
+.vocab-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.vocab-findings { flex: none; max-height: 30vh; overflow: auto; }
+.vocab-findings h2 { font: var(--weight-semibold) var(--text-sm)/var(--leading-tight) var(--font-sans); margin-bottom: var(--space-1); }
+.vocab-findings ul { margin: 0; padding-left: var(--space-4); }
+.vocab-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.9fr);
+                 grid-template-rows: minmax(0, 1fr); gap: var(--space-2); }
+.vocab-stack { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); }
+.vocab-panel { min-height: 0; display: flex; flex-direction: column; }
+.vocab-panel > .panel-head { flex: none; padding: 0 var(--space-3); }
+.vocab-filter, .vocab-add { flex: none; display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: var(--border); }
+.vocab-filter .field, .vocab-add .field { flex: 1; min-width: 0; height: var(--control-h-sm); font-size: var(--text-xs); }
+.vocab-add .btn { height: var(--control-h-sm); padding: 0 var(--space-3); }
+.vocab-message { flex: none; margin: var(--space-2) var(--space-3) 0; }
+.vocab-list { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: var(--space-1) 0; list-style: none; }
+.vocab-list li { display: flex; align-items: center; gap: var(--space-2); padding: 3px var(--space-3); }
+.vocab-list li > span:first-child, .vocab-list li > a { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.vocab-list li:hover { background: var(--color-canvas); }
+.vocab-list form { margin: 0; }
+.vocab-empty { padding: var(--space-2) var(--space-3); }
+.origin { flex: none; font-size: var(--text-2xs); color: var(--color-text-muted); }
+.origin.hand { color: var(--color-accent-strong); }
+.alias-group h3 { margin: 0; padding: var(--space-2) var(--space-3) 2px; font: var(--weight-semibold) var(--text-xs)/var(--leading-tight) var(--font-sans); }
+.alias-group ul { margin: 0; padding: 0; list-style: none; }
+.alias-group li { padding-left: var(--space-5); }
+
+@media (max-width: 1100px) {
+  .vocab-screen { overflow-y: auto; }
+  .vocab-columns { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .vocab-panel, .vocab-stack { min-height: 320px; }
+}
+
+/* A dataset name of the roster is a button that opens the dataset. */
+.roster-data { flex: 1; min-width: 0; padding: 0; border: 0; background: none; color: var(--color-accent); font: inherit;
+               text-align: left; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; overflow-wrap: anywhere; }
+.roster-data:hover { color: var(--color-accent-strong); }
+
+/* The dataset dialog. */
+dialog.dataset { width: min(860px, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-4)); padding: 0;
+                 border: 1px solid var(--color-selected-border); border-radius: var(--radius-xl); background: var(--color-bg); color: var(--color-text); }
+dialog.dataset[open] { display: flex; flex-direction: column; }
+dialog.dataset::backdrop { background: var(--color-backdrop); opacity: .35; }
+.dataset-head { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+                border-bottom: var(--border); background: var(--color-surface); border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+.dataset-head h2 { flex: 1; font: var(--weight-semibold) var(--text-lg)/var(--leading-tight) var(--font-sans); }
+.dataset-close { width: 30px; height: 30px; padding: 0; font-size: var(--text-lg); border-color: var(--color-border); }
+.dataset-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+.dataset-meta { margin-bottom: var(--space-2); font-size: var(--text-xs); color: var(--color-text-muted); }
+.dataset-meta b { color: var(--color-text); }
+.dataset-table table { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
+.dataset-table th, .dataset-table td { padding: var(--space-1) var(--space-3); border-bottom: 1px solid var(--color-canvas); text-align: left; }
+.dataset-table thead th { color: var(--color-text-muted); font-weight: var(--weight-medium); background: var(--color-surface); position: sticky; top: 0; }
+.dataset-table .num { text-align: right; font-family: var(--font-mono); }
+.dataset-table tbody th { font-weight: var(--weight-regular); }
+.dataset-table tr.marked { background: var(--color-attention); }
+.dataset-table tr.marked th { font-weight: var(--weight-semibold); }
+.dataset-actions { flex: none; display: flex; justify-content: flex-end; padding: var(--space-3) var(--space-4); border-top: var(--border); }

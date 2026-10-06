@@ -1,0 +1,28 @@
+<dialog class="review" aria-labelledby="review-title">
+  <form class="review-form" hx-post="/w/{{ wiki_id }}/chat/save" hx-target="#review-message" hx-swap="innerHTML">
+    <input type="hidden" name="title" value="{{ title }}">
+    <input type="hidden" name="open_page" value="{{ open_page }}">
+    <header class="review-head">
+      <div class="review-title">
+        <h2 id="review-title">{{ _("Review the page") }}</h2>
+        <p class="review-meta"><b>{{ title }}</b> · <code>{{ draft.path }}</code></p>
+      </div>
+      <button class="btn review-close" type="button" aria-label="{{ _('Close without saving') }}" title="{{ _('Close without saving anything') }}" onclick="this.closest('dialog').close()">×</button>
+    </header>
+    {% if draft.exists %}<p class="notice" role="status">{{ _("The page “%(title)s” already exists. The draft merges the conversation into that page; saving replaces it.", title=title) }}</p>{% endif %}
+    <div class="review-body">
+      <textarea class="field review-editor" name="markdown" spellcheck="true" autofocus aria-label="{{ _('Text of the page in Markdown') }}"
+                title="{{ _('The draft of the page in Markdown; what you leave here is what is saved') }}">{{ body }}</textarea>
+      <div class="review-preview prose" hidden aria-live="polite"></div>
+    </div>
+    <div id="review-message" aria-live="polite"></div>
+    <footer class="review-actions">
+      <button class="btn" type="button" aria-pressed="false" data-url="/w/{{ wiki_id }}/chat/preview" data-page="concepts/{{ draft.slug }}"
+              data-label-edit="{{ _('Edit') }}" data-label-preview="{{ _('Preview') }}"
+              title="{{ _('Switch between the Markdown text and how the page will look') }}" onclick="togglePreview(this)">{{ _("Preview") }}</button>
+      <span class="review-spacer"></span>
+      <button class="btn" type="button" title="{{ _('Close without saving anything') }}" onclick="this.closest('dialog').close()">{{ _("Cancel") }}</button>
+      <button class="btn btn-primary" title="{{ _('Write the page to the wiki as it is in the editor') }}">{{ _("Save to wiki") }}</button>
+    </footer>
+  </form>
+</dialog>

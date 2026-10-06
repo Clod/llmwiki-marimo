@@ -130,3 +130,40 @@ def test_regenerate_empty_vocab_is_noop(tmp_path, monkeypatch) -> None:
     assert regenerate_dataset_aliases(tmp_path, [], propose) is None
     assert propose.calls == []
     assert read_generated_aliases(tmp_path) == {}
+
+
+# ── Rejected aliases (wiki_config.toml [falsos_sinonimos]) ───────────────────
+
+def _reject(workspace, canonical, alias) -> None:
+    from domain.chat.config_writer import reject_alias
+    reject_alias(workspace, canonical, alias)
+
+
+def test_update_does_not_write_back_an_alias_the_owner_rejected(tmp_path) -> None:
+    write_generated_aliases(tmp_path, {"Plazo fijo UVA": ["UVA", "PF UVA"]})
+    _reject(tmp_path, "Plazo fijo UVA", "UVA")
+    # A later ingestion proposes "UVA" again for the same concept.
+    result = update_generated_aliases(
+        tmp_path,
+        concept_names=["Plazo fijo UVA"],
+        new_concepts=[("Plazo fijo UVA", ["UVA", "Plazo fijo en UVA"])],
+    )
+    assert result.aliases == {"Plazo fijo UVA": ["PF UVA", "Plazo fijo en UVA"]}
+    assert read_generated_aliases(tmp_path) == {"Plazo fijo UVA": ["PF UVA", "Plazo fijo en UVA"]}
+
+
+def test_a_rejected_alias_of_one_canonical_stays_for_another(tmp_path) -> None:
+    _reject(tmp_path, "Plazo fijo UVA", "uva")
+    update_generated_aliases(
+        tmp_path,
+        concept_names=["Plazo fijo UVA", "Unidad de Valor Adquisitivo"],
+        new_concepts=[("Plazo fijo UVA", ["UVA"]), ("Unidad de Valor Adquisitivo", ["UVA"])],
+    )
+    assert read_generated_aliases(tmp_path) == {"Unidad de Valor Adquisitivo": ["UVA"]}
+
+
+def test_regenerate_does_not_write_back_a_rejected_dataset_alias(tmp_path, monkeypatch) -> None:
+    _set_vocab(monkeypatch, {"dolar"})
+    _reject(tmp_path, "dolar", "verde")
+    regenerate_dataset_aliases(tmp_path, [], _fake_propose({"dolar": ["verde", "divisa"]}))
+    assert read_generated_aliases(tmp_path) == {"dolar": ["divisa"]}

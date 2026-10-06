@@ -1,0 +1,18 @@
+/* The page editor: the markdown at the left, its preview at the right. */
+.editor { flex: 1; display: flex; flex-direction: column; padding: var(--space-2); gap: var(--space-2); }
+.editor > .warn { margin: 0; }
+.editor-form { flex: 1; display: flex; flex-direction: column; gap: var(--space-2); }
+.editor-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); }
+.editor-path { font-size: var(--text-xs); }
+.editor-actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
+.editor-actions .btn { height: 30px; padding: 0 var(--space-4); }
+.editor-panes { flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.editor-pane { display: flex; flex-direction: column; min-width: 0; }
+.pane-head { padding: var(--space-2) var(--space-3); border-bottom: var(--border); }
+.editor-text { flex: 1; min-height: 60vh; resize: none; border: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+               padding: var(--space-3) var(--space-4); background: var(--color-bg); font-size: var(--text-sm); line-height: 1.7; }
+.editor-preview { padding: var(--space-4) var(--space-5); max-width: none; }
+@media (max-width: 900px) {
+  .editor-panes { grid-template-columns: 1fr; }
+  .editor-text { min-height: 40vh; }
+}

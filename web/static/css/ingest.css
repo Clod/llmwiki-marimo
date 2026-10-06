@@ -1,0 +1,72 @@
+/* The ingestion and maintenance screens: panels on the canvas, grouped by what the
+   user does: add documents, maintain the wiki, follow the progress, review the sources. */
+.card-title { font: var(--weight-semibold) var(--text-md)/var(--leading-tight) var(--font-sans); }
+.task-text { color: var(--color-text-secondary); }
+.task-action { align-self: flex-start; }
+.split { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.split > .add { flex: 2 1 480px; }
+.split > .scan { flex: 1 1 280px; }
+.scan .task-action { margin-top: auto; }
+
+.config-line { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); margin: 0; padding: var(--space-2) var(--space-3);
+               font-size: var(--text-xs); }
+.config-line div { display: flex; gap: var(--space-1); }
+.config-line dt { color: var(--color-text-muted); }
+.config-line dd { margin: 0; font-family: var(--font-mono); word-break: break-all; }
+.config-line .missing { padding: 0 var(--space-1); border-radius: var(--radius-sm); background: var(--color-attention);
+                        color: var(--color-on-attention-soft); font: var(--text-xs) var(--font-sans); }
+.config-line .missing::before { content: "⚠ "; }
+
+/* Add documents: the file chooser, then the options and the primary button. */
+.add-form { display: flex; flex-direction: column; gap: var(--space-3); }
+.add-options { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.add-options .btn { margin-left: auto; padding: 0 var(--space-4); }
+.drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); min-height: 120px;
+        text-align: center; border: 1.5px dashed var(--color-dropzone-border); border-radius: var(--radius-lg);
+        padding: var(--space-4); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; }
+.drop:hover { border-color: var(--color-accent); }
+.drop:focus-within { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.drop input { font-size: var(--text-xs); }
+
+/* Maintain the wiki: four tasks in two columns, each a panel with its name, what it does and its button. */
+.tasks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.task { gap: var(--space-2); }
+.task > .confirm { align-self: stretch; }
+.stale-list { margin: 0; padding-left: var(--space-4); }
+.stale-list small { color: var(--color-text-muted); font-size: inherit; }
+
+/* Once an operation writes to the console, it stays at the bottom of the window while the
+   page scrolls, so the progress is in view whatever the user is reading. Idle, it is a
+   panel like the others and covers nothing. */
+.console:has(.log li) { position: sticky; bottom: var(--space-2); z-index: 5; }
+.log { margin: 0; padding: var(--space-3) var(--space-4); list-style: none; min-height: 96px; max-height: 160px; overflow: auto;
+       color: var(--color-text-secondary); font: var(--text-xs)/1.7 var(--font-mono); }
+.log li:last-child { color: var(--color-text); }
+.log:empty::before { content: attr(data-empty); color: var(--color-text-muted); }
+#progress > .warn { margin: var(--space-3) var(--space-4); }
+
+.table-scroll { overflow-x: auto; }
+/* Ingestar takes the height of the window, as the reading screen does: the sources panel
+   takes what the other panels leave and its table scrolls inside, under a head that stays
+   at the top. The screen itself scrolls only when the window is too short for the
+   panels and the minimum height of the table. */
+.ingest-screen { flex: 1; min-height: 0; overflow-y: auto; }
+.ingest-screen > * { flex: none; }
+.ingest-screen > .sources-panel { flex: 1 1 auto; min-height: var(--sources-min-h); display: flex; flex-direction: column; }
+.sources-panel > .panel-head { flex: none; }
+.sources-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.sources-scroll thead th { position: sticky; top: 0; z-index: 1; }
+table.sources { width: 100%; border-collapse: collapse; }
+.sources th { text-align: left; padding: var(--space-2) var(--space-4); font-weight: var(--weight-medium);
+              color: var(--color-text-muted); background: var(--color-surface); }
+.sources td { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--color-canvas); vertical-align: middle; }
+.sources td:nth-child(4) { font: var(--text-xs) var(--font-mono); color: var(--color-text-muted); }
+.sources td:nth-child(3), .sources th:nth-child(3) { text-align: right; }
+.sources td:last-child, .sources th:last-child { text-align: right; }
+.sources .confirm-row td { padding: var(--space-3) var(--space-4); text-align: left; background: var(--color-surface); }
+.pill.failed { background: var(--color-attention); color: var(--color-on-attention); font-weight: var(--weight-medium); }
+.empty-row { padding: var(--space-4); color: var(--color-text-muted); }
+
+@media (max-width: 900px) {
+  .tasks { grid-template-columns: 1fr; }
+}

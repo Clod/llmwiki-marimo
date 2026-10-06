@@ -1,0 +1,42 @@
+<header class="browse-head">
+  <h2 id="browse-title">{{ _("Open a folder") }}</h2>
+  <button class="btn browse-close" type="button" aria-label="{{ _('Close without opening') }}" title="{{ _('Close without opening a folder') }}" onclick="this.closest('dialog').close()">×</button>
+</header>
+<form class="browse-path" hx-get="/browse/panel" hx-target="#browse-panel" hx-swap="innerHTML">
+  <input class="field mono" name="path" value="{{ path }}" aria-label="{{ _('Folder shown') }}" title="{{ _('Absolute path of a folder; Enter shows it') }}" autocomplete="off">
+  <button class="btn" title="{{ _('Show the folder written in the field') }}">{{ _("Go") }}</button>
+</form>
+{% if error %}<p class="warn browse-error" role="alert">{{ error }}</p>{% endif %}
+<ul class="browse-list" aria-label="{{ _('Subfolders') }}">
+  {% if parent %}<li><button class="browse-dir" type="button" hx-get="/browse/panel" hx-vals='{{ {"path": parent} | tojson }}' hx-target="#browse-panel" title="{{ _('Go up to %(folder)s', folder=parent) }}">..</button></li>{% endif %}
+  {% for d in dirs %}
+  <li><button class="browse-dir" type="button" hx-get="/browse/panel" hx-vals='{{ {"path": d.path} | tojson }}' hx-target="#browse-panel" title="{{ _('Show the folder %(folder)s', folder=d.path) }}">{{ d.name }}</button>{% if d.wiki %} <span class="tag" title="{{ _('The folder has wiki/ or .llmwiki/') }}">wiki</span>{% endif %}</li>
+  {% else %}
+  <li class="browse-empty muted">{{ _("No subfolders.") }}</li>
+  {% endfor %}
+</ul>
+<form class="browse-new" hx-post="/browse/mkdir" hx-target="#browse-panel" hx-swap="innerHTML">
+  <input type="hidden" name="parent" value="{{ path }}">
+  <input class="field" name="name" value="{{ new_name or '' }}" placeholder="{{ _('Name of a new folder') }}" aria-label="{{ _('Name of a new folder') }}" title="{{ _('A folder created inside the folder shown') }}" autocomplete="off">
+  <button class="btn" title="{{ _('Create the folder inside the folder shown and show it') }}">{{ _("Create folder") }}</button>
+</form>
+{% if not is_wiki %}
+<form class="confirm browse-create" id="browse-create" method="post" action="/open" hidden>
+  <input type="hidden" name="path" value="{{ path }}"><input type="hidden" name="create" value="true">
+  <p>{% trans path=path %}A wiki will be created in <code>{{ path }}</code>: the folders <code>wiki/</code> and <code>sources/</code>, the index <code>.llmwiki/</code> and a git repository.{% endtrans %}</p>
+  <div class="actions">
+    <button class="btn btn-primary" title="{{ _('Create the wiki in this folder and open it') }}">{{ _("Create the wiki") }}</button>
+    <button class="btn cancel" type="button" title="{{ _('Close without creating anything') }}" onclick="toggleCreate(false)">{{ _("Cancel") }}</button>
+  </div>
+</form>
+{% endif %}
+<form class="browse-actions" method="post" action="/open">
+  <input type="hidden" name="path" value="{{ path }}">
+  <span class="browse-state muted">{% if is_wiki %}{{ _("This folder is a wiki.") }}{% else %}{{ _("This folder has no wiki yet.") }}{% endif %}</span>
+  <button class="btn" type="button" onclick="this.closest('dialog').close()" title="{{ _('Close without opening a folder') }}">{{ _("Cancel") }}</button>
+  {% if is_wiki %}
+  <button class="btn btn-primary" title="{{ _('Open this folder and add it to the list of recent wikis') }}">{{ _("Open this folder") }}</button>
+  {% else %}
+  <button class="btn btn-primary" type="button" aria-controls="browse-create" aria-expanded="false" title="{{ _('Create a wiki in this folder; asks for confirmation') }}" onclick="toggleCreate(true)">{{ _("Create a wiki here…") }}</button>
+  {% endif %}
+</form>
