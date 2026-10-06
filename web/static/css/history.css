@@ -1,0 +1,48 @@
+/* The history screens: the list of points, the confirmation of a revert, the page
+   history, a page read at a past point, and the line diff. Tokens only. */
+.history { max-width: var(--container-history-w); }
+.history .lede { color: var(--color-text-secondary); }
+.crumbs { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: 0; }
+
+.commits { margin: 0; padding: 0; list-style: none; }
+.commit + .commit { border-top: 1px solid var(--color-canvas); }
+.commit:has(.confirm) { background: var(--color-attention-tint); }
+.commit-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-4); }
+.when { width: 120px; font: var(--text-xs) var(--font-mono); color: var(--color-text-muted); white-space: nowrap; }
+.message { flex: 1 1 240px; font-family: var(--font-mono); overflow-wrap: anywhere; }
+.sha { font-size: var(--text-xs); color: var(--color-text-muted); }
+.changed { color: var(--color-text-muted); }
+.changed summary { cursor: pointer; }
+.changed ul, .confirm .pages ul { margin: var(--space-1) 0 var(--space-2); padding-left: var(--space-5); }
+.pill.snapshot { background: var(--color-selected); }
+.commit .pill.current { background: none; color: var(--color-text-muted); padding: 0; font-size: var(--text-sm); }
+.commit-actions { width: 150px; display: flex; justify-content: flex-end; }
+.commit-actions .btn { width: 100%; height: 30px; }
+.confirm-slot { padding: 0 var(--space-4) var(--space-3); }
+.confirm-slot:empty { display: none; }
+.confirm .pages { margin-bottom: var(--space-1); }
+.confirm .pages summary { cursor: pointer; }
+.files { margin: var(--space-2) 0; padding-left: var(--space-5); }
+.dirty { margin: var(--space-3) var(--space-4); }
+.empty-row { padding: var(--space-4); color: var(--color-text-muted); }
+
+.version { max-width: var(--container-w); }
+.version-actions { display: flex; gap: var(--space-2); }
+.version-text { padding: var(--space-4) var(--space-5); background: var(--color-bg); border: var(--border); border-radius: var(--radius-lg); max-width: none; }
+.version-text > * { max-width: var(--prose-w); }
+#diff:not(:empty) { margin-bottom: var(--space-2); }
+
+.diff-key { margin-bottom: var(--space-2); color: var(--color-text-secondary); }
+.diff-table { width: 100%; border-collapse: collapse; background: var(--color-bg); border: var(--border); font: var(--text-xs)/1.6 var(--font-mono); }
+.diff-table td { padding: 0 var(--space-3); vertical-align: top; }
+.diff-table .sign { width: var(--space-6); text-align: center; color: var(--color-text-muted); user-select: none; }
+.diff-table .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.row-add { background: var(--color-selected); }
+.row-del { background: var(--color-attention); }
+.row-add .sign, .row-del .sign { color: var(--color-text); font-weight: var(--weight-semibold); }
+.row-gap { background: var(--color-surface); color: var(--color-text-muted); font-style: italic; }
+
+@media (max-width: 900px) {
+  .commit-actions { width: 100%; justify-content: flex-start; }
+  .commit-actions .btn { width: auto; }
+}

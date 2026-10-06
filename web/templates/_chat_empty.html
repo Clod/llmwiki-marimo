@@ -1,0 +1,5 @@
+{% if prompts %}
+<div class="empty" id="empty">{{ _("Ask about this page or about the wiki. For example:") }}
+  <div class="chips">{% for p in prompts[:4] %}<button class="chip" type="button" title="{{ _('Send this question') }}" onclick="ask(this.textContent)">{{ p }}</button>{% endfor %}</div>
+</div>
+{% endif %}

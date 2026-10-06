@@ -1,8 +1,7 @@
 """Tests for the command quickstart.py prints and runs at the end of the install.
 
-The installer used to launch `marimo/read_app.py`, the three-column app, while
-the README screenshots and the rest of the documentation show the tabbed app.
-A new user therefore met a different interface from the one advertised. No LLM.
+The installer launches the web interface (`web.app:app`, served by uvicorn), the
+interface of the project. No LLM.
 """
 
 import importlib.util
@@ -20,18 +19,41 @@ def _load_quickstart():
     return module
 
 
-def test_launch_command_names_the_tabbed_app():
+def test_launch_command_names_the_web_application():
     quickstart = _load_quickstart()
     command = quickstart.launch_command(REPO_ROOT / ".venv", 2720)
-    assert "marimo/read_app_tabs.py" in command
-    assert "marimo/read_app.py" not in command
+    assert command[1:4] == ["-m", "uvicorn", "web.app:app"]
+    assert not any("marimo" in part for part in command[1:])
 
 
-def test_launch_command_carries_the_port_and_disables_the_sandbox():
+def test_launch_command_runs_the_python_of_the_venv():
+    quickstart = _load_quickstart()
+    command = quickstart.launch_command(REPO_ROOT / ".venv", 2720)
+    assert command[0] == str(quickstart.venv_python(REPO_ROOT / ".venv"))
+
+
+def test_launch_command_carries_the_port():
     quickstart = _load_quickstart()
     command = quickstart.launch_command(REPO_ROOT / ".venv", 2999)
-    assert "--no-sandbox" in command
     assert command[command.index("--port") + 1] == "2999"
+
+
+def test_the_browser_opens_on_the_root_of_the_server(monkeypatch):
+    """The root of the application is the wiki picker."""
+    quickstart = _load_quickstart()
+    opened = []
+    monkeypatch.setattr(quickstart.webbrowser, "open", opened.append)
+    quickstart.open_browser_soon("http://localhost:2720", delay=0)
+    import time
+    time.sleep(0.3)
+    assert opened == ["http://localhost:2720"]
+
+
+def test_the_requirements_file_installs_the_web_group():
+    """quickstart installs requirements.txt; the web interface needs these."""
+    pinned = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
+    for name in ("fastapi==", "uvicorn==", "jinja2==", "sse-starlette==", "nh3=="):
+        assert name in pinned
 
 
 def test_java_runtime_check_warns_instead_of_dying(monkeypatch, capsys):
@@ -75,3 +97,43 @@ def test_venv_support_check_is_silent_when_ensurepip_exists(capsys):
     quickstart = _load_quickstart()
     quickstart.check_venv_support()
     assert capsys.readouterr().out == ""
+
+
+def _terminal(monkeypatch, quickstart, *, tty=True, nt=False, **env):
+    monkeypatch.setattr(quickstart.sys.stdout, "isatty", lambda: tty, raising=False)
+    monkeypatch.setattr(quickstart.os, "name", "nt" if nt else "posix")
+    for name in ("NO_COLOR", "TERM", "WT_SESSION", "ANSICON", "ConEmuANSI"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+
+
+def test_output_has_no_ansi_sequences_when_stdout_is_not_a_terminal(monkeypatch, capsys):
+    quickstart = _load_quickstart()
+    _terminal(monkeypatch, quickstart, tty=False)
+    quickstart.step(1, 7, "Checking Python")
+    assert "\033" not in capsys.readouterr().out
+    quickstart.say(quickstart.style("32", "done"))
+    assert capsys.readouterr().out == "done\n"
+
+
+def test_output_has_no_ansi_sequences_in_a_classic_windows_console(monkeypatch):
+    quickstart = _load_quickstart()
+    _terminal(monkeypatch, quickstart, nt=True)
+    assert quickstart.style("1", "x") == "x"
+
+
+def test_color_is_kept_on_a_terminal_that_renders_it(monkeypatch):
+    quickstart = _load_quickstart()
+    _terminal(monkeypatch, quickstart, TERM="xterm-256color")
+    assert quickstart.style("1", "x") == "\033[1mx\033[0m"
+    _terminal(monkeypatch, quickstart, nt=True, WT_SESSION="abc")
+    assert quickstart.style("1", "x") == "\033[1mx\033[0m"
+
+
+def test_no_color_and_a_dumb_terminal_turn_color_off(monkeypatch):
+    quickstart = _load_quickstart()
+    _terminal(monkeypatch, quickstart, NO_COLOR="1")
+    assert quickstart.style("1", "x") == "x"
+    _terminal(monkeypatch, quickstart, TERM="dumb")
+    assert quickstart.style("1", "x") == "x"

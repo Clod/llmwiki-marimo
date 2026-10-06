@@ -1,6 +1,6 @@
 # Design: Wiki rollback (git markdown + DB snapshot cache + reindex floor)
 
-> Status: **proposed** · Branch: `feat/wiki-rollback` · Author: Clod
+> Status: **implemented** (phases 1 to 4; see "Implementation notes" at the end) · Branch: `feat/wiki-rollback` · Author: Clod
 > Companion to the per-wiki git auto-commit already in `base/domain/tools/git_ops.py`.
 
 ## Problem
@@ -238,3 +238,23 @@ revert_wiki(ws, "HEAD~1")
 - Should `revert_wiki` target git commits, or expose friendlier labels (each
   ingest already commits with a message)?
 ```
+
+## Implementation notes
+
+- Phase 1 shipped as `reindex_from_disk(workspace, db_path, *, progress)` in
+  `base/domain/tools/reindex.py`; the design's `reindex_workspace` is that function.
+- `revert_wiki` also deletes the files the target does not have (`git checkout <sha> --
+  wiki` restores and overwrites but never deletes), checks the index route before the
+  checkout (a snapshot, or Java and LibreOffice present when `sources/` needs them),
+  and backs up `wiki/` and the index so that a failure after the checkout leaves both
+  as they were. Preflight checks that a tool is installed, not that it works: on a
+  machine where LibreOffice is installed but fails, the rebuild raises
+  `NothingExtracted` after the checkout and the undo restores the wiki.
+- `RevertResult` adds `commit_sha`, `db_reason`, `snapshot_captured` and `reindex`.
+- Open questions, answered with measurements on a copy of
+  `examples/finanzas-argentinas`: `version`, `document_number`, `created_at`, `updated_at` and
+  `stale_since` are not recoverable from the files;
+  five snapshots cost five times the index (2.6 MiB for a 0.5 MiB
+  index, 23% when compressed); the commit messages are enough as labels for ingest,
+  edit, delete and chat, and weak for batch ingest, lint & repair and regenerate, which
+  the history screen complements with the list of pages each commit changed.

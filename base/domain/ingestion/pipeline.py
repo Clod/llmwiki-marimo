@@ -26,9 +26,10 @@ from .extractor import (
     check_java,
     check_libreoffice,
 )
+from .formats import OFFICE_EXTENSIONS, SUPPORTED_EXTENSIONS, TEXT_EXTENSIONS, sorted_extensions
 from .index_manager import update_index, remove_index_entry
 from .wiki_generator import (
-    build_wiki_page, make_wiki_slug,
+    make_wiki_slug,
     extract_structured, extract_dataset_aliases, build_summary_page, build_concept_page,
     update_overview, inject_see_also, strip_accents,
 )
@@ -42,8 +43,6 @@ from domain.tools.references import update_references
 from domain.tools.git_ops import init_wiki_repo, auto_commit
 
 logger = logging.getLogger(__name__)
-
-SUPPORTED_EXTENSIONS = frozenset({".pdf", ".docx"})
 
 
 # ── Result type ───────────────────────────────────────────────────────────────
@@ -143,14 +142,18 @@ def _validation_error(file_path: Path) -> str | None:
 
     ext = file_path.suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
-        return f"Unsupported file type '{ext}'. Supported: {', '.join(SUPPORTED_EXTENSIONS)}"
+        return f"Unsupported file type '{ext}'. Supported: {', '.join(sorted_extensions())}"
 
-    if ext == ".docx" and not check_libreoffice():
+    if ext in TEXT_EXTENSIONS:
+        return None  # read directly: no Java, no LibreOffice
+
+    if ext in OFFICE_EXTENSIONS and not check_libreoffice():
         return LibreOfficeNotInstalledError(file_path.name).args[0]
 
-    # Both extensions end up in opendataloader-pdf, which runs a .jar: a DOCX is
-    # converted to PDF first. Without a Java runtime the extractor raises deep in
-    # a subprocess call, so the check happens here, next to the LibreOffice one.
+    # A PDF and an office file end up in opendataloader-pdf, which runs a .jar:
+    # the office file is converted to PDF first. Without a Java runtime the
+    # extractor raises deep in a subprocess call, so the check happens here,
+    # next to the LibreOffice one.
     if not check_java():
         return JavaNotInstalledError(file_path.name).args[0]
     return None
@@ -764,9 +767,12 @@ def regenerate_wiki_pages(
 ) -> list[IngestResult]:
     """Regenerate summary pages for all ready source documents without re-extracting.
 
-    language is accepted for API consistency with the other entry points, but the
-    legacy single-pass build_wiki_page() used here is not yet localized (see
-    design §7.1/§11) — this is a documented v1 limitation, not a missed call site.
+    Each page is built on the path a new file's ingestion uses for its summary:
+    ``extract_structured`` (the content-language directive in the prompt) then
+    ``build_summary_page`` (localized headings and labels), so a regenerated page
+    follows the wiki ``language``. Only concepts whose page already exists are
+    linked: regeneration writes no concept pages, and a link to a missing one
+    would dangle.
     """
     def _cb(msg: str) -> None:
         logger.info(msg)
@@ -800,7 +806,14 @@ def regenerate_wiki_pages(
                     "page_count": doc["page_count"] or len(page_contents),
                     "parser": doc["parser"] or "unknown",
                 }
-                wiki_markdown = build_wiki_page(doc_meta, page_contents, llm_client, model)
+                extraction = extract_structured(
+                    doc_meta, page_contents, llm_client, model, language=language
+                )
+                extraction.concepts = [
+                    c for c in extraction.concepts
+                    if read_page(db_path, workspace, "/wiki/concepts/", make_wiki_slug(c.name))
+                ]
+                wiki_markdown = build_summary_page(doc_meta, extraction, language=language)
                 wiki_slug = make_wiki_slug(filename)
                 create_page(
                     db_path, workspace, "/wiki/summaries/", wiki_slug,

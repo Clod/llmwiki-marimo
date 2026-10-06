@@ -65,6 +65,28 @@ def push_recent(
     return updated
 
 
+def prune_recent(recent_file: Path = RECENT_FILE) -> list[str]:
+    """The recent list without the folders that are no longer wikis; persisted when it changes.
+
+    A folder deleted, moved or emptied (no `wiki/` nor `.llmwiki/`) leaves the list.
+    """
+    recent = load_recent(recent_file)
+    kept = [p for p in recent if is_wiki_dir(Path(p))]
+    if kept != recent:
+        save_recent(kept, recent_file)
+    return kept
+
+
+def remove_recent(path: str, recent_file: Path = RECENT_FILE) -> list[str]:
+    """Take `path` out of the recent list; the folder itself is not touched."""
+    target = str(Path(path).expanduser().resolve())
+    recent = load_recent(recent_file)
+    kept = [p for p in recent if str(Path(p).expanduser().resolve()) != target]
+    if kept != recent:
+        save_recent(kept, recent_file)
+    return kept
+
+
 def discover_wikis(home: Path) -> list[str]:
     """Immediate sub-folders of `home` that look like wikis, plus `home` itself."""
     found: list[str] = []

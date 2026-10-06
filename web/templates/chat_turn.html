@@ -1,0 +1,5 @@
+<div class="q">{{ question }}</div>
+<div class="a" id="answer-{{ turn_id }}"
+     sse-connect="/w/{{ wiki_id }}/chat/{{ turn_id }}/stream"
+     sse-swap="chunk" hx-swap="beforeend" sse-close="done"><span class="typing" aria-label="{{ _('Typing') }}"><i></i><i></i><i></i></span></div>
+<div class="meta" id="meta-{{ turn_id }}"></div>

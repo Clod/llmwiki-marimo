@@ -1,0 +1,1 @@
+{% if mode_label %}{{ _(mode_label) }}{% for p in cited %} · <a class="mono" href="/w/{{ wiki_id }}/pages/{{ p }}" title="{{ _('Open the page cited in the answer') }}">{{ p }}</a>{% endfor %}{% endif %}

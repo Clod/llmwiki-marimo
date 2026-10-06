@@ -428,7 +428,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
                 f"Alias '{c.alias}' of '{c.canonical}' is really the name of '{c.collides_with}'"
             ),
             suggestion=f"List '{c.alias}' under '{c.canonical}' in [falsos_sinonimos], or remove it",
-            alias=c.alias,
+            alias=c.alias, terms=(c.alias, c.canonical, c.collides_with),
         ))
 
     # 2. Stale — an alias entry for a canonical the wiki no longer covers.
@@ -438,6 +438,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
                 check="vocab_stale", severity="warning", page=artifact,
                 description=f"Aliases for '{canonical}', which has no page or dataset",
                 suggestion="Remove the entry, or restore the page/dataset it names",
+                terms=(canonical,),
             ))
 
     # 3. Ambiguous — one alias mapping to two different canonicals.
@@ -454,6 +455,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
                     f"{', '.join(sorted(set(canonicals)))}"
                 ),
                 suggestion="Keep the alias under a single canonical",
+                terms=(alias_norm, *sorted(set(canonicals))),
             ))
 
     # 4. Covered — an off-limits term the wiki now actually covers.
@@ -463,6 +465,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
                 check="vocab_covered", severity="info", page="wiki_config.toml",
                 description=f"'{term}' is in [fuera_de_alcance] but now has a page or dataset",
                 suggestion="Remove it from the blacklist — it's covered now",
+                terms=(term,),
             ))
 
     return issues

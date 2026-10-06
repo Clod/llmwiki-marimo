@@ -1,11 +1,23 @@
 """Source deletion — removes a source document and cascades to DB children."""
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 from domain.repair.report import RepairResult
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SourceDeletion(RepairResult):
+    """The outcome of a source deletion, with what it did, step by step, for a
+    caller that reports the steps (the progress console of the web interface)."""
+
+    filename: str = ""
+    deleted_pages: tuple[str, ...] = ()   # the summary pages deleted, e.g. "/wiki/summaries/tale.md"
+    stale_pages: tuple[str, ...] = ()     # the citing pages marked stale by this deletion
+    file_removed: bool = False            # the file left sources/
 
 
 def delete_source(
@@ -14,7 +26,7 @@ def delete_source(
     doc_id: str,
     *,
     also_delete_file: bool = False,
-) -> RepairResult:
+) -> SourceDeletion:
     """Remove a source document from the DB and optionally from disk.
 
     FK ON DELETE CASCADE handles document_pages, document_chunks, chunks_fts
@@ -27,7 +39,7 @@ def delete_source(
         and marked stale (stale_since), since they may draw on other surviving
         sources; deleting them would destroy that synthesis.
 
-    Returns a RepairResult describing the outcome.
+    Returns a `SourceDeletion` (a `RepairResult`) describing the outcome and its steps.
     """
     from domain.tools.db import get_connection
     from domain.tools.git_ops import auto_commit
@@ -41,7 +53,7 @@ def delete_source(
             ).fetchone()
 
         if row is None:
-            return RepairResult(
+            return SourceDeletion(
                 check="delete_source",
                 page=doc_id,
                 action="failed",
@@ -50,7 +62,7 @@ def delete_source(
             )
 
         if row["source_kind"] != "source":
-            return RepairResult(
+            return SourceDeletion(
                 check="delete_source",
                 page=row["relative_path"],
                 action="failed",
@@ -109,9 +121,14 @@ def delete_source(
 
         # Mark citing (multi-source) pages stale instead of deleting them.
         marked_stale = 0
+        stale_pages: tuple[str, ...] = ()
         if stale_ids:
             placeholders = ",".join("?" * len(stale_ids))
             with get_connection(db_path) as conn:
+                stale_pages = tuple(sorted(
+                    f"{r['path']}{r['filename']}" for r in conn.execute(
+                        f"SELECT path, filename FROM documents WHERE id IN ({placeholders})"
+                        f" AND source_kind='wiki' AND stale_since IS NULL", list(stale_ids)).fetchall()))
                 with conn:
                     cur = conn.execute(
                         f"UPDATE documents SET stale_since=datetime('now')"
@@ -127,10 +144,12 @@ def delete_source(
             with conn:
                 conn.execute("DELETE FROM documents WHERE id=?", (doc_id,))
 
+        file_removed = False
         if also_delete_file:
             physical = workspace / relative_path
             if physical.exists():
                 physical.unlink()
+                file_removed = True
                 logger.info("Deleted physical file: %s", physical)
 
         notes: list[str] = []
@@ -141,17 +160,21 @@ def delete_source(
         wiki_note = f"; {'; '.join(notes)}" if notes else ""
         auto_commit(workspace, f"delete source: {filename}")
 
-        return RepairResult(
+        return SourceDeletion(
             check="delete_source",
             page=relative_path,
             action="deleted",
             success=True,
             message=f"Deleted source '{filename}'{wiki_note}",
+            filename=filename,
+            deleted_pages=tuple(deleted_wiki),
+            stale_pages=stale_pages,
+            file_removed=file_removed,
         )
 
     except Exception as exc:
         logger.error("delete_source failed for %s: %s", doc_id, exc)
-        return RepairResult(
+        return SourceDeletion(
             check="delete_source",
             page=doc_id,
             action="failed",

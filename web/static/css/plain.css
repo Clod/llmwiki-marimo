@@ -1,0 +1,46 @@
+/* The wiki picker. The editor has its own stylesheet (editor.css). */
+.picker { max-width: var(--container-picker-w); padding: var(--space-6) var(--space-5); gap: var(--space-4); }
+.picker-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-4); }
+.picker-title { display: flex; flex-direction: column; gap: var(--space-1); }
+.picker .lede { color: var(--color-text-muted); }
+.open-other { display: flex; }
+
+/* The folder browser: a modal dialog over the picker. */
+dialog.browse { width: min(640px, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-4)); padding: 0;
+                border: 1px solid var(--color-selected-border); border-radius: var(--radius-xl); background: var(--color-bg); color: var(--color-text); }
+dialog.browse::backdrop { background: var(--color-backdrop); opacity: .35; }
+.browse-panel { display: flex; flex-direction: column; max-height: calc(100vh - 2 * var(--space-4)); }
+.browse-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+               border-bottom: var(--border); background: var(--color-surface); border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+.browse-head h2 { flex: 1; font: var(--weight-semibold) var(--text-lg)/var(--leading-tight) var(--font-sans); }
+.browse-close { width: 30px; height: 30px; padding: 0; font-size: var(--text-lg); border-color: var(--color-border); }
+.browse-path, .browse-new { display: flex; gap: var(--space-2); padding: var(--space-3) var(--space-4) 0; }
+.browse-path .field, .browse-new .field { flex: 1; min-width: 0; font-size: var(--text-xs); }
+.browse-error { margin: var(--space-3) var(--space-4) 0; }
+.browse-list { flex: 1; min-height: 160px; overflow: auto; margin: var(--space-3) var(--space-4) 0; padding: var(--space-1) 0; list-style: none;
+               border: var(--border); border-radius: var(--radius); }
+.browse-list li { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); }
+.browse-dir { flex: 1; min-width: 0; padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-sm); background: none;
+              color: var(--color-text); font: inherit; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browse-dir:hover, .browse-dir:focus-visible { background: var(--color-selected); }
+.browse-empty { padding: var(--space-2) var(--space-3); }
+.browse-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3);
+                  padding: var(--space-3) var(--space-4); border-top: var(--border); }
+.browse-state { flex: 1; font-size: var(--text-xs); }
+
+.table-wrap { overflow-x: auto; }
+.wikis { width: 100%; border-collapse: collapse; }
+.wikis th { padding: var(--space-3) var(--space-3); text-align: left; font-weight: var(--weight-medium); color: var(--color-text-muted);
+            background: var(--color-surface); border-bottom: var(--border); }
+.wikis td { padding: var(--space-3); border-bottom: 1px solid var(--color-canvas); }
+.wikis tr:last-child td { border-bottom: 0; }
+.wikis .num { text-align: right; }
+.wikis .name { font-weight: var(--weight-semibold); }
+.wiki-name { color: var(--color-text); text-decoration: none; }
+.wiki-name:hover { color: var(--color-accent-strong); text-decoration: underline; }
+.wikis .tag { margin-left: var(--space-1); font-size: var(--text-2xs); font-weight: var(--weight-medium); }
+.open-link { font-weight: var(--weight-medium); }
+.browse-create { margin: var(--space-3) var(--space-4) 0; }
+.browse-create code { overflow-wrap: anywhere; }
+.row-actions { white-space: nowrap; }
+.row-actions form { display: inline; margin-left: var(--space-3); }

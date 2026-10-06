@@ -18,9 +18,11 @@ import hashlib
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 
+from domain.chat.config import load_config
 from domain.chat.vocabulary import (
     ValidatedVocabulary,
     build_roster,
+    merge_aliases,
     normalize,
     read_generated_aliases,
     validate_aliases,
@@ -43,6 +45,19 @@ def dataset_vocabulary(workspace: Path) -> set[str]:
         for row in source.query(categoria):
             vocab.add(row.clave)
     return vocab
+
+
+def _without_rejected(workspace: Path, validated: ValidatedVocabulary) -> ValidatedVocabulary:
+    """Drop the aliases the owner rejected (`wiki_config.toml [falsos_sinonimos]`).
+
+    `merge_aliases` already filters them at read time; dropping them here too keeps
+    a rejected alias from growing back into the artifact on the next ingestion.
+    """
+    rejected = load_config(workspace).false_synonyms
+    if not rejected:
+        return validated
+    return ValidatedVocabulary(aliases=merge_aliases(validated.aliases, {}, rejected),
+                               collisions=validated.collisions)
 
 
 def update_generated_aliases(
@@ -69,7 +84,7 @@ def update_generated_aliases(
         proposals.setdefault(name, []).extend(a for a in aliases if isinstance(a, str))
 
     roster = build_roster(dataset_vocabulary(workspace), concept_names, new_names)
-    validated = validate_aliases(proposals, roster)
+    validated = _without_rejected(workspace, validate_aliases(proposals, roster))
     write_generated_aliases(workspace, validated.aliases)
     return validated
 
@@ -139,7 +154,7 @@ def regenerate_dataset_aliases(
             proposals.setdefault(term, []).extend(a for a in aliases if isinstance(a, str))
 
     roster = build_roster(vocab, concept_names)
-    validated = validate_aliases(proposals, roster)
+    validated = _without_rejected(workspace, validate_aliases(proposals, roster))
     write_generated_aliases(workspace, validated.aliases)
     _write_fingerprint(workspace, fingerprint)
     return validated

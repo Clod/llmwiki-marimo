@@ -11,103 +11,130 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Added
+
+- **A Vocabulary tab shows and edits the vocabulary of a wiki.** The roster
+  (the names the wiki covers, read only, with a search field that ignores case and
+  accents), the aliases with their origin (generated or hand-written), the rejected
+  aliases and the blacklist, with the findings of the vocabulary review on top. An
+  alias, a blacklist term or a rejected alias is added or removed from the screen;
+  `wiki_config.toml` keeps its comments (`tomlkit`), and every change is a commit of
+  the wiki. A rejected alias is no longer written back by the next ingestion. A
+  dataset name of the roster opens its dataset in a dialog, with the key's row marked.
+
+- **`wiki_config.toml` is part of a point of the history.** Commits include it, and
+  going back to a point restores it; a point from before it was tracked keeps the
+  current file.
+
+- **The web interface is bilingual, English and Spanish.** Every label, tooltip,
+  confirmation, notice and console line that `web/` writes is a gettext message id
+  (the English text) with a Spanish catalog in `web/locale/es/` (Babel and the Jinja2
+  i18n extension; the catalogs are compiled in memory, no `.mo` file is committed).
+  The language is the `ui_lang` cookie, set by an "EN | ES" switch in the header,
+  else the browser's `Accept-Language`, else English; `<html lang>` follows it. The
+  texts the scripts write moved to `data-*` attributes. A third language needs one
+  catalog and one entry in `LANGUAGES` (`web/i18n.py`). The wiki language
+  (`[wiki].language`) is unchanged and still governs what is written into the wiki.
+  The source status pill is translated too. `web/README.md` has the details.
+
+- **CI runs the web interface tests.** A second job, `web`, installs the `web` and `dev`
+  groups and Chromium and runs `tests/web`, including the Playwright flows.
+
+- **Wiki rollback: a snapshot of the index per commit, `revert_wiki`, and a
+  "Historial" screen** (`base/domain/rollback/`, `docs/design_wiki_rollback.md`).
+  After every successful auto-commit the index is copied with the sqlite3 online
+  backup API to `.llmwiki/snapshots/<sha>.db` (`WIKI_SNAPSHOT_KEEP`, default 5, 0
+  disables; a failure is logged and never fails the operation). `revert_wiki`
+  restores the pages forward with a new commit, never rewriting history, and the
+  index from the snapshot of the target, else with `reindex_from_disk`; it checks
+  that route before touching anything and puts pages and index back if the rebuild
+  fails. It refuses uncommitted changes in `wiki/`. `scripts/wiki_revert.py --to
+  <sha|HEAD~1>` runs it; `services.wiki` gains `history`, `page_history`,
+  `page_at`, `changes_since`, `revert_plan` and `revert`. The web application gets
+  the history of the wiki (revert as a streamed operation with an in-page
+  confirmation) and the history of each page, with a read-only version and a line
+  diff.
+
+- **`reindex_from_disk(workspace, db_path)` rebuilds `index.db` from `sources/` and
+  `wiki/`, without a model call** (`base/domain/tools/reindex.py`). It re-extracts
+  each source with the deterministic extractor, re-chunks it and every page, reads
+  titles and tags from the front-matter, rebuilds the reference graph and links each
+  summary back to its source. It never modifies a markdown file or a source file, and
+  keeps the old index as `index.db.bak`. `version`, `document_number` and the creation
+  dates reset.
+
+### Changed
+
+- **`quickstart.py` launches the web interface** (`python -m uvicorn web.app:app`, same default port 2720)
+  and opens the browser on the wiki picker, instead of the marimo read app. `requirements.txt` is
+  exported with the `web` group so the installer's `pip` path installs the web dependencies.
+
+- **README, README_ES and the manual describe the web interface**: the six tabs, the conversation
+  and the review dialog, the relations graph, the history, the seven document formats, the three test
+  suites and what CI runs. The marimo screenshots are replaced by two screenshots of the web
+  interface (`docs/assets/web_read_chat.png`, `docs/assets/web_history.png`); `docs/manual/apps.md`
+  and the workflow triggers are rewritten; the layer table gains `base/services/` and `web/`.
+
+- **Web application: visual design B** (`web/`).
+  A dense work tool in pastel blue and yellow, in Geist and Geist Mono, applied to
+  every screen from the approved mockups. Blue is the structure, yellow is what needs
+  attention (notices, confirmations, running), red is only for destruction. Every
+  colour, size and spacing step is a custom property in `web/static/css/tokens.css`.
+  New: the picker as a table (language, sources, pages, "última abierta"); the chat
+  model in the reading header; under each answer, its mode and the pages it cites; a
+  mode `<select>`; group counts in the index; the page path in the toolbar; the editor
+  with a live preview rendered by the server; zoom buttons on the relations graph; the
+  "copia del índice" / "sin copia" pill on each history point.
+
+### Fixed
+
+- **After a revert without a snapshot, the index lost every source of a text or office format.**
+  `reindex_from_disk` listed only `.pdf` and `.docx` files of `sources/`, so a wiki with
+  `.md`, `.txt`, `.doc`, `.odt` or `.rtf` sources lost them from the index. The revert
+  route also required Java and LibreOffice for text sources, which need neither. Both now
+  read the one list of formats in `domain/ingestion/formats.py`, and the revert asks for
+  Java only when a PDF or office source exists and for LibreOffice only when an office
+  source exists.
+
+- **Regenerating the summary pages follows the wiki language.**
+  `regenerate_wiki_pages` accepted `language` and ignored it, so a Spanish wiki
+  got English pages with `## Summary` and `## Key Topics`. It now takes the path
+  a new file's summary takes (`extract_structured` with the content-language
+  directive, then `build_summary_page` with the locale's headings) and links
+  only the concepts that already have a page.
+
+- **The Tier 2 warning is written in the wiki language.** The fixed Spanish
+  text moved to `Locale.tier2_warning`, with an English text.
+
+- **`tool_status()` reports LibreOffice as usable only when it converts.** The
+  first call converts a minimal DOCX and the process caches the answer
+  (`extractor.libreoffice_can_convert`); the ingestion screen of the web
+  application says "Instalado, pero no convierte documentos" for an executable
+  that cannot (a core install without Writer).
+
+- **`services.ingest.Upload` cleans the name of an uploaded file.** It keeps
+  the last path component and refuses empty names, `.`, `..`, hidden names and
+  extensions the ingestion does not read, so no interface can write outside
+  `sources/`.
+
+- **The web application sanitizes the HTML of pages and chat answers.**
+  `web/render.py` passes the markdown output through an `nh3` allow-list: no
+  script, event handler or `javascript:` link reaches the browser. `nh3` joins
+  the `web` dependency group.
+
+- **The web application shows the message of `SchemaMismatchError`** for an
+  index built with an older schema, instead of a traceback.
+
+- **`quickstart.py` prints ANSI sequences only on a terminal that renders
+  them**, not in a pipe, with `NO_COLOR`, or in a classic Windows console.
+
 ## [0.4.0] - 2026-10-06
 
 The last release with the marimo interface: the next one replaces it with a web
 interface.
 
-### Changed
-
-- **The application logic moved out of the marimo cells into `base/services/`.**
-  `services/wiki.py` opens a wiki, lists and reads its pages, resolves their
-  links, and saves an edited page (front-matter kept, references rebuilt, one
-  git commit, refused when the page changed since it was opened).
-  `services/chat.py` builds a wiki's two agents and answers one turn in the
-  pre-retrieval, strict or streaming mode. `services/ingest.py` holds the upload
-  path with its reconciliation and cross-links, the maintenance passes, and the
-  views of the sources. The three marimo apps now call these functions; their
-  behaviour is unchanged. This is the layer a web interface will call.
-
-### Changed
-
-- **Every pre-retrieval refusal states its cause.** The single text "Eso no
-  está en mi base de conocimiento." is replaced by one message per cause,
-  built by the code (`base/domain/chat/refusal.py`): the blacklist term, a
-  question that names no topic of the wiki, a topic with no text found, an
-  answer not grounded in its source document, an answer with no evidence, and
-  the model's own refusal. Every message except the blacklist's lists up to
-  five related page titles, or points to the wiki's index when there are none.
-  The chat system prompt of every language now asks the model to open its own
-  refusal with *"No encontré la respuesta en los documentos."* / *"I did not
-  find the answer in the documents."*, and the three demo prompts use that
-  sentence. The strict and streaming modes are unchanged.
-
-### Changed
-
-- **Search, the coverage gate and the Tier-2 check stem words in the wiki's
-  language.** One Snowball stemmer per wiki language (`snowballstemmer`,
-  `base/domain/text/stemming.py`) serves the FTS index, the queries, the roster
-  and the Tier-2 overlap. *"¿Cuánto rinden los plazos fijos?"* now enters the
-  roster through the category `plazo_fijo`; before, the plural was refused.
-  The blacklist and the dataset keys still compare by whole word, so `ceder`
-  is no longer at risk of matching `cedear`. `document_chunks` gains
-  `content_stemmed`, which `chunks_fts` indexes with `unicode61` (no more
-  `porter`); an existing index is rebuilt on first open, with no model call.
-  The pre-retrieval turn now checks the blacklist first and searches the wiki
-  only for a question in the roster. The Tier-2 threshold is configurable as
-  `[pre_retrieval] min_coverage` (default 0.2).
-
-### Fixed
-
-- **Pre-retrieval Tier 1 now carries the dataset the question names.** A data
-  question that also matches wiki pages (for example *"¿Qué tasa de plazo fijo
-  ofrece el Banco Galicia?"*) was answered from the pages alone: the pages hold
-  no rates, and the model called `query_dataset` only when the bank matched the
-  example in the tool's docstring (0 calls in 3 runs for Banco Galicia). The
-  code now injects the named key's rows next to the pages, or only the
-  category's key names when the question names no key, and cites the injected
-  rows (`dataset_injection`, `base/domain/chat/preretrieval.py`; spans `Q7a`–`Q7d`).
-  When the model asks `query_dataset` for a key the category lacks, such as
-  Banco Comafi, the code appends the keys that have data to the answer
-  (`offer_available_keys`).
-
-### Changed
-- **The chat trace and the ingestion trace are replaced by one OpenTelemetry
-  span stream.** `base/domain/chat/trace.py` (`WIKI_CHAT_TRACE=1`,
-  `<workspace>/.llmwiki/chat_trace.jsonl`) and
-  `base/domain/ingestion/trace.py` (per-run `trace.jsonl` under
-  `<workspace>/.llmwiki/traces/<run_id>/`) are removed. `WIKI_TRACE=1` now
-  activates a single module, `base/domain/tracing.py`: every step of a chat
-  turn or an ingest opens a span named by its identifier in the diagrams of
-  `design_stemming.md` (`Q5`, `I4`, `W1`, …), so the span names of one trace
-  are the path the run took through the diagram. Spans append to
-  `<workspace>/.llmwiki/traces/spans.jsonl`, one JSON object per line
-  (`ReadableSpan.to_json`); heavy payloads still go to content-addressed
-  files under `.llmwiki/traces/payloads/`, gated by the unchanged
-  `WIKI_TRACE_CAPTURE`. Model calls are spans with `gen_ai.*` attributes,
-  written by Pydantic AI's own instrumentation for the chat agent and by a
-  proxied OpenAI client (`tracing.wrap_openai`) for ingestion.
-  `scripts/render_trace.py` is rewritten to render the span file — one
-  timeline per trace, filterable by `--trace`, `--conversation`, or `--doc` —
-  and `marimo/trace_report_app.py` is removed with no replacement viewer.
-  `WIKI_CHAT_TRACE` no longer has any effect.
-
-### Fixed
-- **"See also" links now survive an accent.** `slugify` strips combining marks
-  when it builds a page's file name, so a page titled "Panel Líder" is filed as
-  `panel-lider.md`, and `inject_see_also` looks for the slug — "panel lider" —
-  in the text of every other page. The text keeps its accents, so prose that
-  spells "Panel Líder" never matched, and the link was never offered. Counted on
-  the bundled `finanzas-argentinas` wiki: thirty page pairs in that shape, among
-  them the summary of *Acciones Locales*, which names both "Panel Líder" and
-  "Riesgos estructurales de inversión" without linking either. The bundled
-  English wiki has none, which is why the gap stayed invisible. The comparison
-  now strips the accents from the text as well, through `strip_accents` in
-  `wiki_generator`, and `_crosslink_candidates` strips them the same way — that
-  candidate set is a superset of the pages that end up linked only while both
-  halves compare the same string.
-
 ### Added
+
 - **An index built with an older schema is reported instead of crashing.** The
   schema in `database/sqlite_schema.sql` is applied with
   `CREATE TABLE IF NOT EXISTS` every time a database is opened, and no
@@ -141,7 +168,250 @@ interface.
   in `docs/manual/workflows.md`, and by `quickstart.py`, which warns without
   blocking — the bundled demos ship pre-ingested and open without a Java runtime.
 
+- **`scripts/record_demo.py`** — records the demo video by driving the read app,
+  replacing a rig that lived in `/tmp` and did not survive. The previous demo
+  outlived its accuracy with no way to regenerate it; this is one command in
+  version control. It shows what the tabbed interface can and the three-column
+  one could not: both tabs, both mode checkboxes, a real cited cross-document
+  answer — and then the same off-corpus question under **Pre-retrieval**,
+  refused in 1.2s against the 9s the model-backed answer took. Not because the
+  model is fast: because it was never called. The waits are sped up rather than
+  cut, so the work is still visibly work. A failed turn aborts instead of
+  recording an error, same guard as the screenshots. The `.mp4` is gitignored —
+  the READMEs point at YouTube, which GitHub will not play from a repo path
+  anyway.
+
+- **`scripts/capture_screenshots.py`** — regenerates the README screenshots by
+  driving the running read app with Playwright. The images in `docs/assets/` went
+  stale because taking them was a manual ceremony; this makes it one command. Two
+  images rather than one, because the tabs app renders only the active tab and no
+  single frame shows both halves. The chat capture makes a real model call, so
+  the answer in the picture has real citations — and **a failed turn aborts
+  rather than writing**: the first run against an exhausted key produced a
+  perfectly convincing screenshot of marimo's red error box, which quoted the
+  provider's response back, including a key-management URL carrying the key's
+  identifier. It was caught by looking, which is not a control. Now it is one.
+
+- **`tests/e2e/test_read_app_tabs.py` — the parity gate for promoting the tabs
+  read app.** A copy of `test_read_app.py` with the **assertions untouched**:
+  both files' `assert` lines and test names are byte-identical, so passing one
+  and passing the other is the same claim. Every mechanical difference follows
+  from one fact — the tabs app renders only the active tab — so chat tests
+  switch to 💬 Chat first, where the grid app shows every panel at once. Both
+  suites now pass 7/7 against a live LLM. That clears the gate ROADMAP.md set
+  for deleting `marimo/read_app.py` and its suite.
+
+### Changed
+
+- **The application logic moved out of the marimo cells into `base/services/`.**
+  `services/wiki.py` opens a wiki, lists and reads its pages, resolves their
+  links, and saves an edited page (front-matter kept, references rebuilt, one
+  git commit, refused when the page changed since it was opened).
+  `services/chat.py` builds a wiki's two agents and answers one turn in the
+  pre-retrieval, strict or streaming mode. `services/ingest.py` holds the upload
+  path with its reconciliation and cross-links, the maintenance passes, and the
+  views of the sources. The three marimo apps now call these functions; their
+  behaviour is unchanged. This is the layer a web interface will call.
+
+- **Every pre-retrieval refusal states its cause.** The single text "Eso no
+  está en mi base de conocimiento." is replaced by one message per cause,
+  built by the code (`base/domain/chat/refusal.py`): the blacklist term, a
+  question that names no topic of the wiki, a topic with no text found, an
+  answer not grounded in its source document, an answer with no evidence, and
+  the model's own refusal. Every message except the blacklist's lists up to
+  five related page titles, or points to the wiki's index when there are none.
+  The chat system prompt of every language now asks the model to open its own
+  refusal with *"No encontré la respuesta en los documentos."* / *"I did not
+  find the answer in the documents."*, and the three demo prompts use that
+  sentence. The strict and streaming modes are unchanged.
+
+- **Search, the coverage gate and the Tier-2 check stem words in the wiki's
+  language.** One Snowball stemmer per wiki language (`snowballstemmer`,
+  `base/domain/text/stemming.py`) serves the FTS index, the queries, the roster
+  and the Tier-2 overlap. *"¿Cuánto rinden los plazos fijos?"* now enters the
+  roster through the category `plazo_fijo`; before, the plural was refused.
+  The blacklist and the dataset keys still compare by whole word, so `ceder`
+  is no longer at risk of matching `cedear`. `document_chunks` gains
+  `content_stemmed`, which `chunks_fts` indexes with `unicode61` (no more
+  `porter`); an existing index is rebuilt on first open, with no model call.
+  The pre-retrieval turn now checks the blacklist first and searches the wiki
+  only for a question in the roster. The Tier-2 threshold is configurable as
+  `[pre_retrieval] min_coverage` (default 0.2).
+
+- **The chat trace and the ingestion trace are replaced by one OpenTelemetry
+  span stream.** `base/domain/chat/trace.py` (`WIKI_CHAT_TRACE=1`,
+  `<workspace>/.llmwiki/chat_trace.jsonl`) and
+  `base/domain/ingestion/trace.py` (per-run `trace.jsonl` under
+  `<workspace>/.llmwiki/traces/<run_id>/`) are removed. `WIKI_TRACE=1` now
+  activates a single module, `base/domain/tracing.py`: every step of a chat
+  turn or an ingest opens a span named by its identifier in the diagrams of
+  `design_stemming.md` (`Q5`, `I4`, `W1`, …), so the span names of one trace
+  are the path the run took through the diagram. Spans append to
+  `<workspace>/.llmwiki/traces/spans.jsonl`, one JSON object per line
+  (`ReadableSpan.to_json`); heavy payloads still go to content-addressed
+  files under `.llmwiki/traces/payloads/`, gated by the unchanged
+  `WIKI_TRACE_CAPTURE`. Model calls are spans with `gen_ai.*` attributes,
+  written by Pydantic AI's own instrumentation for the chat agent and by a
+  proxied OpenAI client (`tracing.wrap_openai`) for ingestion.
+  `scripts/render_trace.py` is rewritten to render the span file — one
+  timeline per trace, filterable by `--trace`, `--conversation`, or `--doc` —
+  and `marimo/trace_report_app.py` is removed with no replacement viewer.
+  `WIKI_CHAT_TRACE` no longer has any effect.
+
+- **The cross-link pass is scoped to the pages an ingest touched.**
+  `crosslink_wiki_pages` compared every wiki page against every other one, with
+  a regular-expression search per pair, and ran in full after any scan that
+  ingested a single file. Measured on synthetic corpora through the real
+  pipeline: 0.1 s at 73 pages, 2.0 s at 460, 7.2 s at 601 — quadratic in the
+  page count, in a step that runs on the way in. It now takes the set of pages
+  the ingest wrote (from the new `pages_touched_by`) and rewrites those plus the
+  pages whose text mentions them. On a 601-page wiki, ingesting one further
+  document: 0.07 s and 5 pages linked, with a full pass straight afterwards
+  finding 0 further pages to link, so the scoped pass loses nothing. The
+  wiki-wide button and regeneration still run the full sweep.
+
+- **Both walkthroughs were reviewed line by line by a first-time reader, and
+  repaired.** Twenty-seven commits of prose, no production code touched and the
+  generated appendix unchanged. The review found errors that a check against the
+  code could not: the compounding figure was 15 → 30 `links_to` edges rather than
+  15 → 25, and the argument attached to it did not hold either, since six new
+  pages produced fifteen new edges — the same ratio as the first act — so what
+  supports the claim is that most new edges come from `repair_missing_xref`, not
+  from the model writing pages. The capture script re-runs eleven questions
+  through the gate, ten of them through a live model, not seven — a figure the
+  same document stated correctly sixty lines earlier. `ensure_citation` appends
+  two independently decided labels, `Referencia:` and `Fuente:`, not one.
+  `overlap.py` was described as able to judge whether a fragment answers a
+  question, when it measures whether an answer draws on a fragment; the ROADMAP
+  entry repeating that claim is corrected too. "Either case ends in `refuse`" is
+  false for a wiki with datasets, where `has_data` diverts the question to the
+  tools.
+
+  Terms used before being defined were introduced where the behaviour first
+  appears — "positions", "agentic", the document's own division into parts, the
+  coverage roster, and the three runs the summary table refers to — so every
+  reference resolves backwards. Figurative phrasing was replaced with the
+  mechanism it stood for throughout: "it nearly went the other way" does not say
+  what the other way was, and "structurally blind" does not say what goes
+  undetected.
+
+- **The programmer manual is four files, and gained a layer map.** It had grown
+  to 1227 lines on top of the 1090 already split into `workflows.md`. Now:
+  `programmer_manual.md` keeps orientation (§1 §2 §3 §10 §11 §13, 421 lines),
+  `manual/internals.md` takes schema, tool layer and tracing (§4 §5 §14),
+  `manual/apps.md` takes the Marimo apps, configuration, testing and datasets
+  (§7 §8 §9 §15), and `manual/workflows.md` stays as §6. **Section numbers stay
+  global** — a `§N` means the same section wherever cited, which is what keeps
+  ~190 cross-references between these documents valid.
+
+  §2 now carries the nine architectural layers, derived from the project's own
+  knowledge graph (449 nodes, 975 edges) rather than drawn by hand, with the two
+  boundaries that are decisions rather than folder consequences: lint and repair
+  are one layer because they are a producer/consumer pair, and datasets plus the
+  finance overlay sit outside the engine because they are inactive on most wikis.
+
+  Two tests now guard the arrangement, both verified failing: every `§N` cited
+  anywhere in the maintained docs must be defined by one of the four files, and
+  no two files may define the same number. The first immediately found two
+  CODEMAPS still citing `§12`, orphaned when that section moved to the roadmap.
+
+- **Pending work lives in one place.** The programmer manual carried §11 "Pending
+  Work / Roadmap" and §12 "Future Enhancements"; `ROADMAP.md` arrived three days
+  ago and made a third. Three lists of the same thing diverge, so §11 and §12
+  moved wholesale into the roadmap — including the full five-step
+  `reindex_from_disk` design, and the deliberate deferrals with their reasoning
+  intact (web search at query time and as an ingest loop, two-step reviewed
+  ingestion, image handling, output formats). The manual keeps a pointer and is
+  178 lines shorter. Its "no open bugs" line was true of *bugs* and never of
+  known limits, of which the roadmap now records five. 27 dangling `§11.N` / `§12`
+  cross-references across both READMEs, `workflows.md` and the data dictionary
+  were repointed.
+
+- **The read app's interface is entirely in English.** It was already English
+  almost everywhere — "Refresh", "Save to wiki", "Category", "is not a
+  directory" — but a handful of Spanish labels had drifted in with the tabs
+  variant and stayed: the two chat checkboxes (`Modo estricto`,
+  `Pre-retrieval: el código recupera…`), the tab names (`📖 Lectura`,
+  `💬 Diálogo`), the chat heading and the save accordion. `read_app.py` already
+  said "Chat with your Wiki" while `read_app_tabs.py` said "Chat con tu Wiki",
+  which is what gave the drift away. Wiki *content* remains per-wiki
+  multilingual and the Spanish system prompts are untouched — this is the
+  chrome only.
+
+- **Both walkthroughs are rewritten for a reader who has never seen the project.**
+  They no longer assume you can read a schema, and every term borrowed from the
+  LLM and search worlds — *token*, *embedding*, *RAG*, *chunk*, *agentic*,
+  *corpus*, *system prompt* — is defined where it first appears. The Spanish terms
+  in the finance demo's captured answers are glossed in place rather than
+  translated away, since the answers are evidence. Both documents now open on
+  Karpathy's note and close on an honest account of what this implementation adds
+  to it and where it falls short, and both gained diagrams: the workspace layout,
+  the two chat checkboxes, and the chat-to-wiki save flow.
+
+- **The query walkthrough describes the mode the app actually ships in.** It was
+  built around a single pre-retrieval toggle, but the read app has two independent
+  checkboxes, and `Strict mode` is **on by default** — so the "unticked mode" it
+  documented was a configuration nobody runs. Its two showcased failures are now
+  measured against that default: a missing citation is repaired by
+  `ensure_citation`, while a passage retrieved for a question it does not answer
+  passes through untouched. `capture_query_walkthrough.py` records both outcomes
+  by replaying the guardrail over the captured run, so the claim costs no second
+  model call and cannot drift from the app.
+
+- **Wiki-page front-matter is written by code, not by the model, and follows the
+  [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog).**
+  The prompt templates used to show the LLM a `tags:`/`sources:` block and ask it to
+  reproduce values the code already held; on update the block round-tripped through
+  the model and could drift. `create_page` now renders it from what it is given, so
+  every page carries a `type` (`concept`, `summary`, `overview` — OKF's one mandatory
+  field), a `title`, its `tags`, and `sources` as OKF provenance mappings rather than
+  bare strings. Reading tolerates the old string form, so existing wikis keep working.
+
+- **The demo video is the new interface, and the README says what it shows.**
+  `https://youtu.be/VLX5kLczQbk` replaces a recording of the three-column app. The
+  blurb changed with it, because the video did: the old one walked an ingest, the
+  new one reads a generated wiki and then contrasts the two answering modes — a
+  cited cross-document answer in 9s against the same kind of question refused in
+  1.2s, which is the design argument and was not demonstrable before.
+
+- **The README screenshots show the tabs read app, and there are two of them.**
+  The old hero image showed the three-column grid doing everything at once,
+  which the tabs app cannot: it renders only the active tab. So one image per
+  tab — the page table with a generated concept page, and a real chat answer
+  making three claims with five citations, above an expanded **Save to wiki**
+  form. Both READMEs' alt text rewritten to match, and with them the quick-start
+  command, the project-structure listing, the E2E command and the "malleable UI"
+  bullet, which still described three columns while the picture above it showed
+  tabs. `docs/assets/read_app.png` is removed as superseded.
+
 ### Fixed
+
+- **Pre-retrieval Tier 1 now carries the dataset the question names.** A data
+  question that also matches wiki pages (for example *"¿Qué tasa de plazo fijo
+  ofrece el Banco Galicia?"*) was answered from the pages alone: the pages hold
+  no rates, and the model called `query_dataset` only when the bank matched the
+  example in the tool's docstring (0 calls in 3 runs for Banco Galicia). The
+  code now injects the named key's rows next to the pages, or only the
+  category's key names when the question names no key, and cites the injected
+  rows (`dataset_injection`, `base/domain/chat/preretrieval.py`; spans `Q7a`–`Q7d`).
+  When the model asks `query_dataset` for a key the category lacks, such as
+  Banco Comafi, the code appends the keys that have data to the answer
+  (`offer_available_keys`).
+
+- **"See also" links now survive an accent.** `slugify` strips combining marks
+  when it builds a page's file name, so a page titled "Panel Líder" is filed as
+  `panel-lider.md`, and `inject_see_also` looks for the slug — "panel lider" —
+  in the text of every other page. The text keeps its accents, so prose that
+  spells "Panel Líder" never matched, and the link was never offered. Counted on
+  the bundled `finanzas-argentinas` wiki: thirty page pairs in that shape, among
+  them the summary of *Acciones Locales*, which names both "Panel Líder" and
+  "Riesgos estructurales de inversión" without linking either. The bundled
+  English wiki has none, which is why the gap stayed invisible. The comparison
+  now strips the accents from the text as well, through `strip_accents` in
+  `wiki_generator`, and `_crosslink_candidates` strips them the same way — that
+  candidate set is a superset of the pages that end up linked only while both
+  halves compare the same string.
+
 - **Concept pages of a Spanish wiki recorded no citation edge.**
   `references.py` looked for the literal `## Sources` heading when parsing the
   plain `- file.pdf` bullets a concept page lists its sources with, while
@@ -237,6 +507,7 @@ interface.
   fixes below — inbound links are stripped, the catalogue entry is pruned, and
   the mark is cleared on regeneration, so the button sees pages that lost
   evidence and were never revisited rather than every page ever marked.
+
 - **`docs/from_idea_to_product.md`, linked from the top of the README.** Seventeen
   ways the LLM-wiki idea leaks when a generic agent is pointed at a folder, each
   with a real example and what this project does about it — the answer to the
@@ -252,6 +523,7 @@ interface.
   that the July text could not have known: the coverage roster matches page
   titles literally, and the blacklist does not stem. The Spanish original is
   marked stale and kept until it is re-translated from the English.
+
 - **`ROADMAP.md`** — what is planned next, and what is built but known to be
   imperfect. The second half is the point: the coverage gate matching page
   titles literally, a documentation check that cannot see a link cut in two, a
@@ -261,6 +533,7 @@ interface.
   out to be already fixed and were closed rather than published, and one lost
   its rationale to an earlier PR and was dropped. Linked from both READMEs and
   covered by the docs link checker.
+
 - **The pre-retrieval switch is documented where you would look for it.** Both
   `wiki_config.example.toml` templates now carry the `[pre_retrieval]` section and
   its three scope lists, commented out, and both READMEs explain the trade in the
@@ -268,111 +541,6 @@ interface.
   and until now it appeared only in the manual, the walkthrough and the finance
   demo's own config — so a user copying the template had no way to learn it exists.
 
-### Changed
-- **The cross-link pass is scoped to the pages an ingest touched.**
-  `crosslink_wiki_pages` compared every wiki page against every other one, with
-  a regular-expression search per pair, and ran in full after any scan that
-  ingested a single file. Measured on synthetic corpora through the real
-  pipeline: 0.1 s at 73 pages, 2.0 s at 460, 7.2 s at 601 — quadratic in the
-  page count, in a step that runs on the way in. It now takes the set of pages
-  the ingest wrote (from the new `pages_touched_by`) and rewrites those plus the
-  pages whose text mentions them. On a 601-page wiki, ingesting one further
-  document: 0.07 s and 5 pages linked, with a full pass straight afterwards
-  finding 0 further pages to link, so the scoped pass loses nothing. The
-  wiki-wide button and regeneration still run the full sweep.
-
-- **Both walkthroughs were reviewed line by line by a first-time reader, and
-  repaired.** Twenty-seven commits of prose, no production code touched and the
-  generated appendix unchanged. The review found errors that a check against the
-  code could not: the compounding figure was 15 → 30 `links_to` edges rather than
-  15 → 25, and the argument attached to it did not hold either, since six new
-  pages produced fifteen new edges — the same ratio as the first act — so what
-  supports the claim is that most new edges come from `repair_missing_xref`, not
-  from the model writing pages. The capture script re-runs eleven questions
-  through the gate, ten of them through a live model, not seven — a figure the
-  same document stated correctly sixty lines earlier. `ensure_citation` appends
-  two independently decided labels, `Referencia:` and `Fuente:`, not one.
-  `overlap.py` was described as able to judge whether a fragment answers a
-  question, when it measures whether an answer draws on a fragment; the ROADMAP
-  entry repeating that claim is corrected too. "Either case ends in `refuse`" is
-  false for a wiki with datasets, where `has_data` diverts the question to the
-  tools.
-
-  Terms used before being defined were introduced where the behaviour first
-  appears — "positions", "agentic", the document's own division into parts, the
-  coverage roster, and the three runs the summary table refers to — so every
-  reference resolves backwards. Figurative phrasing was replaced with the
-  mechanism it stood for throughout: "it nearly went the other way" does not say
-  what the other way was, and "structurally blind" does not say what goes
-  undetected.
-- **The programmer manual is four files, and gained a layer map.** It had grown
-  to 1227 lines on top of the 1090 already split into `workflows.md`. Now:
-  `programmer_manual.md` keeps orientation (§1 §2 §3 §10 §11 §13, 421 lines),
-  `manual/internals.md` takes schema, tool layer and tracing (§4 §5 §14),
-  `manual/apps.md` takes the Marimo apps, configuration, testing and datasets
-  (§7 §8 §9 §15), and `manual/workflows.md` stays as §6. **Section numbers stay
-  global** — a `§N` means the same section wherever cited, which is what keeps
-  ~190 cross-references between these documents valid.
-
-  §2 now carries the nine architectural layers, derived from the project's own
-  knowledge graph (449 nodes, 975 edges) rather than drawn by hand, with the two
-  boundaries that are decisions rather than folder consequences: lint and repair
-  are one layer because they are a producer/consumer pair, and datasets plus the
-  finance overlay sit outside the engine because they are inactive on most wikis.
-
-  Two tests now guard the arrangement, both verified failing: every `§N` cited
-  anywhere in the maintained docs must be defined by one of the four files, and
-  no two files may define the same number. The first immediately found two
-  CODEMAPS still citing `§12`, orphaned when that section moved to the roadmap.
-- **Pending work lives in one place.** The programmer manual carried §11 "Pending
-  Work / Roadmap" and §12 "Future Enhancements"; `ROADMAP.md` arrived three days
-  ago and made a third. Three lists of the same thing diverge, so §11 and §12
-  moved wholesale into the roadmap — including the full five-step
-  `reindex_from_disk` design, and the deliberate deferrals with their reasoning
-  intact (web search at query time and as an ingest loop, two-step reviewed
-  ingestion, image handling, output formats). The manual keeps a pointer and is
-  178 lines shorter. Its "no open bugs" line was true of *bugs* and never of
-  known limits, of which the roadmap now records five. 27 dangling `§11.N` / `§12`
-  cross-references across both READMEs, `workflows.md` and the data dictionary
-  were repointed.
-- **The read app's interface is entirely in English.** It was already English
-  almost everywhere — "Refresh", "Save to wiki", "Category", "is not a
-  directory" — but a handful of Spanish labels had drifted in with the tabs
-  variant and stayed: the two chat checkboxes (`Modo estricto`,
-  `Pre-retrieval: el código recupera…`), the tab names (`📖 Lectura`,
-  `💬 Diálogo`), the chat heading and the save accordion. `read_app.py` already
-  said "Chat with your Wiki" while `read_app_tabs.py` said "Chat con tu Wiki",
-  which is what gave the drift away. Wiki *content* remains per-wiki
-  multilingual and the Spanish system prompts are untouched — this is the
-  chrome only.
-- **Both walkthroughs are rewritten for a reader who has never seen the project.**
-  They no longer assume you can read a schema, and every term borrowed from the
-  LLM and search worlds — *token*, *embedding*, *RAG*, *chunk*, *agentic*,
-  *corpus*, *system prompt* — is defined where it first appears. The Spanish terms
-  in the finance demo's captured answers are glossed in place rather than
-  translated away, since the answers are evidence. Both documents now open on
-  Karpathy's note and close on an honest account of what this implementation adds
-  to it and where it falls short, and both gained diagrams: the workspace layout,
-  the two chat checkboxes, and the chat-to-wiki save flow.
-- **The query walkthrough describes the mode the app actually ships in.** It was
-  built around a single pre-retrieval toggle, but the read app has two independent
-  checkboxes, and `Strict mode` is **on by default** — so the "unticked mode" it
-  documented was a configuration nobody runs. Its two showcased failures are now
-  measured against that default: a missing citation is repaired by
-  `ensure_citation`, while a passage retrieved for a question it does not answer
-  passes through untouched. `capture_query_walkthrough.py` records both outcomes
-  by replaying the guardrail over the captured run, so the claim costs no second
-  model call and cannot drift from the app.
-- **Wiki-page front-matter is written by code, not by the model, and follows the
-  [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog).**
-  The prompt templates used to show the LLM a `tags:`/`sources:` block and ask it to
-  reproduce values the code already held; on update the block round-tripped through
-  the model and could drift. `create_page` now renders it from what it is given, so
-  every page carries a `type` (`concept`, `summary`, `overview` — OKF's one mandatory
-  field), a `title`, its `tags`, and `sources` as OKF provenance mappings rather than
-  bare strings. Reading tolerates the old string form, so existing wikis keep working.
-
-### Fixed
 - **Deleting a wiki page left broken links and a catalogue entry behind.** Two
   cleanups that were supposed to run on delete did not. `_strip_dead_links` built
   its pattern from the page's full path (`wiki/concepts/x.md`), while neighbours
@@ -386,6 +554,7 @@ interface.
   in `documents`, so no cascade reaches it, and the deleted page stayed listed in
   the one page whose job is to list what exists. `remove_index_entry` already
   existed for this and is now called.
+
 - **A page marked stale stayed marked forever.** `stale_since` means "a source
   this page cited was deleted; it may now be under-supported, review it". Nothing
   ever cleared it, so any list built from the flag filled with pages long since
@@ -396,6 +565,7 @@ interface.
   `save_to_wiki` keep it. None of those four revisits the page's prose, which is
   what the mark asks about, so clearing on any overwrite would erase the signal
   on a See-also append and make the flag meaningless by the opposite route.
+
 - **Wiki pages were being recorded as citation sources.** A `cites` record means
   "this page was written from that source document", and deletion, lint and
   provenance all assume the target is a source — `delete_source` decides what to
@@ -408,11 +578,13 @@ interface.
   Fixed at both levels: the repair now writes into the See also section, opening
   one above Sources when absent, and the parser refuses to point a citation at a
   wiki page whatever the markdown says.
+
 - **Two Spanish column headers survived the interface translation.** The read
   app's page table rendered `Título` / `Ruta` against an English wiki — missed by
   the sweep in this release because they are dictionary *keys* built in
   `_page_row`, not `label=` arguments, so the grep that found the checkboxes and
   tab names did not reach them. Found by looking at a screenshot.
+
 - **The read-app E2E was broken by this release's own label translation.** The
   strict-mode toggle was located by `get_by_text("Strict mode")`, and the
   pre-retrieval checkbox beside it now reads "…(supersedes strict mode)" — a
@@ -422,56 +594,6 @@ interface.
   (`answer only from wiki sources`). The Spanish labels did not collide only
   because the second said "modo estricto" in lower case.
 
-### Changed
-- **The demo video is the new interface, and the README says what it shows.**
-  `https://youtu.be/VLX5kLczQbk` replaces a recording of the three-column app. The
-  blurb changed with it, because the video did: the old one walked an ingest, the
-  new one reads a generated wiki and then contrasts the two answering modes — a
-  cited cross-document answer in 9s against the same kind of question refused in
-  1.2s, which is the design argument and was not demonstrable before.
-- **The README screenshots show the tabs read app, and there are two of them.**
-  The old hero image showed the three-column grid doing everything at once,
-  which the tabs app cannot: it renders only the active tab. So one image per
-  tab — the page table with a generated concept page, and a real chat answer
-  making three claims with five citations, above an expanded **Save to wiki**
-  form. Both READMEs' alt text rewritten to match, and with them the quick-start
-  command, the project-structure listing, the E2E command and the "malleable UI"
-  bullet, which still described three columns while the picture above it showed
-  tabs. `docs/assets/read_app.png` is removed as superseded.
-
-### Added
-- **`scripts/record_demo.py`** — records the demo video by driving the read app,
-  replacing a rig that lived in `/tmp` and did not survive. The previous demo
-  outlived its accuracy with no way to regenerate it; this is one command in
-  version control. It shows what the tabbed interface can and the three-column
-  one could not: both tabs, both mode checkboxes, a real cited cross-document
-  answer — and then the same off-corpus question under **Pre-retrieval**,
-  refused in 1.2s against the 9s the model-backed answer took. Not because the
-  model is fast: because it was never called. The waits are sped up rather than
-  cut, so the work is still visibly work. A failed turn aborts instead of
-  recording an error, same guard as the screenshots. The `.mp4` is gitignored —
-  the READMEs point at YouTube, which GitHub will not play from a repo path
-  anyway.
-- **`scripts/capture_screenshots.py`** — regenerates the README screenshots by
-  driving the running read app with Playwright. The images in `docs/assets/` went
-  stale because taking them was a manual ceremony; this makes it one command. Two
-  images rather than one, because the tabs app renders only the active tab and no
-  single frame shows both halves. The chat capture makes a real model call, so
-  the answer in the picture has real citations — and **a failed turn aborts
-  rather than writing**: the first run against an exhausted key produced a
-  perfectly convincing screenshot of marimo's red error box, which quoted the
-  provider's response back, including a key-management URL carrying the key's
-  identifier. It was caught by looking, which is not a control. Now it is one.
-- **`tests/e2e/test_read_app_tabs.py` — the parity gate for promoting the tabs
-  read app.** A copy of `test_read_app.py` with the **assertions untouched**:
-  both files' `assert` lines and test names are byte-identical, so passing one
-  and passing the other is the same claim. Every mechanical difference follows
-  from one fact — the tabs app renders only the active tab — so chat tests
-  switch to 💬 Chat first, where the grid app shows every panel at once. Both
-  suites now pass 7/7 against a live LLM. That clears the gate ROADMAP.md set
-  for deleting `marimo/read_app.py` and its suite.
-
-### Fixed
 - **The "needs a model" skip message speaks to whoever reads it.** When lint
   finds a `stale` or `missing_concept` issue and the repair pass was given no
   model — the default after every ingest — it logs a skip. That skip used to read
@@ -481,6 +603,7 @@ interface.
   those buttons. Two tests pin it, one of them checking the button names against
   `ingest_app.py` itself, since nothing in code reads those strings and they
   could otherwise drift apart unnoticed.
+
 - **Injected passages are labelled by page, and their front-matter is dropped.**
   With pre-retrieval on, every curated block reaching the model was labelled
   `[/wiki/concepts/]` — the folder, identical for all six — so in the one mode
@@ -494,6 +617,7 @@ interface.
   before the label identified the page would have taken the attribution away and
   put nothing back. Four tests; the existing fixture had folded `path` and
   `filename` into one string, which is why the suite never saw the defect.
+
 - **Stop words are per language, which unblocks the Tier-2 fallback.** The list
   of ubiquitous words dropped before building the full-text query
   (`preretrieval.py`) held only Spanish entries. In an English wiki `the` — three
@@ -519,19 +643,24 @@ interface.
   appendix that ships with the project. A new test now asserts that *every* check
   lint can emit is either repairable or declared advisory, so the next one added
   cannot reopen the gap.
+
 - **Ingestion-walkthrough figures can no longer go stale unnoticed.** The appendix
   is regenerated by really running the pipeline, so the model picks different
   concept names and link counts every time and silently invalidates the prose
   quoting them. `tests/unit/test_docs_ingestion_acts.py` compares the two and
   names the figure to fix.
+
 - **Summary pages had no front-matter at all.** `build_summary_page` is pure code and
   never emitted a block, so every summary in every shipped wiki was missing one. They
   have one now, which also makes a generated wiki OKF-conformant end to end.
+
 - **A rollback no longer claims a source it does not have.** Restoring a page after a
   failed ingest used to keep the filename that ingest had added, because sources only
   ever accumulated. Restores are now authoritative.
+
 - **Three prompts wrapped existing page content in `---` while that content itself
   started with `---`**, leaving the model to guess where the delimiters ended.
+
 - **A ticked wiki can answer questions about itself.** With pre-retrieval on, a
   question about the collection as a whole — "what is in this wiki?", "compare all
   of them" — was refused, because coverage is derived from concept-page names and

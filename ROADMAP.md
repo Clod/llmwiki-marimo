@@ -21,70 +21,14 @@ from a real run. Everything else (`programmer_manual.md`,
 `sqlite_data_dictionary.md`, both READMEs) was written from memory of the code
 and has not been checked against that yardstick.
 
-**Regenerate both shipped demos.** `examples/fairy-tales` and
-`examples/finanzas-argentinas` were built by an older version of the pipeline.
-They are correct, and they are not what today's code would produce. Deferred
-deliberately: the walkthroughs quote their figures, so regenerating means
-re-checking every number in two long documents, and nothing currently depends on
-it.
-
 **Run the full end-to-end lint sweep.** `E2E_FULL=1` against
 `tests/e2e/test_ingest_app_v2.py` exercises the LLM lint checks in a browser and
 has never been run. `E2E_DESTRUCTIVE=1` has.
-
-**Promote the tabs read app.** `marimo/read_app_tabs.py` won over the
-three-panel grid in `marimo/read_app.py`, but the old one is still shipped.
-Promoting means a parity end-to-end test *first* — proving nothing was lost —
-then replacing the README screenshots and their alt text in both languages.
-Deleting `read_app.py` before that would be trading a known-good app for an
-assumption.
-
-**Wiki rollback.** Designed, unbuilt: git-tracked markdown plus a gitignored
-database snapshot ring and a deterministic reindex floor, so a bad ingest can be
-undone. The design is written up in
-[`docs/design_wiki_rollback.md`](docs/design_wiki_rollback.md) — module contracts,
-edge cases, a model-free testing strategy, and four independently shippable
-phases. Nothing is built.
 
 **Italian.** The engine is already multilingual per wiki (`[wiki] language` in
 `wiki_config.toml`); adding a language is one `Locale` entry in
 `base/domain/i18n.py`. Scheduled last on purpose — the user-facing docs get
 translated once, after the open branches merge, rather than twice.
-
-**Rebuild the index from disk, without the model.** Today the only way to
-repopulate a lost or corrupt `index.db` is to re-run ingestion — which re-invokes
-the LLM, so pages, document IDs and chunk boundaries all differ run to run, and
-it *overwrites* the on-disk markdown, destroying manual edits. It cannot rebuild
-a page at all once its source file is gone. That contradicts the principle the
-rest of the project rests on: the durable layer is the markdown plus the sources,
-and the database should be rebuildable from them **mechanically**.
-
-`reindex_from_disk(workspace, db_path)` would be that complement:
-
-1. Apply the schema to a fresh DB and re-create the `workspace` row.
-2. Walk `sources/*` → one `source_kind='source'` row per file (recompute
-   `content_hash` / `mtime_ns` / `file_size`), re-extract pages with the existing
-   deterministic extractor, re-chunk, fill `document_pages` + `document_chunks`.
-   Re-extraction is the only step that reads the original file, and it uses no
-   LLM.
-3. Walk `wiki/**/*.md` → one `source_kind='wiki'` row per page; read title and
-   tags from front-matter and re-chunk the markdown (the FTS triggers repopulate
-   `chunks_fts`). This step used to be the weak one — front-matter was written by
-   the model, so values could be missing or drifted. `create_page` now writes it
-   from the values it is given, which makes reading it back sound rather than
-   hopeful.
-4. Run `update_references` per wiki page to rebuild `document_references` from
-   the on-disk citations and wikilinks — already idempotent.
-5. Re-derive each summary's `source_document_id` by matching its slug back to the
-   source whose `make_wiki_slug(filename)` equals it.
-
-**Recovered exactly, every run:** all `documents` rows, `document_chunks` +
-`chunks_fts`, the reference graph, and `index.md` / `overview.md` / `log.md`
-(read back verbatim — they are just files). **Cannot come from disk:** internal
-counters (`version`, `document_number`) reset and `created_at` becomes "now".
-**Caveats:** `document_pages` repopulates only while the source files are still
-there to re-extract; a wiki page whose source was deleted re-registers fine but
-its `cites` edge stays dangling, exactly as today.
 
 **Smaller items**, each a real gap rather than a nicety:
 
@@ -109,6 +53,12 @@ its `cites` edge stays dangling, exactly as today.
 ## Known limits and open questions
 
 Things measured and found wanting, kept here rather than quietly carried.
+
+**A rebuilt index cannot recover what only the sources held.** `reindex_from_disk`
+(`base/domain/tools/reindex.py`) rebuilds `index.db` from `sources/` and `wiki/`
+without the model, but `document_pages` repopulates only while the source files are
+still there to re-extract, and a wiki page whose source was deleted re-registers
+fine while its `cites` edge stays dangling.
 
 **Citation is guaranteed on one path and merely requested on the other.**
 `postprocess.ensure_citation` appends attribution the answer is missing by
@@ -490,14 +440,6 @@ content; if any rewrite flags its neighbours, every ingest floods the report and
 the signal dies. The deterministic candidate is to compare the extraction rather
 than the prose — the set of concept names and their insights — so a rewording
 does not count and a changed concept does. Nothing is built.
-
-**There is no interface for the vocabulary lists.** The blacklist, the
-hand-written aliases and the false-synonym pairs live in `wiki_config.toml` and
-are edited in a text editor. This is deliberate — the pipeline never rewrites a
-file a human wrote, and the automatic repair for a colliding alias refuses to
-touch your config and says so — but it does mean the maintenance loop is manual.
-It is documented in
-[`docs/manual/workflows.md`](docs/manual/workflows/6.1-lint.md#maintaining-the-vocabulary-lists).
 
 ---
 

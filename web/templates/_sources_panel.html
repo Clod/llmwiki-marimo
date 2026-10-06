@@ -1,0 +1,32 @@
+<section class="panel sources-panel" id="sources-panel" aria-labelledby="h-sources"
+         hx-get="/w/{{ wiki_id }}/sources" hx-trigger="operation-done from:body" hx-swap="outerHTML">
+  <div class="panel-head"><h2 id="h-sources">{{ _("Sources") }} · {{ sources|length }}</h2></div>
+  {% if sources %}
+  <div class="table-scroll sources-scroll"><table class="sources">
+    <thead><tr><th scope="col">{{ _("File") }}</th><th scope="col">{{ _("Status") }}</th><th scope="col">{{ _("Pages") }}</th><th scope="col">{{ _("Updated") }}</th><th scope="col"><span class="sr-only">{{ _("Actions") }}</span></th></tr></thead>
+    <tbody>
+    {% for s in sources %}
+    <tr>
+      <td><a href="/w/{{ wiki_id }}/view/{{ s.filename|urlencode }}" target="_blank" rel="noopener" title="{{ _('Open the source document in a new tab') }}">{{ s.filename }}</a></td>
+      <td><span class="pill {{ s.status }}" title="{{ _('Status of the source in the index of the wiki') }}">{{ status_label(s.status) }}</span></td>
+      <td>{{ s.page_count or "–" }}</td>
+      <td>{{ (s.updated_at or "")[:16] }}</td>
+      <td><button class="btn-link destructive" type="button" aria-controls="confirm-src-{{ loop.index }}" title="{{ _('Delete this source from the wiki; asks for confirmation') }}" onclick="toggle('confirm-src-{{ loop.index }}', true)">{{ _("Delete") }}</button></td>
+    </tr>
+    <tr class="confirm-row" id="confirm-src-{{ loop.index }}" hidden><td colspan="5">
+      <form class="confirm" hx-post="/w/{{ wiki_id }}/sources/{{ s.id }}/delete" hx-target="#progress" hx-swap="innerHTML"
+            hx-on::after-request="toggle('confirm-src-{{ loop.index }}', false)">
+        <input type="hidden" name="filename" value="{{ s.filename }}">
+        <p>{{ _("Delete the source “%(filename)s”? Its summary page is deleted. The pages that cite it are kept and marked as stale.", filename=s.filename) }}</p>
+        <div class="actions">
+          <label title="{{ _('Without this option, the file stays in sources/, and the next scan of sources/ ingests it again') }}"><input type="checkbox" name="also_delete_file" value="true">{{ _("Also remove file from sources/") }}</label>
+          <button class="btn btn-danger" title="{{ _('Delete the source from the wiki') }}">{{ _("Delete the source") }}</button>
+          <button class="btn cancel" type="button" title="{{ _('Close without deleting') }}" onclick="toggle('confirm-src-{{ loop.index }}', false)">{{ _("Cancel") }}</button>
+        </div>
+      </form>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="empty-row">{{ _("This wiki has no sources yet.") }}</p>{% endif %}
+</section>

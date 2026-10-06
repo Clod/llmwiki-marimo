@@ -6,10 +6,10 @@
 >
 > | Sections | File |
 > |---|---|
-> | §1 §2 §3 §10 §11 §13 | [`programmer_manual.md`](programmer_manual.md) — orientation, the nine layers, directory map, constraints, glossary |
+> | §1 §2 §3 §10 §11 §13 | [`programmer_manual.md`](programmer_manual.md) — orientation, the layers, directory map, constraints, glossary |
 > | §6 | this file |
 > | §4 §5 §14 | [`internals.md`](internals.md) — schema, tool layer, tracing |
-> | §7 §8 §9 §15 | [`apps.md`](apps.md) — Marimo apps, configuration, testing, datasets |
+> | §7 §8 §9 §15 | [`apps.md`](apps.md) — the web interface, configuration, testing, datasets |
 
 ## 6. Workflows
 
@@ -37,7 +37,7 @@ Each of the ten files linked from the table below follows the same template:
 | 6.5  | [Scan sources](workflows/6.5-scan-sources.md)       | ✅      | `ingestion/pipeline.py:scan_and_ingest`                                          | Should chain into lint+repair                 |
 | 6.6  | [Regenerate](workflows/6.6-regenerate-pages.md)         | ✅      | `ingestion/pipeline.py:regenerate_wiki_pages`                                          | Should chain into lint+repair                  |
 | 6.7  | [Chat / RAG](workflows/6.7-chat-rag.md)         | ✅      | `chat/agent.py:create_agent` + `chat/config.py:_DEFAULT_SYSTEM_PROMPT` | Two modes: agent-driven (default) and opt-in pre-retrieval. Phases 1–3 (wiki + sources) complete; web search (Phase 4) is deliberately not built — see the ROADMAP |
-| 6.8  | [Chat → Wiki](workflows/6.8-chat-to-wiki.md)        | ✅      | `read_app.py` Save form → `chat/wiki_tools.py:save_to_wiki` (user-driven; agent has no write tool) | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred — see the ROADMAP |
+| 6.8  | [Chat → Wiki](workflows/6.8-chat-to-wiki.md)        | ✅      | Review dialog → `services/chat.py:draft_conversation` + `save_reviewed_page` → `chat/wiki_tools.py:draft_wiki_page` + `write_wiki_page` (user-driven; agent has no write tool) | Post-save lint+repair + cross-linking ✅; LLM-gated checks & bidirectional links deferred — see the ROADMAP |
 | 6.9  | [Source deletion](workflows/6.9-source-deletion.md)    | ✅      | `tools/deletion.py:delete_source`                                               | —                                                      |
 | 6.10 | [Wiki page deletion](workflows/6.10-page-deletion.md) | ✅      | `tools/wiki_fs.py:delete_page`                               | —                                                     |
 
@@ -56,15 +56,16 @@ is therefore *"lint comes back clean."*
 code does now) and **Target** (the intended end state, tracked in the [ROADMAP](../../ROADMAP.md)). The status
 legend (✅ implemented · 🟡 partial · ❌ missing) still applies per workflow.
 
-**Plan note** (tracked in the [ROADMAP](../../ROADMAP.md)). The app has a wiki-wide "Run Wiki Lint & Repair" button
-(`lint_repair_widget_cell` + `lint_repair_runner`), and the ingest runner closes
-every ingest with a scoped lint+repair tail (deterministic by default, full-LLM
-via the form checkbox). The remaining Target is auto-tails for scan and regenerate,
-and separate standalone "Run Lint" / "Run Repair" buttons.
+**Plan note** (tracked in the [ROADMAP](../../ROADMAP.md)). The **Maintain** tab has a wiki-wide
+**Run Wiki Lint & Repair** button (`POST /w/{wiki_id}/lint`, `services.ingest.lint_and_repair`),
+and `services.ingest.ingest_uploads` closes every ingest with a scoped lint+repair tail
+(deterministic by default, full-LLM with the box "Full repair with the model, slower"
+of the **Ingest** tab). The remaining Target is auto-tails for scan and regenerate,
+and separate standalone lint and repair buttons.
 
 **Entry duality.** Single (§6.3) and batch (§6.4) ingestion can start either from
-the GUI (upload widget) **or** by dropping files into `workspace/sources/` and
-running Scan sources (§6.5).
+the **Ingest** tab (file field) **or** by dropping files into `workspace/sources/` and
+running **Scan sources/ for changes** (§6.5).
 
 ### Table-write matrix
 
@@ -85,8 +86,8 @@ What each workflow does to the four DB tables and the wiki filesystem.
 | 6.9 Source delete | U/D | D | D | D | D |
 | 6.10 Page delete | D | – | D | D | U/D |
 
-6.3 (via the `ingest_app` runner) closes with a 6.1/6.2 reconciliation pass —
-deterministic by default, full LLM if the form checkbox is ticked, scoped to the
+6.3 (via `services.ingest.ingest_uploads`) closes with a 6.1/6.2 reconciliation pass —
+deterministic by default, full LLM if the box of the form is ticked, scoped to the
 pages the ingest touched — so the 6.2-row writes can also fire as the tail of an
 ingest (without touching unrelated pages). 6.4/6.5 reuse 6.3 per file (6.4 defers
 overview/log/commit to once per batch). 6.6 touches **summary pages only** — no

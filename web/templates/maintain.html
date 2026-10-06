@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Maintenance") }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/ingest.css">{% endblock %}
+{% block body %}
+<main class="container">
+  <h1 class="sr-only">{{ _("Maintenance") }}</h1>
+    {% if notice %}<p class="notice dismissible" role="status"><span>{{ notice }}</span><button class="notice-close" type="button" aria-label="{{ _('Close the notice') }}" title="{{ _('Close the notice') }}" onclick="this.parentElement.remove()">×</button></p>{% endif %}
+
+    <dl class="config-line panel" aria-label="{{ _('Configuration') }}">
+      <div><dt>{{ _("Model") }}</dt><dd title="{{ _('The model that builds the pages in ingestion and repair') }}">{{ model }}</dd></div>
+      <div><dt>{{ _("Server") }}</dt><dd title="{{ _('The address of the model service') }}">{{ base_url }}</dd></div>
+      <div><dt>Java</dt>
+        <dd>{% if tools.java %}<span title="{{ _('Ingesting PDF and office documents needs Java: the text extractor runs a .jar. .md and .txt files do not need it') }}">{{ tools.java }}</span>{% else %}<span class="missing" title="{{ _('Without Java, ingesting PDF and office documents (DOCX, DOC, ODT, RTF) fails; MD and TXT files do not need it. macOS: brew install --cask temurin') }}">{{ _("Not installed") }}</span>{% endif %}</dd></div>
+      <div><dt>LibreOffice</dt>
+        <dd>{% if tools.libreoffice %}<span title="{{ _('LibreOffice converts each office document (DOCX, DOC, ODT, RTF) to PDF') }}">{{ tools.libreoffice }}</span>{% elif tools.libreoffice_found %}<span class="missing" title="{{ _('%(path)s exists, but it did not convert a test DOCX. The Writer component is usually missing (Linux: sudo apt-get install libreoffice-writer). Ingesting DOCX, DOC, ODT and RTF fails; MD and TXT files do not need it.', path=tools.libreoffice_found) }}">{{ _("Installed, but it does not convert documents") }}</span>{% else %}<span class="missing" title="{{ _('Without LibreOffice, ingesting DOCX, DOC, ODT and RTF fails; MD and TXT files do not need it. macOS: brew install --cask libreoffice') }}">{{ _("Not installed") }}</span>{% endif %}</dd></div>
+    </dl>
+
+    <div class="tasks">
+
+        <section class="task panel panel-body">
+          <h2 class="card-title">{{ _("Summary pages") }}</h2>
+          <p class="task-text">{{ _("Regenerates with the model the summary page of each source, from the text already extracted. Concept pages do not change.") }}</p>
+          <button class="btn task-action" type="button" aria-controls="confirm-regen" title="{{ _('Regenerate the summary pages of all the sources; asks for confirmation') }}" onclick="toggle('confirm-regen', true)">{{ _("Regenerate summary pages") }}</button>
+          <div class="confirm" id="confirm-regen" hidden>
+            <p>{% trans count=sources|length %}Regenerate the {{ count }} summary page? The page is rewritten whole, and changes made by hand to it are lost.{% pluralize %}Regenerate the {{ count }} summary pages? Each page is rewritten whole, and changes made by hand to those pages are lost.{% endtrans %}</p>
+            <div class="actions">
+              <button class="btn btn-danger" title="{{ _('Start the regeneration; progress appears in the console') }}" hx-post="/w/{{ wiki_id }}/regenerate" hx-target="#progress" hx-swap="innerHTML"
+                      onclick="toggle('confirm-regen', false)">{{ _("Regenerate") }}</button>
+              <button class="btn cancel" type="button" title="{{ _('Close without regenerating') }}" onclick="toggle('confirm-regen', false)">{{ _("Cancel") }}</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="task panel panel-body">
+          <h2 class="card-title">{{ _("Lint and repair") }}</h2>
+          <p class="task-text">{{ _("Reviews every page of the wiki and repairs the problems it finds. It calls the model.") }}</p>
+          <button class="btn task-action" type="button" aria-controls="confirm-lint" title="{{ _('Review and repair the whole wiki; asks for confirmation') }}" onclick="toggle('confirm-lint', true)">{{ _("Run Wiki Lint & Repair") }}</button>
+          <div class="confirm" id="confirm-lint" hidden>
+            <p>{{ _("Review and repair every page of the wiki? The repair can rewrite and delete pages.") }}</p>
+            <div class="actions">
+              <button class="btn btn-danger" title="{{ _('Start the review; progress appears in the console') }}" hx-post="/w/{{ wiki_id }}/lint" hx-target="#progress" hx-swap="innerHTML"
+                      onclick="toggle('confirm-lint', false)">{{ _("Review and repair") }}</button>
+              <button class="btn cancel" type="button" title="{{ _('Close without reviewing') }}" onclick="toggle('confirm-lint', false)">{{ _("Cancel") }}</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="task panel panel-body">
+          <h2 class="card-title">{{ _("Stale pages") }} · {{ stale|length }}</h2>
+          <p class="task-text">{{ _("A page becomes stale when a source it cites is deleted and the page was not regenerated afterwards. The page may still rely on other sources.") }}</p>
+          {% if stale %}
+          <ul class="stale-list">
+            {% for p in stale %}<li><a href="/w/{{ wiki_id }}/pages/{{ (p.path ~ p.filename)|replace('/wiki/', '', 1)|replace('.md', '') }}" title="{{ _('Open the page to review it') }}">{{ p.title or p.filename }}</a> <small>{{ _("since %(date)s", date=(p.stale_since or '')[:10]) }}</small></li>{% endfor %}
+          </ul>
+          <button class="btn btn-danger-quiet task-action" type="button" aria-controls="confirm-stale" title="{{ _('Delete all the stale pages; asks for confirmation') }}" onclick="toggle('confirm-stale', true)">{% trans count=stale|length %}Delete {{ count }} stale page{% pluralize %}Delete {{ count }} stale pages{% endtrans %}</button>
+          <form class="confirm" id="confirm-stale" hidden method="post" action="/w/{{ wiki_id }}/stale/delete">
+            <p>{% trans count=stale|length %}Delete the {{ count }} stale page? Its sources do not change: what they still cover can be rebuilt by ingesting again.{% pluralize %}Delete the {{ count }} stale pages? Their sources do not change: what they still cover can be rebuilt by ingesting again.{% endtrans %}</p>
+            <div class="actions">
+              <button class="btn btn-danger" title="{{ _('Delete the stale pages of the wiki') }}">{{ _("Delete") }}</button>
+              <button class="btn cancel" type="button" title="{{ _('Close without deleting') }}" onclick="toggle('confirm-stale', false)">{{ _("Cancel") }}</button>
+            </div>
+          </form>
+          {% else %}<p class="muted">{{ _("There are no stale pages.") }}</p>{% endif %}
+        </section>
+
+        <section class="task panel panel-body">
+          <h2 class="card-title">{{ _("Index of the wiki") }}</h2>
+          <p class="task-text">{% trans %}Rebuilds the search database from <code>sources/</code> and <code>wiki/</code>, without calling the model. It changes no page and no source. Use it when the index was lost or damaged.{% endtrans %}</p>
+          <button class="btn task-action" type="button" aria-controls="confirm-reindex" title="{{ _('Rebuild the index from the files of the wiki, without the model; asks for confirmation') }}" onclick="toggle('confirm-reindex', true)">{{ _("Rebuild the index") }}</button>
+          <div class="confirm" id="confirm-reindex" hidden>
+            <p>{% trans %}Rebuild the index? The text of each source is extracted again: Java is needed for PDF and office documents, and LibreOffice for the latter; MD and TXT files need neither. The current index is kept as <code>.llmwiki/index.db.bak</code>. Internal counters and page creation dates are reset, and stale pages stop being marked.{% endtrans %}</p>
+            <div class="actions">
+              <button class="btn btn-danger" title="{{ _('Start the rebuild; progress appears in the console') }}" hx-post="/w/{{ wiki_id }}/reindex" hx-target="#progress" hx-swap="innerHTML"
+                      onclick="toggle('confirm-reindex', false)">{{ _("Rebuild") }}</button>
+              <button class="btn cancel" type="button" title="{{ _('Close without rebuilding') }}" onclick="toggle('confirm-reindex', false)">{{ _("Cancel") }}</button>
+            </div>
+          </div>
+        </section>
+
+
+
+    </div>
+
+    <section class="panel console" aria-labelledby="h-progress">
+      <div class="panel-head"><h2 id="h-progress">{{ _("Progress") }}</h2></div>
+      <div id="progress" aria-live="polite"><ul class="log" data-empty="{{ _('The progress of the operation appears here.') }}"></ul></div>
+    </section>
+</main>
+<script src="/static/js/ingest.js"></script>
+{% endblock %}

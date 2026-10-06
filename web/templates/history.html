@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ _("History") }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/ingest.css"><link rel="stylesheet" href="/static/css/history.css">{% endblock %}
+{% block body %}
+<main class="container history">
+  <h1 class="sr-only">{{ _("History") }}</h1>
+  <p class="lede">{{ _("Every ingestion, chat change, deletion and repair is recorded as a point of the wiki. Going back to a point restores the pages and the search index; the history is not rewritten.") }}</p>
+  <section class="panel" aria-labelledby="h-commits">
+    <h2 class="sr-only" id="h-commits">{{ _("Points of the wiki") }}</h2>
+    <div id="history-list">{% include "_history_list.html" %}</div>
+  </section>
+
+  <section class="panel console" aria-labelledby="h-progress">
+    <div class="panel-head"><h2 id="h-progress">{{ _("Progress") }}</h2></div>
+    <div id="progress" aria-live="polite"><ul class="log" data-empty="{{ _('The progress of the operation appears here.') }}"></ul></div>
+  </section>
+</main>
+<script src="/static/js/ingest.js"></script>
+<script>
+  // When a revert ends, the list is asked for again: the new point appears at the top.
+  document.body.addEventListener("htmx:sseClose", () =>
+    htmx.ajax("GET", "/w/{{ wiki_id }}/history/list", { target: "#history-list", swap: "innerHTML" }));
+</script>
+{% endblock %}

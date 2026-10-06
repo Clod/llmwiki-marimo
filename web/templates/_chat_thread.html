@@ -1,0 +1,4 @@
+{% for m in messages %}{% if m.role == "user" %}<div class="q">{{ m.html }}</div>
+{% else %}<div class="a">{{ m.html | safe }}</div>
+<div class="meta">{{ m.meta | safe }}</div>
+{% endif %}{% else %}{% include "_chat_empty.html" %}{% endfor %}

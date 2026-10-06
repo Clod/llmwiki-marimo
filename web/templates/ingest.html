@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Ingestion") }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/ingest.css">{% endblock %}
+{% block body %}
+<main class="container ingest-screen">
+  <h1 class="sr-only">{{ _("Ingestion") }}</h1>
+    {% if notice %}<p class="notice dismissible" role="status"><span>{{ notice }}</span><button class="notice-close" type="button" aria-label="{{ _('Close the notice') }}" title="{{ _('Close the notice') }}" onclick="this.parentElement.remove()">×</button></p>{% endif %}
+
+    <div class="split">
+    <section class="panel panel-body add" aria-labelledby="h-add">
+      <h2 class="card-title" id="h-add">{{ _("Add documents") }}</h2>
+      <form class="add-form" hx-post="/w/{{ wiki_id }}/ingest" hx-encoding="multipart/form-data" hx-target="#progress" hx-swap="innerHTML">
+        <label class="drop" title="{{ _('Choose one or more files. The ODT, RTF, DOC and DOCX formats need LibreOffice (and Java); MD and TXT files need neither Java nor LibreOffice') }}">{{ format_label }}<input type="file" name="files" multiple accept="{{ accept }}" required></label>
+        <div class="add-options">
+          <label class="check" title="{{ _('Besides the deterministic repair, the model reviews and repairs the pages this ingestion touched. It calls the model and takes longer.') }}"><input type="checkbox" name="full_repair" value="true">{{ _("Full repair with the model, slower") }}</label>
+          <button class="btn btn-primary" title="{{ _('Ingest the chosen files and show the progress') }}">{{ _("Ingest") }}</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel panel-body scan" aria-labelledby="h-scan">
+      <h2 class="card-title" id="h-scan">{% trans %}Folder <span class="mono">sources/</span>{% endtrans %}</h2>
+          <p class="task-text">{% trans %}For files copied to <code>sources/</code> without going through the upload form.{% endtrans %}</p>
+          <button class="btn task-action" type="button" title="{{ _('Ingest the files of sources/ that are new or changed since their last ingestion') }}"
+                  hx-post="/w/{{ wiki_id }}/scan" hx-target="#progress" hx-swap="innerHTML">{{ _("Scan sources/ for changes") }}</button>
+    </section>
+    </div>
+
+    <section class="panel console" aria-labelledby="h-progress">
+      <div class="panel-head"><h2 id="h-progress">{{ _("Progress") }}</h2></div>
+      <div id="progress" aria-live="polite"><ul class="log" data-empty="{{ _('The progress of the operation appears here.') }}"></ul></div>
+    </section>
+
+    {% include "_sources_panel.html" %}
+</main>
+<script src="/static/js/ingest.js"></script>
+{% endblock %}

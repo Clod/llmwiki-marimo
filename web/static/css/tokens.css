@@ -1,0 +1,107 @@
+/* The design tokens of the web application: every colour, type size and spacing
+   step the other stylesheets use. Nothing else declares a literal value.
+
+   Design B, a dense work tool in pastel blue and yellow. Blue is the structure:
+   the header bar, the selected state, the links and the primary button. Yellow is
+   reserved for what needs attention: notices, confirmations, highlights, "running".
+   Red is for destruction only. Each text/background pair meets WCAG AA (4.5:1);
+   tests/web/test_design.py checks them. */
+:root {
+  /* Surfaces: the canvas behind the panels, the panels, the heads of the panels */
+  --color-canvas: #eef4fb;
+  --color-bg: #ffffff;
+  --color-surface: #f6f9fd;
+  --color-border: #d9e3ef;
+  /* The border of a field or a control: 3:1 against the panel (WCAG 1.4.11) */
+  --color-border-strong: #7d95b5;
+
+  /* Text */
+  --color-text: #13233a;
+  --color-text-secondary: #33475f;
+  --color-text-muted: #4a5b72;
+
+  /* Selected state: the header bar, the current page, the user's bubbles, the status pills */
+  --color-selected: #dbe8f7;
+  --color-selected-border: #c4d6ee;
+  --color-pill-quiet: #f1f4f8;
+  --color-dropzone-border: #9fb9dc;
+
+  /* Accent: links and the primary button */
+  --color-accent: #2f5d9e;
+  --color-accent-strong: #1f4378;
+  --color-on-accent: #ffffff;
+
+  /* Attention: notices, confirmations, highlights, "running" */
+  --color-attention: #fbf1c7;
+  --color-attention-tint: #fffdf3;
+  --color-attention-border: #d6c27a;
+  --color-on-attention: #3d2f00;
+  --color-on-attention-soft: #5a4400;
+
+  /* Danger: "Borrar" and the final button of a destructive confirmation only */
+  --color-danger: #b42318;
+  --color-danger-border: #e3b4ae;
+  --color-on-danger: #ffffff;
+
+  /* Behind a modal dialog (drawn at partial opacity) */
+  --color-backdrop: #13233a;
+
+  /* Relations graph: one colour per kind of node. The pastel fills are drawn with a thin
+     outline (3:1 against the panel); the edges are light lines and the highlighted edge is blue. */
+  --color-node-concept: #2f5d9e;
+  --color-node-summary: #8fb1de;
+  --color-node-source: #e7c75a;
+  --color-node-dim: #c9d8ec;
+  --color-node-outline: #6b86ab;
+  --color-edge: #c4d6ee;
+  --color-edge-highlight: #2f5d9e;
+
+
+  /* Type */
+  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --leading-tight: 1.25;
+  --leading-normal: 1.45;
+  --leading-prose: 1.6;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Spacing: seven steps */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-pill: 10px;
+  --border: 1px solid var(--color-border);
+
+  /* Layout */
+  --header-h: 48px;
+  --column-head-h: 40px;
+  --control-h: 32px;
+  --control-h-sm: 28px;
+  --index-w: 220px;
+  --chat-w: 380px;
+  --sources-min-h: 200px;
+  --container-w: 1280px;
+  --container-picker-w: 1120px;
+  --container-history-w: 1080px;
+  --prose-w: 760px;
+  --transition: 150ms ease;
+}

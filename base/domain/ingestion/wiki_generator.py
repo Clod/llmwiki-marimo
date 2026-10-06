@@ -2,7 +2,7 @@
 
 Public API
 ----------
-build_wiki_page()       — legacy single-pass (kept for regenerate_wiki_pages)
+build_wiki_page()       — legacy single-pass (no longer on any path)
 extract_structured()    — Phase 2: JSON extraction → ExtractionResult
 build_summary_page()    — Phase 2: ExtractionResult → summary markdown
 build_concept_page()    — Phase 2: concept → new/updated concept markdown
@@ -591,7 +591,7 @@ def update_overview(
     return frontmatter_block + body
 
 
-# ── Legacy single-pass (kept for regenerate_wiki_pages) ──────────────────────
+# ── Legacy single-pass (no longer used) ───────────────────────────────────
 
 
 def build_wiki_page(

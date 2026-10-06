@@ -29,3 +29,25 @@ jobs:
 
       - name: Lint
         run: uv run ruff check .
+
+  web:
+    name: Web interface tests (Playwright, no network, no model)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --group dev --group web
+
+      - name: Install Chromium for Playwright
+        run: uv run playwright install --with-deps chromium
+
+      - name: Run web tests
+        run: uv run --group web pytest -q tests/web

@@ -21,6 +21,12 @@ marimo/read_app.py     (557)  Reading + RAG chat + save-to-wiki (3-col grid):
                                     wiki_agent.run_stream → stream_text(delta=True)
                                   - save_form → save_action → save_to_wiki
                                   - delete_widget_cell + delete_event_cell
+marimo/read_app_tabs.py  (TABS variant, experimental) — same app, two tabs
+                                  (📖 Read / 💬 Chat) controlled by mo.ui.radio
+                                  (NOT mo.ui.tabs) so tab_body renders only the
+                                  active tab and the mo.ui.chat is never
+                                  re-parented mid-turn. Flow diagrams:
+                                  docs/read_app_tabs_flow.md
 marimo/trace_report_app.py    Read-only WIKI_TRACE run viewer (timeline + tree).
 ```
 

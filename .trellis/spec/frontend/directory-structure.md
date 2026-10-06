@@ -18,7 +18,8 @@ All active notebooks live in `marimo/`.
 ```
 marimo/
 ├── ingest_app.py          # PDF/DOCX upload → ingestion → wiki generation
-├── read_app.py            # Read-only wiki viewer + FTS5 chat (3-column grid)
+├── read_app_tabs.py       # Read-only wiki viewer + chat (📖 Read · 💬 Chat tabs)
+├── read_app.py            # the same app as a 3-column grid — being retired
 ├── chat_app.py            # Standalone chat testbed (same agent as read_app)
 ├── read_app_full.py       # Backup: version with edit/create (not active)
 ├── layouts/
@@ -71,5 +72,5 @@ The `layout_file=` parameter in `App()` is what actually enables multi-column di
 
 ## Examples
 
-- `marimo/read_app.py` — 3-column grid: navigation | content | chat
+- `marimo/read_app_tabs.py` — two tabs, Read and Chat (the 3-column grid of `marimo/read_app.py` is being retired)
 - `marimo/ingest_app.py` — single-column with trigger-capture pattern

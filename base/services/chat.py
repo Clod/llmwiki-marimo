@@ -21,7 +21,7 @@ from domain.chat.config import WikiAssistantConfig, load_config
 from domain.chat.guardrail import enforce_grounding, has_grounding, refusal_for, strip_refused_exchanges
 from domain.chat.history import trim_history
 from domain.chat.postprocess import answer_with_table, ensure_citation
-from domain.chat.preretrieval import pre_retrieval_answer
+from domain.chat.preretrieval import pre_retrieval_answer, with_open_page
 from services.wiki import Wiki
 
 PRE_RETRIEVAL = "pre-retrieval"
@@ -40,6 +40,11 @@ _PRE_RETRIEVAL_PROMPT = (
     "citando la fuente; si no alcanza, decilo. Las herramientas de datos "
     "(query_dataset) y de cálculo (estimar_alternativas) sí siguen disponibles."
 )
+
+
+# In the strict and streaming modes the model searches with its own tools; the
+# open page reaches it as the same note the pre-retrieval mode uses.
+_with_open_page = with_open_page
 
 
 @dataclass(frozen=True)
@@ -106,9 +111,12 @@ def _turn_attributes(messages: Sequence[Any], mode: str, conversation_id: str | 
 
 async def chat_turn(
     wiki: Wiki, agents: ChatAgents, messages: Sequence[Any], *,
-    mode: str, conversation_id: str | None = None,
+    mode: str, conversation_id: str | None = None, open_page: str | None = None,
 ) -> str:
-    """Answer the last message of `messages` in the pre-retrieval or strict mode."""
+    """Answer the last message of `messages` in the pre-retrieval or strict mode.
+
+    `open_page` is the id of the page the user is reading, or None.
+    """
     history = model_history(messages[:-1])
     question = messages[-1].content
     language = agents.config.language
@@ -123,13 +131,16 @@ async def chat_turn(
         with tracing.root("turn", wiki.path, **attributes):
             return await pre_retrieval_answer(
                 question, config=agents.config, db_path=wiki.db_path, workspace=wiki.path,
-                history=history, language=language, run_agent=run_agent,
+                history=history, language=language, run_agent=run_agent, open_page=open_page,
             )
 
     if mode != STRICT:
         raise ValueError(f"chat_turn answers the pre-retrieval and strict modes, not {mode!r}")
     with tracing.root("turn", wiki.path, **attributes) as root:
-        result = await agents.agent.run(question, deps=wiki.db_path, message_history=history)
+        result = await agents.agent.run(
+            _with_open_page(question, open_page, language),
+            deps=wiki.db_path, message_history=history,
+        )
         raw = result.output
         messages_run = result.all_messages()
         answer = enforce_grounding(raw, messages_run, refusal=refusal_for(language))
@@ -145,7 +156,7 @@ async def chat_turn(
 
 async def chat_turn_stream(
     wiki: Wiki, agents: ChatAgents, messages: Sequence[Any], *,
-    conversation_id: str | None = None,
+    conversation_id: str | None = None, open_page: str | None = None,
 ) -> AsyncIterator[str]:
     """Answer the last message of `messages` in the streaming mode, chunk by chunk.
 
@@ -158,7 +169,8 @@ async def chat_turn_stream(
     full_text = ""
     with tracing.root("turn", wiki.path, **attributes) as root:
         async with agents.agent.run_stream(
-            question, deps=wiki.db_path, message_history=history,
+            _with_open_page(question, open_page, agents.config.language),
+            deps=wiki.db_path, message_history=history,
         ) as result:
             async for chunk in result.stream_text(delta=True):
                 full_text += chunk
@@ -180,3 +192,97 @@ def save_answer(
         wiki.db_path, wiki.path, title.strip(), text, category,
         client=client, model=model, language=config.language if config else "en",
     )
+
+
+_EXCHANGE_LABELS = {"es": ("Pregunta", "Respuesta"), "en": ("Question", "Answer")}
+
+
+def conversation_markdown(messages: Sequence[Any], language: str) -> str:
+    """The conversation as markdown, one question and its answer per exchange.
+
+    Refused exchanges are dropped, as in `model_history`: a refusal holds no
+    content for a page. A trailing question with no answer yet is dropped too.
+    """
+    question_label, answer_label = _EXCHANGE_LABELS.get(language, _EXCHANGE_LABELS["en"])
+    blocks: list[str] = []
+    question: str | None = None
+    for message in strip_refused_exchanges(list(messages)):
+        if message.role == "user":
+            question = message.content.strip()
+        elif message.role == "assistant" and question is not None:
+            blocks.append(f"**{question_label}:** {question}\n\n"
+                          f"**{answer_label}:**\n\n{message.content.strip()}")
+            question = None
+    return "\n\n---\n\n".join(blocks)
+
+
+class EmptyConversation(ValueError):
+    """The conversation has no answered question to save."""
+
+
+def _conversation_content(wiki: Wiki, config: WikiAssistantConfig | None, messages: Sequence[Any]) -> tuple[str, str]:
+    """The conversation as markdown and the language of the page.
+    Raises `EmptyConversation` when no exchange was answered."""
+    language = config.language if config else wiki.language
+    content = conversation_markdown(messages, language)
+    if not content:
+        raise EmptyConversation("the conversation has no answered question to save")
+    return content, language
+
+
+def draft_conversation(
+    wiki: Wiki, config: WikiAssistantConfig | None, title: str, messages: Sequence[Any],
+    *, base_url: str, api_key: str, model: str,
+):
+    """Draft the concept page of a whole conversation; return a `PageDraft`.
+
+    Step 1 of saving: the model structures the exchanges of
+    `conversation_markdown` into a page (`wiki_tools.draft_wiki_page`). Nothing is
+    written and nothing is committed. A conversation with no answered exchange is
+    refused with `EmptyConversation`.
+    """
+    from openai import OpenAI
+
+    from domain.chat import wiki_tools
+
+    content, language = _conversation_content(wiki, config, messages)
+    client = OpenAI(base_url=base_url, api_key=api_key)
+    return wiki_tools.draft_wiki_page(
+        wiki.db_path, wiki.path, title.strip(), content, "concept",
+        client=client, model=model, language=language,
+    )
+
+
+def save_reviewed_page(wiki: Wiki, title: str, markdown: str) -> str:
+    """Write the page the user approved, as given; return the status message.
+
+    Step 2 of saving (`wiki_tools.write_wiki_page`), then one git commit,
+    `chat: <title>`. The text is not sent to the model; the post-save repair is
+    the deterministic one.
+    """
+    from domain.chat import wiki_tools
+    from domain.tools.git_ops import auto_commit, init_wiki_repo
+
+    title = title.strip()
+    result = wiki_tools.write_wiki_page(
+        wiki.db_path, wiki.path, title, markdown, "concept", language=wiki.language,
+    )
+    init_wiki_repo(wiki.path)
+    auto_commit(wiki.path, f"chat: {title}")
+    return result
+
+
+def save_conversation(
+    wiki: Wiki, config: WikiAssistantConfig | None, title: str, messages: Sequence[Any],
+    *, base_url: str, api_key: str, model: str,
+) -> str:
+    """Save the whole conversation as a concept page; return the status message.
+
+    A conversation always becomes a concept page: summary pages summarize a
+    source document. `draft_conversation`, then `save_reviewed_page` on the
+    draft, with no review in between. A conversation with no answered exchange is
+    refused with `EmptyConversation`, a `ValueError`.
+    """
+    draft = draft_conversation(wiki, config, title, messages,
+                               base_url=base_url, api_key=api_key, model=model)
+    return save_reviewed_page(wiki, title, draft.markdown)

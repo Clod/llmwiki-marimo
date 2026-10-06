@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="/static/css/plain.css">{% endblock %}
+{% block body %}
+<main class="container picker">
+  <div class="picker-head">
+    <div class="picker-title">
+      <h1>{{ _("Choose a wiki") }}</h1>
+      <p class="lede">{% trans count=wikis | length, home=home %}Each wiki is a folder with its documents, its pages and its index. {{ count }} in <span class="mono">{{ home }}</span>{% endtrans %}</p>
+    </div>
+  </div>
+  <div class="panel table-wrap">
+    <table class="wikis">
+      <thead>
+        <tr>
+          <th scope="col">{{ _("Wiki") }}</th>
+          <th scope="col">{{ _("Path") }}</th>
+          <th scope="col">{{ _("Language") }}</th>
+          <th scope="col" class="num">{{ _("Sources") }}</th>
+          <th scope="col" class="num">{{ _("Pages") }}</th>
+          <th scope="col"><span class="sr-only">{{ _("Action") }}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in wikis %}
+        <tr>
+          <td class="name"><a class="wiki-name" href="/w/{{ w.id }}/" title="{{ _('Open the wiki %(wiki)s', wiki=w.id) }}">{{ w.id }}</a>{% if w.last_opened %} <span class="tag" title="{{ _('The wiki you opened most recently') }}">{{ _("last opened") }}</span>{% endif %}</td>
+          <td class="mono muted">{{ w.path }}</td>
+          <td>{{ w.language }}</td>
+          <td class="num">{{ w.sources if w.sources is not none else "—" }}</td>
+          <td class="num">{{ w.pages if w.pages is not none else "—" }}</td>
+          <td class="num row-actions">
+            <a class="open-link" href="/w/{{ w.id }}/" title="{{ _('Open the wiki %(wiki)s', wiki=w.id) }}">{{ _("Open") }}</a>
+            {% if w.removable %}<form method="post" action="/recent/remove"><input type="hidden" name="path" value="{{ w.path }}">
+              <button class="btn-link" title="{{ _('Take this wiki out of the list of recent wikis; the folder and its wiki stay on disk') }}">{{ _("Remove from the list") }}</button></form>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="open-other">
+    <button class="btn btn-primary" type="button" hx-get="/browse" hx-target="#browse-slot" hx-swap="innerHTML"
+            title="{{ _('Choose or create a folder that is not in the list, and open it as a wiki') }}">{{ _("Open another folder…") }}</button>
+  </div>
+  <div id="browse-slot"></div>
+</main>
+<script src="/static/js/picker.js"></script>
+{% endblock %}

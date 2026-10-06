@@ -13,15 +13,15 @@ A personal, local-first wiki that ingests your documents, builds a structured kn
 
 Inspired by [Karpathy's LLM Wiki idea](https://x.com/karpathy/status/2039805659525644595).
 The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas Astorian's open-source LLM Wiki](https://github.com/lucasastorian/llmwiki)
-(Apache-2.0); the rest is an independent local-first build on Marimo + SQLite. See [`NOTICE`](NOTICE).
+(Apache-2.0); the rest is an independent local-first build on FastAPI, HTMX and SQLite. See [`NOTICE`](NOTICE).
 
-![The read app's Read tab on the built-in sample wiki: a searchable table of generated pages on the left, and the selected concept page rendered on the right with its definition, key characteristics, context, and cross-links to related pages](docs/assets/read_app_read_tab.png)
+![The reading screen of the web interface on the sample finance wiki: the page index on the left, the page "Plazo fijo UVA" in the middle, and on the right a conversation with two questions and their answers, each followed by its answering mode and the pages it cites](docs/assets/web_read_chat_en.png)
 
-*The **Read** tab on the built-in sample wiki — every page in the table was written by the model from a source PDF, and the See-also links between them were added by the repair pass, not by hand.*
+*The **Read** tab on the finance example. The page index is on the left and the open page is in the middle. The conversation is on the right: under each answer, one line names the answering mode and the pages the answer cites. The mode selector under the question field has three values: **Pre-retrieval** (code retrieves first and refuses before the model is called), **Strict** (the answer is replaced by a refusal when the model did not consult the wiki) and **No verification** (the answer streams and is not checked) ([which to pick, and why](docs/query_walkthrough.md)). The **Save** button turns the conversation into a wiki page only after you review the draft: the agent has no write tool.*
 
-![The read app's Chat tab: two checkboxes select the answering mode, and the assistant answers "What do Cinderella and Snow White have in common?" across two documents, citing a specific wiki page for each of the three claims it makes. Below, an expanded form offers to save the answer as a new page](docs/assets/read_app_chat_tab.png)
+![The History tab of the web interface: a list of seven wiki points, each with its date, message, short git identifier, number of changed pages and a button to return to that point; the newest point is marked as current](docs/assets/web_history_en.png)
 
-*The **Chat** tab, same wiki, one real answer. Three claims, five citations, each naming the page it came from. The two checkboxes are the whole design argument — **Strict mode** audits the model after it answers; **Pre-retrieval** has code retrieve first and refuse before the model is ever called ([which to pick, and why](docs/query_walkthrough.md)). Below: the **Save to wiki** form — the agent has no write tool, so a good answer becomes a permanent page only on your click.*
+*The **History** tab. Every ingestion, saved conversation, deletion and repair is one point of the wiki. A point marked "index copy" has a copy of the search index, so returning to it is immediate; for the others the index is rebuilt without calling the model. This capture was taken on the finance example with seven points added by the capture script.*
 
 ▶ **[Watch the 1-minute demo](https://youtu.be/VLX5kLczQbk)** — reading a generated wiki, then one cross-document answer citing a page for every claim (9s), then the same kind of question refused **in 1.2s because the model was never called**.
 
@@ -40,9 +40,10 @@ The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas 
 *external* agent — Claude Desktop, Cursor, an MCP client — at an Obsidian vault.
 This one ships its own embedded agent: ingestion, agentic retrieval (the chat
 assistant decides when to read a page vs. search), self-maintenance, and a
-reading UI are a single app, with no external agent or plugin host to wire up.
-The trade-off is honest — it's not an Obsidian plugin, so there's no graph view
-or plugin ecosystem (see [Limitations](#limitations--non-goals)).
+web interface are a single app, with no external agent or plugin host to wire up.
+The trade-off is honest — it's not an Obsidian plugin, so there is no plugin
+ecosystem (see [Limitations](#limitations--non-goals)). It does have its own
+relations graph, in the **Relations** tab.
 
 **Knowledge that also knows the numbers — beyond an encyclopedia.** Most "chat
 with your documents" tools — classic RAG, NotebookLM, even the original LLM-wiki
@@ -66,7 +67,7 @@ that also keeps live data and computes grounded advice over it.*
 
 - **Dynamic data, not just prose** — a domain-neutral `datasets` engine ingests structured, periodically-refreshed tables (rates/prices/stats) as a lane separate from the durable concept pages, exposed to the chat agent as a `query_dataset` tool; values are quoted verbatim with their `as_of` date, never recalled from memory.
 - **Deterministic, grounded advisory** — the example `finance_argentina` overlay computes "what would I earn" over those datasets in pure Python (effective-rate math, eligibility), lists every option ranked and cited, and refuses to estimate the non-deterministic (equities, inflation, FX) rather than fabricating a number.
-- **Enforceable grounding (cite-or-refuse)** — a deterministic post-check: if an answer isn't backed by a tool result it's replaced with an honest refusal, so the model can't quietly fall back on general knowledge. A GUI toggle switches strict (buffered + gated) vs. normal (streamed).
+- **Enforceable grounding (cite-or-refuse)** — a deterministic post-check: if an answer isn't backed by a tool result it's replaced with an honest refusal, so the model can't quietly fall back on general knowledge. A mode selector in the chat switches between pre-retrieval, strict (buffered + gated) and unverified (streamed).
 - **Wiki-first RAG** — reads a curated, interlinked encyclopedia first (`index.md` → wiki FTS5 → raw source chunks as a fallback), so knowledge is compiled once and compounds instead of being re-retrieved per query.
 - **Per-wiki language (en/es, extensible)** — set `[wiki] language` in `wiki_config.toml` and the whole wiki — generated pages, section headers, *and* chat answers — is produced in that language, **regardless of the source documents' language**. Run an English wiki and a Spanish wiki side by side; adding a third language is one `Locale` entry.
 - **LLM-as-judge eval packet** — one command bundles the questions, the model's own answers, the cited evidence, and source-vs-generated page pairs against a *frozen* 1–5 rubric, to score chat **and** ingestion quality (and compare models).
@@ -77,9 +78,9 @@ that also keeps live data and computes grounded advice over it.*
 
 **Engineering quality**
 
-- **Tests across three layers, ≈1:1 test-to-code** (framework-agnostic core in `base/`, exercised without a browser) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright E2E on the live apps.
-- **Framework-agnostic core** — all logic lives in `base/domain/{ingestion,chat,eval,lint,repair,tools}`; Marimo is only the UI at the edges, so the engine is exercised by unit tests without a browser.
-- **Malleable UI** — because the GUI is marimo notebooks, the read app's layout is plain `@app.cell` annotations: open it with `marimo edit` and re-stack, re-column or re-tab the cells to suit your workflow, taste, or monitor — no frontend code to touch. Both arrangements ship, from the same engine: a tabbed one and a three-column grid.
+- **Tests across three layers, ≈1:1 test-to-code** (framework-agnostic core in `base/`, exercised without a browser) — deterministic fake-LLM unit tests (no keys, no network); a frozen golden-corpus *characterization* regression that re-checks the real-ingest backbone without re-calling the model; and Playwright tests of the web interface that run in CI.
+- **Framework-agnostic core** — all logic lives in `base/domain/{ingestion,chat,eval,lint,repair,tools}`; the web interface (`web/`) is only the UI at the edges, and it calls `base/services/`, so the engine is exercised by unit tests without a browser.
+- **Server-rendered web interface** — FastAPI and Jinja2 render the HTML, HTMX updates the page, and Server-Sent Events stream chat answers and the progress of long operations. There is no JavaScript build step: the few scripts and the stylesheets are plain files in `web/static/`.
 - **Security-conscious** — a path-traversal guard on the LLM-callable page reader, an explicit prompt-injection threat model, and a documented [`SECURITY.md`](SECURITY.md).
 - **Local-first & private** — runs entirely on-device; each wiki is its own local-only git repo (version history for free); source files are never modified and nothing is pushed anywhere.
 - **Scale-aware** — re-ingest skips unchanged files by content hash, lint compares only page pairs that share a source (not N²), and the overview synthesis is incremental.
@@ -113,10 +114,16 @@ and only falls back to raw chunks when needed.
 
 ## What it does
 
-1. **Ingest** — drop PDFs or DOCXs into the ingest app (this only saves them to `sources/`), then click **Ingest** to run the pipeline. It extracts text page by page, chunks it with overlap, runs structured concept extraction, and creates / updates summary + concept pages plus the catalogue, overview, and timeline — then snapshots the result to the wiki's own git repo (optional; see [What ends up on disk](#what-ends-up-on-disk)).
-2. **Read** — browse the generated wiki pages in a clean 3-column interface. Navigation, content viewer, and AI chat all in one.
-3. **Chat** — ask questions about your documents. A PydanticAI agent reads curated wiki pages first, queries live datasets when you ask for current figures, and falls back to raw-source FTS5 only when needed — citing every fact. An optional grounding guardrail enforces cite-or-refuse (UI toggle: strict/buffered vs. normal/streamed).
-4. **Maintain** — run lint to surface orphans, stale pages, missing cross-references, and missing concepts; run repair to auto-fix the safe ones.
+1. **Ingest** — in the **Ingest** tab, choose PDF, office (`.docx`, `.doc`, `.odt`, `.rtf`), Markdown (`.md`) or plain-text (`.txt`) files and click **Ingest**, or copy files to `sources/` and click **Scan sources/ for changes**. The pipeline extracts text page by page, chunks it with overlap, runs structured concept extraction, and creates / updates summary + concept pages plus the catalogue, overview, and timeline — then snapshots the result to the wiki's own git repo (optional; see [What ends up on disk](#what-ends-up-on-disk)). The same tab lists the sources and deletes a source after a confirmation.
+2. **Read** — in the **Read** tab, browse the generated pages through the page index, read the open page, edit it in a Markdown editor with a live preview, or delete it after a confirmation. Links between pages and links to the source documents work as links.
+3. **Chat** — in the same tab, ask questions about your documents. A PydanticAI agent reads curated wiki pages first, queries live datasets when you ask for current figures, and falls back to raw-source FTS5 only when needed — citing every fact. A mode selector chooses between pre-retrieval, strict (cite-or-refuse) and unverified (streamed) answers. The conversation survives navigation, the editor and a reload in the same browser tab. **Save** turns the whole conversation into a wiki page: the model prepares a draft, you review and edit it in a dialog, and the page is written only when you click **Save to wiki**.
+4. **Maintain** — in the **Maintain** tab, regenerate the summary pages, run lint and repair (the safe fixes), delete stale pages, and rebuild the search index from the files on disk without calling the model.
+5. **Explore** — in the **Relations** tab, see the graph of pages and sources, search for a page, and open the graph of one page and its neighbours.
+6. **Go back** — in the **History** tab, return the whole wiki to an earlier point, and read or compare earlier versions of one page. The history is not rewritten: a return is a new point.
+
+The interface is in English and in Spanish: the **EN | ES** switch at the right of the header chooses the language (a cookie; without it, the browser's language; without that, English). This is the language of the labels and messages only. The language of the wiki content is set per wiki and is a different setting (see [Wiki content language](#wiki-content-language)): a Spanish wiki can be read with the English interface, and the reverse.
+
+> **From marimo to a web interface.** Up to [v0.4.0](https://github.com/Clod/llmwiki-marimo/releases/tag/v0.4.0) the interface of this project was a set of [marimo](https://marimo.io) notebooks; that release is the one to install for them. marimo re-runs a whole cell whenever one of its widgets changes, which suits a notebook. The application came to need a conversation that survives moving between pages, progress streamed while an ingestion runs, and an address for every page and screen, so it moved to a server-rendered web interface (FastAPI and HTMX). The marimo apps stay in `marimo/` until a separate change removes them; this documentation describes the web interface only.
 
 > **For developers:** the canonical reference is  
 > [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) — workflows, prompts,  
@@ -140,7 +147,7 @@ and only falls back to raw chunks when needed.
 
 ```
 YOUR_WIKI_PATH/
-├── sources/                 # Uploaded files (created by ingest app)
+├── sources/                 # Uploaded files (created by the Ingest tab)
 │   ├── paper.pdf
 │   └── report.docx
 ├── wiki/                    # Generated by the LLM — you read it, the wiki writes it
@@ -197,7 +204,7 @@ own automation) — the app's job ends at the local commit.
 base/                   # Ingestion pipeline + chat agent (self-contained Python)
 ├── config.py              # pydantic-settings — reads .env
 └── domain/
-    ├── ingestion/         # PDF/DOCX → text → chunks → summary + concept pages
+    ├── ingestion/         # PDF/office/md/txt → text → chunks → summary + concept pages
     ├── datasets/          # Generic engine for live, structured data (rates/prices/stats)
     ├── finance_argentina/ # Example domain overlay: deterministic, cited investment advisory
     ├── chat/              # PydanticAI agent + wiki/source/save/dataset tools + grounding guardrail
@@ -207,10 +214,21 @@ base/                   # Ingestion pipeline + chat agent (self-contained Python
     ├── tools/             # Native CRUD: wiki_fs, search, references, deletion, git_ops, db
     └── wiki_registry.py   # Multi-wiki picker: discovery + recent list + path hygiene
 
-marimo/                # Marimo notebook apps
-├── ingest_app.py          # Upload → ingest → wiki generation UI
-├── read_app_tabs.py       # Read-only viewer + chat (📖 Read · 💬 Chat tabs)
-└── read_app.py            # the same app as a 3-column grid — being retired
+web/                    # The web interface: FastAPI + Jinja2 + HTMX (see web/README.md)
+├── app.py                 # Application factory; `web.app:app` is what uvicorn loads
+├── routes/                # picker, pages, chat, ingest, history, relations
+├── templates/             # Jinja2 templates (English message ids; the Spanish catalog is in locale/)
+├── i18n.py                # Interface language: catalogs, choice of language, _() and ngettext()
+├── locale/                # gettext catalogs, one per language but English
+└── static/                # CSS, JavaScript, htmx, force-graph
+
+base/services/          # The calls the web routes make: wiki.py, chat.py, ingest.py
+
+
+marimo/                 # Marimo notebook apps — being retired, kept until their removal
+├── ingest_app.py
+├── read_app_tabs.py
+└── read_app.py
 
 database/
 └── sqlite_schema.sql      # Canonical DB schema
@@ -229,12 +247,16 @@ docs/
 └── archive/               # Superseded design docs (historical)
 
 examples/               # Pre-ingested demo wikis (used by quickstart.py)
-└── fairy-tales/           # Browsable with no LLM; chat needs a model
+├── fairy-tales/           # Browsable with no LLM; chat needs a model
+├── cuentos-de-hadas/      # The same demo as a Spanish wiki
+└── finanzas-argentinas/   # Spanish finance wiki with datasets; the screenshots above use it
 
 tests/
 ├── unit/                  # Deterministic unit tests (FakeLLM, no network)
 ├── regression/            # Frozen golden-corpus tests (real ingest, no live model)
-├── e2e/                   # Playwright E2E on the live apps (not in CI)
+├── web/                   # Web interface: routes, rendering, design, Playwright flows (in CI)
+│   └── e2e/               # Playwright flows over a copy of the finance example
+├── e2e/                   # Playwright E2E on the marimo apps (live model; not in CI)
 └── fixtures/              # Test PDFs + wiki config + golden corpus
 
 quickstart.py           # One-command console installer (Python-only; see Quick start)
@@ -247,15 +269,16 @@ requirements.txt        # Hash-pinned deps exported from uv.lock (for the instal
 
 - **Python 3.12+** and **[uv](https://docs.astral.sh/uv/)**
 - An **OpenAI-compatible LLM API** (OpenRouter, Ollama, LM Studio, etc.)
-- **A Java runtime** — needed for **all** ingestion, PDF and DOCX alike: the text
-  extractor (`opendataloader-pdf`) runs a bundled `.jar` through the `java`
-  command, and a DOCX is converted to PDF before that same extractor reads it.
+- **A Java runtime** — needed to ingest **PDF and office files** (`.docx`, `.doc`,
+  `.odt`, `.rtf`): the text extractor (`opendataloader-pdf`) runs a bundled `.jar`
+  through the `java` command, and an office file is converted to PDF before that
+  same extractor reads it. `.md` and `.txt` files need no Java runtime.
   Reading and chatting with a wiki that is already built need no Java runtime,
   which is why the bundled demos open without one:
     - macOS: `brew install --cask temurin`
     - Debian/Ubuntu: `sudo apt install default-jre` (Fedora: `sudo dnf install java-21-openjdk`)
     - Windows: `winget install EclipseAdoptium.Temurin.21.JRE`
-- **LibreOffice** — only needed for DOCX ingestion:
+- **LibreOffice** — only needed for office files (`.docx`, `.doc`, `.odt`, `.rtf`); not for PDF, `.md` or `.txt`:
     - macOS: `brew install --cask libreoffice`
     - Debian/Ubuntu: `sudo apt install libreoffice` (Fedora: `sudo dnf install libreoffice`)
     - Windows: `winget install TheDocumentFoundation.LibreOffice`
@@ -280,8 +303,8 @@ version, drops in a **pre-ingested demo wiki** (browsable instantly — no LLM
 needed just to read), runs a short provider wizard (**local Ollama by default**,
 or any OpenAI-compatible endpoint such as LM Studio or OpenRouter), builds an
 isolated virtualenv from a lock-pinned
-`requirements.txt`, runs an advisory **grounding check** on your model
-(`--no-eval` skips it), and launches the read app. It won't overwrite an existing
+`requirements.txt` (which includes the web interface's dependencies), runs an advisory **grounding check** on your model
+(`--no-eval` skips it), and launches the web interface with `uvicorn` on port 2720 (`--port` changes it). The browser opens on the wiki picker. It won't overwrite an existing
 `.env` or demo without asking, and flags make it scriptable:
 
 ```bash
@@ -300,7 +323,7 @@ Prefer to wire it up yourself? The manual `uv` setup is below.
 ```bash
 git clone https://github.com/Clod/llmwiki-marimo.git
 cd llmwiki-marimo
-uv sync
+uv sync --group web
 ```
 
 #### 2. Configure
@@ -316,32 +339,35 @@ LLM_API_KEY=ollama                    # any non-empty string for Ollama
 LLM_MODEL=llama3.2
 ```
 
-`WIKI_PATH` is just the **default** — both apps have a wiki picker (top-left) so  
-you can switch between multiple wikis at runtime without editing `.env`. It lists  
-wikis discovered next to `WIKI_PATH` plus a recent list, and you can open any  
-other folder by path. Set `WIKI_HOME=/path/to/wikis` to point discovery at a  
+`WIKI_PATH` is just the **default** — the web interface starts on a wiki picker, and the wiki selector in the header switches between wikis at runtime without editing `.env`. The picker lists  
+the wikis discovered next to `WIKI_PATH` and the recent ones, and opens any  
+other folder by its path. Set `WIKI_HOME=/path/to/wikis` to point discovery at a  
 specific folder instead of the parent of `WIKI_PATH`.
 
 See [LLM providers](#llm-providers) for Ollama and LM Studio config.
 
-#### 3. Ingest documents
+#### 3. Launch the web interface
 
 ```bash
-uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
+uv run --group web uvicorn web.app:app --port 8765
 ```
 
-Open [http://localhost:2718](http://localhost:2718), drop in your PDFs or DOCXs, click **Ingest**.
+Open [http://localhost:8765](http://localhost:8765). The page lists the wikis; open one. The server listens on `localhost` and has no authentication: it is for one user on one machine. Without `uv`, use the `python -m uvicorn web.app:app --port 8765` of an environment that has the `web` group installed.
 
-#### 4. Read and chat
+The header of every wiki has six tabs:
 
-```bash
-uv run marimo run marimo/read_app_tabs.py --no-sandbox --port 2720
-```
+| Tab | What it does |
+| --- | --- |
+| **Read** | The page index, the open page (edit, relations, history, delete) and the conversation. Documents are not added here. |
+| **Ingest** | Add documents (**Ingest**), ingest the new or changed files of `sources/` (**Scan sources/ for changes**), list the sources and delete one. |
+| **Maintain** | Regenerate the summary pages, **Run Wiki Lint & Repair** (lint and repair), delete stale pages, rebuild the index without the model. |
+| **Relations** | The graph of pages and sources, with a page search, zoom buttons and the neighbourhood of one page. |
+| **Vocabulary** | The names the wiki covers (read only, with a search field), their aliases, the rejected aliases and the blacklist; add, remove or reject an entry. Every change is a point of the history. |
+| **History** | The points of the wiki, and the return to an earlier point. |
 
-Open [http://localhost:2720](http://localhost:2720). Select a page on the left, read it in the middle, chat on the right.
+Add documents in **Ingest** first: a wiki with no sources has nothing to read. The sample wikis in `examples/` are already ingested.
 
-> Using distinct ports (2718 for ingest, 2720 for read) lets you run both apps  
-> at once without a collision — marimo defaults both to 2718 otherwise.
+The environment variables are listed in [`web/README.md`](web/README.md).
 
 ---
 
@@ -500,10 +526,17 @@ falls back to English. See [`docs/manual/programmer_manual.md`](docs/manual/prog
 
 ## Document formats
 
-| Format | Parser             | Notes                          |
-| ------ | ------------------ | ------------------------------ |
-| PDF    | opendataloader-pdf | Text-heavy PDFs work well; requires a Java runtime |
-| DOCX   | LibreOffice → PDF  | Requires LibreOffice **and** a Java runtime |
+| Format | Parser | Needs |
+| ------ | ------ | ----- |
+| PDF | opendataloader-pdf | A Java runtime. Text-heavy PDFs work well |
+| DOCX | LibreOffice → PDF → opendataloader-pdf | LibreOffice **and** a Java runtime |
+| DOC | LibreOffice → PDF → opendataloader-pdf | LibreOffice **and** a Java runtime |
+| ODT | LibreOffice → PDF → opendataloader-pdf | LibreOffice **and** a Java runtime |
+| RTF | LibreOffice → PDF → opendataloader-pdf | LibreOffice **and** a Java runtime |
+| MD | read directly | Nothing. Encoding UTF-8, UTF-8 with BOM or cp1252. Pages split at level-1/2 headings (about 4,000 characters per page, no paragraph cut); the front-matter block is not stored |
+| TXT | read directly | Nothing. Same encodings; pages split at blank-line paragraph boundaries (about 4,000 characters per page) |
+
+The list of formats is one place in the code, `base/domain/ingestion/formats.py`. LibreOffice needs its word processor component (Writer) to convert; the **Maintain** tab shows whether the installed LibreOffice converts a document.
 
 **Text-based PDFs only.** Scanned / image-only PDFs are not OCR'd yet — they  
 ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap  
@@ -513,9 +546,9 @@ ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap
 
 ## Testing
 
-Three layers, fastest first.
+Three automated suites, fastest first, and one manual check. The first two are the ones CI runs.
 
-**1. Fast regression gate** — deterministic, no LLM keys or running apps, finishes
+**1. Fast regression gate** — deterministic, no LLM keys, no running server, finishes
 in about a minute. Run it after any change:
 
 ```bash
@@ -527,15 +560,31 @@ cascade, save mechanics, lint logic, git snapshots) over fake-LLM unit tests plu
 a **frozen real-ingest "golden corpus"** — so the backbone is checked against a
 real ingest without re-calling the model.
 
-**2. End-to-end (Playwright)** — drives the actual marimo apps:
+**2. Web interface** — routes, rendering, the design checks (contrast, tokens) and
+Playwright flows over a copy of `examples/finanzas-argentinas`. The agents are
+simulated: no test calls a model, and none needs Java or LibreOffice.
 
 ```bash
-uv run playwright install chromium                            # once
+uv run playwright install chromium                    # once
+uv run --group web pytest -q tests/web                # everything, with the browser flows
+uv run --group web pytest -q tests/web --ignore=tests/web/e2e   # without a browser
+```
+
+**3. End-to-end on the marimo apps (live model)** — drives the marimo apps with
+Playwright and needs a configured model. It is not in CI, and it goes away with the
+marimo apps:
+
+```bash
 HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s  # ingest pipeline
 HEADLESS=1 uv run pytest tests/e2e/test_read_app_tabs.py -v -s  # read app (uses the step-1 workspace)
 ```
 
-**3. Acceptance & model check (manual)** — the human-judgment pass for the things
+**What CI runs.** `.github/workflows/test.yml` has two jobs on every push and pull request to `master`:
+`unit` runs suite 1 and `ruff check .`; `web` installs the `web` and `dev` groups and Chromium and runs suite 2.
+CI has no LibreOffice, so the tests that convert an office document skip there
+(`tests/unit/test_office_conversion.py`).
+
+**4. Acceptance & model check (manual)** — the human-judgment pass for the things
 assertions can't grade. The full plan is **[`docs/uat_test_plan.md`](docs/uat_test_plan.md)**,
 a user-acceptance test in three parts:
 
@@ -612,9 +661,9 @@ concept are **deliberately deferred** for the PoC:
 corpus — it never reaches out to the web, and there's no automatic web→wiki  
 loop. To bring in an outside source, fetch it yourself (e.g. save the article  
 as a PDF) and then **ingest it manually** — dropping a file into `sources/`  
-does nothing on its own. Open the ingest app and either (a) drag the file into  
-the upload box and click **⚙️ Ingest uploaded file(s)**, or (b) put it in  
-`WIKI_PATH/sources/` and click **🔄 Scan sources/ for changes**, which detects  
+does nothing on its own. Open the **Ingest** tab and either (a) choose the file in  
+the upload form and click **Ingest**, or (b) put it in  
+`WIKI_PATH/sources/` and click **Scan sources/ for changes**, which detects  
 and ingests anything new or modified. Treat a document from an untrusted origin  
 the way you'd treat untrusted code: at ingestion its text is turned into wiki  
 pages automatically — see [`SECURITY.md`](SECURITY.md).
@@ -622,19 +671,19 @@ pages automatically — see [`SECURITY.md`](SECURITY.md).
 document are skipped, not described or summarised.
 - **Text-based PDFs only.** No OCR yet, so a scanned / image-only PDF ingests as  
 empty or garbled text. Use a text-based PDF or convert it first.
-- **Output is markdown only — no visualisations or alternate formats.** The wiki  
+- **Output is markdown only — no alternate formats.** The wiki  
 records a full citation/link graph in the database (`document_references`:  
-which page cites which source, which pages link to which), but there's no  
-interactive **graph view** to *see* that shape, and no generators for slide  
+which page cites which source, which pages link to which), and the  
+**Relations** tab draws it. There are no generators for slide  
 decks (**Marp**) or spatial **canvas** layouts. You read the wiki as linked  
-markdown pages — cross-links are clickable, the graph just isn't drawn.
+markdown pages.
 - **Ingestion is automated, not a guided conversation.** Karpathy's flow has the  
 LLM discuss a source with you and write pages under your direction; here you  
 drop a file and the pipeline extracts → summarises → files it in one shot, with  
 no mid-ingest review. You steer the wiki *afterwards*: open the resulting page  
-in the read app, chat about the document, then save a corrected or synthesised  
-answer back as a wiki page via the read app's **Save to wiki** form
-(`save_to_wiki`). The agent only drafts and proposes — the save is your explicit  
+in the **Read** tab, chat about the document, then save the conversation  
+as a wiki page with **Save**. The agent only drafts and proposes — you review  
+the draft in a dialog and the save is your explicit  
 click — so the human-in-the-loop step is post-hoc rather than during ingestion.
 
 The rationale for each cut and the revisit plan live in  

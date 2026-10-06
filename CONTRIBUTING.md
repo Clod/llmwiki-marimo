@@ -9,20 +9,21 @@ loop (ingest → maintain → read → chat → lint → repair) are especially 
 ```bash
 git clone https://github.com/Clod/llmwiki-marimo.git
 cd llmwiki-marimo
-uv sync
+uv sync --group dev --group web
 cp .env.example .env   # then fill in WIKI_PATH and your LLM_* values
 ```
 
 Prerequisites: **Python 3.12+**, **[uv](https://docs.astral.sh/uv/)**, and an
-OpenAI-compatible LLM endpoint (OpenRouter, Ollama, LM Studio, …). LibreOffice is
-only needed for DOCX ingestion. See the [README](README.md) for provider config.
+OpenAI-compatible LLM endpoint (OpenRouter, Ollama, LM Studio, …). Java is needed to ingest PDF and
+office files, and LibreOffice only for office files (DOCX, DOC, ODT, RTF). See the [README](README.md) for provider config.
 
-## Running the apps
+## Running the web interface
 
 ```bash
-uv run marimo run marimo/ingest_app.py --no-sandbox   # ingest documents
-uv run marimo run marimo/read_app_tabs.py --no-sandbox   # read + chat
+uv run --group web uvicorn web.app:app --port 8765   # then open http://localhost:8765
 ```
+
+The marimo apps in `marimo/` are being retired; new work goes to `web/` (see [`web/README.md`](web/README.md)).
 
 ## Tests
 
@@ -30,19 +31,16 @@ Unit tests use a `FakeLLM` and make **no network calls**; the regression suite r
 
 ```bash
 uv run pytest tests/unit tests/regression -q
+uv run playwright install chromium            # once, for the web tests
+uv run --group web pytest -q tests/web
 uv run ruff check .
 ```
 
-End-to-end tests drive the marimo apps with Playwright and require a real LLM
-endpoint, so they are not part of CI:
+The web tests simulate the model and need no network. The end-to-end tests of the marimo
+apps (`tests/e2e/`) require a real LLM endpoint and are not part of CI.
 
-```bash
-uv run playwright install chromium            # once
-HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s   # populates the workspace
-HEADLESS=1 uv run pytest tests/e2e/test_read_app_tabs.py -v -s   # uses that workspace
-```
-
-CI runs the unit and regression suites and `ruff` on every push and PR to `master`.
+CI runs two jobs on every push and PR to `master`: `unit` (the unit and regression suites and
+`ruff`) and `web` (`tests/web`, with Chromium).
 
 ## Conventions
 

@@ -6,7 +6,9 @@ LLM and is covered by manual / E2E testing.
 """
 
 
-from domain.chat.wiki_tools import read_wiki_page, search_wiki_fts, save_to_wiki
+from domain.chat.wiki_tools import (
+    draft_wiki_page, read_wiki_page, save_to_wiki, search_wiki_fts, write_wiki_page,
+)
 from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
 from domain.tools.wiki_fs import create_page
 from tests.helpers.fake_llm import FakeLLMClient
@@ -155,6 +157,43 @@ def test_save_to_wiki_page_searchable_via_fts(tmp_workspace: WorkspaceFixture) -
     )
     result = search_wiki_fts(_Ctx(tmp_workspace.db_path), "monetary policy")
     assert "result" in result.lower()
+
+
+# ── save_to_wiki in two steps: draft, then write ─────────────────────────────
+
+def _tree(workspace):
+    return {str(p): p.read_bytes() for p in sorted(workspace.rglob("*")) if p.is_file() and ".git" not in p.parts}
+
+
+def test_draft_wiki_page_returns_the_draft_and_writes_nothing(tmp_workspace: WorkspaceFixture) -> None:
+    before = _tree(tmp_workspace.workspace)
+    draft = draft_wiki_page(
+        tmp_workspace.db_path, tmp_workspace.workspace, "Yield Curve", _CONTENT, "concept",
+        client=FakeLLMClient(response_content=_STRUCTURED), model="fake",
+    )
+    assert (draft.title, draft.slug, draft.path) == ("Yield Curve", "yield-curve", "wiki/concepts/yield-curve.md")
+    assert draft.exists is False and "monetary" in draft.markdown.lower()
+    assert _tree(tmp_workspace.workspace) == before
+
+
+def test_draft_wiki_page_says_when_the_slug_exists(tmp_workspace: WorkspaceFixture) -> None:
+    fake = FakeLLMClient(response_content=_STRUCTURED)
+    save_to_wiki(tmp_workspace.db_path, tmp_workspace.workspace, "Yield Curve", _CONTENT, "concept",
+                 client=fake, model="fake")
+    draft = draft_wiki_page(tmp_workspace.db_path, tmp_workspace.workspace, "Yield Curve", _CONTENT, "concept",
+                            client=fake, model="fake")
+    assert draft.exists is True
+
+
+def test_write_wiki_page_saves_the_text_it_is_given_without_a_model(tmp_workspace: WorkspaceFixture) -> None:
+    text = "# Yield Curve\n\nEdited by the user: a sentence the model never wrote.\n"
+    msg = write_wiki_page(tmp_workspace.db_path, tmp_workspace.workspace, "Yield Curve", text, "concept")
+    assert msg.startswith("Created wiki/concepts/yield-curve.md")
+    page = (tmp_workspace.workspace / "wiki" / "concepts" / "yield-curve.md").read_text()
+    assert "Edited by the user: a sentence the model never wrote." in page
+    assert "yield-curve" in (tmp_workspace.workspace / "wiki" / "index.md").read_text().lower()
+    again = write_wiki_page(tmp_workspace.db_path, tmp_workspace.workspace, "Yield Curve", text + "More.\n", "concept")
+    assert again.startswith("Updated ")
 
 
 # ── 4.2: agent configuration ──────────────────────────────────────────────────

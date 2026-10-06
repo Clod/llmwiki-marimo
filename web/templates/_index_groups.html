@@ -1,0 +1,6 @@
+{% for group, items in groups.items() %}
+  <section class="index-group">
+    <h4>{{ group }} · {{ items|length }}</h4>
+    {% for p, label in items %}<a href="/w/{{ wiki_id }}/pages/{{ p }}" title="wiki/{{ p }}.md" {% if p == page %}class="current" aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+  </section>
+{% endfor %}

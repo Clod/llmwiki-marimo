@@ -15,7 +15,7 @@
 **In this file**
 
 1. [Philosophy & Karpathy Alignment](#1-philosophy--karpathy-alignment)
-2. [Architecture Overview](#2-architecture-overview) — including the nine layers and where each section lives
+2. [Architecture Overview](#2-architecture-overview) — including the layers and where each section lives
 3. [Directory Structure](#3-directory-structure)
 10. [Known Constraints & Gotchas](#10-known-constraints--gotchas)
 11. [Pending Work & Future Enhancements](#11-pending-work--future-enhancements) — pointer to [`ROADMAP.md`](../../ROADMAP.md)
@@ -35,7 +35,7 @@
 
 **In [`apps.md`](apps.md)**
 
-7. Marimo Apps · 8. Configuration · 9. Testing · 15. Datasets, Grounding
+7. The web interface · 8. Configuration · 9. Testing · 15. Datasets, Grounding
    Guardrail & the `finance_argentina` Overlay
 
 Status legend used throughout: ✅ implemented · 🟡 partial · ❌ missing.
@@ -58,7 +58,7 @@ The project maps onto Karpathy's three-layer model as follows:
 
 | Karpathy layer           | This project                                                                                       |
 | ------------------------ | -------------------------------------------------------------------------------------------------- |
-| Raw sources (immutable)  | `WIKI_PATH/sources/*.pdf` / `*.docx`                                                               |
+| Raw sources (immutable)  | `WIKI_PATH/sources/*.pdf` / `*.docx` / `*.doc` / `*.odt` / `*.rtf` / `*.md` / `*.txt`                                                               |
 | Wiki (LLM-generated)     | `WIKI_PATH/wiki/{summaries,concepts}/*.md` + `index.md`, `overview.md`, `log.md`                   |
 | Schema (LLM conventions) | `base/domain/chat/config.py:_DEFAULT_SYSTEM_PROMPT` + optional per-workspace `wiki_config.toml` |
 
@@ -137,7 +137,7 @@ as an MCP tool, alongside — not replacing — the index-first cascade.
 ## 2. Architecture Overview
 
 ```
-                    PDFs / DOCXs (sources/)
+                    PDF / office / md / txt files (sources/)
                             │
                             ▼
               ┌───────────────────────────────┐
@@ -161,8 +161,8 @@ as an MCP tool, alongside — not replacing — the index-first cascade.
               └─────────────┬─────────────────┘
                             ▼
               ┌───────────────────────────────┐
-              │   Marimo UIs                  │ marimo/
-              │   ingest_app + read_app       │
+              │   Web interface               │ web/ → base/services/
+              │   (marimo/ is being retired)  │
               └───────────────────────────────┘
 
               ┌───────────────────────────────┐
@@ -189,14 +189,15 @@ cross-references between these documents valid.
 | §1 §2 §3 §10 §11 §13 | this file | what the project is, how it is shaped, what it does not do |
 | §6 | [`workflows.md`](workflows.md) | one entry per workflow, with contracts |
 | §4 §5 §14 | [`internals.md`](internals.md) | schema, tool layer, tracing |
-| §7 §8 §9 §15 | [`apps.md`](apps.md) | Marimo apps, configuration, testing, datasets |
+| §7 §8 §9 §15 | [`apps.md`](apps.md) | the web interface, configuration, testing, datasets |
 
 
-### The nine layers
+### The layers
 
-Derived from the project's own knowledge graph (449 nodes, 975 edges) rather
-than drawn by hand, then checked against the directory tree. Every one of the
-128 file-level nodes belongs to exactly one layer.
+Nine layers were derived from the project's own knowledge graph (449 nodes, 975 edges) rather
+than drawn by hand, then checked against the directory tree; every one of the
+128 file-level nodes belonged to exactly one of them. `base/services/` and `web/` were added after
+that derivation, as the two rows marked *added*, so the table has eleven rows.
 
 | Layer | What belongs here | Start reading at |
 |---|---|---|
@@ -206,7 +207,9 @@ than drawn by hand, then checked against the directory tree. Every one of the
 | **Quality & Maintenance** | lint finds defects, repair fixes the safe ones — one layer because they are a producer/consumer pair | `lint/runner.py` · `repair/runner.py` |
 | **Datasets & Overlays** | the optional lane for facts that expire, plus one example domain overlay | `datasets/source.py` · `finance_argentina/agent_tool.py` |
 | **Evaluation** | the offline harness that scores chat and ingestion quality | `eval/packet.py` |
-| **User Interface** | three Marimo notebooks and a widget — the *entire* interface | `marimo/ingest_app.py` · `marimo/read_app_tabs.py` |
+| **Services** *(added)* | the calls every interface makes to the domain: open a wiki, list and save pages, one chat turn per mode, uploads, maintenance, history, the relations graph. No interface code | `base/services/wiki.py` · `base/services/chat.py` · `base/services/ingest.py` |
+| **Web interface** *(added)* | the interface of the project: FastAPI routes, Jinja2 templates, HTMX, SSE. Routes hold no logic and call `base/services/` | `web/app.py` · `web/routes/` |
+| **User Interface (marimo)** | three Marimo notebooks and a widget — the former interface, being retired and kept until a separate change removes it | `marimo/ingest_app.py` · `marimo/read_app_tabs.py` |
 | **Core & Configuration** | cross-cutting settings, locales, workspace discovery | `base/config.py` · `domain/i18n.py` |
 | **Support** | documentation, templates, scripts, the quick-start installer | `quickstart.py` |
 
@@ -262,9 +265,11 @@ llmwiki/
 │       │   ├── batch.py                # batch_ingest
 │       │   ├── chunker.py              # chunk_pages (FTS5 units)
 │       │   ├── detector.py             # mtime + SHA-256 change detection
-│       │   ├── extractor.py            # PDF/DOCX → list[(page, markdown)]
+│       │   ├── extractor.py            # PDF/office/md/txt → list[(page, markdown)]
+│       │   ├── formats.py              # TEXT_/OFFICE_/SUPPORTED_EXTENSIONS, defined once
 │       │   ├── index_manager.py        # wiki/index.md upsert (deterministic)
 │       │   ├── pdf_extract.py          # opendataloader-pdf (text PDFs; no OCR yet)
+│       │   ├── text_extract.py         # .md / .txt reader (no Java, no LibreOffice)
 │       │   └── wiki_generator.py       # all LLM prompt builders (see §6)
 │       ├── lint/
 │       │   ├── checks.py               # 7 check functions (incl. gap_filled)
@@ -284,7 +289,15 @@ llmwiki/
 │       │   └── wiki_fs.py              # create/read/append/delete_page
 │       ├── tracing.py                  # opt-in OpenTelemetry spans, one per diagram node (see §14)
 │       └── wiki_registry.py            # wiki discovery + recent list + path hygiene (the picker, §7.1)
-├── marimo/
+├── web/                                # The web interface (see web/README.md and §7)
+│   ├── app.py                          # create_app(); `web.app:app` is what uvicorn loads
+│   ├── routes/                         # picker, pages, chat, ingest, history, relations
+│   ├── templates/                      # Jinja2 templates (Spanish)
+│   ├── static/                         # CSS (tokens.css), JavaScript, htmx, force-graph
+│   ├── render.py                       # Markdown → sanitized HTML, internal links rewritten
+│   ├── state.py                        # AppState: open wikis, conversations, operations (in memory)
+│   └── settings.py                     # WebSettings
+├── marimo/                             # Being retired; removal is a separate change
 │   ├── ingest_app.py                   # Wiki picker + upload + ingest + scan + regenerate UI
 │   ├── read_app.py                     # Wiki picker + 3-pane reader + chat + save_to_wiki
 │   ├── widgets/
@@ -302,9 +315,10 @@ llmwiki/
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
-│   ├── unit/                           # 487 unit tests (no LLM, no network)
-│   ├── regression/                     # golden-corpus + eval-reader invariants (skips until frozen)
-│   └── e2e/                            # 11 Playwright tests (live marimo + LLM)
+│   ├── unit/                           # 1057 unit tests (no LLM, no network)
+│   ├── regression/                     # golden-corpus + eval-reader invariants (16 tests)
+│   ├── web/                            # 239 tests: routes, rendering, design checks; e2e/ holds the 30 Playwright flows
+│   └── e2e/                            # 23 Playwright tests of the marimo apps (live model; not in CI)
 ├── examples/                          # Pre-ingested demo wikis for quickstart.py (§7)
 │   ├── fairy-tales/                   # Complete workspace; browsable with no LLM
 │   ├── cuentos-de-hadas/             # Spanish (es) mirror of fairy-tales
@@ -319,7 +333,8 @@ llmwiki/
 │   ├── sqlite_data_dictionary.md       # Per-column DB reference
 │   ├── CODEMAPS/                       # Auto-generated code maps
 │   └── archive/                        # Superseded design docs
-├── README.md                           # End-user quickstart
+├── README.md · README_ES.md            # Public presentation, English and Spanish
+├── .github/workflows/test.yml          # CI: `unit` (tests/unit, tests/regression, ruff) and `web` (tests/web)
 ├── quickstart.py                       # Stdlib-only console installer (§7)
 ├── requirements.txt                    # Hash-pinned export of uv.lock (installer pip path, §7)
 └── pyproject.toml + uv.lock
@@ -329,7 +344,7 @@ llmwiki/
 
 ```
 workspace/                              # = the active wiki (default $WIKI_PATH; switchable in-app, §7.1)
-├── sources/                            # Drop PDFs / DOCXs here
+├── sources/                            # Drop PDF / office / .md / .txt files here
 ├── wiki/
 │   ├── index.md                        # Auto-maintained catalogue
 │   ├── overview.md                     # LLM-rewritten narrative synthesis
@@ -360,7 +375,7 @@ page creation. Always add a second poll for the wiki page in tests.
 - **Circular import.** `wiki_fs.py` imports `chunker.py` inside  
 `_insert_chunks()` (deferred) to prevent a load-time cycle with  
 `pipeline.py`.
-- **Marimo reactivity.** `ingest_file()` runs synchronously inside a marimo  
+- **Marimo reactivity** (marimo apps only). `ingest_file()` runs synchronously inside a marimo  
 cell. Marimo re-runs dependent cells reactively *after* the cell completes,  
 not during. Cells are not async unless explicitly written as `async def`.
 - **`source_document_id` is set only for summary pages**, not concepts —  
@@ -373,7 +388,7 @@ are not truncated to `fed`.
 transliterated rather than silently dropped (`"Política Común"` →  
 `politica-comun`, not `poltica-comn`). This is the only safe cross-OS  
 behaviour.
-- **LibreOffice required for DOCX.** `extractor.check_libreoffice()` raises  
+- **LibreOffice required for office files (.docx .doc .odt .rtf).** `.md` and `.txt` need neither LibreOffice nor Java (`text_extract.py`). `extractor.check_libreoffice()` raises  
 `LibreOfficeNotInstalledError` with install instructions; the pipeline  
 surfaces this as `status='failed'`.
 
@@ -401,7 +416,7 @@ map in §3 names every module involved.
 
 **On "no open bugs".** This section used to say none were tracked. That was true
 of *bugs*; it was never true of known limits, and
-[`ROADMAP.md`](../../ROADMAP.md#known-limits-and-open-questions) now records five —
+[`ROADMAP.md`](../../ROADMAP.md#known-limits-and-open-questions) now records them —
 measured, reproduced, and deliberately not fixed yet.
 
 ---
@@ -410,7 +425,7 @@ measured, reproduced, and deliberately not fixed yet.
 
 | Term                        | Meaning                                                                                                                                                                                                                             |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Source**                  | A raw, immutable file under `workspace/sources/` (PDF, DOCX). `source_kind='source'` in `documents`.                                                                                                                                |
+| **Source**                  | A raw, immutable file under `workspace/sources/` (PDF, office, .md, .txt). `source_kind='source'` in `documents`.                                                                                                                                |
 | **Summary page**            | 1-to-1 LLM-generated markdown reflection of a single source. Lives under `wiki/summaries/`. Carries `source_document_id`.                                                                                                           |
 | **Concept page**            | Topic-centric, multi-source markdown page under `wiki/concepts/`. Carries YAML front-matter written by `create_page` (`type`, `title`, `tags`, `sources`) — the model returns the body only. Does NOT carry `source_document_id` — derives from many sources.                                                                            |
 | **`index.md`**              | Catalogue of every page in the wiki, organised by category. Deterministically updated by `index_manager.update_index`.                                                                                                              |

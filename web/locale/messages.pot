@@ -1,0 +1,1883 @@
+# Translations template for llmwiki.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the llmwiki project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: llmwiki VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-05 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: web/app.py
+#, python-format
+msgid "That wiki does not exist: %(wiki)s"
+msgstr ""
+
+#: web/app.py web/templates/base.html
+msgid "Back to the list of wikis"
+msgstr ""
+
+#: web/app.py
+msgid "Cannot open the index of this wiki."
+msgstr ""
+
+#: web/deps.py
+msgid "Another operation is running on this wiki."
+msgstr ""
+
+#: web/deps.py
+msgid "Pre-retrieval"
+msgstr ""
+
+#: web/deps.py
+msgid "The code searches the wiki before calling the model and passes it the pages found"
+msgstr ""
+
+#: web/deps.py
+msgid "Strict"
+msgstr ""
+
+#: web/deps.py
+msgid "The model queries the wiki with tools; if it did not, the answer is replaced by a refusal"
+msgstr ""
+
+#: web/deps.py
+msgid "No verification"
+msgstr ""
+
+#: web/deps.py
+msgid "The answer appears as the model generates it. The code does not check that the answer comes from the wiki"
+msgstr ""
+
+#: web/deps.py web/templates/relations.html
+msgid "Concept"
+msgstr ""
+
+#: web/deps.py web/templates/relations.html
+msgid "Summary"
+msgstr ""
+
+#: web/deps.py web/templates/base.html web/templates/picker.html
+msgid "Wiki"
+msgstr ""
+
+#: web/deps.py
+msgid "Concepts"
+msgstr ""
+
+#: web/deps.py
+msgid "Summaries"
+msgstr ""
+
+#: web/deps.py
+msgid "General"
+msgstr ""
+
+#: web/deps.py
+msgid "pending"
+msgstr ""
+
+#: web/deps.py
+msgid "processing"
+msgstr ""
+
+#: web/deps.py
+msgid "ready"
+msgstr ""
+
+#: web/deps.py
+msgid "failed"
+msgstr ""
+
+#: web/deps.py
+msgid "Page"
+msgstr ""
+
+#: web/render.py web/templates/_sources_panel.html
+msgid "Open the source document in a new tab"
+msgstr ""
+
+#: web/render.py
+#, python-format
+msgid "%(n)s unchanged line"
+msgid_plural "%(n)s unchanged lines"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/state.py
+#, python-format
+msgid "The model is not configured: define %(names)s in the .env file (for ingestion the WIKI_LLM_* variables also work)."
+msgstr ""
+
+#: web/routes/chat.py
+msgid "There is no answered question to save."
+msgstr ""
+
+#: web/routes/chat.py
+#, python-format
+msgid "unknown mode: %(mode)s"
+msgstr ""
+
+#: web/routes/chat.py
+msgid "That question is no longer in progress."
+msgstr ""
+
+#: web/routes/chat.py
+#, python-format
+msgid "Could not answer: %(error)s"
+msgstr ""
+
+#: web/routes/chat.py
+msgid "Enter a title for the page."
+msgstr ""
+
+#: web/routes/chat.py
+#, python-format
+msgid "Could not prepare the draft: %(error)s"
+msgstr ""
+
+#: web/routes/chat.py
+msgid "The page cannot be empty."
+msgstr ""
+
+#: web/routes/chat.py
+#, python-format
+msgid "Could not save: %(error)s"
+msgstr ""
+
+#: web/routes/chat.py
+#, python-format
+msgid "Updated the page “%(title)s”."
+msgstr ""
+
+#: web/routes/chat.py
+#, python-format
+msgid "Created the page “%(title)s”."
+msgstr ""
+
+#: web/routes/chat.py web/templates/_vocabulary_body.html
+msgid "Open the page"
+msgstr ""
+
+#: web/routes/history.py
+msgid "⏪ Restoring the pages of "
+msgstr ""
+
+#: web/routes/history.py
+msgid "🗄 Restoring the index snapshot"
+msgstr ""
+
+#: web/routes/history.py
+msgid "🗄 No snapshot to use: rebuilding the index from the files"
+msgstr ""
+
+#: web/routes/history.py
+msgid "This point has no index copy, and rebuilding it needs Java, which is not installed."
+msgstr ""
+
+#: web/routes/history.py
+msgid ""
+"This point has no index copy, and rebuilding it needs LibreOffice for the office documents of sources/, which is not "
+"installed."
+msgstr ""
+
+#: web/routes/history.py
+msgid "This point has no index copy, and the text of no source could be extracted to rebuild it."
+msgstr ""
+
+#: web/routes/history.py
+msgid "The index of this point could not be restored."
+msgstr ""
+
+#: web/routes/history.py
+msgid "That point of the history does not exist."
+msgstr ""
+
+#: web/routes/history.py
+#, python-format
+msgid "There is %(n)s unsaved change in wiki/ and going back would lose it."
+msgid_plural "There are %(n)s unsaved changes in wiki/ and going back would lose them."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/routes/history.py
+msgid "The wiki has no history: WIKI_AUTOCOMMIT is 0 or git is not available."
+msgstr ""
+
+#: web/routes/history.py
+#, python-format
+msgid "Did not go back: there are unsaved changes in wiki/ and they would be lost. Files: %(files)s"
+msgstr ""
+
+#: web/routes/history.py
+msgid "Nothing was changed: the pages and the index stay as they were."
+msgstr ""
+
+#: web/routes/history.py
+#, python-format
+msgid "Did not go back: %(error)s"
+msgstr ""
+
+#: web/routes/history.py
+msgid "restored from its copy"
+msgstr ""
+
+#: web/routes/history.py
+msgid "rebuilt from the files"
+msgstr ""
+
+#: web/routes/history.py
+#, python-format
+msgid "Recorded as point %(sha)s."
+msgstr ""
+
+#: web/routes/history.py
+msgid "The pages were already identical, so no point was added."
+msgstr ""
+
+#: web/routes/history.py
+#, python-format
+msgid "🏁 The wiki went back to point %(sha)s: %(pages)s pages; index %(index)s."
+msgstr ""
+
+#: web/routes/history.py web/routes/pages.py web/routes/relations.py web/templates/page.html
+msgid "The page does not exist."
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "%(formats)s or %(last)s"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 %(label)s: %(ingested)s ingested, %(skipped)s skipped, %(failed)s failed"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "⚠️ %(name)s: format not supported; supported formats are %(formats)s"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "⚠️ %(name)s: invalid file name"
+msgstr ""
+
+#: web/routes/ingest.py
+msgid "file"
+msgstr ""
+
+#: web/routes/ingest.py web/templates/ingest.html
+msgid "Ingestion"
+msgstr ""
+
+#: web/routes/ingest.py
+msgid "Scan"
+msgstr ""
+
+#: web/routes/ingest.py
+msgid "Regeneration"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 Review and repair: %(issues)s problem(s) found"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 Index rebuilt: %(sources)s sources, %(pages)s pages, %(references)s references"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "; %(failed)s sources with errors"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "The text of no source could be extracted, so the current index stays as it was. First error: %(error)s"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "Deleted %(n)s stale page."
+msgid_plural "Deleted %(n)s stale pages."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🗑 Deleting the source “%(filename)s”"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "Could not delete the source “%(filename)s”: %(error)s"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "Deleted the summary page %(page)s"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "%(count)s page marked as stale: %(pages)s"
+msgid_plural "%(count)s pages marked as stale: %(pages)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/routes/ingest.py
+msgid "Removed the file from sources/"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 Deleted the source “%(filename)s”."
+msgstr ""
+
+#: web/routes/ingest.py
+msgid "That operation has already finished."
+msgstr ""
+
+#: web/routes/pages.py
+#, python-format
+msgid "%(filename)s cannot be shown: %(error)s"
+msgstr ""
+
+#: web/routes/pages.py
+msgid "Source document"
+msgstr ""
+
+#: web/routes/pages.py
+msgid "The document is empty."
+msgstr ""
+
+#: web/routes/pages.py
+#, python-format
+msgid "The page “%(page)s” is fixed and cannot be deleted."
+msgstr ""
+
+#: web/routes/picker.py
+msgid "Write an absolute path."
+msgstr ""
+
+#: web/routes/picker.py
+msgid "No folder at that path."
+msgstr ""
+
+#: web/routes/picker.py
+msgid "The folder cannot be read."
+msgstr ""
+
+#: web/routes/picker.py
+msgid "Write a name for the folder."
+msgstr ""
+
+#: web/routes/picker.py
+msgid "A folder name cannot contain “/” nor start with a dot."
+msgstr ""
+
+#: web/routes/picker.py
+msgid "A folder with that name already exists."
+msgstr ""
+
+#: web/routes/picker.py
+#, python-format
+msgid "The folder could not be created: %(reason)s"
+msgstr ""
+
+#: web/routes/vocabulary.py
+msgid "Write a term."
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is already in the list."
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is not in the list."
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is a topic the wiki covers: it cannot go to the blacklist."
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is not in the roster: choose one of its names."
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is the name of another topic of the wiki."
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "The alias “%(alias)s” of “%(canonical)s” is the name of “%(other)s”."
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "There are aliases for “%(canonical)s”, which has no page nor dataset."
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(name)s”"
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "The alias “%(alias)s” belongs to several names: %(names)s."
+msgstr ""
+
+#: web/routes/vocabulary.py
+#, python-format
+msgid "“%(term)s” is in the blacklist, but the wiki now covers it."
+msgstr ""
+
+#: web/routes/vocabulary.py
+msgid "No dataset holds that name."
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Open a folder"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Close without opening"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Close without opening a folder"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Folder shown"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Absolute path of a folder; Enter shows it"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Show the folder written in the field"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Go"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Subfolders"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+#, python-format
+msgid "Go up to %(folder)s"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+#, python-format
+msgid "Show the folder %(folder)s"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "The folder has wiki/ or .llmwiki/"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "No subfolders."
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Name of a new folder"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "A folder created inside the folder shown"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Create the folder inside the folder shown and show it"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Create folder"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+#, python-format
+msgid ""
+"A wiki will be created in <code>%(path)s</code>: the folders <code>wiki/</code> and <code>sources/</code>, the index "
+"<code>.llmwiki/</code> and a git repository."
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Create the wiki in this folder and open it"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Create the wiki"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Close without creating anything"
+msgstr ""
+
+#: web/templates/_browse_panel.html web/templates/_history_confirm.html web/templates/_review_dialog.html
+#: web/templates/_sources_panel.html web/templates/edit.html web/templates/maintain.html web/templates/page.html
+msgid "Cancel"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "This folder is a wiki."
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "This folder has no wiki yet."
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Open this folder and add it to the list of recent wikis"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Open this folder"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Create a wiki in this folder; asks for confirmation"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "Create a wiki here…"
+msgstr ""
+
+#: web/templates/_chat_empty.html
+msgid "Ask about this page or about the wiki. For example:"
+msgstr ""
+
+#: web/templates/_chat_empty.html
+msgid "Send this question"
+msgstr ""
+
+#: web/templates/_chat_meta.html
+msgid "Open the page cited in the answer"
+msgstr ""
+
+#: web/templates/_dataset_dialog.html
+#, python-format
+msgid "Datasets that hold “%(name)s”"
+msgstr ""
+
+#: web/templates/_dataset_dialog.html
+msgid "Close the dataset"
+msgstr ""
+
+#: web/templates/_dataset_dialog.html
+#, python-format
+msgid "as of %(date)s"
+msgstr ""
+
+#: web/templates/_dataset_dialog.html
+#, python-format
+msgid "source: %(source)s"
+msgstr ""
+
+#: web/templates/_dataset_dialog.html web/templates/_history_confirm.html
+msgid "Close"
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "Cannot go back to this point."
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "Save or discard those changes and try again."
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "Close this notice"
+msgstr ""
+
+#: web/templates/_history_confirm.html
+#, python-format
+msgid "Take the wiki back to the point “%(message)s” of %(date)s?"
+msgstr ""
+
+#: web/templates/_history_confirm.html
+#, python-format
+msgid ""
+"Since that point the wiki <b>added %(added)s</b>, <b>changed %(changed)s</b> and <b>removed %(removed)s</b> page. "
+"Going back deletes the added ones, brings back the removed ones and restores the text of the changed ones."
+msgid_plural ""
+"Since that point the wiki <b>added %(added)s</b>, <b>changed %(changed)s</b> and <b>removed %(removed)s</b> pages. "
+"Going back deletes the added ones, brings back the removed ones and restores the text of the changed ones."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/_history_confirm.html
+msgid "Will be deleted"
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "Will come back"
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "Will recover their text"
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "See the list of pages"
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid ""
+"The configuration of the wiki (<code>wiki_config.toml</code>, with its vocabulary lists) goes back to the one of this"
+" point."
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "<code>sources/</code> does not change: the documents you added after this point stay in the folder."
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "The search index goes back to the copy saved at this point, instantly."
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid ""
+"This point has no index copy: it is rebuilt from <code>sources/</code> and <code>wiki/</code>, without calling the "
+"model. It takes longer, needs Java for PDF and office documents (and LibreOffice for the latter) and includes every "
+"document that is in <code>sources/</code> today."
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid ""
+"The history is not rewritten: going back is recorded as a new point, and it can be undone by going back to the "
+"previous point."
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "Take the wiki back to this point; progress appears in the console"
+msgstr ""
+
+#: web/templates/_history_confirm.html web/templates/_history_list.html
+msgid "Go back to this point"
+msgstr ""
+
+#: web/templates/_history_confirm.html
+msgid "Close without going back"
+msgstr ""
+
+#: web/templates/_history_diff.html
+msgid "Comparison with the current version"
+msgstr ""
+
+#: web/templates/_history_diff.html
+msgid "The page no longer exists: every line of this version is shown as removed."
+msgstr ""
+
+#: web/templates/_history_diff.html
+msgid "Lines with <b>−</b> were in this version and are gone; lines with <b>+</b> were added later."
+msgstr ""
+
+#: web/templates/_history_diff.html
+msgid "added"
+msgstr ""
+
+#: web/templates/_history_diff.html
+msgid "removed"
+msgstr ""
+
+#: web/templates/_history_diff.html
+msgid "skipped"
+msgstr ""
+
+#: web/templates/_history_diff.html
+msgid "unchanged"
+msgstr ""
+
+#: web/templates/_history_diff.html
+msgid "This version is identical to the current one."
+msgstr ""
+
+#: web/templates/_history_list.html
+msgid ""
+"There are unsaved changes in <code>wiki/</code>. While they exist, you cannot go back to an earlier point: they would"
+" be lost. Save or discard them and try again."
+msgstr ""
+
+#: web/templates/_history_list.html web/templates/history_page.html
+msgid "Identifier of this point in git"
+msgstr ""
+
+#: web/templates/_history_list.html
+msgid "See which pages this point changed"
+msgstr ""
+
+#: web/templates/_history_list.html
+#, python-format
+msgid "%(count)s page"
+msgid_plural "%(count)s pages"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/_history_list.html
+msgid "See the history of this page"
+msgstr ""
+
+#: web/templates/_history_list.html
+msgid "This point has a copy of the search index: going back to it is immediate"
+msgstr ""
+
+#: web/templates/_history_list.html
+msgid "index copy"
+msgstr ""
+
+#: web/templates/_history_list.html
+msgid "This point has no copy of the search index: going back to it rebuilds the index, without calling the model"
+msgstr ""
+
+#: web/templates/_history_list.html
+msgid "no copy"
+msgstr ""
+
+#: web/templates/_history_list.html
+msgid "This is the point the wiki is at now"
+msgstr ""
+
+#: web/templates/_history_list.html web/templates/history_page.html
+msgid "current"
+msgstr ""
+
+#: web/templates/_history_list.html
+msgid "See what changes if the wiki goes back to this point; asks for confirmation"
+msgstr ""
+
+#: web/templates/_history_list.html
+msgid ""
+"The wiki has no history yet. It appears with the first ingestion, or does not exist if the variable "
+"<code>WIKI_AUTOCOMMIT</code> is 0."
+msgstr ""
+
+#: web/templates/_review_dialog.html
+msgid "Review the page"
+msgstr ""
+
+#: web/templates/_review_dialog.html web/templates/page.html
+msgid "Close without saving"
+msgstr ""
+
+#: web/templates/_review_dialog.html
+msgid "Close without saving anything"
+msgstr ""
+
+#: web/templates/_review_dialog.html
+#, python-format
+msgid "The page “%(title)s” already exists. The draft merges the conversation into that page; saving replaces it."
+msgstr ""
+
+#: web/templates/_review_dialog.html
+msgid "Text of the page in Markdown"
+msgstr ""
+
+#: web/templates/_review_dialog.html
+msgid "The draft of the page in Markdown; what you leave here is what is saved"
+msgstr ""
+
+#: web/templates/_review_dialog.html web/templates/page.html
+msgid "Edit"
+msgstr ""
+
+#: web/templates/_review_dialog.html web/templates/edit.html
+msgid "Preview"
+msgstr ""
+
+#: web/templates/_review_dialog.html
+msgid "Switch between the Markdown text and how the page will look"
+msgstr ""
+
+#: web/templates/_review_dialog.html
+msgid "Write the page to the wiki as it is in the editor"
+msgstr ""
+
+#: web/templates/_review_dialog.html
+msgid "Save to wiki"
+msgstr ""
+
+#: web/templates/_sources_panel.html web/templates/picker.html
+msgid "Sources"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "File"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "Status"
+msgstr ""
+
+#: web/templates/_sources_panel.html web/templates/page.html web/templates/picker.html
+msgid "Pages"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "Updated"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "Actions"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "Status of the source in the index of the wiki"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "Delete this source from the wiki; asks for confirmation"
+msgstr ""
+
+#: web/templates/_sources_panel.html web/templates/maintain.html web/templates/page.html
+msgid "Delete"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+#, python-format
+msgid "Delete the source “%(filename)s”? Its summary page is deleted. The pages that cite it are kept and marked as stale."
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "Without this option, the file stays in sources/, and the next scan of sources/ ingests it again"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "Also remove file from sources/"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "Delete the source from the wiki"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "Delete the source"
+msgstr ""
+
+#: web/templates/_sources_panel.html web/templates/maintain.html web/templates/page.html
+msgid "Close without deleting"
+msgstr ""
+
+#: web/templates/_sources_panel.html
+msgid "This wiki has no sources yet."
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Findings of the vocabulary review"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid ""
+"The names the wiki covers: the categories and keys of datasets/ and the titles of the concept pages. A question that "
+"names none of them is refused. Read only: it changes with the pages and the datasets"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Roster"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Search the roster…"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Search the roster"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Shows only the names that contain what you type, without case nor accents"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "See the dataset"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Where the name comes from"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "page"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "dataset"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "dataset key"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "No name contains that text."
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid ""
+"Other names a question may use for a name of the roster. The generated ones come from the ingestion; the hand-written"
+" ones, from this screen"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Aliases"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Name of the roster"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "The name the alias stands for; choose one of the roster"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Alias"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "New alias"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Another name for it"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Add the alias as hand-written"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Add"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Written from this screen or in wiki_config.toml"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Proposed by the ingestion"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "hand-written"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "generated"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove the hand-written alias"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove the alias for good: it goes to the rejected aliases, and the ingestion does not propose it again"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Reject"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "The wiki has no aliases yet."
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Terms the wiki does not cover: a question that mentions one is refused at once, before any search"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Blacklist"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Term"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "New term of the blacklist"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "A term the wiki does not cover"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Add the term to the blacklist"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove the term from the blacklist"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "The blacklist is empty."
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Aliases a name must never have. The ingestion does not write them, and the chat does not use them"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Rejected aliases"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Accept the alias again: the next ingestion may propose it"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Accept again"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "No alias has been rejected."
+msgstr ""
+
+#: web/templates/base.html
+msgid "Switch wiki"
+msgstr ""
+
+#: web/templates/base.html
+msgid "Sections"
+msgstr ""
+
+#: web/templates/base.html
+msgid "Read the pages of the wiki and chat about them"
+msgstr ""
+
+#: web/templates/base.html
+msgid "Read"
+msgstr ""
+
+#: web/templates/base.html
+msgid "Add documents to the wiki and see its sources"
+msgstr ""
+
+#: web/templates/base.html web/templates/ingest.html
+msgid "Ingest"
+msgstr ""
+
+#: web/templates/base.html
+msgid "Review, repair and rebuild what is already in the wiki"
+msgstr ""
+
+#: web/templates/base.html
+msgid "Maintain"
+msgstr ""
+
+#: web/templates/base.html
+msgid "See the graph of relations between the pages and the sources of the wiki"
+msgstr ""
+
+#: web/templates/base.html
+msgctxt "tab"
+msgid "Relations"
+msgstr ""
+
+#: web/templates/base.html
+msgid "See and edit the names the wiki covers, their aliases and the blacklist"
+msgstr ""
+
+#: web/templates/base.html web/templates/vocabulary.html
+msgid "Vocabulary"
+msgstr ""
+
+#: web/templates/base.html
+msgid "See the points of the wiki and go back to an earlier one"
+msgstr ""
+
+#: web/templates/base.html web/templates/history.html web/templates/history_version.html web/templates/page.html
+msgid "History"
+msgstr ""
+
+#: web/templates/base.html
+msgid "Interface language"
+msgstr ""
+
+#: web/templates/chat_turn.html
+msgid "Typing"
+msgstr ""
+
+#: web/templates/edit.html
+#, python-format
+msgid "Editing %(page)s"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Editing"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "The front-matter block is not edited: it is kept as it is."
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Back to the page without saving"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Save the changes and commit them to the git repository of the wiki"
+msgstr ""
+
+#: web/templates/edit.html web/templates/page.html
+msgid "Save"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Markdown text"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Markdown"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Page body"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Body of the page in Markdown"
+msgstr ""
+
+#: web/templates/history.html
+msgid ""
+"Every ingestion, chat change, deletion and repair is recorded as a point of the wiki. Going back to a point restores "
+"the pages and the search index; the history is not rewritten."
+msgstr ""
+
+#: web/templates/history.html
+msgid "Points of the wiki"
+msgstr ""
+
+#: web/templates/history.html web/templates/ingest.html web/templates/maintain.html
+msgid "Progress"
+msgstr ""
+
+#: web/templates/history.html web/templates/ingest.html web/templates/maintain.html web/templates/operation.html
+msgid "The progress of the operation appears here."
+msgstr ""
+
+#: web/templates/history_page.html
+#, python-format
+msgid "History of %(title)s"
+msgstr ""
+
+#: web/templates/history_page.html
+msgid "Back to reading the page"
+msgstr ""
+
+#: web/templates/history_page.html
+msgid "See all the points of the wiki"
+msgstr ""
+
+#: web/templates/history_page.html
+msgid "History of the wiki"
+msgstr ""
+
+#: web/templates/history_page.html
+#, python-format
+msgid "History of “%(title)s”"
+msgstr ""
+
+#: web/templates/history_page.html
+msgid "this page no longer exists in the wiki; its earlier versions can be read"
+msgstr ""
+
+#: web/templates/history_page.html
+msgid "Versions"
+msgstr ""
+
+#: web/templates/history_page.html
+msgid "This is the version being read now"
+msgstr ""
+
+#: web/templates/history_page.html
+msgid "Read the page as it was at this point; it cannot be edited"
+msgstr ""
+
+#: web/templates/history_page.html
+msgid "See this version"
+msgstr ""
+
+#: web/templates/history_page.html
+msgid "No point of the history touched this page."
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "Back to the list of versions of this page"
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "History of the page"
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "Read the current version of the page"
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "Current version"
+msgstr ""
+
+#: web/templates/history_version.html
+#, python-format
+msgid ""
+"Version of “%(title)s” from %(date)s · %(message)s · <code>%(short)s</code>. Read-only: to go back to this point, use"
+" the <a href=\"/w/%(wiki_id)s/history\" title=\"%(link_title)s\">%(link_text)s</a>."
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "Open the history of the wiki"
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "Show the lines that changed between this version and the current one"
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "Compare with the current version"
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "Hide the comparison"
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "Hide"
+msgstr ""
+
+#: web/templates/history_version.html
+msgid "The page did not exist at this point."
+msgstr ""
+
+#: web/templates/ingest.html web/templates/maintain.html web/templates/page.html
+msgid "Close the notice"
+msgstr ""
+
+#: web/templates/ingest.html
+msgid "Add documents"
+msgstr ""
+
+#: web/templates/ingest.html
+msgid ""
+"Choose one or more files. The ODT, RTF, DOC and DOCX formats need LibreOffice (and Java); MD and TXT files need "
+"neither Java nor LibreOffice"
+msgstr ""
+
+#: web/templates/ingest.html
+msgid ""
+"Besides the deterministic repair, the model reviews and repairs the pages this ingestion touched. It calls the model "
+"and takes longer."
+msgstr ""
+
+#: web/templates/ingest.html
+msgid "Full repair with the model, slower"
+msgstr ""
+
+#: web/templates/ingest.html
+msgid "Ingest the chosen files and show the progress"
+msgstr ""
+
+#: web/templates/ingest.html
+msgid "Folder <span class=\"mono\">sources/</span>"
+msgstr ""
+
+#: web/templates/ingest.html
+msgid "For files copied to <code>sources/</code> without going through the upload form."
+msgstr ""
+
+#: web/templates/ingest.html
+msgid "Ingest the files of sources/ that are new or changed since their last ingestion"
+msgstr ""
+
+#: web/templates/ingest.html
+msgid "Scan sources/ for changes"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Maintenance"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Configuration"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Model"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "The model that builds the pages in ingestion and repair"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Server"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "The address of the model service"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Ingesting PDF and office documents needs Java: the text extractor runs a .jar. .md and .txt files do not need it"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"Without Java, ingesting PDF and office documents (DOCX, DOC, ODT, RTF) fails; MD and TXT files do not need it. macOS:"
+" brew install --cask temurin"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Not installed"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "LibreOffice converts each office document (DOCX, DOC, ODT, RTF) to PDF"
+msgstr ""
+
+#: web/templates/maintain.html
+#, python-format
+msgid ""
+"%(path)s exists, but it did not convert a test DOCX. The Writer component is usually missing (Linux: sudo apt-get "
+"install libreoffice-writer). Ingesting DOCX, DOC, ODT and RTF fails; MD and TXT files do not need it."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Installed, but it does not convert documents"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"Without LibreOffice, ingesting DOCX, DOC, ODT and RTF fails; MD and TXT files do not need it. macOS: brew install "
+"--cask libreoffice"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Summary pages"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"Regenerates with the model the summary page of each source, from the text already extracted. Concept pages do not "
+"change."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Regenerate the summary pages of all the sources; asks for confirmation"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Regenerate summary pages"
+msgstr ""
+
+#: web/templates/maintain.html
+#, python-format
+msgid "Regenerate the %(count)s summary page? The page is rewritten whole, and changes made by hand to it are lost."
+msgid_plural ""
+"Regenerate the %(count)s summary pages? Each page is rewritten whole, and changes made by hand to those pages are "
+"lost."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/maintain.html
+msgid "Start the regeneration; progress appears in the console"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Regenerate"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Close without regenerating"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Lint and repair"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Reviews every page of the wiki and repairs the problems it finds. It calls the model."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Review and repair the whole wiki; asks for confirmation"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Run Wiki Lint & Repair"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Review and repair every page of the wiki? The repair can rewrite and delete pages."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Start the review; progress appears in the console"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Review and repair"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Close without reviewing"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Stale pages"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"A page becomes stale when a source it cites is deleted and the page was not regenerated afterwards. The page may "
+"still rely on other sources."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Open the page to review it"
+msgstr ""
+
+#: web/templates/maintain.html
+#, python-format
+msgid "since %(date)s"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Delete all the stale pages; asks for confirmation"
+msgstr ""
+
+#: web/templates/maintain.html
+#, python-format
+msgid "Delete %(count)s stale page"
+msgid_plural "Delete %(count)s stale pages"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/maintain.html
+#, python-format
+msgid "Delete the %(count)s stale page? Its sources do not change: what they still cover can be rebuilt by ingesting again."
+msgid_plural ""
+"Delete the %(count)s stale pages? Their sources do not change: what they still cover can be rebuilt by ingesting "
+"again."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/maintain.html
+msgid "Delete the stale pages of the wiki"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "There are no stale pages."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Index of the wiki"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"Rebuilds the search database from <code>sources/</code> and <code>wiki/</code>, without calling the model. It changes"
+" no page and no source. Use it when the index was lost or damaged."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Rebuild the index from the files of the wiki, without the model; asks for confirmation"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Rebuild the index"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"Rebuild the index? The text of each source is extracted again: Java is needed for PDF and office documents, and "
+"LibreOffice for the latter; MD and TXT files need neither. The current index is kept as "
+"<code>.llmwiki/index.db.bak</code>. Internal counters and page creation dates are reset, and stale pages stop being "
+"marked."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Start the rebuild; progress appears in the console"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Rebuild"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Close without rebuilding"
+msgstr ""
+
+#: web/templates/page.html
+msgid "The model that answers in the conversation"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Show or hide the index of pages"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Index"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Show or hide the conversation"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Chat"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Index of pages"
+msgstr ""
+
+#: web/templates/page.html web/templates/relations.html
+msgid "Search for a page…"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Filter pages"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Filter the index by page title"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Edit the text of this page"
+msgstr ""
+
+#: web/templates/page.html
+msgid "See the graph of the pages and sources related to this page"
+msgstr ""
+
+#: web/templates/page.html web/templates/relations.html
+msgid "Relations"
+msgstr ""
+
+#: web/templates/page.html
+msgid "See the changes of this page over time and read earlier versions"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Delete this page from the wiki; asks for confirmation"
+msgstr ""
+
+#: web/templates/page.html
+#, python-format
+msgid "Deleted the page “%(title)s”."
+msgstr ""
+
+#: web/templates/page.html
+#, python-format
+msgid ""
+"Delete the page “%(title)s”? The links from other pages to this page are removed. The deleted page stays in the git "
+"history of the wiki and can be recovered from there."
+msgstr ""
+
+#: web/templates/page.html
+msgid "Delete the page from the wiki for good"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Delete the page"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Conversation"
+msgstr ""
+
+#: web/templates/page.html
+msgid "about"
+msgstr ""
+
+#: web/templates/page.html
+msgid "The conversation receives this page as context"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Delete the questions and answers and start a new conversation; saved pages do not change"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Clear"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Save the whole conversation as a page of the wiki"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Page title"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Title of the page to create. If a page with that title already exists, the conversation is merged into that page"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Conversations are saved as concept pages; summaries belong to source documents"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Saved in Concepts"
+msgstr ""
+
+#: web/templates/page.html
+msgid "The model drafts a page with all the questions and answers; you review it before saving"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Preparing the draft…"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Ask something…"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Question"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Enter sends the question; Shift+Enter adds a line"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Mode"
+msgstr ""
+
+#: web/templates/page.html
+msgid "How the model answers the question"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Send the question (Enter)"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Send"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "Choose a wiki"
+msgstr ""
+
+#: web/templates/picker.html
+#, python-format
+msgid "Each wiki is a folder with its documents, its pages and its index. %(count)s in <span class=\"mono\">%(home)s</span>"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "Path"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "Language"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "Action"
+msgstr ""
+
+#: web/templates/picker.html
+#, python-format
+msgid "Open the wiki %(wiki)s"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "The wiki you opened most recently"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "last opened"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "Open"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "Take this wiki out of the list of recent wikis; the folder and its wiki stay on disk"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "Remove from the list"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "Choose or create a folder that is not in the list, and open it as a wiki"
+msgstr ""
+
+#: web/templates/picker.html
+msgid "Open another folder…"
+msgstr ""
+
+#: web/templates/relations.html
+#, python-brace-format
+msgid "{nodes} nodes · {edges} relations"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Graph controls"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Search for a page in the graph"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Type the title of a page and press Enter: the graph centres and highlights it"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Show or hide the nodes of the summary pages"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Show summaries"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Show or hide the source documents the pages cite"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Show sources"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "The graph shows only this page and the related ones up to the chosen depth"
+msgstr ""
+
+#: web/templates/relations.html
+#, python-format
+msgid "Relations of “%(title)s”"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Only the directly linked pages"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Depth 1"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "The linked pages and the pages they link to"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Depth 2"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Back to the graph of the whole wiki"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "See the whole graph"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Back to reading this page"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Read the page"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Legend"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Concept pages"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Summary pages of a source document"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Source documents of the sources/ folder"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Source"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Nodes and relations shown now"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Relations graph of the wiki"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Graph zoom"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Zoom in"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Zoom the graph in"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Zoom out"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Zoom the graph out"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Adjust the zoom to see the whole graph"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "Fit"
+msgstr ""
+
+#: web/templates/relations.html
+msgid "The wiki has no pages to show yet."
+msgstr ""
+

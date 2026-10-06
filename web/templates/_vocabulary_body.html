@@ -1,0 +1,98 @@
+{% set v = vocabulary %}
+<div class="vocab-body" id="vocab-body">
+  {% if v.findings %}
+  <section class="notice vocab-findings" aria-labelledby="h-findings">
+    <h2 id="h-findings">{{ _("Findings of the vocabulary review") }} · {{ v.findings|length }}</h2>
+    <ul>{% for f in v.findings %}<li>{{ finding_text(f) }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+
+  <div class="vocab-columns">
+    <section class="panel vocab-panel" aria-labelledby="h-roster">
+      <div class="panel-head"><h2 id="h-roster" title="{{ _('The names the wiki covers: the categories and keys of datasets/ and the titles of the concept pages. A question that names none of them is refused. Read only: it changes with the pages and the datasets') }}">{{ _("Roster") }} · {{ v.roster|length }}</h2></div>
+      <div class="vocab-filter">
+        <input class="field" id="roster-search" type="search" placeholder="{{ _('Search the roster…') }}" aria-label="{{ _('Search the roster') }}"
+               title="{{ _('Shows only the names that contain what you type, without case nor accents') }}" autocomplete="off">
+      </div>
+      <ul class="vocab-list roster" id="roster-list">
+        {% for e in v.roster %}
+        <li data-name="{{ e.name }}">
+          {% if e.page %}<a href="/w/{{ wiki_id }}/pages/{{ e.page }}" title="{{ _('Open the page') }}">{{ e.name }}</a>
+          {% else %}<button class="roster-data" type="button" hx-get="/w/{{ wiki_id }}/vocabulary/dataset" hx-vals='{{ {("category" if e.origin == "category" else "key"): e.name} | tojson }}'
+                  hx-target="#dataset-slot" hx-swap="innerHTML" title="{{ _('See the dataset') }}">{{ e.name }}</button>{% endif %}
+          <span class="origin" title="{{ _('Where the name comes from') }}">{% if e.origin == 'concept' %}{{ _("page") }}{% elif e.origin == 'category' %}{{ _("dataset") }}{% else %}{{ _("dataset key") }}{% endif %}</span>
+        </li>
+        {% endfor %}
+        <li class="vocab-empty muted" id="roster-none" hidden>{{ _("No name contains that text.") }}</li>
+      </ul>
+    </section>
+
+    <section class="panel vocab-panel" aria-labelledby="h-aliases">
+      <div class="panel-head"><h2 id="h-aliases" title="{{ _('Other names a question may use for a name of the roster. The generated ones come from the ingestion; the hand-written ones, from this screen') }}">{{ _("Aliases") }} · {{ v.aliases|length }}</h2></div>
+      {% with panel_name="aliases" %}{% include "_vocabulary_message.html" %}{% endwith %}
+      <form class="vocab-add" hx-post="/w/{{ wiki_id }}/vocabulary/alias-add" hx-target="#vocab-body" hx-swap="outerHTML">
+        <input class="field" name="canonical" list="roster-names" required placeholder="{{ _('Name of the roster') }}" aria-label="{{ _('Name of the roster') }}" title="{{ _('The name the alias stands for; choose one of the roster') }}" autocomplete="off">
+        <input class="field" name="term" required placeholder="{{ _('Alias') }}" aria-label="{{ _('New alias') }}" title="{{ _('Another name for it') }}" autocomplete="off">
+        <button class="btn btn-primary" title="{{ _('Add the alias as hand-written') }}">{{ _("Add") }}</button>
+        <datalist id="roster-names">{% for e in v.roster %}<option value="{{ e.name }}">{% endfor %}</datalist>
+      </form>
+      <div class="vocab-list aliases">
+        {% for c in v.aliases %}
+        <div class="alias-group">
+          <h3>{{ c.canonical }}</h3>
+          <ul>
+            {% for a in c.aliases %}
+            <li>
+              <span>{{ a.alias }}</span>
+              <span class="origin {{ a.origin }}" title="{% if a.origin == 'hand' %}{{ _('Written from this screen or in wiki_config.toml') }}{% else %}{{ _('Proposed by the ingestion') }}{% endif %}">{% if a.origin == 'hand' %}{{ _("hand-written") }}{% else %}{{ _("generated") }}{% endif %}</span>
+              <form hx-post="/w/{{ wiki_id }}/vocabulary/{{ 'alias-remove' if a.origin == 'hand' else 'alias-reject' }}" hx-target="#vocab-body" hx-swap="outerHTML">
+                <input type="hidden" name="canonical" value="{{ c.canonical }}"><input type="hidden" name="term" value="{{ a.alias }}">
+                {% if a.origin == 'hand' %}
+                <button class="btn-link destructive" title="{{ _('Remove the hand-written alias') }}">{{ _("Remove") }}</button>
+                {% else %}
+                <button class="btn-link destructive" title="{{ _('Remove the alias for good: it goes to the rejected aliases, and the ingestion does not propose it again') }}">{{ _("Reject") }}</button>
+                {% endif %}
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% else %}<p class="vocab-empty muted">{{ _("The wiki has no aliases yet.") }}</p>{% endfor %}
+      </div>
+    </section>
+
+    <div class="vocab-stack">
+      <section class="panel vocab-panel" aria-labelledby="h-blacklist">
+        <div class="panel-head"><h2 id="h-blacklist" title="{{ _('Terms the wiki does not cover: a question that mentions one is refused at once, before any search') }}">{{ _("Blacklist") }} · {{ v.blacklist|length }}</h2></div>
+        {% with panel_name="blacklist" %}{% include "_vocabulary_message.html" %}{% endwith %}
+        <form class="vocab-add" hx-post="/w/{{ wiki_id }}/vocabulary/blacklist-add" hx-target="#vocab-body" hx-swap="outerHTML">
+          <input class="field" name="term" required placeholder="{{ _('Term') }}" aria-label="{{ _('New term of the blacklist') }}" title="{{ _('A term the wiki does not cover') }}" autocomplete="off">
+          <button class="btn btn-primary" title="{{ _('Add the term to the blacklist') }}">{{ _("Add") }}</button>
+        </form>
+        <ul class="vocab-list">
+          {% for term in v.blacklist %}
+          <li><span>{{ term }}</span>
+            <form hx-post="/w/{{ wiki_id }}/vocabulary/blacklist-remove" hx-target="#vocab-body" hx-swap="outerHTML">
+              <input type="hidden" name="term" value="{{ term }}">
+              <button class="btn-link destructive" title="{{ _('Remove the term from the blacklist') }}">{{ _("Remove") }}</button>
+            </form></li>
+          {% else %}<li class="vocab-empty muted">{{ _("The blacklist is empty.") }}</li>{% endfor %}
+        </ul>
+      </section>
+
+      <section class="panel vocab-panel" aria-labelledby="h-rejected">
+        <div class="panel-head"><h2 id="h-rejected" title="{{ _('Aliases a name must never have. The ingestion does not write them, and the chat does not use them') }}">{{ _("Rejected aliases") }} · {{ v.rejected|length }}</h2></div>
+        {% with panel_name="rejected" %}{% include "_vocabulary_message.html" %}{% endwith %}
+        <ul class="vocab-list">
+          {% for canonical, alias in v.rejected %}
+          <li><span><b>{{ alias }}</b> <span class="muted">↛ {{ canonical }}</span></span>
+            <form hx-post="/w/{{ wiki_id }}/vocabulary/rejected-remove" hx-target="#vocab-body" hx-swap="outerHTML">
+              <input type="hidden" name="canonical" value="{{ canonical }}"><input type="hidden" name="term" value="{{ alias }}">
+              <button class="btn-link" title="{{ _('Accept the alias again: the next ingestion may propose it') }}">{{ _("Accept again") }}</button>
+            </form></li>
+          {% else %}<li class="vocab-empty muted">{{ _("No alias has been rejected.") }}</li>{% endfor %}
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>

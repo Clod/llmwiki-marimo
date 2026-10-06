@@ -128,6 +128,7 @@ def test_delete_source_deletes_derived_wiki_page(tmp_workspace: WorkspaceFixture
         result = delete_source(tmp_workspace.db_path, tmp_workspace.workspace, doc_id)
     assert result.success
     assert "1 derived wiki page(s)" in result.message
+    assert result.filename == "paper.pdf" and result.deleted_pages == ("wiki/summaries/paper-summary.md",)
     assert not wiki_file.exists()
     with get_connection(tmp_workspace.db_path) as conn:
         count = conn.execute(
@@ -152,6 +153,8 @@ def test_delete_source_marks_multi_source_concept_stale(tmp_workspace: Workspace
     assert result.success
     assert "marked 1 citing page(s) stale" in result.message
     assert "derived wiki page(s)" not in result.message  # nothing 1-to-1 was deleted
+    assert result.deleted_pages == () and len(result.stale_pages) == 1
+    assert result.stale_pages[0].endswith("central-banking.md") and result.file_removed is False
     assert concept_file.exists()  # page survives on disk
     with get_connection(tmp_workspace.db_path) as conn:
         row = conn.execute(
@@ -196,5 +199,5 @@ def test_delete_source_also_removes_file(tmp_workspace: WorkspaceFixture) -> Non
         result = delete_source(
             tmp_workspace.db_path, tmp_workspace.workspace, doc_id, also_delete_file=True
         )
-    assert result.success
+    assert result.success and result.file_removed
     assert not file_path.exists()

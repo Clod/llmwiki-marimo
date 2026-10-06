@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="{{ get_language() }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}llmwiki{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  {% block head %}{% endblock %}
+  <script src="/static/js/htmx.min.js"></script>
+  <script src="/static/js/htmx-ext-sse.js"></script>
+</head>
+<body hx-ext="sse">
+  <header class="bar">
+    <a class="brand" href="/" title="{{ _('Back to the list of wikis') }}">llmwiki</a>
+    {% if wiki_id %}
+    <select class="wiki-select" aria-label="{{ _('Wiki') }}" title="{{ _('Switch wiki') }}" onchange="location.href='/w/'+this.value+'/'">
+      {% for wid in wikis %}<option value="{{ wid }}" {% if wid == wiki_id %}selected{% endif %}>{{ wid }}</option>{% endfor %}
+    </select>
+    <nav class="tabs" aria-label="{{ _('Sections') }}">
+      <a href="/w/{{ wiki_id }}/" {% if section == 'read' %}aria-current="page"{% endif %} title="{{ _('Read the pages of the wiki and chat about them') }}">{{ _("Read") }}</a>
+      <a href="/w/{{ wiki_id }}/ingest" {% if section == 'ingest' %}aria-current="page"{% endif %} title="{{ _('Add documents to the wiki and see its sources') }}">{{ _("Ingest") }}</a>
+      <a href="/w/{{ wiki_id }}/maintain" {% if section == 'maintain' %}aria-current="page"{% endif %} title="{{ _('Review, repair and rebuild what is already in the wiki') }}">{{ _("Maintain") }}</a>
+      <a href="/w/{{ wiki_id }}/relations" {% if section == 'relations' %}aria-current="page"{% endif %} title="{{ _('See the graph of relations between the pages and the sources of the wiki') }}">{{ pgettext("tab", "Relations") }}</a>
+      <a href="/w/{{ wiki_id }}/vocabulary" {% if section == 'vocabulary' %}aria-current="page"{% endif %} title="{{ _('See and edit the names the wiki covers, their aliases and the blacklist') }}">{{ _("Vocabulary") }}</a>
+      <a href="/w/{{ wiki_id }}/history" {% if section == 'history' %}aria-current="page"{% endif %} title="{{ _('See the points of the wiki and go back to an earlier one') }}">{{ _("History") }}</a>
+    </nav>
+    {% else %}<span class="bar-crumb">/ wikis</span>{% endif %}
+    <div class="bar-right">{% block bar_right %}{% endblock %}
+      <form class="lang-switch" method="post" action="/lang" aria-label="{{ _('Interface language') }}">
+        <input type="hidden" name="next" value="{{ current_url(request) }}">
+        {% for code, name in languages.items() %}<button class="lang-btn" name="lang" value="{{ code }}" lang="{{ code }}" title="{{ name }}"{% if code == get_language() %} aria-pressed="true"{% endif %}>{{ code | upper }}</button>{% endfor %}
+      </form>
+    </div>
+  </header>
+  {% block body %}{% endblock %}
+  <div class="tip" id="tip" role="tooltip"></div>
+  <script src="/static/js/tooltip.js"></script>
+  <script src="/static/js/notice.js"></script>
+</body>
+</html>

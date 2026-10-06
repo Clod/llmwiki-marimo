@@ -141,3 +141,27 @@ def test_resolve_wiki_home_falls_back_to_parent(monkeypatch, tmp_path: Path) -> 
     child = tmp_path / "my-wiki"
     child.mkdir()
     assert resolve_wiki_home(str(child)) == tmp_path.resolve()
+
+
+# ── Pruning and removing recent entries ──────────────────────────────────────
+
+def test_prune_recent_drops_the_folders_that_are_no_longer_wikis(tmp_path):
+    from domain.wiki_registry import load_recent, prune_recent, save_recent
+    recent_file = tmp_path / "recent.json"
+    alive, emptied, gone = tmp_path / "alive", tmp_path / "emptied", tmp_path / "gone"
+    (alive / "wiki").mkdir(parents=True)
+    emptied.mkdir()
+    save_recent([str(alive), str(emptied), str(gone)], recent_file)
+    assert prune_recent(recent_file) == [str(alive)]
+    assert load_recent(recent_file) == [str(alive)]
+
+
+def test_remove_recent_takes_out_one_path_and_touches_no_folder(tmp_path):
+    from domain.wiki_registry import load_recent, remove_recent, save_recent
+    recent_file = tmp_path / "recent.json"
+    a, b = tmp_path / "a", tmp_path / "b"
+    (a / "wiki").mkdir(parents=True)
+    (b / "wiki").mkdir(parents=True)
+    save_recent([str(a), str(b)], recent_file)
+    assert remove_recent(str(a), recent_file) == [str(b)]
+    assert load_recent(recent_file) == [str(b)] and (a / "wiki").is_dir()

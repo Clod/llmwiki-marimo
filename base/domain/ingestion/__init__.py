@@ -7,6 +7,7 @@ from .extractor import (
     LibreOfficeNotInstalledError,
     check_java,
     check_libreoffice,
+    libreoffice_can_convert,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "LibreOfficeNotInstalledError",
     "check_java",
     "check_libreoffice",
+    "libreoffice_can_convert",
 ]
