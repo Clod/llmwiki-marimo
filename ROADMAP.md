@@ -7,7 +7,7 @@ roadmap that only lists features is a brochure. Items move, get dropped, or turn
 out to be wrong; when that happens the entry says so rather than disappearing.
 Shipped work is recorded in [`CHANGELOG.md`](CHANGELOG.md), not here.
 
-Current version: **0.3.0**. See [`docs/`](docs/) for the two walkthroughs that
+Current version: **0.4.0**. See [`docs/`](docs/) for the two walkthroughs that
 describe how the system actually behaves, measured rather than asserted.
 
 ---

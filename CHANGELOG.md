@@ -11,6 +11,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-06
+
+The last release with the marimo interface: the next one replaces it with a web
+interface.
+
 ### Changed
 
 - **The application logic moved out of the marimo cells into `base/services/`.**
@@ -734,7 +739,8 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.3.0...master
+[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.4.0...master
+[0.4.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.1...v0.2.2
