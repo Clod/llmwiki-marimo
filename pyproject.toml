@@ -46,6 +46,18 @@ web = [
     "babel>=2.17.0",
 ]
 
+# Optional local verifier of the chat answers (sentence-level NLI, in-process on
+# the CPU). Install: `uv sync --group verify`, or answer yes in quickstart.py.
+# Exported to `requirements-verify.txt`; the export drops the CUDA libraries that
+# `torch` pulls on Linux, and quickstart.py installs the CPU build of `torch`
+# first. See CONTRIBUTING.md, "Regenerating requirements-verify.txt".
+verify = [
+    "transformers>=5.0,<5.1",
+    "torch>=2.4",
+    "sentencepiece>=0.2",
+    "protobuf>=4.25",
+]
+
 [tool.ruff]
 exclude = [".trellis", ".venv", ".claude", ".agent", "marimo/prototypes"]
 line-length = 120

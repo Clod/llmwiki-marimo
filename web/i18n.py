@@ -24,6 +24,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from babel.messages import mofile, pofile
+from babel.numbers import format_decimal
 from babel.support import NullTranslations, Translations
 
 # Every supported language: code → name in its own language (shown by the switch).
@@ -107,6 +108,12 @@ _ = gettext
 def pgettext(context: str, message: str, **variables) -> str:
     """`message` as `context` uses it: the same English text can need two Spanish ones."""
     return _fill(raw_pgettext(context, message), variables)
+
+
+def format_number(n: int) -> str:
+    """`n` with the thousands separator of the current language (es: 3.917, en: 3,917);
+    the pattern forces the grouping from four digits, which Spanish locale data omits."""
+    return format_decimal(n, format="#,##0", locale=get_language())
 
 
 def N_(message: str) -> str:

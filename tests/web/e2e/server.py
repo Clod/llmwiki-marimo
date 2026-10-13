@@ -55,7 +55,7 @@ def answer_for(prompt: str) -> str:
 
 
 @contextmanager
-def serve(tmp_path: Path) -> Iterator[Live]:
+def serve(tmp_path: Path, verifier=None) -> Iterator[Live]:
     home = tmp_path / "home"
     home.mkdir()
     wiki_dir = home / WIKI_ID
@@ -70,7 +70,7 @@ def serve(tmp_path: Path) -> Iterator[Live]:
     # The simulated agents, with the wiki's real chat configuration: the refusals
     # (off-limits topics, scope) are the code's, and need it.
     agents = replace(simulated, config=load_config(wiki_dir))
-    app = create_app(settings, agents_factory=lambda wiki: agents)
+    app = create_app(settings, agents_factory=lambda wiki: agents, verifier=verifier)
     port = _free_port()
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)

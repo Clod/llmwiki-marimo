@@ -192,6 +192,35 @@ def test_the_browser_asks_before_creating_a_wiki_in_a_plain_folder(client, wiki,
     assert ">Abrir esta carpeta<" in a_wiki and 'id="browse-create"' not in a_wiki
 
 
+def test_the_creation_form_has_a_language_select_preselected_with_the_interface_language(client, en_client, wiki, tmp_path):
+    for browser, selected in ((client, "es"), (en_client, "en")):
+        html = browser.get("/browse/panel", params={"path": str(tmp_path)}).text
+        form = html[html.index('id="browse-create"'):]
+        form = form[:form.index("</form>")]
+        assert '<select' in form and 'name="language"' in form
+        assert re.findall(r'<option value="(\w+)"', form) == ["en", "es"]
+        assert ">English</option>" in form and ">Español</option>" in form
+        assert re.findall(r'<option value="(\w+)" selected', form) == [selected]
+    assert 'name="language"' not in client.get("/browse/panel", params={"path": str(wiki.path)}).text
+
+
+def test_open_creates_the_wiki_in_the_chosen_language(client, tmp_path):
+    folder = tmp_path / "nueva-es"
+    folder.mkdir()
+    client.post("/open", data={"path": str(folder), "create": "true", "language": "es"})
+    import tomllib
+    assert tomllib.loads((folder / "wiki_config.toml").read_text(encoding="utf-8")) == {"wiki": {"language": "es"}}
+
+
+def test_open_ignores_the_language_on_an_existing_wiki_and_on_an_unsupported_one(client, wiki, tmp_path):
+    client.post("/open", data={"path": str(wiki.path), "language": "es"})
+    assert not (wiki.path / "wiki_config.toml").exists()
+    folder = tmp_path / "fr"
+    folder.mkdir()
+    client.post("/open", data={"path": str(folder), "create": "true", "language": "fr"})
+    assert not (folder / "wiki_config.toml").exists()
+
+
 def test_the_picker_drops_a_recent_wiki_that_no_longer_exists(client, settings, tmp_path):
     import shutil
     folder = tmp_path / "gone-wiki"

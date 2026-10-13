@@ -12,6 +12,11 @@ can read SQL and Python; nothing else is assumed. Terms from the world of LLMs �
 appear. What this document adds over the reference material is the *reasoning*:
 why each decision was made, not just that it was.
 
+**Reference.** Every step of a chat turn, in each of the three chat modes, is a
+node of the reading diagram in [`query_nodes.md`](query_nodes.md), with the file
+and the symbol that run the step and the record that the step writes in the
+trace.
+
 **The numbers are real.** Every routing decision and every quoted answer below
 was captured from an actual run, not written by hand. The full capture lives in
 the generated [appendix](query_walkthrough_appendix.md); regenerate it any time
@@ -826,7 +831,7 @@ the answer closes with `Referencia: 12 Cauciones Bursátiles.docx`.
 
 None of the searching was left to the model. The code had already found the
 curated page and put its text into the prompt (`preretrieval.retrieve_wiki` →
-`_INJECT_TEMPLATE`). The model's only job was to write prose using the text it
+`prompts/inject_template.<lang>.md`). The model's only job was to write prose using the text it
 was handed, not to decide what to look for.
 
 That is the point of this position. Retrieval is no longer a tool call the model

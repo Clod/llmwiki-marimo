@@ -6,18 +6,20 @@ It needs `base/` on `sys.path`, as every module that imports `domain`.
 
 from __future__ import annotations
 
+import html
+
 import difflib
 import posixpath
 import re
 import urllib.parse
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Iterable
 from dataclasses import dataclass
 
 import markdown
 import nh3
 
 from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
-from web.i18n import _, ngettext
+from web.i18n import N_, _, ngettext
 
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
 # A bare page reference in a chat answer: `/wiki/concepts/x.md`,
@@ -138,6 +140,48 @@ def render_markdown(wiki_id: str, text: str, page: str | None, pages: Collection
         f'href="/w/{wiki_id}/view/')
 
 
+UNSUPPORTED_TIP = N_("No page the model read supports this sentence")
+_MARK_OPEN, _MARK_CLOSE = "\ue000", "\ue001"   # private-use characters: markdown leaves them alone
+
+
+def _cells(text: str, start: int, end: int) -> list[tuple[int, int]]:
+    """The ranges to mark for the sentence `text[start:end]`: the sentence, or
+    each cell of a table row, so the mark never spans a cell border."""
+    if not text[start:end].lstrip().startswith("|"):
+        return [(start, end)]
+    ranges, cell_start = [], None
+    for i in range(start, end + 1):
+        at_pipe = i == end or text[i] == "|"
+        if at_pipe:
+            if cell_start is not None:
+                a, b = cell_start, i
+                while a < b and text[a].isspace():
+                    a += 1
+                while b > a and text[b - 1].isspace():
+                    b -= 1
+                if b > a:
+                    ranges.append((a, b))
+            cell_start = i + 1
+    return ranges
+
+
+def render_verified(wiki_id: str, text: str, unsupported: Iterable[tuple[int, int]], pages: Collection[str],
+                    sources: Collection[str] = frozenset()) -> str:
+    """`render_markdown` of a chat answer with each unsupported sentence wrapped
+    in `<mark class="unsupported">`. `unsupported` holds the `(start, end)`
+    offsets of the sentences in `text`; the text itself is not changed."""
+    inserts: list[tuple[int, str]] = []
+    for start, end in unsupported:
+        for a, b in _cells(text, start, end):
+            inserts += [(a, _MARK_OPEN), (b, _MARK_CLOSE)]
+    marked = text
+    for position, mark in sorted(inserts, key=lambda item: item[0], reverse=True):
+        marked = marked[:position] + mark + marked[position:]
+    rendered = render_markdown(wiki_id, marked, None, pages, sources)
+    rendered = rendered.replace(_MARK_OPEN, f'<mark class="unsupported" title="{html.escape(_(UNSUPPORTED_TIP))}">')
+    return rendered.replace(_MARK_CLOSE, "</mark>")
+
+
 def render_source_markdown(text: str) -> str:
     """A .md source document as HTML, as it is: no link of the text is rewritten
     and its front-matter block is left out. Raw HTML passes through, as in
@@ -158,6 +202,75 @@ def page_title(text: str, page: str) -> str:
             pass
     heading = re.search(r"^#\s+(.+)$", body, re.M)
     return heading.group(1).strip() if heading else page.rsplit("/", 1)[-1].replace("-", " ")
+
+
+PAGE_UNSUPPORTED_TIP = N_("No source of this page supports this sentence")
+# Markers of a verified page: a private-use open character, then one more that
+# indexes the tooltip; the close character says which tag to close.
+_UNSUPPORTED_OPEN, _UNSUPPORTED_CLOSE = "\ue000", "\ue001"
+_SUPPORTED_OPEN, _SUPPORTED_CLOSE = "\ue002", "\ue003"
+_TIP_BASE = 0xE100
+_LINE_PREFIX = re.compile(r"^[ \t]*(?:>[ \t]*|[-*+][ \t]+|\d+[.)][ \t]+)*(?:#{1,6}[ \t]+)?")
+
+
+def _segments(text: str, start: int, end: int) -> list[tuple[int, int]]:
+    """The ranges to mark for the sentence `text[start:end]`, one per line: a
+    sentence that crosses a line break is marked per line, so the mark never
+    spans two blocks. The markup that opens a block (list bullet, heading hashes,
+    quote mark) stays outside the mark, and a table row is marked cell by cell."""
+    ranges: list[tuple[int, int]] = []
+    position = start
+    for line in text[start:end].split("\n"):
+        line_start, line_end = position, position + len(line)
+        position = line_end + 1
+        a = line_start + _LINE_PREFIX.match(line).end()
+        b = line_start + len(line.rstrip())
+        if b <= a:
+            continue
+        if text[a:b].startswith("|"):
+            ranges.extend(_cells(text, a, b))
+        else:
+            ranges.append((a, b))
+    return ranges
+
+
+def render_page_verified(wiki_id: str, text: str, page: str, marks: Iterable[tuple[int, int, str | None]],
+                         pages: Collection[str], sources: Collection[str] = frozenset()) -> str:
+    """`render_markdown` of a wiki page with the sentences of its verification
+    marked. `marks` holds `(start, end, support)` with the offsets in the page
+    body (the text after the front-matter) and `support` the name of the source
+    that supports the sentence, or None when no source does.
+
+    An unsupported sentence is wrapped in `<mark class="unsupported">`; a
+    supported one in `<span class="supported">` with the tooltip "Supported by
+    <source>". The page text is not changed.
+    """
+    _block, body = split_frontmatter(text)
+    tips: list[str] = []
+    inserts: list[tuple[int, int, str]] = []   # (position, order, marker): closes sort before opens
+    for start, end, support in marks:
+        tip = _(PAGE_UNSUPPORTED_TIP) if support is None else _("Supported by %(source)s", source=support)
+        if tip not in tips:
+            tips.append(tip)
+        opening, closing = ((_UNSUPPORTED_OPEN, _UNSUPPORTED_CLOSE) if support is None
+                            else (_SUPPORTED_OPEN, _SUPPORTED_CLOSE))
+        for a, b in _segments(body, start, end):
+            inserts += [(a, 1, opening + chr(_TIP_BASE + tips.index(tip))), (b, 0, closing)]
+    parts, last = [], 0
+    for position, _order, marker in sorted(inserts, key=lambda item: (item[0], item[1])):
+        parts += [body[last:position], marker]
+        last = position
+    parts.append(body[last:])
+    rendered = render_markdown(wiki_id, "".join(parts), page, pages, sources)
+
+    def open_tag(match: re.Match[str]) -> str:
+        tip = html.escape(tips[ord(match.group(2)) - _TIP_BASE], quote=True)
+        if match.group(1) == _UNSUPPORTED_OPEN:
+            return f'<mark class="unsupported" title="{tip}">'
+        return f'<span class="supported" title="{tip}">'
+
+    rendered = re.sub(f"([{_UNSUPPORTED_OPEN}{_SUPPORTED_OPEN}])([\ue100-\ue1ff])", open_tag, rendered)
+    return rendered.replace(_UNSUPPORTED_CLOSE, "</mark>").replace(_SUPPORTED_CLOSE, "</span>")
 
 
 @dataclass(frozen=True)

@@ -24,6 +24,12 @@
 <form class="confirm browse-create" id="browse-create" method="post" action="/open" hidden>
   <input type="hidden" name="path" value="{{ path }}"><input type="hidden" name="create" value="true">
   <p>{% trans path=path %}A wiki will be created in <code>{{ path }}</code>: the folders <code>wiki/</code> and <code>sources/</code>, the index <code>.llmwiki/</code> and a git repository.{% endtrans %}</p>
+  <p class="browse-language">
+    <label for="browse-language">{{ _("Language of the wiki") }}</label>
+    <select class="field" id="browse-language" name="language" title="{{ _('The language of the pages the wiki writes and of the answers of its assistant') }}">
+      {% for code, name in languages.items() %}<option value="{{ code }}"{% if code == get_language() %} selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select>
+  </p>
   <div class="actions">
     <button class="btn btn-primary" title="{{ _('Create the wiki in this folder and open it') }}">{{ _("Create the wiki") }}</button>
     <button class="btn cancel" type="button" title="{{ _('Close without creating anything') }}" onclick="toggleCreate(false)">{{ _("Cancel") }}</button>

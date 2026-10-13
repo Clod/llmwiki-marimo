@@ -14,9 +14,14 @@ from pathlib import Path, PurePosixPath
 
 from domain import tracing
 from domain.tools.db import get_connection
+from domain.verify.verifier import Verifier
 from services.wiki import Wiki
 
 Progress = Callable[[str], None]
+
+# `orphan`: a concept page this ingestion created may have no inbound link yet, and
+# its repair would delete it. The two verification checks are report only.
+_NOT_REPAIRED_ON_INGEST = {"orphan", "unsupported_sentences", "unverified_pages"}
 
 
 def _noop(_: str) -> None:
@@ -100,7 +105,7 @@ def related_pages(db_path: str, source_ids: Iterable[str]) -> set[str]:
 
 def ingest_uploads(
     wiki: Wiki, uploads: Iterable[Upload], client, model: str, *,
-    full_repair: bool = False, progress: Progress = _noop,
+    full_repair: bool = False, verifier: Verifier | None = None, progress: Progress = _noop,
 ) -> list:
     """Ingest uploaded files, then reconcile and cross-link the pages they touched.
 
@@ -108,7 +113,9 @@ def ingest_uploads(
     lint and repair only (no model calls); True also runs the model checks and
     repairs. The pass is scoped to the pages this ingestion touched, and the
     `orphan` check is excluded: a concept page this ingestion created may have
-    no inbound link yet, and its repair would delete it.
+    no inbound link yet, and its repair would delete it. With `verifier`, each
+    page the ingestion wrote is verified against its sources at the end, after
+    the cross-links, which rewrite pages and delete their verification.
     """
     from domain.ingestion import crosslink_wiki_pages, ingest_file
     from domain.lint.report import LintReport
@@ -125,7 +132,7 @@ def ingest_uploads(
             results.append(ingest_file(path, wiki.db_path, wiki.path, client, model,
                                        progress, language=wiki.language))
 
-        source_ids = [r.doc_id for r in results if r.status == "ingested" and r.doc_id]
+        source_ids = [r.doc_id for r in results if r.status == "ingested" and getattr(r, "doc_id", None)]
         touched = related_pages(wiki.db_path, source_ids)
         repair_client = client if full_repair else None
         mode = "full LLM" if full_repair else "deterministic"
@@ -133,7 +140,8 @@ def ingest_uploads(
         with tracing.node("I15", tracing.WRITING, mode=mode, pages=len(touched)) as i15:
             report = lint_wiki(wiki.db_path, wiki.path, client=repair_client, model=model,
                                progress_cb=progress)
-            fixable = [i for i in report.issues if i.check != "orphan" and i.page in touched]
+            fixable = [i for i in report.issues
+                       if i.check not in _NOT_REPAIRED_ON_INGEST and i.page in touched]
             i15.set(issues=len(report.issues), fixable=len(fixable))
             if fixable:
                 progress(f"🔧 {len(fixable)} issue(s) on ingested pages — repairing ({mode})…")
@@ -153,24 +161,43 @@ def ingest_uploads(
                 i16.set(linked=linked)
             if linked:
                 progress(f"🔗 Cross-linked {linked} page(s)")
+        if verifier is not None and source_ids:
+            _verify_written(wiki, source_ids, verifier, progress)
     return results
 
 
-def scan_sources(wiki: Wiki, client, model: str, *, progress: Progress = _noop) -> list:
+def _verify_written(wiki: Wiki, source_ids, verifier: Verifier, progress: Progress,
+                    *, summaries_only: bool = False) -> None:
+    from services.verification import verify_pages, written_pages
+
+    pages = written_pages(wiki, source_ids, summaries_only=summaries_only)
+    progress(f"🔎 Verifying {len(pages)} page(s) against their sources…")
+    verify_pages(wiki, pages, verifier, progress=progress)
+
+
+def scan_sources(wiki: Wiki, client, model: str, *, verifier: Verifier | None = None,
+                 progress: Progress = _noop) -> list:
     """Ingest the files of the sources folder that are new or changed since their
-    last ingestion; return one result per file. Each ingested file commits the wiki."""
+    last ingestion; return one result per file. Each ingested file commits the wiki.
+    With `verifier`, the pages written are verified afterwards."""
     from domain.ingestion import scan_and_ingest
 
-    return scan_and_ingest(wiki.path, wiki.db_path, client, model, progress, language=wiki.language)
+    results = scan_and_ingest(wiki.path, wiki.db_path, client, model, progress, language=wiki.language)
+    source_ids = [r.doc_id for r in results if r.status == "ingested" and getattr(r, "doc_id", None)]
+    if verifier is not None and source_ids:
+        _verify_written(wiki, source_ids, verifier, progress)
+    return results
 
 
-def regenerate_summaries(wiki: Wiki, client, model: str, *, progress: Progress = _noop) -> list:
+def regenerate_summaries(wiki: Wiki, client, model: str, *, verifier: Verifier | None = None,
+                         progress: Progress = _noop) -> list:
     """Regenerate the summary page of every ready source from its stored text,
     without extracting the text again; return one result per source.
 
     Only the summary pages are regenerated; the concept pages stay as they are.
     The generation is not localized yet (domain/ingestion/pipeline.py,
     `regenerate_wiki_pages`). The regenerated pages are committed to the wiki.
+    With `verifier`, the regenerated summary pages are verified afterwards.
     """
     from domain.ingestion import regenerate_wiki_pages
     from domain.tools.git_ops import auto_commit, init_wiki_repo
@@ -181,14 +208,19 @@ def regenerate_summaries(wiki: Wiki, client, model: str, *, progress: Progress =
     if regenerated:
         init_wiki_repo(wiki.path)
         auto_commit(wiki.path, f"regenerate summaries: {regenerated}")
+    source_ids = [r.doc_id for r in results if r.status == "ingested" and getattr(r, "doc_id", None)]
+    if verifier is not None and source_ids:
+        _verify_written(wiki, source_ids, verifier, progress, summaries_only=True)
     return results
 
 
-def lint_and_repair(wiki: Wiki, client, model: str, *, progress: Progress = _noop) -> int:
+def lint_and_repair(wiki: Wiki, client, model: str, *, verifier: Verifier | None = None,
+                    progress: Progress = _noop) -> int:
     """Wiki-wide lint, then repair of every issue found; return the issue count.
 
     The repairs are committed to the wiki, so each one can be undone from its
-    git history."""
+    git history. With `verifier`, each page a repair wrote with the model (a
+    regenerated summary, a created concept) is verified against its sources."""
     from domain.lint.runner import lint_wiki
     from domain.repair.runner import repair_wiki
 
@@ -197,11 +229,17 @@ def lint_and_repair(wiki: Wiki, client, model: str, *, progress: Progress = _noo
         progress("✅ No issues found.")
         return 0
     progress(f"🔧 Found {len(report.issues)} issue(s) — running repairs…")
-    repair_wiki(report, wiki.db_path, wiki.path, llm_client=client, model=model,
-                progress_cb=progress, language=wiki.language)
+    repairs = repair_wiki(report, wiki.db_path, wiki.path, llm_client=client, model=model,
+                          progress_cb=progress, language=wiki.language)
     from domain.tools.git_ops import auto_commit, init_wiki_repo
     init_wiki_repo(wiki.path)
     auto_commit(wiki.path, f"lint & repair: {len(report.issues)} issue(s)")
+    written = [r.written for r in repairs.results if r.success and r.written]
+    if verifier is not None and written:
+        from services.verification import verify_pages
+
+        progress(f"🔎 Verifying {len(written)} page(s) the repairs wrote…")
+        verify_pages(wiki, written, verifier, progress=progress)
     return len(report.issues)
 
 

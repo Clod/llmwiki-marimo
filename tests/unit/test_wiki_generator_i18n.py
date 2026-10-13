@@ -25,11 +25,13 @@ from domain.ingestion.wiki_generator import (
     inject_see_also,
     structure_chat_content,
     update_overview,
-    _EXTRACT_SYSTEM,
-    _CONCEPT_SYSTEM,
-    _OVERVIEW_SYSTEM,
 )
+from domain.prompts import load_prompt
 from tests.helpers.fake_llm import FakeLLMClient
+
+_EXTRACT_SYSTEM = load_prompt("extract_system", "en")
+_CONCEPT_SYSTEM = load_prompt("concept_system", "en")
+_OVERVIEW_SYSTEM = load_prompt("overview_system", "en")
 
 # ── Shared fixtures ────────────────────────────────────────────────────────────
 

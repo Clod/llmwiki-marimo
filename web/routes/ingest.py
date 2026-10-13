@@ -16,6 +16,7 @@ from sse_starlette.sse import EventSourceResponse
 from domain.ingestion.formats import sorted_extensions
 from domain.tools.reindex import NothingExtracted
 from services import ingest as ingest_service
+from services import verification as verification_service
 from services import wiki as wiki_service
 from web.deps import BUSY, get_state, get_templates, page_context
 from web.i18n import _, ngettext
@@ -48,6 +49,13 @@ def _redirect(wiki_id: str, notice: str, screen: str = "ingest") -> RedirectResp
 
 def _unconfigured(exc: LLMNotConfigured) -> HTMLResponse:
     return HTMLResponse(f'<p class="warn">{html.escape(str(exc))}</p>')
+
+
+def _verifier(state: AppState, wanted: bool) -> dict:
+    """`{"verifier": …}` when the form asked for the verification and one is installed,
+    else `{}`. The checkbox is disabled when none is installed; this guards a request
+    made by hand."""
+    return {"verifier": state.get_verifier()} if wanted and state.verifier_available() else {}
 
 
 def _log(request: Request, templates: Jinja2Templates, wiki_id: str, op_id: str | None):
@@ -85,19 +93,21 @@ def maintain_page(request: Request, wiki_id: str, notice: str = "", state: AppSt
     model, base_url = state.ingest_model()
     context = page_context(state, wiki_id, "", section="maintain")
     context.update(sources=ingest_service.list_sources(wiki), stale=ingest_service.list_stale_pages(wiki),
+                   verifiable=len(verification_service.verifiable_pages(wiki)),
                    tools=ingest_service.tool_status(), model=model, base_url=base_url, notice=notice)
     return templates.TemplateResponse(request, "maintain.html", context)
 
 
 @router.post("/w/{wiki_id}/ingest", response_class=HTMLResponse)
 async def ingest_post(request: Request, wiki_id: str, files: list[UploadFile], full_repair: bool = Form(False),
-                      state: AppState = Depends(get_state), templates: Jinja2Templates = Depends(get_templates)):
+                      verify: bool = Form(False), state: AppState = Depends(get_state), templates: Jinja2Templates = Depends(get_templates)):
     """Start one ingestion in a thread and return the log that streams its progress."""
     entry = state.get_wiki(wiki_id)
     try:
         client, model, _url = state.ingest_llm()
     except LLMNotConfigured as exc:
         return _unconfigured(exc)
+    verifier = _verifier(state, verify)
     uploads, refused = [], []
     labels = format_label()
     for f in files:
@@ -116,14 +126,14 @@ async def ingest_post(request: Request, wiki_id: str, files: list[UploadFile], f
             else:
                 progress(_("⚠️ %(name)s: invalid file name", name=exc.name or _("file")))
         results = ingest_service.ingest_uploads(entry.wiki, uploads, client, model,
-                                                full_repair=full_repair, progress=progress)
+                                                full_repair=full_repair, progress=progress, **verifier)
         return summary_line(_("Ingestion"), results)
 
     return _log(request, templates, wiki_id, state.start_operation(entry, work))
 
 
 @router.post("/w/{wiki_id}/scan", response_class=HTMLResponse)
-def scan_post(request: Request, wiki_id: str, state: AppState = Depends(get_state),
+def scan_post(request: Request, wiki_id: str, verify: bool = Form(False), state: AppState = Depends(get_state),
               templates: Jinja2Templates = Depends(get_templates)):
     """Start the scan of the sources folder and return the log of its progress."""
     entry = state.get_wiki(wiki_id)
@@ -131,27 +141,31 @@ def scan_post(request: Request, wiki_id: str, state: AppState = Depends(get_stat
         client, model, _url = state.ingest_llm()
     except LLMNotConfigured as exc:
         return _unconfigured(exc)
+    verifier = _verifier(state, verify)
     return _log(request, templates, wiki_id, state.start_operation(
         entry, lambda progress: summary_line(
-            _("Scan"), ingest_service.scan_sources(entry.wiki, client, model, progress=progress))))
+            _("Scan"), ingest_service.scan_sources(entry.wiki, client, model, progress=progress,
+                                                   **verifier))))
 
 
 @router.post("/w/{wiki_id}/regenerate", response_class=HTMLResponse)
-def regenerate_post(request: Request, wiki_id: str, state: AppState = Depends(get_state),
-                    templates: Jinja2Templates = Depends(get_templates)):
+def regenerate_post(request: Request, wiki_id: str, verify: bool = Form(False),
+                    state: AppState = Depends(get_state), templates: Jinja2Templates = Depends(get_templates)):
     """Start the regeneration of the summary pages and return the log of its progress."""
     entry = state.get_wiki(wiki_id)
     try:
         client, model, _url = state.ingest_llm()
     except LLMNotConfigured as exc:
         return _unconfigured(exc)
+    verifier = _verifier(state, verify)
     return _log(request, templates, wiki_id, state.start_operation(
         entry, lambda progress: summary_line(
-            _("Regeneration"), ingest_service.regenerate_summaries(entry.wiki, client, model, progress=progress))))
+            _("Regeneration"), ingest_service.regenerate_summaries(entry.wiki, client, model, progress=progress,
+                                                                **verifier))))
 
 
 @router.post("/w/{wiki_id}/lint", response_class=HTMLResponse)
-def lint_post(request: Request, wiki_id: str, state: AppState = Depends(get_state),
+def lint_post(request: Request, wiki_id: str, verify: bool = Form(False), state: AppState = Depends(get_state),
               templates: Jinja2Templates = Depends(get_templates)):
     """Start the wiki-wide lint and repair and return the log of its progress."""
     entry = state.get_wiki(wiki_id)
@@ -161,7 +175,8 @@ def lint_post(request: Request, wiki_id: str, state: AppState = Depends(get_stat
         return _unconfigured(exc)
 
     def work(progress):
-        issues = ingest_service.lint_and_repair(entry.wiki, client, model, progress=progress)
+        issues = ingest_service.lint_and_repair(entry.wiki, client, model, progress=progress,
+                                                **_verifier(state, verify))
         return _("🏁 Review and repair: %(issues)s problem(s) found", issues=issues)
 
     return _log(request, templates, wiki_id, state.start_operation(entry, work))
@@ -193,6 +208,20 @@ def reindex_post(request: Request, wiki_id: str, state: AppState = Depends(get_s
                                  "First error: %(error)s", error=first)) from exc
 
     return _log(request, templates, wiki_id, state.start_operation(entry, work))
+
+
+@router.post("/w/{wiki_id}/verify-all", response_class=HTMLResponse)
+def verify_all_post(request: Request, wiki_id: str, state: AppState = Depends(get_state),
+                    templates: Jinja2Templates = Depends(get_templates)):
+    """Verify every page that has sources, as a streamed operation under the wiki's lock.
+    It needs no model of the ingestion, only the local verifier."""
+    entry = state.get_wiki(wiki_id)
+    if not state.verifier_available():
+        return HTMLResponse('<p class="warn">El verificador local no está instalado.</p>')
+    verifier = state.get_verifier()
+    return _log(request, templates, wiki_id, state.start_operation(
+        entry, lambda progress: verification_service.summary_line(
+            verification_service.verify_all(entry.wiki, verifier, progress=progress))))
 
 
 @router.post("/w/{wiki_id}/stale/delete")

@@ -1,12 +1,24 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} — llmwiki{% endblock %}
-{% block head %}<link rel="stylesheet" href="/static/css/prose.css"><link rel="stylesheet" href="/static/css/reader.css"><link rel="stylesheet" href="/static/css/review.css">{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/prose.css"><link rel="stylesheet" href="/static/css/reader.css"><link rel="stylesheet" href="/static/css/review.css">
+<script>/* The widths chosen with the separators, applied before the first paint (only above 1100 px, where the separators exist). */
+try {
+  const w = ["index", "chat"].map(k => [k, parseInt(localStorage.getItem("llmwiki." + k + "W"), 10)]).filter(([, v]) => v > 0);
+  if (w.length) {
+    const style = document.createElement("style");
+    style.id = "panel-widths";
+    style.textContent = "@media (min-width: 1101px) { :root { " + w.map(([k, v]) => "--" + k + "-w: " + v + "px;").join(" ") + " } }";
+    document.head.appendChild(style);
+  }
+} catch {}
+</script>{% endblock %}
 {% block bar_right %}
   {% if model %}<span class="bar-model" title="{{ _('The model that answers in the conversation') }}">{{ model }}</span>{% endif %}
   <button class="btn btn-sm" id="index-btn" aria-pressed="false" aria-controls="index" title="{{ _('Show or hide the index of pages') }}">☰ {{ _("Index") }}</button>
   <button class="btn btn-sm" id="chat-btn" aria-pressed="true" aria-controls="chat" title="{{ _('Show or hide the conversation') }}">{{ _("Chat") }}</button>
 {% endblock %}
 {% block body %}
+{% set check = check if check is defined else {} %}
 <main class="reader">
   <aside class="index" id="index" aria-label="{{ _('Index of pages') }}">
     <div class="column panel">
@@ -24,6 +36,11 @@
       {% if html and not source %}<div class="actions">
         <a class="btn-link" href="/w/{{ wiki_id }}/edit/{{ page }}" title="{{ _('Edit the text of this page') }}">{{ _("Edit") }}</a>
         {% if deletable %}<a class="btn-link" href="/w/{{ wiki_id }}/relations?page={{ page }}&depth=1" title="{{ _('See the graph of the pages and sources related to this page') }}">{{ _("Relations") }}</a>{% endif %}
+        {% if check.status in ('none', 'outdated', 'valid') %}
+        <form class="inline-form" method="post" action="/w/{{ wiki_id }}/verify/{{ page }}" data-busy-label="{{ _('Verifying…') }}" onsubmit="const b = this.querySelector('button'); b.disabled = true; b.textContent = this.dataset.busyLabel">
+          <button class="btn-link" {% if not verifier_available %}disabled title="{{ _('The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group verify)') }}"{% else %}title="{{ _('Check each sentence of this page against the text of its sources; the text of the page does not change') }}"{% endif %}>{{ _("Verify") }}</button>
+        </form>
+        {% endif %}
         <a class="btn-link" href="/w/{{ wiki_id }}/history/page/{{ page }}" title="{{ _('See the changes of this page over time and read earlier versions') }}">{{ _("History") }}</a>
         {% if deletable %}<button class="btn-link destructive" type="button" aria-controls="confirm-delete" aria-expanded="false" title="{{ _('Delete this page from the wiki; asks for confirmation') }}" onclick="toggleConfirm(true)">{{ _("Delete") }}</button>{% endif %}
       </div>{% endif %}
@@ -31,6 +48,16 @@
     <div class="column-body">
       <div class="page-inner">
         {% if deleted %}<p class="notice dismissible" role="status"><span>{{ _("Deleted the page “%(title)s”.", title=deleted) }}</span><button class="notice-close" type="button" aria-label="{{ _('Close the notice') }}" title="{{ _('Close the notice') }}" onclick="this.parentElement.remove()">×</button></p>{% endif %}
+        {% if notice %}<p class="notice dismissible" role="status"><span>{{ notice }}</span><button class="notice-close" type="button" aria-label="{{ _('Close the notice') }}" title="{{ _('Close the notice') }}" onclick="this.parentElement.remove()">×</button></p>{% endif %}
+        {% if check.status == 'no_context' %}
+        <p class="verify-note" id="verification-state" role="status">{{ _("No sources to verify") }}</p>
+        {% elif check.status == 'none' %}
+        <p class="verify-note" id="verification-state" role="status">{{ _("Not verified") }}</p>
+        {% elif check.status == 'outdated' %}
+        <p class="verify-note" id="verification-state" role="status">{{ _("Verification outdated: the page or one of its sources changed since the last verification") }}</p>
+        {% elif check.status == 'valid' %}
+        <p class="verify-note" id="verification-state" role="status">{{ ngettext("%(unsupported)s of %(checked)s sentence without support", "%(unsupported)s of %(checked)s sentences without support", check.checked, unsupported=check.unsupported, checked=check.checked) }}</p>
+        {% endif %}
         {% if html and deletable %}
         <div class="confirm" id="confirm-delete" hidden>
           <p>{{ _("Delete the page “%(title)s”? The links from other pages to this page are removed. The deleted page stays in the git history of the wiki and can be recovered from there.", title=title) }}</p>
@@ -75,6 +102,7 @@
     <div class="column-body thread" id="messages">
       {% include "_chat_empty.html" %}
     </div>
+    {% set oob = false %}{% set turn = 0 %}{% include "_audit_buttons.html" %}
     <form class="composer" id="composer" hx-post="/w/{{ wiki_id }}/chat" hx-target="#messages" hx-swap="beforeend"
           hx-on::before-request="document.getElementById('empty')?.remove()"
           hx-on::after-request="this.querySelector('textarea').value=''">
@@ -89,8 +117,23 @@
         </select>
         <button class="btn btn-primary" title="{{ _('Send the question (Enter)') }}">{{ _("Send") }}</button>
       </div>
+      <label class="verify-toggle" id="verify-label" data-installed="{{ 'yes' if verifier_available else 'no' }}" data-streaming="streaming"
+             data-tip-on="{{ _('After the answer, the code checks each sentence against the pages the model read and marks the ones no page supports. The answer does not change') }}"
+             data-tip-streaming="{{ _('The No verification mode does not check the answer. Choose Pre-retrieval or Strict to verify the sentences') }}"
+             data-tip-missing="{{ _('The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group verify)') }}">
+        <input type="checkbox" name="verify" id="verify-box" value="1"{% if not verifier_available %} disabled{% endif %}>
+        {{ _("Verify the sentences") }}
+      </label>
     </form>
   </aside>
+
+  <div class="separator separator-index" role="separator" aria-orientation="vertical" tabindex="0" aria-controls="index"
+       aria-label="{{ _('Change the width of the index') }}" aria-valuenow="220" aria-valuemin="160" aria-valuemax="600"
+       title="{{ _('Drag, or use the arrow keys, to change the width; double click restores it') }}"></div>
+  <div class="separator separator-chat" role="separator" aria-orientation="vertical" tabindex="0" aria-controls="chat"
+       aria-label="{{ _('Change the width of the conversation') }}" aria-valuenow="380" aria-valuemin="280" aria-valuemax="800"
+       title="{{ _('Drag, or use the arrow keys, to change the width; double click restores it') }}"></div>
 </main>
 <script src="/static/js/reader.js"></script>
+<script src="/static/js/panels.js"></script>
 {% endblock %}

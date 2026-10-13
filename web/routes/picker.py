@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from domain.i18n import SUPPORTED_LANGUAGES
 from domain.wiki_registry import clean_path_input, is_wiki_dir, load_recent, prune_recent, push_recent, remove_recent
 from domain.wiki_settings import load_wiki_language
 from services.ingest import peek_stats
@@ -138,19 +139,22 @@ def browse_mkdir(request: Request, parent: str = Form(...), name: str = Form("")
 
 
 @router.post("/open")
-def open_path(path: str = Form(...), create: bool = Form(False), state: AppState = Depends(get_state)):
+def open_path(path: str = Form(...), create: bool = Form(False), language: str = Form(""),
+              state: AppState = Depends(get_state)):
     """Add a wiki folder to the recent list the marimo apps share, then open it.
 
     A folder without a wiki (`is_wiki_dir`) is turned into one only with `create`,
     the confirmation of the folder browser: the wiki is created here, before the
     folder enters the recent list. Without it, as for a path :func:`check_folder`
-    refuses, nothing is created and the request returns to the picker.
+    refuses, nothing is created and the request returns to the picker. The ``language`` of
+    the confirmation form is the content language of the new wiki (``[wiki] language``);
+    a value that is not a supported language is ignored, and the wiki is English.
     """
     folder, _reason = check_folder(path)
     if folder is None or (not is_wiki_dir(folder) and not create):
         return RedirectResponse("/", status_code=303)
     if not is_wiki_dir(folder):
-        open_wiki(folder)
+        open_wiki(folder, language=language if language in SUPPORTED_LANGUAGES else None)
     recent_file = state.settings.recent_file
     push_recent(str(folder), load_recent(recent_file), recent_file=recent_file)
     for wiki_id, wiki_path in state.wiki_options().items():

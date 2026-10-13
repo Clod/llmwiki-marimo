@@ -17,8 +17,11 @@ from pathlib import Path
 
 from pydantic_ai import RunContext
 
+from domain import tracing
+from domain.chat.guardrail import _is_substantive
 from domain.datasets.source import LocalMarkdownSource
 from domain.finance_argentina.advisory import estimate_alternatives, render_markdown
+from domain.finance_argentina.data_tools import make_data_tools
 from domain.finance_argentina.requirements import load_default_requirements
 from domain.finance_argentina.validator import validate_workspace
 
@@ -34,6 +37,17 @@ alternativas tengo y cuánto ganaría con cada una?", usá la herramienta
 (`as_of`) de cada tasa y la fuente, y nunca inventes un rendimiento. Los
 instrumentos de renta variable (acciones, CEDEARs, etc.) la herramienta los marca
 como "no estimable": no estimes su ganancia, solo informá de qué dependen.
+
+## Valores actuales (herramientas de datos)
+Para un valor actual (tasa de plazo fijo o de caución, dólar, precio de una
+acción, rendimiento de un FCI) usá siempre `tasa_plazo_fijo`, `tasa_caucion`,
+`cotizacion_dolar`, `precio_accion` o `rendimiento_fci`; nunca la memoria ni el
+texto de una página del wiki. Citá cada valor con su fecha (`as_of`) y su
+fuente. Cada herramienta indica la moneda de sus valores (`Moneda: ARS`): no
+presentes un valor en una moneda distinta de la indicada. `plazo_dias` es un
+número de días (7, no "7d"). Una TNA es una tasa nominal anual, no un
+rendimiento real. Si una herramienta no devuelve un valor,
+decilo; no lo estimes.
 """
 
 
@@ -67,6 +81,19 @@ def estimar_alternativas(
         alternativas de renta variable (no estimables, con su factor de
         variabilidad). Nunca inventa un rendimiento.
     """
+    text = _estimar_alternativas(ctx, monto, horizonte_meses, moneda)
+    tracing.mark("K5", tracing.READING, monto=monto, horizonte_meses=horizonte_meses,
+                 moneda=moneda, substantive=_is_substantive(text))
+    return text
+
+
+def _estimar_alternativas(
+    ctx: RunContext[str],
+    monto: float,
+    horizonte_meses: float,
+    moneda: str = "ARS",
+) -> str:
+    """The body of `estimar_alternativas`; `estimar_alternativas` records node K5 with the returned text."""
     workspace = _workspace(ctx.deps)
     source = LocalMarkdownSource(workspace / "datasets")
     requirements = load_default_requirements()
@@ -92,5 +119,5 @@ def activate(workspace: Path) -> tuple[list | None, str | None]:
     requirements = load_default_requirements()
     report = validate_workspace(requirements, source)
     if report.passing:
-        return [estimar_alternativas], FINANCE_PROMPT_ADDENDUM
+        return [estimar_alternativas, *make_data_tools(source, report.passing)], FINANCE_PROMPT_ADDENDUM
     return None, None

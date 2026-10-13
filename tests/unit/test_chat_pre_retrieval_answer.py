@@ -91,7 +91,7 @@ def test_tier1_curated_hit_not_in_roster_refuses(monkeypatch):
     out = _answer("¿cuál es la capital de Francia?", agent,
                   wiki=["[panel-lider.md]\nEl panel líder concentra el capital..."],
                   monkeypatch=monkeypatch)
-    assert out.startswith("No puedo responder esta pregunta: no nombra ninguno")
+    assert out.startswith("No recibí de la wiki información relacionada")
     assert agent.calls == []  # model never invoked
 
 
@@ -120,7 +120,7 @@ def test_uncovered_topic_with_docs_refuses_before_model(monkeypatch):
     out = _answer("¿qué es la fotosíntesis?", agent, vocab={"dolar"},
                   wiki=[], docs=["[bio.pdf]\nla clorofila capta la luz"],
                   monkeypatch=monkeypatch)
-    assert out.startswith("No puedo responder esta pregunta: no nombra ninguno")
+    assert out.startswith("No recibí de la wiki información relacionada")
     assert agent.calls == []
 
 
@@ -128,7 +128,7 @@ def test_nothing_found_refuses(monkeypatch):
     agent = _fake_agent("no debería llamarse")
     out = _answer("¿capital de Francia?", agent, wiki=[], docs=[], vocab={"dolar"},
                   monkeypatch=monkeypatch)
-    assert out.startswith("No puedo responder esta pregunta: no nombra ninguno")
+    assert out.startswith("No recibí de la wiki información relacionada")
     assert agent.calls == []
 
 
@@ -169,7 +169,7 @@ def test_collection_question_without_collection_pages_still_refuses(monkeypatch)
         "What tales are in this wiki?", agent, wiki=[], docs=[], vocab=frozenset(),
         collection=[], monkeypatch=monkeypatch,
     )
-    assert out.startswith("No puedo responder esta pregunta: no nombra ninguno")
+    assert out.startswith("No recibí de la wiki información relacionada")
     assert agent.calls == []
 
 

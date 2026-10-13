@@ -6,6 +6,10 @@ what the system **builds** when you give it a document; its sibling,
 **ask it something**. Read them in that order and you will have the whole
 system.
 
+**Reference.** Every step of an ingestion is a node of the writing diagram in
+[`ingestion_nodes.md`](ingestion_nodes.md), with the file and the symbol that run
+the step and the record that the step writes in the trace.
+
 **Audience.** Someone who writes software but has never seen this project. You
 can read SQL and Python; nothing else is assumed. Terms from the world of LLMs
 and search — *token*, *embedding*, *RAG*, *chunk* — are defined where they first

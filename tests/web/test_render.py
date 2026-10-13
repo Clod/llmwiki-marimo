@@ -64,6 +64,79 @@ def test_page_title_prefers_front_matter_then_h1_then_the_id():
     assert page_title("text only", "concepts/prince-charming") == "prince charming"
 
 
+# ── render_page_verified: the marks of a page verification ───────────────────
+
+from web.render import render_page_verified  # noqa: E402
+
+PAGE_UNSUPPORTED_TIP = "Ninguna de las fuentes de esta página respalda esta oración"   # as the Spanish interface the tests run with writes it
+
+FRONT = "---\ntype: concept\ntitle: Cinderella\nsources:\n  - resource: sources/tale.pdf\n---\n\n"
+
+
+def marked(body, spans, page="concepts/cinderella"):
+    """Render `body` (with front-matter) marking `spans`, given as (text, support)."""
+    from domain.datasets.frontmatter import split_frontmatter
+    text = FRONT + body
+    page_body = split_frontmatter(text)[1]
+    marks = []
+    for sentence, support in spans:
+        start = page_body.index(sentence)
+        marks.append((start, start + len(sentence), support))
+    return render_page_verified("tales", text, page, marks, PAGES)
+
+
+def test_an_unsupported_sentence_gets_the_mark_and_a_supported_one_the_source_tooltip():
+    html = marked("Cinderella lost a slipper. The prince was a fox.",
+                  [("Cinderella lost a slipper.", "tale.pdf"), ("The prince was a fox.", None)])
+    assert '<span class="supported" title="Respaldada por tale.pdf">Cinderella lost a slipper.</span>' in html
+    assert f'<mark class="unsupported" title="{PAGE_UNSUPPORTED_TIP}">The prince was a fox.</mark>' in html
+
+
+def test_the_text_of_the_page_is_not_changed_by_the_marks():
+    import re
+    body = "Cinderella lost a slipper. The prince was a fox."
+    plain = render_markdown("tales", FRONT + body, "concepts/cinderella", PAGES)
+    html = marked(body, [("Cinderella lost a slipper.", "tale.pdf"), ("The prince was a fox.", None)])
+    assert re.sub(r"</?(mark|span)[^>]*>", "", html) == plain
+
+
+def test_links_stay_links_inside_a_mark():
+    html = marked("The [prince](prince.md) was a fox.", [("The [prince](prince.md) was a fox.", None)])
+    assert f'<a href="{URL}concepts/prince">prince</a>' in html
+    assert html.count("<mark") == 1 and html.count("</mark>") == 1
+
+
+def test_a_list_stays_a_list_and_the_mark_goes_inside_the_item():
+    html = marked("- The prince searched.\n- The prince was a fox.\n", [("- The prince was a fox.", None)])
+    assert "<ul>" in html and html.count("<li>") == 2
+    assert '<li><mark class="unsupported"' in html
+
+
+def test_a_heading_and_a_numbered_item_keep_their_markup():
+    html = marked("## The prince was a fox.\n\n1. The prince was a fox.\n", [])
+    assert "<h2>" in html
+    html = marked("1. A numbered statement.\n", [("1. A numbered statement.", None)])
+    assert "<ol>" in html and '<li><mark' in html
+
+
+def test_a_table_survives_and_a_row_is_marked_cell_by_cell():
+    table = "| name | role |\n|---|---|\n| Cinderella | heroine |\n"
+    html = marked(table, [("| Cinderella | heroine |", None)])
+    assert "<table>" in html and html.count("<tr>") == 2
+    assert html.count('<mark class="unsupported"') == 2
+    assert "<td><mark" in html
+
+
+def test_a_sentence_across_a_block_boundary_is_marked_per_block():
+    body = "First half of it\n\nsecond half of it."
+    html = marked(body, [(body, None)])
+    assert html.count("<mark") == 2 and html.count("</mark>") == 2
+    assert "<p><mark" in html
+
+
+def test_a_sentence_that_crosses_a_line_break_is_marked_per_line():
+    html = marked("First half\nsecond half.", [("First half\nsecond half.", None)])
+    assert html.count("<mark") == 2
 # ── Sanitizing ───────────────────────────────────────────────────────────────
 
 def test_a_script_tag_is_removed_with_its_content():

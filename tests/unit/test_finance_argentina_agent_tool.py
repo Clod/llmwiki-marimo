@@ -52,8 +52,9 @@ def test_activate_none_for_empty_workspace(tmp_path) -> None:
 
 
 def test_activate_returns_tool_when_finance_ready(tmp_path) -> None:
-    """>=1 passing category -> the advisory tool + Spanish prompt addendum."""
+    """>=1 passing category -> the advisory tool, the data tool of the category + Spanish prompt addendum."""
     _seed_plazo_fijo(tmp_path)
     tools, prompt = activate(tmp_path)
-    assert tools == [estimar_alternativas]
+    assert tools[0] is estimar_alternativas
+    assert [t.name for t in tools[1:]] == ["tasa_plazo_fijo"]
     assert prompt == FINANCE_PROMPT_ADDENDUM

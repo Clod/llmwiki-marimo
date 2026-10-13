@@ -30,11 +30,219 @@ msgstr ""
 msgid "Cannot open the index of this wiki."
 msgstr ""
 
+#: web/audit_nodes.py
+msgid "History of the turn: refused exchanges removed, last turns kept"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Mode of the turn"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "The question enters pre-retrieval"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "The question normalised (lowercase, no accents)"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Does the question name a blacklisted term?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "The question reduced to stems"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Does the question name a topic of the wiki (coverage roster)?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Is the user reading a wiki page?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Follow-up rewritten so that it stands alone"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Search in the wiki pages"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Did the search find a page?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Does the question name a dataset category?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Does the question name a key of that category?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Rows of the key read from the dataset"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Key names of the category read from the dataset"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Search in the source documents"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Is the question about the whole wiki?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Is it a data question?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Did the source search find a fragment?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Refusal chosen by the coverage roster"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Wiki pages given to the model, which writes the answer"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Overview and index given to the model"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "No page given: the model calls the data tools"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Source fragments given to the model"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Is the answer grounded in the fragments?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Warning appended: the answer comes from a source document"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Did a data tool return evidence?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Does the answer open with the fixed refusal sentence?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "The answer is shown, with its citation"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Refusal: blacklisted term"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Refusal: no information received from the wiki"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Refusal: a topic of the wiki, no text found"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Refusal: the answer is not grounded in the source document"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Refusal: no evidence behind the answer"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Refusal: the model did not find the answer"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "The model answers, calling the wiki and data tools"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Did a tool return evidence?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Refusal of the guardrail: the answer could not be backed"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Advisory table and citation added"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "The answer is shown"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "The model answers, calling the tools; the text is shown as it arrives"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "The answer is complete, with no check"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: read a wiki page"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: search the wiki pages"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: search the source documents"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: read a dataset"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: estimate investment alternatives"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: plazo fijo rate"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: caución rate"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: dollar quote"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: share price"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Tool: money market fund return"
+msgstr ""
+
 #: web/deps.py
 msgid "Another operation is running on this wiki."
 msgstr ""
 
-#: web/deps.py
+#: web/deps.py web/templates/settings.html
 msgid "Pre-retrieval"
 msgstr ""
 
@@ -107,6 +315,19 @@ msgid "Open the source document in a new tab"
 msgstr ""
 
 #: web/render.py
+msgid "No page the model read supports this sentence"
+msgstr ""
+
+#: web/render.py
+msgid "No source of this page supports this sentence"
+msgstr ""
+
+#: web/render.py
+#, python-format
+msgid "Supported by %(source)s"
+msgstr ""
+
+#: web/render.py
 #, python-format
 msgid "%(n)s unchanged line"
 msgid_plural "%(n)s unchanged lines"
@@ -118,9 +339,24 @@ msgstr[1] ""
 msgid "The model is not configured: define %(names)s in the .env file (for ingestion the WIKI_LLM_* variables also work)."
 msgstr ""
 
+#: web/routes/audit.py
+msgid "That answer does not exist."
+msgstr ""
+
+#: web/routes/audit.py
+msgid "That conversation has no answer."
+msgstr ""
+
 #: web/routes/chat.py
 msgid "There is no answered question to save."
 msgstr ""
+
+#: web/routes/chat.py web/templates/page.html
+#, python-format
+msgid "%(unsupported)s of %(checked)s sentence without support"
+msgid_plural "%(unsupported)s of %(checked)s sentences without support"
+msgstr[0] ""
+msgstr[1] ""
 
 #: web/routes/chat.py
 #, python-format
@@ -137,12 +373,28 @@ msgid "Could not answer: %(error)s"
 msgstr ""
 
 #: web/routes/chat.py
+msgid "Verifying the sentences…"
+msgstr ""
+
+#: web/routes/chat.py
+msgid "Could not verify"
+msgstr ""
+
+#: web/routes/chat.py
 msgid "Enter a title for the page."
 msgstr ""
 
 #: web/routes/chat.py
 #, python-format
 msgid "Could not prepare the draft: %(error)s"
+msgstr ""
+
+#: web/routes/chat.py web/routes/pages.py
+msgid "The local verifier is not installed."
+msgstr ""
+
+#: web/routes/chat.py
+msgid "The conversation kept no passage to verify the draft against."
 msgstr ""
 
 #: web/routes/chat.py
@@ -353,6 +605,11 @@ msgstr ""
 
 #: web/routes/pages.py
 #, python-format
+msgid "Could not verify: %(error)s"
+msgstr ""
+
+#: web/routes/pages.py
+#, python-format
 msgid "%(filename)s cannot be shown: %(error)s"
 msgstr ""
 
@@ -396,6 +653,30 @@ msgstr ""
 #: web/routes/picker.py
 #, python-format
 msgid "The folder could not be created: %(reason)s"
+msgstr ""
+
+#: web/routes/settings.py
+msgid "Saved. The changes apply from the next question; the earlier answers do not change."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "Write a text."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "Write a number."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "The value must be between 0 and 1."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "Write a whole number, 1 or more."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "The value is not valid."
 msgstr ""
 
 #: web/routes/vocabulary.py
@@ -454,6 +735,48 @@ msgstr ""
 
 #: web/routes/vocabulary.py
 msgid "No dataset holds that name."
+msgstr ""
+
+#: web/templates/_audit_buttons.html web/templates/audit.html
+msgid "Audit of the conversation"
+msgstr ""
+
+#: web/templates/_audit_buttons.html
+msgid "The path of the question through the nodes of the system, with each decision"
+msgstr ""
+
+#: web/templates/_audit_buttons.html web/templates/audit.html
+msgid "Criterion"
+msgstr ""
+
+#: web/templates/_audit_buttons.html
+msgid "What the wiki found: the passages the model received for this question"
+msgstr ""
+
+#: web/templates/_audit_buttons.html
+#, python-format
+msgid "Sources (%(n)s)"
+msgstr ""
+
+#: web/templates/_audit_buttons.html
+msgid "The unverified answer of the model: what it wrote, when the code replaced it"
+msgstr ""
+
+#: web/templates/_audit_buttons.html
+msgid "Model answer"
+msgstr ""
+
+#: web/templates/_audit_diagrams.html
+#, python-format
+msgid "Diagrams of the query · turn %(n)s"
+msgstr ""
+
+#: web/templates/_audit_diagrams.html
+msgid "The diagrams could not be read from docs/query_nodes.md."
+msgstr ""
+
+#: web/templates/_audit_diagrams.html
+msgid "The highlighted nodes are the ones this turn went through."
 msgstr ""
 
 #: web/templates/_browse_panel.html
@@ -530,6 +853,14 @@ msgid ""
 msgstr ""
 
 #: web/templates/_browse_panel.html
+msgid "Language of the wiki"
+msgstr ""
+
+#: web/templates/_browse_panel.html
+msgid "The language of the pages the wiki writes and of the answers of its assistant"
+msgstr ""
+
+#: web/templates/_browse_panel.html
 msgid "Create the wiki in this folder and open it"
 msgstr ""
 
@@ -580,6 +911,16 @@ msgstr ""
 
 #: web/templates/_chat_meta.html
 msgid "Open the page cited in the answer"
+msgstr ""
+
+#: web/templates/_chat_meta.html
+#, python-format
+msgid "input %(input)s · output %(output)s"
+msgstr ""
+
+#: web/templates/_chat_meta.html
+#, python-format
+msgid "%(turn)s / %(conversation)s tokens"
 msgstr ""
 
 #: web/templates/_dataset_dialog.html
@@ -814,6 +1155,22 @@ msgstr ""
 
 #: web/templates/_review_dialog.html
 msgid "Switch between the Markdown text and how the page will look"
+msgstr ""
+
+#: web/templates/_review_dialog.html
+msgid ""
+"Check each sentence of the draft against the passages the model read during the conversation; the draft does not "
+"change"
+msgstr ""
+
+#: web/templates/_review_dialog.html web/templates/ingest.html web/templates/maintain.html web/templates/page.html
+msgid ""
+"The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group "
+"verify)"
+msgstr ""
+
+#: web/templates/_review_dialog.html
+msgid "Verify the draft"
 msgstr ""
 
 #: web/templates/_review_dialog.html
@@ -1065,6 +1422,81 @@ msgstr ""
 msgid "No alias has been rejected."
 msgstr ""
 
+#: web/templates/audit.html
+msgid "Sections of this page"
+msgstr ""
+
+#: web/templates/audit.html
+msgid "Summary of the conversation"
+msgstr ""
+
+#: web/templates/audit.html
+#, python-format
+msgid "Turn %(n)s"
+msgstr ""
+
+#: web/templates/audit.html
+#, python-format
+msgid "What the wiki found (%(n)s)"
+msgstr ""
+
+#: web/templates/audit.html
+msgid "Unverified answer of the model"
+msgstr ""
+
+#: web/templates/audit.html web/templates/page.html
+msgid "Question"
+msgstr ""
+
+#: web/templates/audit.html
+msgid "Answer shown"
+msgstr ""
+
+#: web/templates/audit.html
+msgid "Highlight the path of this turn in the diagrams"
+msgstr ""
+
+#: web/templates/audit.html
+msgid "Show in the diagram"
+msgstr ""
+
+#: web/templates/audit.html
+#, python-format
+msgid "Tokens of the turn: input %(input)s · output %(output)s · total %(total)s"
+msgstr ""
+
+#: web/templates/audit.html
+msgid "question reduced to stems"
+msgstr ""
+
+#: web/templates/audit.html
+msgid "topics of the wiki the question can name"
+msgstr ""
+
+#: web/templates/audit.html
+msgid "The wiki has no topic yet."
+msgstr ""
+
+#: web/templates/audit.html
+msgid "No path was recorded for this answer."
+msgstr ""
+
+#: web/templates/audit.html
+msgid "No passage was retrieved: the refusal was decided before the model was consulted."
+msgstr ""
+
+#: web/templates/audit.html
+msgid "This text is not verified: the code replaced it because it could not back it with the wiki."
+msgstr ""
+
+#: web/templates/audit.html
+msgid "The code did not change the answer of the model."
+msgstr ""
+
+#: web/templates/audit.html
+msgid "Diagrams of the query"
+msgstr ""
+
 #: web/templates/base.html
 msgid "Switch wiki"
 msgstr ""
@@ -1123,6 +1555,14 @@ msgid "History"
 msgstr ""
 
 #: web/templates/base.html
+msgid "See and edit the settings of the wiki: the assistant, the pre-retrieval and the verification"
+msgstr ""
+
+#: web/templates/base.html web/templates/settings.html
+msgid "Settings"
+msgstr ""
+
+#: web/templates/base.html
 msgid "Interface language"
 msgstr ""
 
@@ -1151,7 +1591,7 @@ msgstr ""
 msgid "Save the changes and commit them to the git repository of the wiki"
 msgstr ""
 
-#: web/templates/edit.html web/templates/page.html
+#: web/templates/edit.html web/templates/page.html web/templates/settings.html
 msgid "Save"
 msgstr ""
 
@@ -1307,6 +1747,16 @@ msgid "Full repair with the model, slower"
 msgstr ""
 
 #: web/templates/ingest.html
+msgid ""
+"When done, checks each sentence of the pages the ingestion wrote against the text of their sources. The text of the "
+"pages does not change."
+msgstr ""
+
+#: web/templates/ingest.html web/templates/maintain.html
+msgid "Verify the generated pages"
+msgstr ""
+
+#: web/templates/ingest.html
 msgid "Ingest the chosen files and show the progress"
 msgstr ""
 
@@ -1413,6 +1863,12 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: web/templates/maintain.html
+msgid ""
+"When done, checks each sentence of the regenerated pages against the text of their source. The text of the pages does"
+" not change."
+msgstr ""
+
+#: web/templates/maintain.html
 msgid "Start the regeneration; progress appears in the console"
 msgstr ""
 
@@ -1422,6 +1878,45 @@ msgstr ""
 
 #: web/templates/maintain.html
 msgid "Close without regenerating"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Verify pages"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"Checks each sentence of each page against the text of its sources. It uses no ingestion model, only the local "
+"verifier, and changes the text of no page."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Verify every page that has sources; asks for confirmation"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Verify all pages"
+msgstr ""
+
+#: web/templates/maintain.html
+#, python-format
+msgid "Verify the %(count)s page that has sources? It replaces its previous verification."
+msgid_plural ""
+"Verify the %(count)s pages that have sources? Each page replaces its previous verification. On a large wiki it can "
+"take several minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/maintain.html
+msgid "Start the verification; progress appears in the console"
+msgstr ""
+
+#: web/templates/maintain.html web/templates/page.html
+msgid "Verify"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Close without verifying"
 msgstr ""
 
 #: web/templates/maintain.html
@@ -1442,6 +1937,12 @@ msgstr ""
 
 #: web/templates/maintain.html
 msgid "Review and repair every page of the wiki? The repair can rewrite and delete pages."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"When done, checks each sentence of the pages the repairs wrote with the model against the text of their sources. The "
+"text of the pages does not change."
 msgstr ""
 
 #: web/templates/maintain.html
@@ -1590,6 +2091,14 @@ msgid "Relations"
 msgstr ""
 
 #: web/templates/page.html
+msgid "Verifying…"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Check each sentence of this page against the text of its sources; the text of the page does not change"
+msgstr ""
+
+#: web/templates/page.html
 msgid "See the changes of this page over time and read earlier versions"
 msgstr ""
 
@@ -1600,6 +2109,18 @@ msgstr ""
 #: web/templates/page.html
 #, python-format
 msgid "Deleted the page “%(title)s”."
+msgstr ""
+
+#: web/templates/page.html
+msgid "No sources to verify"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Not verified"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Verification outdated: the page or one of its sources changed since the last verification"
 msgstr ""
 
 #: web/templates/page.html
@@ -1670,10 +2191,6 @@ msgid "Ask something…"
 msgstr ""
 
 #: web/templates/page.html
-msgid "Question"
-msgstr ""
-
-#: web/templates/page.html
 msgid "Enter sends the question; Shift+Enter adds a line"
 msgstr ""
 
@@ -1691,6 +2208,32 @@ msgstr ""
 
 #: web/templates/page.html
 msgid "Send"
+msgstr ""
+
+#: web/templates/page.html
+msgid ""
+"After the answer, the code checks each sentence against the pages the model read and marks the ones no page supports."
+" The answer does not change"
+msgstr ""
+
+#: web/templates/page.html
+msgid "The No verification mode does not check the answer. Choose Pre-retrieval or Strict to verify the sentences"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Verify the sentences"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Change the width of the index"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Drag, or use the arrow keys, to change the width; double click restores it"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Change the width of the conversation"
 msgstr ""
 
 #: web/templates/picker.html
@@ -1879,5 +2422,106 @@ msgstr ""
 
 #: web/templates/relations.html
 msgid "The wiki has no pages to show yet."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Content language"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "read only"
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"The search index keeps every fragment reduced to stems in this language, so changing it needs a reindex. It is edited"
+" in wiki_config.toml."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "System prompt"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "The instructions the model receives in every conversation. An empty prompt is refused."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Fill the field with the default prompt. It is saved only when you press Save"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Restore the default"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Suggested prompts"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "The questions the chat offers as buttons. One per line."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Default value"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Enabled"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "The code searches the wiki before calling the model and refuses the questions the wiki does not cover."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "no"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "yes"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Minimum coverage"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "From 0 to 1: the fraction of the words of an answer that must appear in the fragment it came from."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Condense the question"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "A follow-up that names no topic is rewritten by the model into a question that stands alone."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Threshold"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "From 0 to 1: the probability a passage needs to entail a sentence for the sentence to count as supported."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Candidates"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "The passages kept for each sentence of a page before the verifier runs. A whole number, 1 or more."
+msgstr ""
+
+#: web/templates/settings.html
+#, python-format
+msgid ""
+"The vocabulary lists (<code>[fuera_de_alcance]</code>, <code>[alias_datos]</code>, <code>[falsos_sinonimos]</code>) "
+"are edited in <a href=\"%(link)s\">Vocabulary</a>."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Write the settings to wiki_config.toml. They apply from the next question"
 msgstr ""
 

@@ -69,11 +69,11 @@ that also keeps live data and computes grounded advice over it.*
 - **Deterministic, grounded advisory** — the example `finance_argentina` overlay computes "what would I earn" over those datasets in pure Python (effective-rate math, eligibility), lists every option ranked and cited, and refuses to estimate the non-deterministic (equities, inflation, FX) rather than fabricating a number.
 - **Enforceable grounding (cite-or-refuse)** — a deterministic post-check: if an answer isn't backed by a tool result it's replaced with an honest refusal, so the model can't quietly fall back on general knowledge. A mode selector in the chat switches between pre-retrieval, strict (buffered + gated) and unverified (streamed).
 - **Wiki-first RAG** — reads a curated, interlinked encyclopedia first (`index.md` → wiki FTS5 → raw source chunks as a fallback), so knowledge is compiled once and compounds instead of being re-retrieved per query.
-- **Per-wiki language (en/es, extensible)** — set `[wiki] language` in `wiki_config.toml` and the whole wiki — generated pages, section headers, *and* chat answers — is produced in that language, **regardless of the source documents' language**. Run an English wiki and a Spanish wiki side by side; adding a third language is one `Locale` entry.
+- **Per-wiki language (en/es, extensible)** — choose the language when you create the wiki (it is stored as `[wiki] language` in `wiki_config.toml`), and the whole wiki — generated pages, section headers, *and* chat answers — is produced in that language, **regardless of the source documents' language**. Every prompt the model receives is a file per language in `prompts/`, so a Spanish wiki gets Spanish instructions. Run an English wiki and a Spanish wiki side by side; adding a third language is one `Locale` entry and one translated file per prompt.
 - **LLM-as-judge eval packet** — one command bundles the questions, the model's own answers, the cited evidence, and source-vs-generated page pairs against a *frozen* 1–5 rubric, to score chat **and** ingestion quality (and compare models).
 - **Model-suitability check** — a one-command PASS/FAIL on whether a given model clears the bar for off-corpus refusal, citations, and cited synthesis.
-- **Evidence-based prompting** — the default system prompt embeds a worked, fully-cited example because testing proved that's what reliable cross-document citation took.
-- **Self-maintaining wiki** — ten lint checks (contradictions, stale pages, orphans, missing concepts, missing cross-refs, data gaps, filled gaps, vocabulary drift, thin pages, sources that produced no page) with auto-repair of the safe ones.
+- **Evidence-based prompting** — the default system prompt (`prompts/system_prompt.<lang>.md`) embeds a worked, fully-cited example because testing proved that's what reliable cross-document citation took.
+- **Self-maintaining wiki** — twelve lint checks (contradictions, stale pages, orphans, missing concepts, missing cross-refs, data gaps, filled gaps, vocabulary drift, thin pages, sources that produced no page, sentences with no support in the sources, pages with no valid verification) with auto-repair of the safe ones. The last two are report only: they list the unsupported sentences of a verified page and the pages that need verification, and nothing rewrites the text.
 - **Provider-agnostic, split-model** — any OpenAI-compatible endpoint; run a cheap local model for chat and a stronger one for ingestion, via `.env` alone.
 
 **Engineering quality**
@@ -115,11 +115,13 @@ and only falls back to raw chunks when needed.
 ## What it does
 
 1. **Ingest** — in the **Ingest** tab, choose PDF, office (`.docx`, `.doc`, `.odt`, `.rtf`), Markdown (`.md`) or plain-text (`.txt`) files and click **Ingest**, or copy files to `sources/` and click **Scan sources/ for changes**. The pipeline extracts text page by page, chunks it with overlap, runs structured concept extraction, and creates / updates summary + concept pages plus the catalogue, overview, and timeline — then snapshots the result to the wiki's own git repo (optional; see [What ends up on disk](#what-ends-up-on-disk)). The same tab lists the sources and deletes a source after a confirmation.
-2. **Read** — in the **Read** tab, browse the generated pages through the page index, read the open page, edit it in a Markdown editor with a live preview, or delete it after a confirmation. Links between pages and links to the source documents work as links.
-3. **Chat** — in the same tab, ask questions about your documents. A PydanticAI agent reads curated wiki pages first, queries live datasets when you ask for current figures, and falls back to raw-source FTS5 only when needed — citing every fact. A mode selector chooses between pre-retrieval, strict (cite-or-refuse) and unverified (streamed) answers. The conversation survives navigation, the editor and a reload in the same browser tab. **Save** turns the whole conversation into a wiki page: the model prepares a draft, you review and edit it in a dialog, and the page is written only when you click **Save to wiki**.
-4. **Maintain** — in the **Maintain** tab, regenerate the summary pages, run lint and repair (the safe fixes), delete stale pages, and rebuild the search index from the files on disk without calling the model.
+2. **Read** — in the **Read** tab, browse the generated pages through the page index, read the open page, verify each of its sentences against its sources, edit it in a Markdown editor with a live preview, or delete it after a confirmation. Links between pages and links to the source documents work as links.
+3. **Chat** — in the same tab, ask questions about your documents. A PydanticAI agent reads curated wiki pages first, queries live datasets when you ask for current figures, and falls back to raw-source FTS5 only when needed — citing every fact. A mode selector chooses between pre-retrieval, strict (cite-or-refuse) and unverified (streamed) answers. Under each answer, a line gives its mode, the pages it cites and the tokens it used; the buttons **Criterion**, **Sources** and **Model answer** open the audit page of the conversation: the path of each question through the system, the passages the wiki gave the model, and the text of the model before the code replaced it. The conversation survives navigation, the editor and a reload in the same browser tab. **Save** turns the whole conversation into a wiki page: the model prepares a draft, you review and edit it in a dialog, and the page is written only when you click **Save to wiki**.
+4. **Maintain** — in the **Maintain** tab, regenerate the summary pages, verify every page against its sources, run lint and repair (the safe fixes), delete stale pages, and rebuild the search index from the files on disk without calling the model.
 5. **Explore** — in the **Relations** tab, see the graph of pages and sources, search for a page, and open the graph of one page and its neighbours.
-6. **Go back** — in the **History** tab, return the whole wiki to an earlier point, and read or compare earlier versions of one page. The history is not rewritten: a return is a new point.
+6. **Vocabulary** — in the **Vocabulary** tab, see the names the wiki covers, and edit their aliases and the blacklist of terms the chat must refuse.
+7. **Go back** — in the **History** tab, return the whole wiki to an earlier point, and read or compare earlier versions of one page. The history is not rewritten: a return is a new point.
+8. **Settings** — in the **Settings** tab, edit the system prompt, the pre-retrieval and the verification threshold of the wiki; the next question uses them without a restart.
 
 The interface is in English and in Spanish: the **EN | ES** switch at the right of the header chooses the language (a cookie; without it, the browser's language; without that, English). This is the language of the labels and messages only. The language of the wiki content is set per wiki and is a different setting (see [Wiki content language](#wiki-content-language)): a Spanish wiki can be read with the English interface, and the reverse.
 
@@ -159,18 +161,19 @@ YOUR_WIKI_PATH/
 │   │   └── report.md
 │   └── concepts/            # Topic-centric, multi-source
 │       └── interest-rates.md
-├── wiki_config.toml         # Optional: customize chat assistant behavior
+├── wiki_config.toml         # The wiki's language and optional settings of the chat assistant
 └── .llmwiki/
-    ├── index.db             # SQLite: documents, chunks, FTS5 index, citation graph
+    ├── index.db             # SQLite: documents, chunks, FTS5 index, citation graph, verifications
+    ├── aliases.generated.toml  # Aliases of the vocabulary, generated at ingestion
     └── cache/               # Extraction cache (rebuildable)
 ```
 
-Source files are never modified. Delete `.llmwiki/` anytime — re-ingest rebuilds it.
+Source files are never modified. **Rebuild the index** in the Maintain tab rebuilds `index.db` from `sources/` and `wiki/` without calling the model; re-ingesting the sources also rebuilds it, but rewrites the pages.
 
 Your **`WIKI_PATH` workspace is its own git repo** (a separate repo from this
 project's). Each ingest commits the generated `wiki/` as a labelled snapshot
 (`ingest: paper.pdf`), giving you version history of the knowledge base for free.
-It only ever stages `wiki/` and the `.gitignore` it creates — never your `sources/` or the database — and uses a
+It only ever stages `wiki/`, the `.gitignore` it creates and `wiki_config.toml` — never your `sources/` or the database — and uses a
 local `LLM Wiki <llmwiki@local>` identity, so your global git config is untouched.
 Set `WIKI_AUTOCOMMIT=0` in `.env` to turn this off and manage the wiki's git
 yourself (then LLM Wiki runs no `git init` and no commits).
@@ -211,18 +214,24 @@ base/                   # Ingestion pipeline + chat agent (self-contained Python
     ├── eval/              # Half-automated UAT: build a judge-ready eval packet
     ├── lint/              # Wiki health checks
     ├── repair/            # Auto-fixes for safe lint issues
-    ├── tools/             # Native CRUD: wiki_fs, search, references, deletion, git_ops, db
+    ├── verify/            # Sentence-level verification of pages and answers against their sources
+    ├── rollback/          # Return of a wiki to an earlier point: pages and index together
+    ├── text/              # Snowball stemming per wiki language
+    ├── tools/             # Native CRUD: wiki_fs, search, references, deletion, reindex, git_ops, db
+    ├── prompts.py         # load_prompt(): reads the files of prompts/
     └── wiki_registry.py   # Multi-wiki picker: discovery + recent list + path hygiene
+
+prompts/                # Every prompt the model receives, one file per name and language (<name>.<lang>.md)
 
 web/                    # The web interface: FastAPI + Jinja2 + HTMX (see web/README.md)
 ├── app.py                 # Application factory; `web.app:app` is what uvicorn loads
-├── routes/                # picker, pages, chat, ingest, history, relations
+├── routes/                # picker, pages, chat, audit, ingest, history, relations, vocabulary, settings, lang
 ├── templates/             # Jinja2 templates (English message ids; the Spanish catalog is in locale/)
 ├── i18n.py                # Interface language: catalogs, choice of language, _() and ngettext()
 ├── locale/                # gettext catalogs, one per language but English
 └── static/                # CSS, JavaScript, htmx, force-graph
 
-base/services/          # The calls the web routes make: wiki.py, chat.py, ingest.py
+base/services/          # The calls the web routes make: wiki, chat, ingest, verification, vocabulary, settings
 
 
 marimo/                 # Marimo notebook apps — being retired, kept until their removal
@@ -304,7 +313,7 @@ needed just to read), runs a short provider wizard (**local Ollama by default**,
 or any OpenAI-compatible endpoint such as LM Studio or OpenRouter), builds an
 isolated virtualenv from a lock-pinned
 `requirements.txt` (which includes the web interface's dependencies), runs an advisory **grounding check** on your model
-(`--no-eval` skips it), and launches the web interface with `uvicorn` on port 2720 (`--port` changes it). The browser opens on the wiki picker. It won't overwrite an existing
+(`--no-eval` skips it), offers to install the optional local sentence verifier (`--with-verifier` installs it without asking, `--no-verifier` skips it; `--yes` alone skips it), and launches the web interface with `uvicorn` on port 2720 (`--port` changes it). The browser opens on the wiki picker. It won't overwrite an existing
 `.env` or demo without asking, and flags make it scriptable:
 
 ```bash
@@ -354,16 +363,17 @@ uv run --group web uvicorn web.app:app --port 8765
 
 Open [http://localhost:8765](http://localhost:8765). The page lists the wikis; open one. The server listens on `localhost` and has no authentication: it is for one user on one machine. Without `uv`, use the `python -m uvicorn web.app:app --port 8765` of an environment that has the `web` group installed.
 
-The header of every wiki has six tabs:
+The header of every wiki has seven tabs:
 
 | Tab | What it does |
 | --- | --- |
-| **Read** | The page index, the open page (edit, relations, history, delete) and the conversation. Documents are not added here. |
+| **Read** | The page index, the open page (edit, relations, verify, history, delete) and the conversation, with its audit page. Documents are not added here. |
 | **Ingest** | Add documents (**Ingest**), ingest the new or changed files of `sources/` (**Scan sources/ for changes**), list the sources and delete one. |
-| **Maintain** | Regenerate the summary pages, **Run Wiki Lint & Repair** (lint and repair), delete stale pages, rebuild the index without the model. |
+| **Maintain** | Regenerate the summary pages, **Verify all pages**, **Run Wiki Lint & Repair** (lint and repair), delete stale pages, rebuild the index without the model. |
 | **Relations** | The graph of pages and sources, with a page search, zoom buttons and the neighbourhood of one page. |
 | **Vocabulary** | The names the wiki covers (read only, with a search field), their aliases, the rejected aliases and the blacklist; add, remove or reject an entry. Every change is a point of the history. |
 | **History** | The points of the wiki, and the return to an earlier point. |
+| **Settings** | The keys of `wiki_config.toml`: the system prompt, the pre-retrieval and the verification. The language of the wiki is shown read only. |
 
 Add documents in **Ingest** first: a wiki with no sources has nothing to read. The sample wikis in `examples/` are already ingested.
 
@@ -396,7 +406,7 @@ LLM_MODEL=local-model-name
 ```env
 LLM_BASE_URL=https://openrouter.ai/api/v1
 LLM_API_KEY=sk-or-...
-LLM_MODEL=anthropic/claude-haiku-4-5
+LLM_MODEL=anthropic/claude-haiku-5.5
 ```
 
 **Split config** — use a cheap/local model for chat but a stronger model for wiki generation:
@@ -408,7 +418,7 @@ LLM_MODEL=llama3.2
 
 WIKI_LLM_BASE_URL=https://openrouter.ai/api/v1   # ingest uses this
 WIKI_LLM_API_KEY=sk-or-...
-WIKI_LLM_MODEL=anthropic/claude-haiku-4-5
+WIKI_LLM_MODEL=anthropic/claude-haiku-5.5
 ```
 
 If `WIKI_LLM_*` are blank, ingestion falls back to `LLM_*`.
@@ -470,7 +480,9 @@ If `WIKI_LLM_*` are blank, ingestion falls back to `LLM_*`.
 
 ## Customising the chat assistant
 
-Create `wiki_config.toml` in your `WIKI_PATH`:
+The **Settings** tab edits the system prompt, the pre-retrieval and the verification of a
+wiki, and the next question uses them without a restart. The same keys live in the file
+`wiki_config.toml` of the wiki, which you can also edit by hand:
 
 ```toml
 [assistant]
@@ -488,7 +500,7 @@ suggested_prompts = [
 ]
 ```
 
-Copy `wiki_config.example.toml` from the project root as a starting point (or `wiki_config_es.example.toml` for a Spanish wiki — same structure with `language = "es"` and Spanish prompts). If the file is absent, generic defaults are used.
+Copy `wiki_config.example.toml` from the project root as a starting point (or `wiki_config_es.example.toml` for a Spanish wiki — same structure with `language = "es"` and Spanish prompts). Without a `system_prompt`, the wiki uses the default prompt of its language, the file `prompts/system_prompt.<lang>.md`; if the file `wiki_config.toml` is absent, every setting takes its default.
 
 ### Who goes looking: the pre-retrieval switch
 
@@ -509,9 +521,12 @@ scope lists that go with it.
 
 ### Wiki content language
 
-Add a `[wiki]` section to generate the whole wiki — pages, structural headers and
-labels, and chat answers — in a given language, **regardless of the source
-documents' language**:
+The language of a wiki is chosen when the wiki is created: the folder browser of the
+picker asks it (English or Español), and the wiki stores it in the `[wiki]` section
+of `wiki_config.toml`. The whole wiki — pages, structural headers and labels, and
+chat answers — is generated in that language, **regardless of the source documents'
+language**, and the model receives its instructions in that language (the files
+`prompts/<name>.<lang>.md`):
 
 ```toml
 [wiki]
@@ -519,8 +534,10 @@ language = "es"   # "en" (default) | "es"; extensible — add a Locale in base/d
 ```
 
 Language is a *per-wiki* property, so you can keep an English wiki and a Spanish
-wiki side by side. Set it **before the first ingest**; an absent or unknown value
-falls back to English. See [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) §8.
+wiki side by side. A wiki created outside the picker sets it by hand **before the
+first ingest**; an absent or unknown value falls back to English. The Settings tab
+shows it read only, because the search index keeps the word stems of that language.
+See [`docs/manual/apps.md`](docs/manual/apps.md) §8.
 
 ---
 
@@ -549,7 +566,7 @@ ingest as empty or garbled text. OCR for scanned PDFs is on the roadmap
 Three automated suites, fastest first, and one manual check. The first two are the ones CI runs.
 
 **1. Fast regression gate** — deterministic, no LLM keys, no running server, finishes
-in about a minute. Run it after any change:
+in about two minutes (1,426 tests, measured on an M2 Pro). Run it after any change:
 
 ```bash
 uv run pytest tests/unit tests/regression -q
@@ -625,7 +642,7 @@ generated — plus the rubric and a blank scorecard. It covers **chat quality** 
 are comparable, and is written to a gitignored `eval_reports/`. Generation is
 automated; judging stays human-in-the-loop (paste to as many judges as you like and
 average), so it doubles as a way to compare the models your wiki engine uses. Details
-in [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) §9.
+in [`docs/manual/apps.md`](docs/manual/apps.md) §9.
 
 ---
 

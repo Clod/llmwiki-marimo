@@ -2,7 +2,10 @@
 
 `build_agents` builds the two agents of a wiki; `chat_turn` answers a turn in
 the pre-retrieval or the strict mode; `chat_turn_stream` answers it in the
-streaming mode, chunk by chunk. Each turn is one `turn` root span
+streaming mode, chunk by chunk. `chat_turn_with_context` and
+`chat_turn_stream_with_context` do the same and also return the passages the
+model read (`ChatResult`), for the sentence verification; `chat_turn` and
+`chat_turn_stream` are built on them. Each turn is one `turn` root span
 (domain/tracing.py). The caller passes the conversation as objects with `.role`
 ("user" or "assistant") and `.content`, the shape `mo.ui.chat` delivers.
 """
@@ -13,34 +16,29 @@ from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
+from pydantic_ai import AgentRunResultEvent
+from pydantic_ai.messages import (
+    ModelRequest, ModelResponse, PartDeltaEvent, PartStartEvent, TextPart, TextPartDelta,
+    ToolCallPart, UserPromptPart,
+)
 
 from domain import tracing
 from domain.chat.agent import create_agent
 from domain.chat.config import WikiAssistantConfig, load_config
 from domain.chat.guardrail import enforce_grounding, has_grounding, refusal_for, strip_refused_exchanges
 from domain.chat.history import trim_history
-from domain.chat.postprocess import answer_with_table, ensure_citation
+from domain.chat.postprocess import advisory_table, answer_with_table, ensure_citation
+from domain.chat.condense import prompt as condense_user_prompt
+from domain.chat.condense import system_prompt as condense_prompt
 from domain.chat.preretrieval import pre_retrieval_answer, with_open_page
+from domain.prompts import load_prompt
+from domain.verify.context import context_from_messages
+from domain.verify.models import ContextPassage
 from services.wiki import Wiki
 
 PRE_RETRIEVAL = "pre-retrieval"
 STRICT = "strict"
 STREAMING = "streaming"
-
-# Retrieval-mode block for the pre-retrieval agent: it has NO wiki-search
-# tools, so its prompt must say so (otherwise the shared system prompt's search
-# steps name tools it cannot call). The data and advisory tools stay.
-_PRE_RETRIEVAL_PROMPT = (
-    "\n\n## Modo pre-retrieval\n"
-    "NO tenés herramientas de búsqueda de wiki (search_wiki_fts, "
-    "read_wiki_page, search_source_chunks): ignorá cualquier paso que las "
-    "mencione. Las páginas relevantes del wiki ya te vienen inyectadas en el "
-    "CONTEXTO de cada pregunta — respondé exclusivamente desde ese contexto, "
-    "citando la fuente; si no alcanza, decilo. Las herramientas de datos "
-    "(query_dataset) y de cálculo (estimar_alternativas) sí siguen disponibles."
-)
-
 
 # In the strict and streaming modes the model searches with its own tools; the
 # open page reaches it as the same note the pre-retrieval mode uses.
@@ -60,27 +58,38 @@ class ChatAgents:
     config: WikiAssistantConfig
     agent: Any
     agent_pre_retrieval: Any
+    # The agent that rewrites a follow-up into a question that stands alone
+    # (query condensation, `domain/chat/condense.py`); None turns it off.
+    condenser: Any = None
 
 
 def build_agents(wiki: Wiki, base_url: str, api_key: str, model: str) -> ChatAgents:
     """Build the chat agents of `wiki`, with the finance overlay when its data
     satisfies the finance manifest."""
     from domain.finance_argentina.agent_tool import activate as activate_finance
+    from domain.finance_argentina.data_tools import DATA_TOOL_NAMES
 
     config = load_config(wiki.path)
     finance_tools, finance_prompt = activate_finance(wiki.path)
+    # The finance data tools replace query_dataset (and its prompt addendum).
+    has_data_tools = any(getattr(t, "name", None) in DATA_TOOL_NAMES for t in finance_tools or [])
     common = dict(
         system_prompt=config.system_prompt, language=config.language,
-        workspace=wiki.path, extra_tools=finance_tools,
+        workspace=wiki.path, extra_tools=finance_tools, include_dataset_tool=not has_data_tools,
     )
     agent = create_agent(
         base_url, api_key, model, extra_prompt=finance_prompt, include_wiki_tools=True, **common,
     )
     agent_pre_retrieval = create_agent(
-        base_url, api_key, model, extra_prompt=(finance_prompt or "") + _PRE_RETRIEVAL_PROMPT,
+        base_url, api_key, model, extra_prompt=(finance_prompt or "") + load_prompt("pre_retrieval", config.language),
         include_wiki_tools=False, **common,
     )
-    return ChatAgents(config=config, agent=agent, agent_pre_retrieval=agent_pre_retrieval)
+    condenser = create_agent(
+        base_url, api_key, model, system_prompt=condense_prompt(config.language),
+        language=config.language, include_wiki_tools=False,
+    )
+    return ChatAgents(config=config, agent=agent, agent_pre_retrieval=agent_pre_retrieval,
+                      condenser=condenser)
 
 
 def model_history(messages: Sequence[Any]) -> list:
@@ -99,6 +108,44 @@ def model_history(messages: Sequence[Any]) -> list:
     return history
 
 
+def _history_counts(messages: Sequence[Any], history: list) -> dict:
+    """The counts that node C1 records: the prior messages, the refused ones
+    `strip_refused_exchanges` removed, and the messages the model receives."""
+    prior = list(messages[:-1])
+    return dict(
+        prior_messages=len(prior),
+        refused_dropped=len(prior) - len(strip_refused_exchanges(prior)),
+        history_messages=len(history),
+    )
+
+
+def _raw_answer(raw: str, answer: str) -> str | None:
+    """The model's text when the code replaced it; None when the answer shows it
+    (as written, or with a table, a citation or a refusal line added)."""
+    raw = (raw or "").strip()
+    return raw if raw and raw not in answer else None
+
+
+def _text_of(event: Any) -> str:
+    """The text a stream event adds to the answer: the start of a text part, or a
+    text delta; '' for any other event (tool calls, tool returns, thinking)."""
+    if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+        return event.part.content
+    if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+        return event.delta.content_delta
+    return ""
+
+
+def _tools_called(run_messages: Sequence[Any]) -> list[str]:
+    """The names of the tool calls of a run, in order."""
+    return [
+        part.tool_name
+        for message in run_messages
+        for part in getattr(message, "parts", [])
+        if isinstance(part, ToolCallPart)
+    ]
+
+
 def _turn_attributes(messages: Sequence[Any], mode: str, conversation_id: str | None,
                      language: str, history: list) -> dict:
     return dict(
@@ -109,6 +156,150 @@ def _turn_attributes(messages: Sequence[Any], mode: str, conversation_id: str | 
     )
 
 
+@dataclass(frozen=True)
+class ChatResult:
+    """An answer and what the model read to write it.
+
+    context:   the passages of the turn: the pages and fragments the
+               pre-retrieval mode injected, and the tool returns of the run. A
+               refusal the code makes before the model runs has none.
+    generated: texts the code appended to the answer (the advisory table); the
+               verification skips them.
+    """
+
+    answer: str
+    context: tuple[ContextPassage, ...] = ()
+    generated: tuple[str, ...] = ()
+    # What the model wrote, when the code replaced it (a refusal of the guardrail, R3,
+    # R4); None when the answer shows the model's text. For the user to audit it.
+    raw_answer: str | None = None
+    # The nodes the turn went through, in order: {"node", "diagram", "attributes"} each
+    # (`tracing.collect`); kept whether or not WIKI_TRACE is on.
+    path: tuple[dict, ...] = ()
+    # The tokens of the turn: the sum over every model call (the condensation, the answer,
+    # each round of the agent loop). A refusal the code makes before the model runs has 0.
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+class _Tokens:
+    """The tokens of the model calls of one turn, summed from `result.usage()`."""
+
+    def __init__(self) -> None:
+        self.input = 0
+        self.output = 0
+
+    def add(self, result: Any) -> None:
+        # Every Pydantic AI result has `usage` (a property in this version, a method in
+        # older ones and in the test stand-ins); a stand-in without it counts 0.
+        usage = getattr(result, "usage", None)
+        if usage is None:
+            return
+        if not hasattr(usage, "input_tokens"):     # the method of the test stand-ins
+            usage = usage()
+        self.input += usage.input_tokens
+        self.output += usage.output_tokens
+
+
+def _condenser(agents: ChatAgents, language: str | None, tokens: _Tokens | None = None):
+    """The `condense(question, history)` call of a turn, or None when the wiki turns
+    condensation off (`[pre_retrieval] condense_question = false`) or has no condenser.
+    Its tokens go to `tokens`."""
+    if agents.condenser is None or not getattr(agents.config, "condense_question", True):
+        return None
+
+    async def condense(question: str, history: list) -> str:
+        result = await agents.condenser.run(condense_user_prompt(question, history, language))
+        if tokens is not None:
+            tokens.add(result)
+        return str(result.output)
+
+    return condense
+
+
+async def chat_turn_with_context(
+    wiki: Wiki, agents: ChatAgents, messages: Sequence[Any], *,
+    mode: str, conversation_id: str | None = None, open_page: str | None = None,
+) -> ChatResult:
+    """Answer the last message of `messages` in the pre-retrieval or strict mode.
+
+    `open_page` is the id of the page the user is reading, or None. The context
+    does not depend on `WIKI_TRACE`.
+    """
+    history = model_history(messages[:-1])
+    question = messages[-1].content
+    language = agents.config.language
+    attributes = _turn_attributes(messages, mode, conversation_id, language, history)
+    R = tracing.READING
+    tokens = _Tokens()
+
+    if mode == PRE_RETRIEVAL:
+        injected: list[ContextPassage] = []
+        ran: list = []
+
+        outputs: list[str] = []
+
+        async def run_agent(prompt, prior):
+            result = await agents.agent_pre_retrieval.run(
+                prompt, deps=wiki.db_path, message_history=prior,
+            )
+            tokens.add(result)
+            ran.append(result.all_messages())
+            outputs.append(str(result.output))
+            return result
+
+        with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes):
+            tracing.mark("C1", R, **_history_counts(messages, history))
+            tracing.mark("C2", R, mode=mode)
+            answer = await pre_retrieval_answer(
+                question, config=agents.config, db_path=wiki.db_path, workspace=wiki.path,
+                history=history, language=language, run_agent=run_agent, open_page=open_page,
+                on_context=injected.extend, condense=_condenser(agents, language, tokens),
+            )
+        run_messages = ran[-1] if ran else []
+        table = advisory_table(run_messages)
+        return ChatResult(
+            answer, (*injected, *context_from_messages(run_messages)), (table,) if table else (),
+            raw_answer=_raw_answer(outputs[-1], answer) if outputs else None, path=tuple(path),
+            input_tokens=tokens.input, output_tokens=tokens.output,
+        )
+
+    if mode != STRICT:
+        raise ValueError(f"chat_turn answers the pre-retrieval and strict modes, not {mode!r}")
+    with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
+        tracing.mark("C1", R, **_history_counts(messages, history))
+        tracing.mark("C2", R, mode=mode)
+        with tracing.node("T1", R) as t1:
+            result = await agents.agent.run(
+                _with_open_page(question, open_page, language),
+                deps=wiki.db_path, message_history=history,
+            )
+            tokens.add(result)
+            raw = result.output
+            messages_run = result.all_messages()
+            t1.set(tools_called=_tools_called(messages_run), raw_output=raw)
+        grounded = has_grounding(messages_run)
+        tracing.mark("T2", R, answer=grounded)
+        answer = enforce_grounding(raw, messages_run, refusal=refusal_for(language))
+        refusal_substituted = answer != raw
+        if refusal_substituted:
+            tracing.mark("T3", R, final_answer=answer)
+        # Deterministic post-processing (domain/chat/postprocess.py): guarantee
+        # the advisory table and a source citation regardless of whether the
+        # model reproduced them under history priming. Both no-op on a refusal.
+        tabled = answer_with_table(answer, messages_run)
+        cited = ensure_citation(tabled, messages_run)
+        tracing.mark("T4", R, table_added=tabled != answer, citation_added=cited != tabled)
+        answer = cited
+        tracing.mark("T5", R, final_answer=answer, refusal_substituted=refusal_substituted)
+        root.set(raw_output=raw, final_answer=answer, grounded=grounded,
+                 refusal_substituted=refusal_substituted)
+    table = advisory_table(messages_run)
+    return ChatResult(answer, tuple(context_from_messages(messages_run)), (table,) if table else (),
+                      raw_answer=_raw_answer(raw, answer), path=tuple(path),
+                      input_tokens=tokens.input, output_tokens=tokens.output)
+
+
 async def chat_turn(
     wiki: Wiki, agents: ChatAgents, messages: Sequence[Any], *,
     mode: str, conversation_id: str | None = None, open_page: str | None = None,
@@ -117,41 +308,58 @@ async def chat_turn(
 
     `open_page` is the id of the page the user is reading, or None.
     """
+    result = await chat_turn_with_context(
+        wiki, agents, messages, mode=mode, conversation_id=conversation_id, open_page=open_page,
+    )
+    return result.answer
+
+
+async def chat_turn_stream_with_context(
+    wiki: Wiki, agents: ChatAgents, messages: Sequence[Any], *,
+    conversation_id: str | None = None, open_page: str | None = None,
+) -> AsyncIterator[str | ChatResult]:
+    """Answer the last message of `messages` in the streaming mode.
+
+    Yields the text chunks as they arrive, then one `ChatResult` as the last
+    item, with the whole answer and the tool returns of the run.
+    """
     history = model_history(messages[:-1])
     question = messages[-1].content
-    language = agents.config.language
-    attributes = _turn_attributes(messages, mode, conversation_id, language, history)
-
-    if mode == PRE_RETRIEVAL:
-        async def run_agent(prompt, prior):
-            return await agents.agent_pre_retrieval.run(
-                prompt, deps=wiki.db_path, message_history=prior,
-            )
-
-        with tracing.root("turn", wiki.path, **attributes):
-            return await pre_retrieval_answer(
-                question, config=agents.config, db_path=wiki.db_path, workspace=wiki.path,
-                history=history, language=language, run_agent=run_agent, open_page=open_page,
-            )
-
-    if mode != STRICT:
-        raise ValueError(f"chat_turn answers the pre-retrieval and strict modes, not {mode!r}")
-    with tracing.root("turn", wiki.path, **attributes) as root:
-        result = await agents.agent.run(
-            _with_open_page(question, open_page, language),
-            deps=wiki.db_path, message_history=history,
-        )
-        raw = result.output
-        messages_run = result.all_messages()
-        answer = enforce_grounding(raw, messages_run, refusal=refusal_for(language))
-        refusal_substituted = answer != raw
-        # Deterministic post-processing (domain/chat/postprocess.py): guarantee
-        # the advisory table and a source citation regardless of whether the
-        # model reproduced them under history priming. Both no-op on a refusal.
-        answer = ensure_citation(answer_with_table(answer, messages_run), messages_run)
-        root.set(raw_output=raw, final_answer=answer, grounded=has_grounding(messages_run),
-                 refusal_substituted=refusal_substituted)
-    return answer
+    attributes = _turn_attributes(messages, STREAMING, conversation_id,
+                                  agents.config.language, history)
+    full_text = ""
+    run_messages: list = []
+    tokens = _Tokens()
+    R = tracing.READING
+    with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
+        tracing.mark("C1", R, **_history_counts(messages, history))
+        tracing.mark("C2", R, mode=STREAMING)
+        with tracing.node("F1", R) as f1:
+            # run_stream_events runs the whole agent — every model request and every
+            # tool call — and streams the text as it arrives. run_stream took the first
+            # text of the model as the final output and skipped a tool call that
+            # followed it (cue-04: "Permíteme buscar en el wiki." and no search).
+            async with agents.agent.run_stream_events(
+                _with_open_page(question, open_page, agents.config.language),
+                deps=wiki.db_path, message_history=history,
+            ) as events:
+                async for event in events:
+                    if isinstance(event, AgentRunResultEvent):
+                        run_messages = event.result.all_messages()
+                        tokens.add(event.result)
+                        continue
+                    chunk = _text_of(event)
+                    if not chunk:
+                        continue
+                    if isinstance(event, PartStartEvent) and full_text:
+                        chunk = "\n\n" + chunk          # the text of a later model response
+                    full_text += chunk
+                    yield chunk
+            f1.set(tools_called=_tools_called(run_messages))
+        tracing.mark("F2", R, final_answer=full_text)
+        root.set(raw_output=full_text, final_answer=full_text)
+    yield ChatResult(full_text, tuple(context_from_messages(run_messages)), path=tuple(path),
+                     input_tokens=tokens.input, output_tokens=tokens.output)
 
 
 async def chat_turn_stream(
@@ -162,20 +370,11 @@ async def chat_turn_stream(
 
     The streaming mode runs no check: each chunk is shown as it arrives.
     """
-    history = model_history(messages[:-1])
-    question = messages[-1].content
-    attributes = _turn_attributes(messages, STREAMING, conversation_id,
-                                  agents.config.language, history)
-    full_text = ""
-    with tracing.root("turn", wiki.path, **attributes) as root:
-        async with agents.agent.run_stream(
-            _with_open_page(question, open_page, agents.config.language),
-            deps=wiki.db_path, message_history=history,
-        ) as result:
-            async for chunk in result.stream_text(delta=True):
-                full_text += chunk
-                yield chunk
-        root.set(raw_output=full_text, final_answer=full_text)
+    async for item in chat_turn_stream_with_context(
+        wiki, agents, messages, conversation_id=conversation_id, open_page=open_page,
+    ):
+        if isinstance(item, str):
+            yield item
 
 
 def save_answer(

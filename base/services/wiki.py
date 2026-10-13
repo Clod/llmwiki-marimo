@@ -15,7 +15,8 @@ from pathlib import Path
 
 from domain.datasets.frontmatter import split_frontmatter
 from domain.tools.db import get_connection, open_db, seed_workspace_row
-from domain.wiki_settings import load_wiki_language
+from domain.wiki_registry import is_wiki_dir
+from domain.wiki_settings import load_wiki_language, write_language
 
 # A markdown link that is not an image embed — the same pattern as
 # domain/tools/references.py:_WIKI_LINK_RE.
@@ -39,11 +40,17 @@ class Wiki:
         return self.path / "sources"
 
 
-def open_wiki(path: str | Path) -> Wiki:
+def open_wiki(path: str | Path, language: str | None = None) -> Wiki:
     """Resolve a wiki directory, create its folders and index, and seed its
     `workspace` row. Opening the index also rebuilds an index built before
-    stemming (`domain.tools.db.open_db`)."""
+    stemming (`domain.tools.db.open_db`).
+
+    `language` is the content language of a wiki that is being created: when the folder
+    holds no wiki yet (`is_wiki_dir`) and `language` is given, `wiki_config.toml` is written
+    with only `[wiki] language`. An existing wiki is never written."""
     root = Path(path).expanduser().resolve()
+    if language is not None and not is_wiki_dir(root):
+        write_language(root, language)
     (root / "wiki").mkdir(parents=True, exist_ok=True)
     (root / "sources").mkdir(parents=True, exist_ok=True)
     db_path = str(root / ".llmwiki" / "index.db")

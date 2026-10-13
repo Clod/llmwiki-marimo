@@ -19,9 +19,12 @@ trace of every LLM call.
 
 ## 4. Database Schema
 
-**Location:** `workspace/.llmwiki/index.db`. Opened by `domain/tools/db.py:open_db()`,  
-schema applied from `database/sqlite_schema.sql` on first run. Uses  
-`PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON`.
+**Location:** `workspace/.llmwiki/index.db`. Opened by `domain/tools/db.py:open_db()`,
+which applies `database/sqlite_schema.sql` on every open (every statement is
+`CREATE … IF NOT EXISTS`) after checking that no existing table lacks a column of the
+schema (`SchemaMismatchError`; an index built before stemming is rebuilt instead). Uses
+`PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON`. The per-column reference is
+[`docs/sqlite_data_dictionary.md`](../sqlite_data_dictionary.md).
 
 ### Tables
 
@@ -33,6 +36,8 @@ schema applied from `database/sqlite_schema.sql` on first run. Uses
 | `document_chunks`     | FTS5 units (~512 tokens, ~128 overlap)                                         |
 | `chunks_fts`          | Virtual FTS5 table mirroring `document_chunks` via triggers                    |
 | `document_references` | Citation graph edges (`reference_type` ∈ {`cites`, `links_to`})                |
+| `page_verifications`  | The last sentence-level verification of a wiki page: one row per page          |
+| `verification_sentences` | Every sentence checked by that verification, with its probability and best passage |
 
 ### The citation graph (nodes & edges)
 
@@ -145,8 +150,8 @@ citations.
 
 `chunks_fts` uses `unicode61`, which **splits on hyphens**. An unquoted
 `mortgage-backed` raises a MATCH syntax error ("no such column: backed") —
-FTS5 parses the hyphen as a column filter — which `search_chunks` swallows,
-returning `[]`. Quote the term (`"mortgage-backed"`) or use plain words.
+FTS5 parses the hyphen as a column filter — and `search_chunks` logs a warning
+and returns `[]`. Quote the term (`"mortgage-backed"`) or use plain words.
 
 The index holds `document_chunks.content_stemmed`: each fragment stemmed with
 the Snowball stemmer of the wiki's language (`base/domain/text/stemming.py`).
@@ -167,10 +172,11 @@ These functions are the CRUD primitives every other layer depends on. They know
 | Module                | Key functions                                                                                                             | What it does                                                                                |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `tools/db.py`         | `open_db(path)`, `get_connection(path)`                                                                                   | Opens the SQLite DB (applies `sqlite_schema.sql`, idempotent); provides a context-manager connection |
-| `tools/wiki_fs.py`    | `create_page`, `read_page`, `append_to_page`, `delete_page`                                                               | Disk + DB simultaneously (single source of truth — never bypass)                            |
+| `tools/wiki_fs.py`    | `create_page`, `read_page`, `write_page_content`, `append_to_page`, `delete_page`                                         | Disk + DB simultaneously (single source of truth — never bypass). A write deletes the page's verification in the same transaction |
 | `tools/search.py`     | `search_chunks(db, query, limit, scope)`                                                                                  | FTS5 search; `scope ∈ {"all", "wiki", "sources"}`                                           |
 | `tools/references.py` | `update_references`, `get_backlinks`, `get_forward_refs`, `find_orphan_pages`, `find_uncited_sources`, `find_stale_pages` | Parses `[[wikilinks]]` plus citations in both `[^N]: file.pdf, p.3` footnote and `- file.pdf` Sources-bullet form; maintains `document_references` |
-| `tools/git_ops.py`    | `init_wiki_repo`, `auto_commit`, `autocommit_enabled`                                                                     | Idempotent git init + silent commits of `wiki/` in the workspace repo; both no-op when `WIKI_AUTOCOMMIT` is falsy. **git is optional** — a missing/failing `git` is caught (one-time warning) and skipped, never failing an ingest |
+| `tools/reindex.py`    | `reindex_from_disk`                                                                                                       | Writes a fresh index from `sources/` and `wiki/` with no model call and keeps the old one as `index.db.bak` |
+| `tools/git_ops.py`    | `init_wiki_repo`, `auto_commit`, `autocommit_enabled`, `head_sha`                                                         | Idempotent git init + silent commits of `wiki/` in the workspace repo; both no-op when `WIKI_AUTOCOMMIT` is falsy. **git is optional** — a missing/failing `git` is caught (one-time warning) and skipped, never failing an ingest |
 
 Two structural notes:
 
@@ -189,7 +195,8 @@ and repair are out of scope for v1.
 
 The trace records one [OpenTelemetry](https://opentelemetry.io/) span per step
 of the code, named by the identifier of its node in the diagrams of
-`design_stemming.md` — `Q5` for the coverage-roster check, `I4` for text
+[`docs/query_nodes.md`](../query_nodes.md) and
+[`docs/ingestion_nodes.md`](../ingestion_nodes.md) — `Q5` for the coverage-roster check, `I4` for text
 extraction, `W1` for chunking. The span names of one trace are therefore the
 path the run took through the diagram, and the path can be compared with the
 diagram node by node. Model calls are spans too: Pydantic AI's own
@@ -288,8 +295,10 @@ sidecar was never written. So `WIKI_TRACE_CAPTURE=none` still lets you verify
 ### 14.5 How it's wired
 
 - **One root per run.** `tracing.root(name, workspace, **attrs)` opens the run's
-  root span. `chat/preretrieval.py:321` opens `turn`; `ingestion/pipeline.py:120`
-  and `ingestion/batch.py:88` open `ingest`. Called from inside a run already in
+  root span. `services/chat.py` opens `turn` for the three modes, inside
+  `tracing.collect()` (below), and `chat/preretrieval.py:pre_retrieval_answer` opens it
+  when called alone; `ingestion/pipeline.py`, `ingestion/batch.py` and
+  `services/ingest.py:ingest_uploads` open `ingest`. Called from inside a run already in
   progress — a batch ingesting several files — `root` reuses the current span
   instead of opening a second one (`base/domain/tracing.py:235`), so a batch is
   one trace.
@@ -306,6 +315,10 @@ sidecar was never written. So `WIKI_TRACE_CAPTURE=none` still lets you verify
 - **Disabled = free.** `tracing.enabled()` (`base/domain/tracing.py:68`) gates a
   module-level no-op tracer; every function above becomes a no-op and no file is
   created.
+- **The path in memory.** `tracing.collect()` keeps, in memory, one entry
+  `{"node", "diagram", "attributes"}` for every `node` and `mark` of the run, whether
+  `WIKI_TRACE` is on or off, and writes nothing to disk. `services/chat.py` uses it to
+  give each answer the path the audit page shows (the section *Criterion*, §7.2).
 - **Best-effort.** A span-attribute or payload failure is caught and logged at
   debug level (`base/domain/tracing.py:182`, `:213`); tracing never breaks a
   chat turn or an ingest.
@@ -313,9 +326,11 @@ sidecar was never written. So `WIKI_TRACE_CAPTURE=none` still lets you verify
 ### 14.6 What each node covers
 
 The node identifiers of one ingestion and one chat turn are the ones tabulated
-in `design_stemming.md` §1.1.1 (writing: I1–I16, E1–E4, W1–W4) and §1.2.1
-(reading: Q1–Q21, Q7a–Q7d, refusal causes R1, R2a, R2b, R3 and R4). Those two tables are the reference
-for which node covers which line of code; this section does not repeat them.
+in [`docs/ingestion_nodes.md`](../ingestion_nodes.md) (writing: I1–I16 with I9a,
+E1–E4, W1–W4, and M1–M4) and [`docs/query_nodes.md`](../query_nodes.md) (reading:
+C1–C2, Q1–Q21 with Q5a, Q5b and Q7a–Q7d, F1–F2, T1–T5, the tools K1–K10, and the
+refusal causes R1, R2a, R2b, R3, R4 and R5). Those tables are the reference for which
+node covers which function; this section does not repeat them.
 
 ### 14.7 Rendering — `scripts/render_trace.py`
 

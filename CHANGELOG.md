@@ -13,6 +13,39 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **Sentence-level verification of chat answers** (`base/domain/verify/`). After
+  an answer, each sentence is checked against the passages the model read, and
+  the web interface marks the sentences no passage supports. The local
+  verifier is a multilingual NLI model run in-process on the CPU, in the new
+  optional dependency group `verify` (`requirements-verify.txt`); `quickstart.py`
+  asks whether to install it. `services/chat.py` gains `ChatResult`,
+  `chat_turn_with_context` and `chat_turn_stream_with_context`, which return the
+  context with the answer. `[verify] threshold` in `wiki_config.toml` sets the
+  entailment probability a sentence needs. `scripts/verify_battery.py` asks a
+  list of questions N times, verifies each answer and writes JSON Lines and a
+  markdown summary.
+
+- **Sentence-level verification of wiki pages.** The pages ingestion writes can
+  be verified against the text of their sources with the same core and the same
+  local NLI verifier. A summary page is checked against the text extracted from
+  its document, a concept page against every source it cites, and a page saved
+  from the chat against the pages and sources it cites. Before the verifier,
+  each sentence keeps its `[verify] candidates` (default 5) best passages by
+  full-text ranking (BM25, the same stemming as the search). The result is
+  stored in two new tables of `index.db`, `page_verifications` and
+  `verification_sentences`, created when an existing index opens. A write of the
+  page through `create_page` or `write_page_content` deletes its verification;
+  a change outside the application is detected by hashes. The web interface
+  offers the option "Verificar las páginas generadas" on ingestion, scan and
+  regeneration, the action "Verificar esta página" on the reading screen
+  (unsupported sentences are highlighted, with a summary line) and the task
+  "Verificar todas las páginas". Two report-only lint checks,
+  `unsupported_sentences` and `unverified_pages`, list the results; repair skips
+  them. Nothing changes the text of a page. `scripts/verify_pages.py` verifies a
+  whole wiki and prints the numbers.
+
+### Changed
+
 - **A Vocabulary tab shows and edits the vocabulary of a wiki.** The roster
   (the names the wiki covers, read only, with a search field that ignores case and
   accents), the aliases with their origin (generated or hand-written), the rejected
@@ -62,8 +95,6 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   summary back to its source. It never modifies a markdown file or a source file, and
   keeps the old index as `index.db.bak`. `version`, `document_number` and the creation
   dates reset.
-
-### Changed
 
 - **`quickstart.py` launches the web interface** (`python -m uvicorn web.app:app`, same default port 2720)
   and opens the browser on the wiki picker, instead of the marimo read app. `requirements.txt` is

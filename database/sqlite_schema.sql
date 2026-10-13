@@ -122,7 +122,8 @@ CREATE TABLE IF NOT EXISTS documents (
     version INTEGER DEFAULT 0,
     
     -- Name of the parsing engine that extracted the text. Actual values:
-    -- "opendataloader" (PDF) or "libreoffice+opendataloader" (DOCX); NULL for wiki pages.
+    -- "opendataloader" (PDF), "libreoffice+opendataloader" (DOCX, DOC, ODT, RTF), or
+    -- "text:<encoding>" (.md, .txt); NULL for wiki pages.
     parser TEXT,
     
     -- SHA-256 hash of the content (detector.py uses hashlib.sha256) to detect file changes
@@ -312,3 +313,65 @@ CREATE INDEX IF NOT EXISTS idx_chunks_doc ON document_chunks(document_id);
 -- Optimizes traversing or building the document link/citation graph
 CREATE INDEX IF NOT EXISTS idx_refs_source ON document_references(source_document_id);
 CREATE INDEX IF NOT EXISTS idx_refs_target ON document_references(target_document_id);
+
+
+-- ── 9. PAGE VERIFICATIONS ────────────────────────────────────────────────────
+-- The last sentence-level verification of a wiki page against its sources
+-- (domain/verify/store.py). Derived state: verifying the page again rebuilds it.
+-- The two tables are created with IF NOT EXISTS, so an index built before them
+-- gets them empty when it opens.
+
+-- One row per page: the last verification only.
+CREATE TABLE IF NOT EXISTS page_verifications (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+
+    -- The verified page. Deleting the page deletes its verification.
+    document_id TEXT NOT NULL UNIQUE REFERENCES documents(id) ON DELETE CASCADE,
+
+    -- SHA-256 of the page body without its front-matter, as verified.
+    body_hash TEXT NOT NULL,
+
+    -- JSON object: context source (relative path) -> SHA-256 of the text used.
+    source_hashes TEXT NOT NULL DEFAULT '{}',
+
+    -- The verifier ("nli:<model>", "fake" in the tests) and its model.
+    verifier TEXT NOT NULL,
+    model TEXT NOT NULL DEFAULT '',
+
+    verified_at TEXT NOT NULL DEFAULT (datetime('now')),
+
+    -- Counts: sentences checked, pairs sent to the verifier, and pairs a full
+    -- comparison would have sent. There is no count of supported sentences: it
+    -- depends on the threshold in force when the page is shown.
+    sentences_checked INTEGER NOT NULL DEFAULT 0,
+    pairs_compared INTEGER NOT NULL DEFAULT 0,
+    pairs_possible INTEGER NOT NULL DEFAULT 0
+);
+
+-- One row per checked sentence, supported or not. A sentence is supported when
+-- `probability` reaches `[verify] threshold`; there is no stored verdict.
+CREATE TABLE IF NOT EXISTS verification_sentences (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    verification_id TEXT NOT NULL REFERENCES page_verifications(id) ON DELETE CASCADE,
+
+    -- Order of the sentence in the page body.
+    position INTEGER NOT NULL,
+
+    -- Offsets in the page body: body[start_char:end_char] == sentence.
+    start_char INTEGER NOT NULL,
+    end_char INTEGER NOT NULL,
+    sentence TEXT NOT NULL,
+
+    -- Probability of the best passage, from 0 to 1.
+    probability REAL NOT NULL,
+
+    -- Source of the best passage (a relative path) and an excerpt of it; NULL
+    -- when no passage was compared.
+    best_source TEXT,
+    best_excerpt TEXT,
+
+    UNIQUE(verification_id, position)
+);
+
+CREATE INDEX IF NOT EXISTS idx_verification_sentences_verification
+    ON verification_sentences(verification_id);

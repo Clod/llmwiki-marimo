@@ -1,0 +1,2 @@
+## Idioma
+Responde SIEMPRE en español, con redacción natural y fluida, sin importar el idioma de la pregunta o de las fuentes. Mantén intactas las citas (rutas de página y nombres de archivo) tal como las devuelven las herramientas.

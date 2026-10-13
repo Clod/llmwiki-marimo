@@ -244,3 +244,11 @@ def test_excluded_category_reason_surfaced() -> None:
 
     rendered = render_markdown(result)
     assert "fci_money_market" in rendered
+
+
+def test_the_table_is_separated_from_its_title_by_a_blank_line():
+    """A markdown table needs a blank line before it: without it the chat showed the rows of
+    the table as running text (owner, 2026-10-11)."""
+    requirements, source = _full_workspace()
+    rendered = render_markdown(estimate_alternatives(1_000_000, 3, requirements, source))
+    assert "(ordenadas por ganancia)\n\n| opción |" in rendered

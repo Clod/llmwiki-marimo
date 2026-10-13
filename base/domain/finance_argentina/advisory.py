@@ -266,6 +266,7 @@ def render_markdown(result: AdvisoryResult) -> str:
         lines.append("")
 
     lines.append("**Alternativas con ganancia estimada** (ordenadas por ganancia)")
+    lines.append("")    # a markdown table needs a blank line before it
     if result.ranked:
         lines.append("| opción | clave | plazo | TEA | ganancia est. | al fecha | fuente |")
         lines.append("|---|---|---|---|---|---|---|")

@@ -33,7 +33,9 @@ body.chat-hidden .chat { display: none; }
 .page-head { gap: var(--space-3); padding: 0 var(--space-4); }
 .page-path { font-size: var(--text-xs); color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .page-head .actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
-.page-inner { padding: var(--space-5) var(--space-6) var(--space-7); max-width: calc(var(--prose-w) + 2 * var(--space-6)); }
+.page-inner { padding: var(--space-5) var(--space-6) var(--space-7); }
+/* The page text fills its column: the separators set the length of the lines. */
+.page-inner .prose { max-width: none; }
 .page-inner > .notice, .page-inner > .confirm { margin-bottom: var(--space-4); }
 .missing { color: var(--color-text-muted); font-style: italic; }
 
@@ -77,6 +79,21 @@ body.chat-hidden .chat { display: none; }
 .composer-row .mode-select { width: auto; height: var(--control-h-sm); padding: 0 var(--space-2); border-color: var(--color-border); }
 .composer-row .btn { margin-left: auto; height: var(--control-h-sm); padding: 0 var(--space-3); }
 
+.verify-toggle { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--color-text-muted); cursor: pointer; }
+.verify-toggle.disabled { cursor: not-allowed; opacity: .6; }
+.a mark.unsupported, .prose mark.unsupported { background: var(--color-flag-soft); color: var(--color-text); border-bottom: 2px solid var(--color-flag); cursor: help; }
+.verify-note { margin: var(--space-2) 0 0; font: var(--weight-regular) var(--text-xs)/var(--leading-normal) var(--font-sans); color: var(--color-text-muted); }
+.verify-note.failed { color: var(--color-text); }
+
+/* ── Separators: a handle in the gap between two columns, above 1100 px ── */
+.separator { display: none; position: absolute; top: var(--space-2); bottom: var(--space-2); width: var(--space-2); cursor: col-resize; touch-action: none; z-index: 5; }
+.separator::before { content: ""; position: absolute; inset: 0 calc(-1 * var(--space-1)); border-radius: var(--radius-sm); transition: background var(--transition); }
+.separator:hover::before, .separator.dragging::before { background: var(--color-selected-border); }
+.separator:focus-visible::before { background: var(--color-accent); }  /* plus the focus ring of base.css */
+body.index-open .separator-index { display: block; left: calc(var(--space-2) + var(--index-w)); }
+body:not(.chat-hidden) .separator-chat { display: block; right: calc(var(--space-2) + var(--chat-w)); }
+body.resizing { cursor: col-resize; user-select: none; }
+
 /* ── Narrow screens: the chat keeps its column, the index becomes a drawer over the page ── */
 @media (max-width: 1100px) {
   :root { --chat-w: clamp(300px, 42vw, 400px); }
@@ -85,4 +102,11 @@ body.chat-hidden .chat { display: none; }
   .index { display: block; position: absolute; top: var(--space-2); left: var(--space-2); bottom: var(--space-2); width: var(--index-w); z-index: 30;
            transform: translateX(calc(-100% - var(--space-2))); transition: transform 200ms ease; }
   body.index-open .index { transform: none; }
+  .separator { display: none !important; }
 }
+.inline-form { display: inline; margin: 0; }
+.inline-form .btn-link[disabled] { cursor: not-allowed; opacity: .6; }
+
+/* The row of buttons that opens the audit page of the conversation. */
+.audit-buttons { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.audit-buttons[hidden] { display: none; }

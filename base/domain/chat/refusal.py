@@ -17,26 +17,15 @@ import enum
 import re
 from dataclasses import dataclass, field
 
+from domain.prompts import load_prompt
+
 # ── The model's fixed refusal sentence (decision 8) ──────────────────────────
 
 FIXED_SENTENCE = {
-    "es": "No encontré la respuesta en los documentos.",
-    "en": "I did not find the answer in the documents.",
-}
-
-_DIRECTIVE = {
-    "es": (
-        "## Rechazo\n"
-        "Cuando las páginas y los documentos no contienen la respuesta, comienza "
-        "la respuesta exactamente con esta oración: «{sentence}» Esta oración "
-        "reemplaza cualquier otra fórmula de rechazo que pida este prompt."
-    ),
-    "en": (
-        "## Refusal\n"
-        "When the pages and documents do not contain the answer, open the answer "
-        "with exactly this sentence: \"{sentence}\" This sentence replaces any "
-        "other refusal wording this prompt asks for."
-    ),
+    # What the model received, not what the wiki holds (fin-04, fin-05, fin-19: the old
+    # "No encontré la respuesta en los documentos." denied an answer the context held).
+    "es": "No encontré la respuesta en el texto que recibí de la wiki.",
+    "en": "I did not find the answer in the text I received from the wiki.",
 }
 
 
@@ -52,7 +41,7 @@ def fixed_sentence(language: str | None) -> str:
 def refusal_directive(language: str | None) -> str:
     """The system-prompt instruction that asks the model for the fixed sentence."""
     lang = _lang(language)
-    return _DIRECTIVE[lang].format(sentence=FIXED_SENTENCE[lang])
+    return load_prompt("refusal_directive", lang).format(sentence=FIXED_SENTENCE[lang])
 
 
 # ── Causes and the refusal value ─────────────────────────────────────────────
@@ -92,8 +81,10 @@ _OPENING = {
             "No puedo responder esta pregunta: menciona «{term}», que está en la "
             "lista de temas sobre los que esta wiki no tiene permitido responder."
         ),
+        # What the system did, not what the question names: "no nombra ninguno de
+        # los temas" was false for a question about inflation (fin-18).
         RefusalCause.NOT_IN_ROSTER: (
-            "No puedo responder esta pregunta: no nombra ninguno de los temas de esta wiki."
+            "No recibí de la wiki información relacionada con esta pregunta."
         ),
         RefusalCause.NOTHING_FOUND: (
             "La pregunta nombra un tema de esta wiki, pero no encontré en sus páginas "
@@ -108,8 +99,7 @@ _OPENING = {
             "que respalde una respuesta."
         ),
         RefusalCause.MODEL: (
-            "El modelo no encontró la respuesta en las páginas ni en los documentos "
-            "de esta wiki."
+            "El modelo no encontró la respuesta en el texto que recibió de la wiki."
         ),
     },
     "en": {
@@ -118,7 +108,7 @@ _OPENING = {
             "list of topics this wiki is not allowed to answer."
         ),
         RefusalCause.NOT_IN_ROSTER: (
-            "I cannot answer this question: it names none of this wiki's topics."
+            "I received no information from the wiki related to this question."
         ),
         RefusalCause.NOTHING_FOUND: (
             "The question names a topic of this wiki, but I found no text in its "
@@ -132,7 +122,7 @@ _OPENING = {
             "I found no information in this wiki's pages or documents to support an answer."
         ),
         RefusalCause.MODEL: (
-            "The model did not find the answer in this wiki's pages or documents."
+            "The model did not find the answer in the text it received from the wiki."
         ),
     },
 }
@@ -166,6 +156,8 @@ def render(refusal: Refusal, language: str | None) -> str:
                       else _SUGGEST)[lang]
             lines.append(header)
             lines.extend(f"- {title}" for title, _ in refusal.suggestions)
+            if refusal.cause is RefusalCause.NOT_IN_ROSTER:
+                lines.append(_INDEX[lang])      # the user checks the topics in the index
         else:
             lines.append(_INDEX[lang])
     body = "\n".join(lines)

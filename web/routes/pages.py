@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import urllib.parse
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
@@ -11,6 +11,8 @@ from fastapi.templating import Jinja2Templates
 
 from domain.datasets.frontmatter import split_frontmatter
 from domain.ingestion.text_extract import decode_text
+from domain.verify.store import State
+from services import verification as verification_service
 from services.wiki import (
     FIXED_PAGES,
     PageConflict,
@@ -22,9 +24,9 @@ from services.wiki import (
     source_names,
     source_view,
 )
-from web.deps import get_state, get_templates, page_context
+from web.deps import BUSY, get_state, get_templates, page_context
 from web.i18n import N_, _
-from web.render import page_title, page_url, render_markdown, render_source_markdown
+from web.render import page_title, page_url, render_markdown, render_page_verified, render_source_markdown
 from web.state import AppState
 
 router = APIRouter()
@@ -38,17 +40,73 @@ def _read(state: AppState, wiki_id: str, page: str) -> str:
         raise HTTPException(status_code=404, detail=_("The page does not exist.")) from exc
 
 
+def _verification_view(wiki, page: str, text: str, wiki_id: str, pages: list[str]) -> dict:
+    """What the reading screen shows about the verification of `page`: the state
+    line, the summary line and the rendered page with its marks.
+
+    `status` is `none` (no verification), `outdated` (the page or a source
+    changed), `valid` (the marks are shown) or `no_context` (nothing to verify
+    the page against). A page outside the index has no status.
+    """
+    shown = verification_service.page_verification(wiki, page)
+    view: dict = {"status": None, "unsupported": 0, "checked": 0, "html": None}
+    if shown is None:
+        return view
+    if not shown.has_context:
+        view["status"] = "no_context"
+    elif shown.state is State.VALID:
+        view["status"] = "valid"
+        stored = shown.stored
+        weak = {(s.start, s.end) for s in stored.unsupported(shown.threshold)}
+        marks = [(s.start, s.end, None if (s.start, s.end) in weak else PurePosixPath(s.source or "").name or None)
+                 for s in stored.sentences]
+        # A supported sentence with no recorded source cannot occur (a probability at or
+        # above the threshold comes from a passage); the guard keeps the tooltip honest.
+        marks = [m for m in marks if m[2] is not None or (m[0], m[1]) in weak]
+        view.update(unsupported=len(weak), checked=stored.checked,
+                    html=render_page_verified(wiki_id, text, page, marks, pages, source_names(wiki)))
+    else:
+        view["status"] = "outdated" if shown.state is State.OUTDATED else "none"
+    return view
+
+
 @router.get("/w/{wiki_id}/pages/{page:path}", response_class=HTMLResponse)
-def view_page(request: Request, wiki_id: str, page: str, deleted: str = "",
+def view_page(request: Request, wiki_id: str, page: str, deleted: str = "", notice: str = "",
               state: AppState = Depends(get_state), templates: Jinja2Templates = Depends(get_templates)):
     text = _read(state, wiki_id, page)
     context = page_context(state, wiki_id, page)
     wiki = state.get_wiki(wiki_id).wiki
+    html = render_markdown(wiki_id, text, page, context["pages"], source_names(wiki)) if text else ""
+    check = _verification_view(wiki, page, text, wiki_id, context["pages"]) if text else {"status": None}
     context.update(
-        deleted=deleted, deletable=page not in FIXED_PAGES,
-        html=render_markdown(wiki_id, text, page, context["pages"], source_names(wiki)) if text else "",
+        deleted=deleted, notice=notice, deletable=page not in FIXED_PAGES,
+        html=check.get("html") or html, check=check,
         title=page_title(text, page) if text else page)
     return templates.TemplateResponse(request, "page.html", context, status_code=200 if text else 404)
+
+
+@router.post("/w/{wiki_id}/verify/{page:path}")
+def verify(wiki_id: str, page: str, state: AppState = Depends(get_state)):
+    """Verify one page against its sources and go back to it. The check runs under
+    the wiki's lock; a busy wiki or a missing verifier is reported on the page."""
+    def back(notice: str = "") -> RedirectResponse:
+        suffix = f"?notice={urllib.parse.quote(notice)}" if notice else ""
+        return RedirectResponse(page_url(wiki_id, page) + suffix, status_code=303)
+
+    entry = state.get_wiki(wiki_id)
+    if not state.verifier_available():
+        return back(_("The local verifier is not installed."))
+    if not entry.busy.acquire(blocking=False):
+        return back(_(BUSY))
+    try:
+        verification_service.verify_one(entry.wiki, page, state.get_verifier())
+    except (FileNotFoundError, ValueError):
+        raise HTTPException(status_code=404, detail=_("The page does not exist."))
+    except Exception as exc:  # noqa: BLE001 — shown on the page
+        return back(_("Could not verify: %(error)s", error=exc))
+    finally:
+        entry.busy.release()
+    return back()
 
 
 @router.get("/w/{wiki_id}/view/{filename}")

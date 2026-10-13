@@ -14,13 +14,6 @@ describe how the system actually behaves, measured rather than asserted.
 
 ## Next
 
-**Audit the rest of the documentation against the walkthroughs.**
-`docs/ingestion_walkthrough.md` and `docs/query_walkthrough.md` are the only
-documents derived from *observing* the system — every figure in them is captured
-from a real run. Everything else (`programmer_manual.md`,
-`sqlite_data_dictionary.md`, both READMEs) was written from memory of the code
-and has not been checked against that yardstick.
-
 **Run the full end-to-end lint sweep.** `E2E_FULL=1` against
 `tests/e2e/test_ingest_app_v2.py` exercises the LLM lint checks in a browser and
 has never been run. `E2E_DESTRUCTIVE=1` has.
@@ -183,8 +176,10 @@ at retrieval addresses it. A post-hoc verifier does not.
 The mirror case belongs to the first kind. An answer that takes a detail from
 one retrieved passage and attaches it to the subject of another is not caught
 by reranking — every passage involved is relevant, and only the pairing is
-wrong — and it is exactly what a per-sentence entailment check is for.
-Nothing in the project detects it today.
+wrong — and it is what a per-sentence entailment check detects. The NLI
+verifier (`base/domain/verify/`) scores each sentence of the answer against each
+passage the model read, and the web interface marks the sentences whose
+entailment probability is below `[verify] threshold`.
 
 **A third route, cheaper than either, when the source declares its own
 structure.** A neural reranker judges relevance by reading question and passage
@@ -221,10 +216,12 @@ against a threshold, not a branch in Python. Two consequences specific to this
 project:
 
 - The document argues that the *before* position gives guarantees because no
-  decision is left to a model. An NLI verifier or a reranker puts a model back
-  into that chain. NLI models are small, run locally and are deterministic at
-  temperature zero, so the claim survives with qualification — but the wording
-  has to change.
+  decision is left to a model. The NLI verifier does not take a decision: it
+  marks sentences, and the answer is delivered. A reranker, or a verifier whose
+  verdict rejected the answer, would put a model back into that chain. NLI
+  models are small, run locally and are deterministic at temperature zero, so
+  the claim would survive with qualification — but the wording would have to
+  change.
 - Embeddings were refused for retrieval. A cross-encoder is also a neural model,
   though a different one: it reads question and passage together instead of
   comparing vectors. Adopting it is an explicit exception to that decision, not
@@ -232,8 +229,11 @@ project:
 
 **Where to put them first.** `base/domain/eval/` already holds a rubric and an
 LLM judge, with `graders.py` as its deterministic pre-screen. RAGAS-style
-metrics or an NLI verifier belong there as offline measurement. Only with that
-measurement in hand is there a basis for moving one into the answering path.
+metrics belong there as offline measurement. The NLI verifier entered the
+answering path as a mark, not as a decision, and `scripts/verify_battery.py`
+measures the NLI verifier offline: the script asks a list of questions N times
+and verifies each answer. Making the verdict reject an answer requires a
+measured threshold first.
 
 **Where each one would be inserted, and why that is not the same as how large
 the job is.** The call sites are few and already separated, so the seams are
@@ -243,7 +243,7 @@ not the obstacle:
 |---|---|
 | breadcrumb comparison | between `retrieve_wiki` (`preretrieval.py:323`) and the plan, dropping or downranking rows whose `header_breadcrumb` does not match the section the question asks about |
 | cross-encoder reranking | the same place, rescoring and reordering the rows instead |
-| NLI verification | `preretrieval.py:354`, replacing or complementing `is_supported` |
+| NLI verification | built: after the answer, `verify_answer` (`web/routes/chat.py:162`); the lexical check (`preretrieval.py:679`) still decides on Tier 2 |
 
 One line each. What differs is what surrounds that line.
 
@@ -265,6 +265,14 @@ configuration surface for model, threshold and per-wiki on/off; and a threshold
 that has to be measured rather than chosen, which is the `base/domain/eval/`
 work described above. Content language is a per-wiki property, so the model has
 to be multilingual or there has to be one per language.
+
+The NLI verifier pays those costs as follows. The dependency is the optional
+group `verify` (`requirements-verify.txt`): `quickstart.py` asks whether to
+install it, and the base installation does not need it. The model is
+multilingual (`MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7`,
+`base/domain/verify/nli.py`). The latency applies only to the turns where the
+user ticks "Verify the sentences". `[verify] threshold` defaults to 0.5, and the
+owner sets it per wiki. A cross-encoder would face the same costs.
 
 **The coverage gate matches page titles literally.** With pre-retrieval enabled,
 whether a wiki answers a question depends on whether one of its concept-page

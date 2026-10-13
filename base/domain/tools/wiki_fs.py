@@ -28,6 +28,7 @@ import uuid
 from pathlib import Path
 
 # Specialized connection opener function from our local database utilities
+from domain import tracing
 from domain.text.stemming import stem_text
 from domain.tools.db import open_db
 from domain.wiki_settings import load_wiki_language
@@ -90,8 +91,12 @@ def _insert_chunks(
     #    We pass the text as page 1 (since standard wiki pages are single-page markdown).
     chunks = chunk_pages([(1, content)])
     # Node W1 of the writing diagram, for a wiki page (domain/tracing.py).
-    from domain import tracing
     tracing.mark("W1", tracing.WRITING, document_id=doc_id, fragments=len(chunks))
+
+    # Node W2: the stem of each fragment, in the wiki's language.
+    with tracing.node("W2", tracing.WRITING, document_id=doc_id, fragments=len(chunks),
+                      language=language):
+        stemmed = [stem_text(c.content, language) for c in chunks]
 
     # 2. Bulk insert the chunks into the database using 'executemany' for high speed.
     conn.executemany(
@@ -100,11 +105,12 @@ def _insert_chunks(
         "start_char, token_count, header_breadcrumb) VALUES (?,?,?,?,?,?,?,?,?)",
         [
             (str(uuid.uuid4()), doc_id, c.index, c.content,
-             stem_text(c.content, language), c.page,
+             stem, c.page,
              c.start_char, c.token_count, c.header_breadcrumb)
-            for c in chunks
+            for c, stem in zip(chunks, stemmed)
         ],
     )
+    tracing.mark("W3", tracing.WRITING, document_id=doc_id, fragments=len(chunks))
 
 
 def _strip_dead_links(
@@ -444,6 +450,8 @@ def create_page(
                     )
                 # Remove the document's outdated search chunks before re-inserting
                 conn.execute("DELETE FROM document_chunks WHERE document_id=?", (doc_id,))
+                # The text changed, so its sentence verification no longer describes it.
+                conn.execute("DELETE FROM page_verifications WHERE document_id=?", (doc_id,))
             else:
                 # INSERT: Create a fresh new document entry
                 doc_id = str(uuid.uuid4())
@@ -527,6 +535,8 @@ def write_page_content(
                 conn.execute(
                     "DELETE FROM document_chunks WHERE document_id=?", (doc_id,)
                 )
+                # The text changed, so its sentence verification no longer describes it.
+                conn.execute("DELETE FROM page_verifications WHERE document_id=?", (doc_id,))
                 _insert_chunks(conn, doc_id, new_content, language or load_wiki_language(workspace))
     finally:
         conn.close()

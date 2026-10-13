@@ -220,7 +220,9 @@ def test_agent_has_only_read_tools_no_autonomous_save() -> None:
 
 
 def test_system_prompt_contains_routing_instructions() -> None:
-    from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
+    from domain.prompts import load_prompt
+
+    _DEFAULT_SYSTEM_PROMPT = load_prompt("system_prompt", "en")
 
     assert "wiki/index.md" in _DEFAULT_SYSTEM_PROMPT
     assert "search_wiki_fts" in _DEFAULT_SYSTEM_PROMPT
@@ -231,7 +233,9 @@ def test_system_prompt_directs_save_to_the_form_not_autonomous() -> None:
     """Contract: on a save request the agent proposes a title/category and points the
     user at the Save form — it never claims to write pages itself. Guards the
     user-controlled save flow (read_app.py 'Save last response to wiki' form)."""
-    from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
+    from domain.prompts import load_prompt
+
+    _DEFAULT_SYSTEM_PROMPT = load_prompt("system_prompt", "en")
 
     # Must reference the actual form button label so guidance stays in sync with the UI.
     assert "💾 Save to wiki" in _DEFAULT_SYSTEM_PROMPT
@@ -250,7 +254,9 @@ def test_system_prompt_enforces_strict_grounding_and_citations() -> None:
     grounding/citation mandate being silently softened. See docs/uat_test_plan.md
     §B3 and the strict-default rationale.
     """
-    from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
+    from domain.prompts import load_prompt
+
+    _DEFAULT_SYSTEM_PROMPT = load_prompt("system_prompt", "en")
 
     prompt = _DEFAULT_SYSTEM_PROMPT.lower()
     # Must forbid answering from the model's own knowledge.

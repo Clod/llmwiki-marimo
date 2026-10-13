@@ -20,11 +20,13 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from starlette.datastructures import MutableHeaders  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 
+from domain.verify.verifier import Verifier  # noqa: E402
 from domain.tools.db import SchemaMismatchError  # noqa: E402
 from web import i18n  # noqa: E402
 from web.deps import status_label  # noqa: E402
 from web.i18n import _  # noqa: E402
-from web.routes import chat, history, ingest, lang, pages, picker, relations, vocabulary  # noqa: E402
+from web.routes import audit, chat, history, ingest, lang, pages, picker, relations, vocabulary  # noqa: E402
+from web.routes import settings as wiki_settings  # noqa: E402
 from web.settings import WebSettings  # noqa: E402
 from web.state import AgentsFactory, AppState, UnknownWiki  # noqa: E402
 
@@ -86,17 +88,19 @@ class RevalidatedStaticFiles(StaticFiles):
         return response
 
 
-def create_app(settings: WebSettings | None = None, *, agents_factory: AgentsFactory | None = None) -> FastAPI:
+def create_app(settings: WebSettings | None = None, *, agents_factory: AgentsFactory | None = None,
+               verifier: Verifier | None = None) -> FastAPI:
     """Build an application with its own empty state.
 
     `agents_factory` builds the chat agents of a wiki; the default builds the real
-    ones from the LLM settings. A test passes simulated agents.
+    ones from the LLM settings. A test passes simulated agents. `verifier` is the
+    sentence verifier; the default is the local NLI model when it is installed.
     """
     app = FastAPI(title="llmwiki")
-    app.state.web = AppState(settings or WebSettings.from_env(), agents_factory)
+    app.state.web = AppState(settings or WebSettings.from_env(), agents_factory, verifier)
     app.state.templates = make_templates()
     app.mount("/static", RevalidatedStaticFiles(directory=str(_HERE / "static")), name="static")
-    for module in (picker, pages, chat, ingest, history, relations, vocabulary, lang):
+    for module in (picker, pages, chat, audit, ingest, history, relations, wiki_settings, vocabulary, lang):
         app.include_router(module.router)
 
     app.add_middleware(InterfaceLanguage)

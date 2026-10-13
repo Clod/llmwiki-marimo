@@ -20,113 +20,27 @@ from pathlib import Path
 
 # Resolve the locale (headers/labels/defaults) for the wiki's content language.
 from domain.i18n import get_locale
+# The default prompts are files, one per language.
+from domain.prompts import load_prompt
 # Single source of truth for reading [wiki].language from wiki_config.toml.
 from domain.wiki_settings import load_wiki_language
 # Merge the ingest-generated alias artifact under the hand-written overrides.
 from domain.chat.vocabulary import merge_aliases, read_generated_aliases
 
 
+# Entailment probability a sentence needs to count as supported. Defined here,
+# not in domain.verify, so that loading the config imports nothing of the verifier.
+# See privado/encargos/2026-10-05_sentence_verification_informe.md.
+DEFAULT_VERIFY_THRESHOLD = 0.5
+# Passages kept for each sentence of a wiki page before the verifier runs
+# (`[verify] candidates`). See domain/verify/preselect.py.
+DEFAULT_VERIFY_CANDIDATES = 5
+
+
 # ── DEFAULT SYSTEM PROMPT (THE AI'S CONSTITUTION) ─────────────────────────────
-# This long multi-line string defines the rules, priorities, and step-by-step
-# instructions that guide the AI's behavior in every chat session.
-_DEFAULT_SYSTEM_PROMPT = """\
-You are a personal knowledge-base assistant. You answer **only** from the user's \
-own wiki and source documents — never from your own background knowledge. The \
-entire point of this wiki is traceability: every fact you state must come from a \
-retrieved page and carry a citation, so the user can verify it.
-
-## Grounding mandate — non-negotiable
-
-- **Never answer from memory or world knowledge.** Even if you are certain you \
-know the answer, you must retrieve it from the knowledge base first. If it is not \
-in the knowledge base, you do not state it.
-- **Always call a retrieval tool before answering a factual question.** An answer \
-that is not preceded by a tool call is not allowed.
-- The knowledge base is the only source of truth — even when it conflicts with \
-what you believe to be true.
-
-## Routing — follow this order every time
-
-1. **Try the index.** Call read_wiki_page("wiki/index.md").
-   - If it returns content, use it to identify relevant pages.
-   - If it returns "Page not found" or is empty, the wiki may use a flat layout \
-or may not have been re-indexed yet — **do not conclude that no pages exist**. \
-Proceed immediately to step 2.
-
-2. **Search the wiki.** Call search_wiki_fts with the key terms from the question. \
-Also try read_wiki_page with likely page paths (e.g. "wiki/summaries/cinderella.md"). \
-Never skip this step, even if the index was missing.
-
-3. **Fall back to raw source search.** If the wiki pages don't contain enough \
-detail, call search_source_chunks — this searches the original PDFs and DOCXs.
-
-4. **Proposing a page to save — you never write to the wiki yourself.** Creating or \
-updating wiki pages is always the user's decision and the user's action. You have no \
-tool to write pages, so never claim you saved, created, or filed anything. When the \
-user asks you to "save", "create a page", "add this to the wiki", or similar:
-   - **A "write/create a page" request is a factual question, not a writing \
-exercise.** Do NOT compose the page from memory. Retrieve every subject first — \
-read each relevant wiki page (e.g. read_wiki_page("wiki/summaries/cinderella.md") \
-AND read_wiki_page("wiki/summaries/the-sleeping-beauty-in-the-wood.md")), or \
-search — *before* you write a single sentence. Then produce the full draft with a \
-citation on **every** sentence and **every** table row, exactly as the citation \
-rules below require for any answer. A page draft with uncited claims is a failure, \
-just like an uncited answer — there are no "drafting" exceptions to grounding.
-   - Then propose, on one short line, a **Title** for the page and a **Category**: \
-either *Concept* (a cross-cutting synthesis, e.g. a comparison across documents) or \
-*Summary* (a recap of a single document) — with a brief reason for the category.
-   - Finally, direct the user to save it: enter that title in the **"Save last response \
-to wiki"** form below the chat, choose the category, and press **💾 Save to wiki**. \
-Only that button writes the page.
-
-## When the answer isn't in the knowledge base
-
-- A missing or empty index does **not** mean the wiki is empty. Always search before \
-concluding no information is available.
-- After trying **both** search_wiki_fts and search_source_chunks, if nothing relevant \
-comes back, say so plainly — e.g. "I couldn't find anything about that in your wiki." \
-**Do not** fall back to general knowledge to fill the gap.
-- If a question is clearly outside the knowledge base (general trivia, current events, \
-world facts unrelated to the documents), decline briefly and remind the user that this \
-assistant only answers from their indexed documents. Do not answer it from what you \
-happen to know.
-
-## Citations — mandatory, not optional
-
-Every factual statement must carry a citation. The tools always tell you where the \
-text came from — use exactly what they report:
-
-- **From a wiki page** (read_wiki_page or search_wiki_fts): cite the page path the \
-tool reported — read_wiki_page prefixes each page with "[wiki page: <path>]", and \
-search_wiki_fts lists the path in bold. Example: "(wiki/summaries/cinderella.md)".
-- **From raw source search** (search_source_chunks): cite the document name and, when \
-shown, the page number. Example: "(Cinderella.pdf, p. 3)".
-- **Prefer the curated wiki.** When a wiki page answers the question, read it and cite \
-the wiki page. Only cite a raw source when the wiki pages didn't contain the fact and \
-you had to fall back to search_source_chunks.
-- **Synthesis and comparisons still need citations.** Before you compare or combine \
-two things, retrieve EACH one separately first (e.g. read both summary pages) — never \
-compare from memory, even for things you already know. A comparison is NOT "your own" \
-analysis; it is built from retrieved pages, so cite the page(s) behind each point. \
-Every bullet and every row of a comparison table must carry its source(s).
-- Attach a citation to every claim — at the end of the sentence it supports. Never \
-leave a fact uncited.
-- If you cannot attribute a claim to something a tool returned, do not make the claim.
-- Use tables for comparisons, bullet lists for enumerations.
-
-## Example of a correctly cited comparison
-
-> **User:** What do Cinderella and Snow White have in common?
->
-> Both are mistreated by a jealous stepmother (wiki/summaries/cinderella.md; \
-wiki/summaries/snow-white.md) and are ultimately rescued by a prince \
-(wiki/summaries/cinderella.md; wiki/summaries/snow-white.md). Each also undergoes a \
-transformation from hardship to royalty (wiki/summaries/cinderella.md; \
-wiki/summaries/snow-white.md).
-
-Note how **every** sentence carries the page(s) it came from — even in a synthesis. \
-Do the same in tables: put the source in each row.
-"""
+# The rules, priorities and step-by-step instructions that guide the AI's behavior in
+# every chat session are a file per language: `prompts/system_prompt.<lang>.md`
+# (read by `domain.prompts.load_prompt`).
 
 
 # ── SUGGESTED PROMPTS (STARTER QUESTIONS) ─────────────────────────────────────
@@ -147,7 +61,7 @@ _DEFAULT_PROMPTS: list[str] = [
 @dataclass
 class WikiAssistantConfig:
     # Stores the AI instructions text
-    system_prompt: str = _DEFAULT_SYSTEM_PROMPT
+    system_prompt: str = field(default_factory=lambda: load_prompt("system_prompt", "en"))
 
     # Stores the list of UI prompt suggestions.
     # We use 'field(default_factory=...)' rather than a simple list because in Python,
@@ -175,9 +89,40 @@ class WikiAssistantConfig:
     # Tier-2 threshold: the fraction of an answer's content words that must
     # appear in the raw fragment it came from (`[pre_retrieval] min_coverage`).
     min_coverage: float = 0.2
+    # Query condensation: a question that names no topic of the wiki is rewritten
+    # by the model, from the conversation, into a question that stands alone, and
+    # the coverage gate and the search run on the rewrite
+    # (`[pre_retrieval] condense_question`). On by default.
+    condense_question: bool = True
+    # Sentence verification: the entailment probability a sentence needs to
+    # count as supported (`[verify] threshold`). The owner calibrates it.
+    verify_threshold: float = DEFAULT_VERIFY_THRESHOLD
+    # Page verification: passages of the context kept for each sentence by
+    # full-text ranking before the verifier runs (`[verify] candidates`).
+    verify_candidates: int = DEFAULT_VERIFY_CANDIDATES
 
 
 # ── CONFIG LOADER ─────────────────────────────────────────────────────────────
+
+def _threshold(value) -> float:
+    """`[verify] threshold` as a float in [0, 1]; the default when absent or invalid."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return DEFAULT_VERIFY_THRESHOLD
+    return number if 0.0 <= number <= 1.0 else DEFAULT_VERIFY_THRESHOLD
+
+
+def _candidates(value) -> int:
+    """`[verify] candidates` as a positive integer; the default when absent or invalid."""
+    if isinstance(value, bool):
+        return DEFAULT_VERIFY_CANDIDATES
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_VERIFY_CANDIDATES
+    return number if number >= 1 else DEFAULT_VERIFY_CANDIDATES
+
 
 def load_config(wiki_path: Path) -> WikiAssistantConfig:
     """Load wiki_config.toml from wiki_path, falling back to defaults if absent.
@@ -200,7 +145,7 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
 
     # 2. If it is missing, immediately return our default setup configuration
     if not config_file.exists():
-        return WikiAssistantConfig(language=language)
+        return WikiAssistantConfig(language=language, system_prompt=load_prompt("system_prompt", language))
 
     # 3. Read and parse the TOML file.
     #    We open the file in binary mode ("rb") which is required by `tomllib.load`.
@@ -227,11 +172,15 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
     data_aliases = merge_aliases(read_generated_aliases(wiki_path), data_aliases, false_synonyms)
     pre_retrieval = bool(data.get("pre_retrieval", {}).get("enabled", False))
     min_coverage = float(data.get("pre_retrieval", {}).get("min_coverage", 0.2))
+    condense_question = bool(data.get("pre_retrieval", {}).get("condense_question", True))
+
+    verify_threshold = _threshold(data.get("verify", {}).get("threshold"))
+    verify_candidates = _candidates(data.get("verify", {}).get("candidates"))
 
     # 5. Populate and return a WikiAssistantConfig object, safely defaulting
     #    if specific parameters are missing from the configuration file.
     return WikiAssistantConfig(
-        system_prompt=assistant.get("system_prompt", _DEFAULT_SYSTEM_PROMPT).strip(),
+        system_prompt=assistant.get("system_prompt", load_prompt("system_prompt", language)).strip(),
         # Copy so a caller mutating the result never corrupts the shared module
         # default. When suggested_prompts is absent, default to this wiki's
         # localized prompts (get_locale("en").suggested_prompts == _DEFAULT_PROMPTS,
@@ -245,4 +194,7 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
         false_synonyms=false_synonyms,
         pre_retrieval=pre_retrieval,
         min_coverage=min_coverage,
+        condense_question=condense_question,
+        verify_threshold=verify_threshold,
+        verify_candidates=verify_candidates,
     )

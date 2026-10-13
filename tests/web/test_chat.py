@@ -45,9 +45,9 @@ def test_the_line_names_the_mode_used_and_has_no_link_when_nothing_is_cited(clie
     agents.agent.grounded = True
     final = stream(client, ask(client, mode="strict"))[0][1]
     meta = re.search(r'<div id="meta-\w+" hx-swap-oob="innerHTML">(.*?)</div>', final, re.S).group(1)
-    assert meta.strip() == "Estricto"
+    assert meta.strip().startswith("Estricto") and "tokens" in meta
     final = stream(client, ask(client, mode="streaming"))[-2][1]
-    assert ">Sin verificación</div>" in final
+    assert '>Sin verificación · <span class="tokens"' in final
 
 
 def test_the_answer_bubble_is_followed_by_an_empty_line_for_the_meta(client):
@@ -76,7 +76,7 @@ def test_pre_retrieval_turn_streams_the_rendered_answer(client, agents):
 
 def test_pre_retrieval_turn_refuses_an_off_scope_question_before_the_model(client, agents):
     events = stream(client, ask(client, "Will it rain tomorrow in Rosario?"))
-    assert "I cannot answer this question" in events[0][1]
+    assert "I received no information from the wiki" in events[0][1]
     assert agents.agent_pre_retrieval.prompts == []
 
 
@@ -346,3 +346,41 @@ def test_a_chat_without_a_model_configured_says_what_to_configure(settings):
                         cookies=SPANISH)
     events = stream(client, ask(client))
     assert "Falta configurar el modelo: define LLM_API_KEY" in events[0][1]
+
+
+# ── Tokens of the turn and of the conversation ───────────────────────────────
+
+def meta_of(events):
+    return re.search(r'<div id="meta-\w+" hx-swap-oob="innerHTML">(.*?)</div>', events[0][1], re.S).group(1)
+
+
+def test_the_meta_line_ends_with_the_tokens_of_the_turn_and_of_the_conversation(client, agents):
+    agents.agent_pre_retrieval.output = "Cinderella lost a glass slipper (Referencia: wiki/concepts/cinderella.md)."
+    agents.agent_pre_retrieval.tokens = (3877, 40)
+    first = meta_of(stream(client, ask(client)))
+    assert first.endswith('· <span class="tokens" title="entrada 3.877 · salida 40">3.917 / 3.917 tokens</span>')
+    agents.agent_pre_retrieval.tokens = (8500, 63)
+    second = meta_of(stream(client, ask(client, "And the prince?")))
+    assert second.endswith('title="entrada 8.500 · salida 63">8.563 / 12.480 tokens</span>')
+    thread = client.get(f"/w/{WIKI_ID}/chat/c1/thread").text
+    assert "3.917 / 3.917 tokens" in thread and "8.563 / 12.480 tokens" in thread
+
+
+def test_the_tokens_use_the_separator_of_the_interface_language(en_client, agents):
+    agents.agent.tokens = (3877, 40)
+    meta = meta_of(stream(en_client, ask(en_client, mode="strict")))
+    assert '<span class="tokens" title="input 3,877 · output 40">3,917 / 3,917 tokens</span>' in meta
+
+
+def test_a_refusal_before_the_model_shows_zero_tokens_and_the_running_total(client, agents):
+    agents.agent_pre_retrieval.output = "Cinderella lost a glass slipper (Referencia: wiki/concepts/cinderella.md)."
+    agents.agent_pre_retrieval.tokens = (900, 100)
+    stream(client, ask(client))
+    meta = meta_of(stream(client, ask(client, "Will it rain tomorrow in Rosario?")))
+    assert 'title="entrada 0 · salida 0">0 / 1.000 tokens</span>' in meta
+
+
+def test_the_streaming_mode_reports_its_tokens(client, agents):
+    agents.agent.tokens = (1200, 30)
+    events = stream(client, ask(client, mode="streaming"))
+    assert "1.230 / 1.230 tokens" in meta_of([events[-2]])

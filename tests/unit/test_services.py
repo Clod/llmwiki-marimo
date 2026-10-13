@@ -147,7 +147,7 @@ def test_pre_retrieval_turn_refuses_before_the_model(wiki):
     answer = asyncio.run(chat.chat_turn(
         wiki, agents, [_msg("user", "Will it rain tomorrow in Rosario?")], mode=chat.PRE_RETRIEVAL,
     ))
-    assert answer.startswith("I cannot answer this question: it names none")
+    assert answer.startswith("I received no information from the wiki related")
     assert agents.agent_pre_retrieval.prompts == []
 
 

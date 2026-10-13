@@ -22,14 +22,6 @@ class Locale:
     code: str  # "es"
     name_native: str  # "Español"
 
-    # Directive appended to ingestion system prompts (LLM output language).
-    # Empty string for English (no-op — preserves current English behavior).
-    content_directive: str
-
-    # Directive appended to the chat system prompt (answer language).
-    # Empty for English.
-    chat_directive: str
-
     # Section headers (WITHOUT the leading "## ").
     h_summary: str
     h_key_topics: str
@@ -64,12 +56,26 @@ class Locale:
     # Warning appended to an answer built from a raw source fragment (Tier 2).
     tier2_warning: str
 
+    @property
+    def content_directive(self) -> str:
+        """Directive appended to ingestion system prompts (LLM output language); the file
+        `prompts/content_directive.<code>.md`, empty for English (no-op)."""
+        from domain.prompts import load_prompt
+
+        return load_prompt("content_directive", self.code)
+
+    @property
+    def chat_directive(self) -> str:
+        """Directive appended to the chat system prompt (answer language); the file
+        `prompts/language_directive.<code>.md`, empty for English."""
+        from domain.prompts import load_prompt
+
+        return load_prompt("language_directive", self.code)
+
 
 _EN = Locale(
     code="en",
     name_native="English",
-    content_directive="",  # no-op: English is the model default here
-    chat_directive="",
     h_summary="Summary",
     h_key_topics="Key Topics",
     h_key_entities="Key Entities",
@@ -107,18 +113,6 @@ _EN = Locale(
 _ES = Locale(
     code="es",
     name_native="Español",
-    content_directive=(
-        "Redacta TODA la salida en español, con un español natural y fluido, "
-        "independientemente del idioma del documento de origen. Traduce al "
-        "español los títulos de sección y las etiquetas que se te indiquen."
-    ),
-    chat_directive=(
-        "## Idioma\n"
-        "Responde SIEMPRE en español, con redacción natural y fluida, sin "
-        "importar el idioma de la pregunta o de las fuentes. Mantén intactas las "
-        "citas (rutas de página y nombres de archivo) tal como las devuelven las "
-        "herramientas."
-    ),
     h_summary="Resumen",
     h_key_topics="Temas clave",
     h_key_entities="Entidades clave",

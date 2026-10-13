@@ -1,0 +1,5 @@
+<nav id="audit-buttons" class="audit-buttons" aria-label="{{ _('Audit of the conversation') }}"{% if oob %} hx-swap-oob="true"{% endif %}{% if not turn %} hidden{% endif %}>{% if turn %}
+  <a class="btn btn-sm" href="/w/{{ wiki_id }}/audit/{{ conversation_id }}#t{{ turn }}-criterio" target="_blank" rel="noopener" title="{{ _('The path of the question through the nodes of the system, with each decision') }}">{{ _("Criterion") }}</a>
+  <a class="btn btn-sm" href="/w/{{ wiki_id }}/audit/{{ conversation_id }}#t{{ turn }}-wiki" target="_blank" rel="noopener" title="{{ _('What the wiki found: the passages the model received for this question') }}">{{ _("Sources (%(n)s)", n=passages) }}</a>
+  <a class="btn btn-sm" href="/w/{{ wiki_id }}/audit/{{ conversation_id }}#t{{ turn }}-modelo" target="_blank" rel="noopener" title="{{ _('The unverified answer of the model: what it wrote, when the code replaced it') }}">{{ _("Model answer") }}</a>
+{% endif %}</nav>

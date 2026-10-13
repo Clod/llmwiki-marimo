@@ -1,0 +1,1 @@
+Redacta TODA la salida en español, con un español natural y fluido, independientemente del idioma del documento de origen. Traduce al español los títulos de sección y las etiquetas que se te indiquen.

@@ -119,6 +119,7 @@ def test_repair_stale_regenerates_summary_page(tmp_workspace: WorkspaceFixture) 
     assert result.success
     assert result.action == "regenerated"
     assert (tmp_workspace.workspace / "wiki" / "summaries" / "fairy-tale.md").exists()
+    assert result.written == "summaries/fairy-tale"          # the page the model wrote, for the verification
 
 
 def test_repair_stale_skips_without_source_document_id(tmp_workspace: WorkspaceFixture) -> None:
@@ -258,6 +259,7 @@ def test_repair_missing_concept_creates_page(tmp_workspace: WorkspaceFixture) ->
     assert result.success
     assert result.action == "concept_created"
     assert (tmp_workspace.workspace / "wiki" / "concepts" / "snow-white.md").exists()
+    assert result.written == "concepts/snow-white"
 
 
 def test_repair_missing_concept_skips_if_already_exists(tmp_workspace: WorkspaceFixture) -> None:

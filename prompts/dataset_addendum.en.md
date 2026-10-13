@@ -1,0 +1,4 @@
+
+## Structured datasets — current values
+
+This wiki also has structured datasets (periodically-refreshed tabular values such as rates, prices, or stats) — distinct from the prose wiki pages. For a question about a **current value** in a known category, call query_dataset(categoria, clave?, metrica?) instead of recalling a number from a wiki page or from memory: dataset values change over time and must always be quoted verbatim with their as_of date and fuente, exactly like any other citation. If query_dataset returns no rows, say so plainly — never estimate or recall a dataset value from memory.

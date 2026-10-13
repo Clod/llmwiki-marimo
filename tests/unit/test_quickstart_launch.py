@@ -99,6 +99,43 @@ def test_venv_support_check_is_silent_when_ensurepip_exists(capsys):
     assert capsys.readouterr().out == ""
 
 
+# ── Optional local sentence verifier ─────────────────────────────────────────
+
+def test_the_verifier_is_not_installed_on_no_and_not_on_yes_alone(monkeypatch, capsys):
+    quickstart = _load_quickstart()
+    monkeypatch.setattr(quickstart, "ask", lambda prompt, default="": "n")
+    assert quickstart.want_verifier(None, assume_yes=False) is False
+    assert "about 1.1 GB" in capsys.readouterr().out       # it states what it adds and its size
+    assert quickstart.want_verifier(None, assume_yes=True) is False
+
+
+def test_the_verifier_flags_decide_without_asking(monkeypatch):
+    quickstart = _load_quickstart()
+    monkeypatch.setattr(quickstart, "ask", lambda *a, **k: (_ for _ in ()).throw(AssertionError("asked")))
+    assert quickstart.want_verifier(True, assume_yes=False) is True
+    assert quickstart.want_verifier(False, assume_yes=False) is False
+
+
+def test_the_verifier_is_installed_on_a_yes_answer(monkeypatch):
+    quickstart = _load_quickstart()
+    monkeypatch.setattr(quickstart, "ask", lambda prompt, default="": "y")
+    assert quickstart.want_verifier(None, assume_yes=False) is True
+
+
+def test_on_linux_torch_comes_from_the_cpu_index_before_the_pinned_file(tmp_path):
+    quickstart = _load_quickstart()
+    requirements = tmp_path / "requirements-verify.txt"
+    requirements.write_text("numpy==2.5.3 \\\n    --hash=sha256:aa\ntorch==2.14.1 \\\n    --hash=sha256:bb\n")
+    first, second = quickstart.verifier_install_commands("py", requirements, platform="linux")
+    assert first[-3:] == ["torch==2.14.1", "--index-url", quickstart.CPU_TORCH_INDEX]
+    assert second[-3:] == ["--require-hashes", "-r", str(requirements)]
+    assert len(quickstart.verifier_install_commands("py", requirements, platform="darwin")) == 1
+
+
+def test_the_pinned_torch_version_is_read_from_the_shipped_file():
+    quickstart = _load_quickstart()
+    assert quickstart.pinned_version(REPO_ROOT / "requirements-verify.txt", "torch")
+    assert quickstart.pinned_version(REPO_ROOT / "requirements-verify.txt", "no-such-package") is None
 def _terminal(monkeypatch, quickstart, *, tty=True, nt=False, **env):
     monkeypatch.setattr(quickstart.sys.stdout, "isatty", lambda: tty, raising=False)
     monkeypatch.setattr(quickstart.os, "name", "nt" if nt else "posix")
