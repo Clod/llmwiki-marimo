@@ -580,8 +580,7 @@ def test_final_db_state() -> None:
 )
 async def test_delete_source_removes_derived_pages(page: Page) -> None:
     """Delete a source through the UI; assert the cascade contract: the source
-    row AND its derived wiki pages are gone from the DB
-    (.trellis/spec/backend/database-guidelines.md)."""
+    row AND its derived wiki pages are gone from the DB."""
     target = PDFS[0]
     src = assert_source_ok(target)
     doc_id = src["id"]

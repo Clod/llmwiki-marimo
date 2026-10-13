@@ -1,6 +1,6 @@
 """Tests for domain/datasets/source.py — LocalMarkdownSource (parse-on-read).
 
-Spec: .trellis/spec/backend/datasets-format.md §2.3 (normalized row),
+Spec: docs/contracts/datasets-format.md §2.3 (normalized row),
 docs/design_datasets.md §3.1 (DatasetSource Protocol). Uses a real tmp_path
 directory with markdown dataset files — no LLM, no network.
 """

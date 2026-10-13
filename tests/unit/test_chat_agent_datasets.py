@@ -1,6 +1,6 @@
 """Tests for domain/chat/agent.py — conditional query_dataset registration.
 
-Spec: .trellis/spec/backend/datasets-format.md §4 (Activation / Optionality),
+Spec: docs/contracts/datasets-format.md §4 (Activation / Optionality),
 §7 test_optionality_guard. No `datasets/` directory -> the agent must register
 exactly the 3 default tools and the system prompt must be byte-identical to
 today. A `datasets/` directory with at least one valid dataset file ->

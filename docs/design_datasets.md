@@ -1,7 +1,7 @@
 # Dataset Sources + Finance Module — Design (working doc)
 
 > **Status:** DRAFT — collaborative working document. Decisions firm up here, then
-> get distilled into `.trellis/spec/backend/datasets-format.md` (the dataset
+> get distilled into `docs/contracts/datasets-format.md` (the dataset
 > format) and, later, a finance‑module spec.
 >
 > **Scope:** the **interface / consumer** side. The **producer** (how data gets

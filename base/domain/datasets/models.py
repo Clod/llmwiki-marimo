@@ -9,7 +9,7 @@ storage mechanism — local markdown today, a remote service later.
 
 Engine is domain-neutral: `categoria`, `clave`, `metrica` are opaque strings.
 Specific category vocabulary (e.g. "plazo_fijo") is workspace content, never
-engine vocabulary. See .trellis/spec/backend/datasets-format.md §2.3 and
+engine vocabulary. See docs/contracts/datasets-format.md §2.3 and
 docs/design_datasets.md §3.1.
 """
 
