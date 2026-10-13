@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 @dataclass
 class LintIssue:
     check: str       # "orphan" | "stale" | "missing_xref" | "missing_concept" | "contradiction" | "data_gap" | "gap_filled"
+    #   | "unsupported_sentences" | "unverified_pages" (report only, no repair)
     severity: str    # "error" | "warning" | "info"
     page: str        # affected page path (e.g. "/wiki/concepts/federal-reserve.md")
     description: str

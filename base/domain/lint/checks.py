@@ -3,10 +3,12 @@
 import re
 from pathlib import Path
 
+from domain.prompts import load_prompt
 from domain.tools.db import get_connection
 from domain.tools.references import find_orphan_pages
 from domain.tools.search import search_chunks
 from .markers import DATA_GAP_BLOCK_RE, fts_safe
+from domain.wiki_settings import language_for_db
 from .report import LintIssue
 
 # ── 3.1: Orphan check ─────────────────────────────────────────────────────────
@@ -199,23 +201,6 @@ def missing_concept_check(db_path: str, workspace: Path) -> list[LintIssue]:
 
 # ── 3.5: Contradiction sweep ───────────────────────────────────────────────────
 
-_CONTRADICTION_SYSTEM = (
-    "You are a fact-checker reviewing a knowledge base for internal consistency."
-)
-
-_CONTRADICTION_TEMPLATE = """\
-Compare these two wiki pages and identify any factual contradictions.
-
-Page 1 ({path_a}):
-{content_a}
-
-Page 2 ({path_b}):
-{content_b}
-
-Reply with "CONTRADICTION: <description>" if you find contradictions, \
-or "NO CONTRADICTION" if none."""
-
-
 def contradiction_check(
     db_path: str, workspace: Path, client, model: str, progress_cb=None
 ) -> list[LintIssue]:
@@ -226,6 +211,7 @@ def contradiction_check(
     can report movement during what is otherwise a long silent stretch.
     """
     issues = []
+    language = language_for_db(db_path)
     with get_connection(db_path) as conn:
         pairs = conn.execute("""
             SELECT DISTINCT
@@ -256,7 +242,7 @@ def contradiction_check(
                 f"⚖️ contradiction {_i}/{total}: "
                 f"{pair['path_a'].rsplit('/', 1)[-1]} ⇄ {pair['path_b'].rsplit('/', 1)[-1]}"
             )
-        prompt = _CONTRADICTION_TEMPLATE.format(
+        prompt = load_prompt("lint_contradiction_template", language).format(
             path_a=pair["path_a"],
             content_a=(pair["content_a"] or "")[:2000],
             path_b=pair["path_b"],
@@ -265,7 +251,7 @@ def contradiction_check(
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": _CONTRADICTION_SYSTEM},
+                {"role": "system", "content": load_prompt("lint_contradiction_system", language)},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.1,
@@ -288,21 +274,12 @@ def contradiction_check(
 
 # ── 3.5: Data gap check ───────────────────────────────────────────────────────
 
-_GAP_TEMPLATE = """\
-Review these wiki concept pages and identify important topics that are missing or underdeveloped.
-
-Concepts covered:
-{concept_list}
-
-Reply with one "GAP: <topic> — <suggestion>" per line for gaps you find, \
-or "NO GAPS" if coverage looks comprehensive."""
-
-
 def data_gap_check(
     db_path: str, workspace: Path, client, model: str, progress_cb=None
 ) -> list[LintIssue]:
     """LLM-powered check for missing or underdeveloped topics."""
     issues = []
+    language = language_for_db(db_path)
     with get_connection(db_path) as conn:
         rows = conn.execute(
             "SELECT title, path, filename FROM documents "
@@ -321,7 +298,7 @@ def data_gap_check(
     )
     response = client.chat.completions.create(
         model=model,
-        messages=[{"role": "user", "content": _GAP_TEMPLATE.format(concept_list=concept_list)}],
+        messages=[{"role": "user", "content": load_prompt("lint_gap_template", language).format(concept_list=concept_list)}],
         temperature=0.3,
     )
     text = (response.choices[0].message.content or "").strip()
@@ -567,4 +544,67 @@ def thin_page_check(db_path: str) -> list[LintIssue]:
                     "Tier-2 fallback for the uncovered part"
                 ),
             ))
+    return issues
+
+
+# ── Sentence verification (report only) ───────────────────────────────────────
+
+_MAX_LISTED_SENTENCES = 5
+
+
+def _wiki_pages_with_context(db_path: str, workspace: Path):
+    """(page path, relative path, verification state, stored verification) of
+    every wiki page that has a context to verify against."""
+    from domain.verify.page import current_state, pages_with_context
+
+    pages = []
+    for relative_path in pages_with_context(db_path, workspace):
+        state, stored = current_state(db_path, workspace, relative_path)
+        pages.append(("/" + relative_path, relative_path, state, stored))
+    return pages
+
+
+def unverified_pages_check(db_path: str, workspace: Path) -> list[LintIssue]:
+    """Pages with a context to verify against and no valid verification: never
+    verified, or changed (the page or one of its sources) since. Report only: the
+    remedy is to verify the page, which needs the local verifier and takes time.
+    Pages with no sources are not listed: there is nothing to verify them against.
+    """
+    from domain.verify.store import State
+
+    return [
+        LintIssue(
+            check="unverified_pages", severity="info", page=page,
+            description=("Never verified against its sources" if state is State.NONE
+                         else "Verification out of date: the page or a source changed since"),
+            suggestion="Verify the page from its reading screen, or run \"Verify all pages\"",
+        )
+        for page, _, state, _ in _wiki_pages_with_context(db_path, workspace)
+        if state is not State.VALID
+    ]
+
+
+def unsupported_sentences_check(db_path: str, workspace: Path) -> list[LintIssue]:
+    """Pages whose valid verification has sentences below the threshold in force
+    (`[verify] threshold`). One issue per page, listing those sentences. Report
+    only: nothing deletes or rewrites them."""
+    from domain.chat.config import load_config
+    from domain.verify.store import State
+
+    threshold = load_config(workspace).verify_threshold
+    issues = []
+    for page, _, state, stored in _wiki_pages_with_context(db_path, workspace):
+        if state is not State.VALID:
+            continue
+        weak = stored.unsupported(threshold)
+        if not weak:
+            continue
+        listed = "; ".join(f"“{s.text}” ({s.probability:.2f})" for s in weak[:_MAX_LISTED_SENTENCES])
+        more = len(weak) - _MAX_LISTED_SENTENCES
+        issues.append(LintIssue(
+            check="unsupported_sentences", severity="warning", page=page,
+            description=(f"{len(weak)} of {stored.checked} sentences have no support in the sources "
+                         f"(threshold {threshold:g}): {listed}" + (f"; and {more} more" if more > 0 else "")),
+            suggestion="Check each sentence against the sources; edit or delete it by hand",
+        ))
     return issues

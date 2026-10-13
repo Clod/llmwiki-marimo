@@ -116,7 +116,7 @@ def test_offtopic_check_uses_strict_search_prompt() -> None:
 
 
 def test_citation_checks_use_the_production_default_prompt() -> None:
-    # system_prompt=None makes create_agent fall back to _DEFAULT_SYSTEM_PROMPT,
+    # system_prompt=None makes create_agent fall back to the system_prompt file,
     # whose worked example is what makes cross-document citation reliable.
     for label, _q, _grader, _req, prompt in _eval._QUESTIONS[1:]:
         assert prompt is None, f"{label} should use the production default prompt"
@@ -141,6 +141,8 @@ def test_strict_search_prompt_mandates_retrieval_before_declining() -> None:
 def test_production_prompt_by_contrast_names_the_domain() -> None:
     # Documents *why* the off-topic check needs its own prompt: the shipped prompt
     # reveals the subject (fairy tales), so it can't test search-before-refuse.
-    from domain.chat.config import _DEFAULT_SYSTEM_PROMPT
+    from domain.prompts import load_prompt
+
+    _DEFAULT_SYSTEM_PROMPT = load_prompt("system_prompt", "en")
 
     assert "cinderella" in _DEFAULT_SYSTEM_PROMPT.lower()

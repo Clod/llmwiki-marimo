@@ -398,11 +398,11 @@ def test_concept_structuring_prompts_preserve_citations() -> None:
     reshapes a cited chat answer into a concept page; if its prompts don't mandate
     keeping citations, the saved page loses all traceability. Guards that mandate.
     """
-    from domain.ingestion.wiki_generator import (
-        _CONCEPT_SYSTEM,
-        _CHAT_CONCEPT_NEW_TEMPLATE,
-        _CHAT_CONCEPT_UPDATE_TEMPLATE,
-    )
+    from domain.prompts import load_prompt
+
+    _CONCEPT_SYSTEM = load_prompt("concept_system", "en")
+    _CHAT_CONCEPT_NEW_TEMPLATE = load_prompt("chat_concept_new_template", "en")
+    _CHAT_CONCEPT_UPDATE_TEMPLATE = load_prompt("chat_concept_update_template", "en")
 
     system = _CONCEPT_SYSTEM.lower()
     assert "citation" in system

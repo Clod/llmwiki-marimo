@@ -1,0 +1,28 @@
+# DRAFT, 2026-10-05: first question set for examples/finanzas-argentinas.
+# Written by a Claude Code session for the owner to review. Not frozen: change,
+# add or delete lines freely. One question per line; blank lines and lines that
+# start with "#" are ignored.
+#
+# Source of each group:
+#   [prompt]  `suggested_prompts` of examples/finanzas-argentinas/wiki_config.toml
+#   [page]    a question about one concept page under wiki/concepts/
+#   [limit]   a question the wiki must refuse (blacklist, no data, off topic):
+#             a refusal has no checked sentences, so the battery reports it as such
+
+# [prompt]
+Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo?
+¿Qué es un plazo fijo y cuánto rinde hoy?
+¿Conviene plazo fijo o FCI money market para 60 días?
+¿A cuánto está el dólar MEP?
+
+# [page]
+¿Qué es un plazo fijo UVA y qué plazo mínimo tiene?
+¿Qué es una caución bursátil y por qué se la considera de bajo riesgo?
+¿Qué son los FCI Money Market y para qué sirven?
+¿Qué diferencia hay entre un plazo fijo tradicional y uno UVA?
+¿Qué riesgos tienen los bonos CER/UVA?
+¿Qué es la Unidad de Valor Adquisitivo?
+
+# [limit]
+¿Qué son los CEDEARs?
+¿Cuál es la capital de Francia?

@@ -166,7 +166,7 @@ chat); click through `index`, `overview`, each summary, each concept.
 
 The default agent is **strict by design**: it answers *only* from your wiki and
 sources, never from world knowledge, and every fact must be cited
-(`base/domain/chat/config.py:_DEFAULT_SYSTEM_PROMPT`). This is the section whose
+(`prompts/system_prompt.en.md`). This is the section whose
 pass/fail rides on the model, which is why it's manual.
 
 > **Caveat on famous corpora.** These tales are in essentially every model's

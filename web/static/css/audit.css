@@ -1,0 +1,36 @@
+/* The audit page of a conversation, and the row of buttons that opens it. */
+.audit { max-width: var(--container-history-w); }
+.audit .lede { color: var(--color-text-secondary); }
+.audit-head { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); }
+.audit-head dt, .audit-node dt { color: var(--color-text-muted); font-size: var(--text-xs); }
+.audit-text, .audit-node dd { overflow-wrap: anywhere; white-space: pre-wrap; }
+.audit-index ul { display: flex; flex-wrap: wrap; gap: var(--space-4); list-style: none; padding: 0; margin: 0; }
+.audit-section { scroll-margin-top: var(--space-4); }
+.audit-path { overflow-wrap: anywhere; }
+.audit-nodes { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.audit-node h4 { font: var(--weight-medium) var(--text-md)/var(--leading-tight) var(--font-sans); }
+.audit-node dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin-top: var(--space-1); }
+.audit-summary { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.audit-passage { scroll-margin-top: var(--space-4); }
+.audit-passage h4 { font-size: var(--text-xs); color: var(--color-text-muted); font-weight: var(--weight-medium); }
+.audit pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: var(--space-3); border: var(--border); border-radius: var(--radius); background: var(--color-surface); font: inherit; }
+.audit-warning { padding: var(--space-2) var(--space-3); border: var(--border); border-radius: var(--radius); background: var(--color-surface); }
+.empty-row { color: var(--color-text-muted); }
+.audit-index ul ul { margin-top: var(--space-1); }
+.audit-turns { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.audit-turn { scroll-margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-6); }
+
+/* Two columns, each with its own vertical scroll: the turns on the left, the diagrams on the right. */
+.audit-columns { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); height: calc(100vh - var(--header-h)); }
+.audit-left, .audit-right { overflow-y: auto; min-height: 0; padding: var(--space-2); }
+.audit-right { border-left: var(--border); }
+.audit-right pre.mermaid { overflow-x: auto; background: none; border: 0; white-space: pre; text-align: center; }
+.audit-right pre.mermaid:not([data-processed]) { visibility: hidden; }
+.audit-diagrams-title { font: var(--weight-medium) var(--text-md)/var(--leading-tight) var(--font-sans); }
+.audit-diagrams-note { color: var(--color-text-muted); font-size: var(--text-xs); }
+.audit-select { align-self: flex-start; }
+@media (max-width: 768px) {
+  .audit-columns { display: block; height: auto; }
+  .audit-left, .audit-right { overflow-y: visible; }
+  .audit-right { border-left: 0; }
+}

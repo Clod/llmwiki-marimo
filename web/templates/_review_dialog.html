@@ -20,6 +20,10 @@
       <button class="btn" type="button" aria-pressed="false" data-url="/w/{{ wiki_id }}/chat/preview" data-page="concepts/{{ draft.slug }}"
               data-label-edit="{{ _('Edit') }}" data-label-preview="{{ _('Preview') }}"
               title="{{ _('Switch between the Markdown text and how the page will look') }}" onclick="togglePreview(this)">{{ _("Preview") }}</button>
+      <button class="btn" type="button" data-url="/w/{{ wiki_id }}/chat/verify-draft" data-page="concepts/{{ draft.slug }}"
+              data-conversation="{{ conversation_id }}" data-label-edit="{{ _('Edit') }}"
+              {% if verifier_available %}title="{{ _('Check each sentence of the draft against the passages the model read during the conversation; the draft does not change') }}"{% else %}disabled title="{{ _('The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group verify)') }}"{% endif %}
+              onclick="verifyDraft(this)">{{ _("Verify the draft") }}</button>
       <span class="review-spacer"></span>
       <button class="btn" type="button" title="{{ _('Close without saving anything') }}" onclick="this.closest('dialog').close()">{{ _("Cancel") }}</button>
       <button class="btn btn-primary" title="{{ _('Write the page to the wiki as it is in the editor') }}">{{ _("Save to wiki") }}</button>

@@ -64,6 +64,27 @@ document.body.addEventListener("htmx:afterSettle", e => {
     document.getElementById("save-btn").setAttribute("aria-expanded", false);
   }
 });
+// "Verify the sentences": remembered per browser like the other toggles. It is
+// valid in the first two modes; it is disabled in the streaming mode and when
+// the local verifier is not installed, and the tooltip says why. The texts come
+// from the label's data attributes, in the interface language.
+(() => {
+  const label = document.getElementById("verify-label"), box = document.getElementById("verify-box");
+  if (!label) return;
+  const installed = label.dataset.installed === "yes";
+  const mode = document.getElementById("mode");
+  const TIPS = { on: label.dataset.tipOn, streaming: label.dataset.tipStreaming, missing: label.dataset.tipMissing };
+  if (installed && store.get("llmwiki.verify") === "1") box.checked = true;
+  box.addEventListener("change", () => store.set("llmwiki.verify", box.checked ? "1" : "0"));
+  function sync() {
+    const streaming = mode.value === label.dataset.streaming;
+    box.disabled = !installed || streaming;
+    label.classList.toggle("disabled", box.disabled);
+    label.title = !installed ? TIPS.missing : streaming ? TIPS.streaming : TIPS.on;
+  }
+  mode.addEventListener("change", sync);
+  sync();
+})();
 function ask(text) {
   const form = document.getElementById("composer");
   form.querySelector("textarea").value = text.trim();
@@ -127,6 +148,22 @@ function togglePreview(button) {
   if (!showPreview) { done(); return; }
   htmx.ajax("POST", button.dataset.url, { target: preview, swap: "innerHTML",
                                           values: { markdown: editor.value, page: button.dataset.page } }).then(done);
+}
+
+// "Verify the draft": the draft as it is in the editor, rendered with the sentences no
+// passage of the conversation supports, in the preview area; the preview toggle then
+// offers to go back to the editor.
+function verifyDraft(button) {
+  const dialog = button.closest("dialog");
+  const editor = dialog.querySelector(".review-editor"), preview = dialog.querySelector(".review-preview");
+  const toggle = dialog.querySelector("[onclick='togglePreview(this)']");
+  htmx.ajax("POST", button.dataset.url, { target: preview, swap: "innerHTML",
+    values: { markdown: editor.value, page: button.dataset.page, conversation_id: button.dataset.conversation } })
+    .then(() => {
+      preview.hidden = false; editor.hidden = true;
+      toggle.setAttribute("aria-pressed", true); toggle.textContent = toggle.dataset.labelEdit;
+      preview.focus?.();
+    });
 }
 
 // The thread follows the conversation: a new question, and each chunk of the answer

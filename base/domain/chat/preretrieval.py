@@ -35,23 +35,21 @@ from domain.chat.scope import (
     collection_intent,
     is_off_limits,
     off_limits_term,
+    matched_terms,
     mentions_known_data,
 )
 from domain.datasets.frontmatter import split_frontmatter
 from domain.i18n import get_locale
+from domain.prompts import load_prompt
 from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
 from domain.text.stemming import stem_text
 from domain.text.stopwords import STOPWORDS, stopwords
 from domain.tools.search import search_chunks
 from domain.tools.wiki_fs import concept_page_names
+from domain.verify.models import ContextPassage
 from domain.wiki_settings import language_for_db
 
-_INJECT_TEMPLATE = (
-    "Respondé la pregunta usando EXCLUSIVAMENTE el siguiente contexto recuperado "
-    "del wiki, citando la fuente. Si el contexto no alcanza para responder, decilo.\n\n"
-    "{context}\n\n---\nPregunta: {question}"
-)
 # Default Tier-2 threshold, used when the config carries none; a wiki sets its
 # own with `[pre_retrieval] min_coverage` (design_stemming.md, decision 12).
 _MIN_COVERAGE = 0.2
@@ -336,12 +334,14 @@ class RetrievalPlan:
             question — tools only, no injected context).
     context: the retrieved text to inject, or None.
     verify:  run answer-vs-source overlap after the answer (Tier 2 only).
+    blocks:  the blocks `context` joins, one per page or fragment.
     """
 
     action: str
     tier: str | None
     context: str | None
     verify: bool
+    blocks: tuple[str, ...] = ()
 
 
 _REFUSE = RetrievalPlan(action="refuse", tier=None, context=None, verify=False)
@@ -388,10 +388,10 @@ def plan_retrieval(
     if in_roster:
         tracing.mark("Q7", R, answer=bool(wiki_hits), wiki_pages=len(wiki_hits))
     if wiki_hits and in_roster:
-        return RetrievalPlan("invoke", "curado", "\n\n".join(wiki_hits), False)
+        return RetrievalPlan("invoke", "curado", "\n\n".join(wiki_hits), False, tuple(wiki_hits))
     tracing.mark("Q9", R, answer=bool(collection_hits), collection_pages=len(collection_hits))
     if collection_hits:
-        return RetrievalPlan("invoke", "curado", "\n\n".join(collection_hits), False)
+        return RetrievalPlan("invoke", "curado", "\n\n".join(collection_hits), False, tuple(collection_hits))
     tracing.mark("Q10", R, answer=has_data)
     if has_data:
         # A question that names known data goes to the tools (query_dataset /
@@ -403,7 +403,7 @@ def plan_retrieval(
     tracing.mark("Q11", R, answer=bool(doc_hits and in_roster),
                  source_fragments=len(doc_hits), in_roster=in_roster)
     if doc_hits and in_roster:
-        return RetrievalPlan("invoke", "crudo", "\n\n".join(doc_hits), True)
+        return RetrievalPlan("invoke", "crudo", "\n\n".join(doc_hits), True, tuple(doc_hits))
     tracing.mark("Q12", R, answer=in_roster)
     return _REFUSE
 
@@ -419,6 +419,8 @@ async def pre_retrieval_answer(
     run_agent,
     on_trace=None,
     open_page: str | None = None,
+    on_context=None,
+    condense=None,
 ) -> str:
     """Run one turn through the hybrid pre-retrieval flow and return the answer.
 
@@ -436,6 +438,15 @@ async def pre_retrieval_answer(
     `run_agent` is injected so this is testable without an LLM; it must return an
     object with `.output` (str) and `.all_messages()`. `on_trace`, if given, is
     called with (raw, final, result, refusal_substituted) for the chat trace.
+    `on_context`, if given, is called once with the `ContextPassage` list the
+    prompt injected, before the model runs; it is not called on a refusal made
+    before the model. It does not depend on the trace.
+
+    `condense`, if given, is an async `condense(question, history) -> str` that
+    rewrites a follow-up into a question that stands alone (`domain/chat/condense.py`).
+    It runs only when the question alone passes neither the coverage gate nor the
+    data check and no page is open; the gate and the search then use the rewrite,
+    and the model still answers the original question (node Q5b).
     """
     with tracing.root(
         "turn", workspace, mode="pre-retrieval", question=question, language=language,
@@ -443,7 +454,7 @@ async def pre_retrieval_answer(
         return await _pre_retrieval_turn(
             question, config=config, db_path=db_path, workspace=workspace,
             history=history, language=language, run_agent=run_agent, on_trace=on_trace,
-            open_page=open_page,
+            open_page=open_page, on_context=on_context, condense=condense,
         )
 
 
@@ -476,6 +487,21 @@ def _open_page_block(workspace, open_page: str | None) -> str | None:
     return f"[/wiki/{open_page}.md]\n{body.strip()}" if body.strip() else None
 
 
+def context_passage(block: str) -> ContextPassage:
+    """The page and text of an injected block `[label]\\ntext`.
+
+    A wiki page and a dataset file keep their label (`/wiki/concepts/x.md`,
+    `datasets/x.md`); a source document is named by its file name.
+    """
+    match = re.match(r"\[([^\]\n]*)\]\s*(.*)", block, re.DOTALL)
+    if not match:
+        return ContextPassage("", block)
+    label, text = match.group(1).strip(), match.group(2)
+    if not label.lstrip("/").startswith(("wiki/", "datasets/")):
+        label = label.rsplit("/", 1)[-1]
+    return ContextPassage(label, text)
+
+
 def _hit_labels(hits: list[str]) -> list[str]:
     """The page label of each injected block: its first line, without brackets."""
     return [h.split("\n", 1)[0].strip("[]") for h in hits]
@@ -492,12 +518,15 @@ def _answer_node(plan: RetrievalPlan, wiki_hits: list[str], in_roster: bool) -> 
 
 async def _pre_retrieval_turn(
     question: str, *, config, db_path, workspace, history, language, run_agent, on_trace,
-    open_page: str | None = None,
+    open_page: str | None = None, on_context=None, condense=None,
 ) -> str:
     """The body of `pre_retrieval_answer`, inside the turn's root span."""
     R = tracing.READING
+    tracing.mark("Q1", R, question=question)
     stem_language = language or language_for_db(db_path)
     tracing.mark("Q2", R, normalized=_normalize(question))
+    # What the gate and the search examine: the question, or its rewrite (Q5b).
+    search = question
 
     # The blacklist first (design_stemming.md, decision 14): a blacklisted
     # question is refused before the datasets are read or the index searched.
@@ -532,11 +561,12 @@ async def _pre_retrieval_turn(
         # docs) is allowed ONLY for a covered topic, so an uncovered question
         # can't pull a tangential chunk as a fig leaf — that was the CEDEARs leak.
         roster_terms = categories | set(concept_page_names(db_path))
-        in_roster = mentions_known_data(
-            question, roster_terms, aliases, language=stem_language, exact=keys,
+        matched = matched_terms(
+            question, sorted(roster_terms), aliases, language=stem_language, exact=sorted(keys),
         )
+        in_roster = bool(matched)
         tracing.mark("Q5", R, answer=in_roster, roster_size=len(roster_terms) + len(keys),
-                     aliases=len(aliases))
+                     aliases=len(aliases), matched=matched)
         # The page the user is reading: injected first, and it makes the
         # question covered — the user asks about what is on the screen.
         open_block = _open_page_block(workspace, open_page)
@@ -544,11 +574,34 @@ async def _pre_retrieval_turn(
         if open_block is not None:
             in_roster = True
 
+        # Query condensation (node Q5b): a follow-up that names no topic is
+        # rewritten from the conversation, and the gate runs again on the rewrite.
+        # The blacklist runs on the rewrite too, so a follow-up cannot bring in a
+        # blacklisted subject.
+        if condense is not None and history and not (in_roster or has_data or open_block):
+            from domain.chat import condense as condensation
+
+            rewritten = condensation.accepted(await condense(question, history), question)
+            matched = []
+            if rewritten != question:
+                search = rewritten
+                off_limits = is_off_limits(search, config.off_limits)
+                if not off_limits:
+                    has_data = mentions_known_data(
+                        search, categories, aliases, language=stem_language, exact=keys,
+                    ) or advisory_intent(search)
+                    matched = matched_terms(
+                        search, sorted(roster_terms), aliases, language=stem_language, exact=sorted(keys),
+                    )
+                    in_roster = bool(matched)
+            tracing.mark("Q5b", R, rewritten=rewritten, answer=in_roster, off_limits=bool(off_limits),
+                         matched=matched)
+
         # The wiki search runs only for a question in the roster: the plan uses
         # its pages only then (decision 14).
         if in_roster:
-            with tracing.node("Q6", R, fts_query=_fts_query(question, language)) as q6:
-                wiki_hits = retrieve_wiki(db_path, question, language=stem_language)
+            with tracing.node("Q6", R, fts_query=_fts_query(search, language)) as q6:
+                wiki_hits = retrieve_wiki(db_path, search, language=stem_language)
                 if open_block is not None:
                     open_label = _hit_labels([open_block])[0]
                     wiki_hits = [open_block] + [
@@ -556,17 +609,17 @@ async def _pre_retrieval_turn(
                     ]
                 q6.set(pages=_hit_labels(wiki_hits))
             if not wiki_hits:
-                with tracing.node("Q8", R, fts_query=_fts_query(question, language)) as q8:
-                    doc_hits = retrieve_source_chunks(db_path, question, language=stem_language)
+                with tracing.node("Q8", R, fts_query=_fts_query(search, language)) as q8:
+                    doc_hits = retrieve_source_chunks(db_path, search, language=stem_language)
                     q8.set(fragments=_hit_labels(doc_hits))
         # Collection-shaped question ("what tales are in this wiki?") — inject
         # the overview/index read from disk. Empty when the wiki has neither
         # page, so an ordinary wiki with no collection page falls through to
         # has_data/doc_hits/refuse exactly as it did before this branch existed.
-        collection_hits = retrieve_collection_pages(workspace) if collection_intent(question) else []
+        collection_hits = retrieve_collection_pages(workspace) if collection_intent(search) else []
 
     plan = plan_retrieval(
-        question, off_limits=config.off_limits,
+        search, off_limits=config.off_limits,
         wiki_hits=wiki_hits, doc_hits=doc_hits, has_data=has_data, in_roster=in_roster,
         collection_hits=collection_hits,
     )
@@ -583,13 +636,13 @@ async def _pre_retrieval_turn(
     def suggestions() -> list[tuple[str, str]]:
         """Roster pages for a question in the roster (decision 13), else the search."""
         if in_roster:
-            return roster_suggestions(db_path, question, categories, stem_language)
-        return search_suggestions(db_path, question, stem_language)
+            return roster_suggestions(db_path, search, categories, stem_language)
+        return search_suggestions(db_path, search, stem_language)
 
     if plan.action == "refuse":
         if off_limits:
             return refuse("R1", Refusal(
-                RefusalCause.BLACKLIST, term=off_limits_term(question, config.off_limits),
+                RefusalCause.BLACKLIST, term=off_limits_term(search, config.off_limits),
             ))
         if in_roster:
             return refuse("R2b", Refusal(RefusalCause.NOTHING_FOUND, suggestions=suggestions()))
@@ -600,15 +653,18 @@ async def _pre_retrieval_turn(
     # from the context, does not reliably call query_dataset on its own.
     injection = DatasetInjection([], [], [])
     if _answer_node(plan, wiki_hits, in_roster) == "Q13":
-        injection = dataset_injection(question, source, config.data_aliases, language)
+        injection = dataset_injection(search, source, config.data_aliases, language)
         if injection.blocks:
-            plan = replace(plan, context="\n\n".join([plan.context or "", *injection.blocks]))
+            plan = replace(plan, context="\n\n".join([plan.context or "", *injection.blocks]),
+                           blocks=(*plan.blocks, *injection.blocks))
 
     asked = with_open_page(question, open_page if open_block is not None else None, language)
     prompt = (
-        _INJECT_TEMPLATE.format(context=plan.context, question=asked)
+        load_prompt("inject_template", language).format(context=plan.context, question=asked)
         if plan.context else asked
     )
+    if on_context is not None:
+        on_context([context_passage(block) for block in plan.blocks])
     with tracing.node(
         _answer_node(plan, wiki_hits, in_roster), R,
         tier=plan.tier or "data", context_chars=len(plan.context or ""),

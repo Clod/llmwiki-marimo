@@ -41,12 +41,12 @@ def demo_db(tmp_path):
 
 @pytest.mark.parametrize("language, cause, opening", [
     ("es", RefusalCause.BLACKLIST, "No puedo responder esta pregunta: menciona «cedears»"),
-    ("es", RefusalCause.NOT_IN_ROSTER, "No puedo responder esta pregunta: no nombra ninguno"),
+    ("es", RefusalCause.NOT_IN_ROSTER, "No recibí de la wiki información relacionada con esta pregunta."),
     ("es", RefusalCause.NOTHING_FOUND, "La pregunta nombra un tema de esta wiki"),
     ("es", RefusalCause.UNSUPPORTED, "Encontré el documento «12 Cauciones.docx»"),
     ("es", RefusalCause.UNGROUNDED, "No encontré en las páginas ni en los documentos"),
     ("en", RefusalCause.BLACKLIST, 'I cannot answer this question: it mentions "cedears"'),
-    ("en", RefusalCause.NOT_IN_ROSTER, "I cannot answer this question: it names none"),
+    ("en", RefusalCause.NOT_IN_ROSTER, "I received no information from the wiki related to this question."),
     ("en", RefusalCause.NOTHING_FOUND, "The question names a topic of this wiki"),
     ("en", RefusalCause.UNSUPPORTED, 'I found the document "12 Cauciones.docx"'),
     ("en", RefusalCause.UNGROUNDED, "I found no information in this wiki's pages"),
@@ -71,6 +71,16 @@ def test_suggestions_are_titles_without_links():
 def test_not_in_roster_asks_to_reword_with_a_title():
     text = render(Refusal(RefusalCause.NOT_IN_ROSTER, suggestions=PAGES), "es")
     assert "reformulá la pregunta usando su título:" in text
+
+
+def test_not_in_roster_always_points_to_the_wiki_index():
+    """The 2a refusal says what the system did, not what the question names (fin-18:
+    "no nombra ninguno de los temas" was false for a question about inflation), and
+    always sends the user to the index to check the topics."""
+    text = render(Refusal(RefusalCause.NOT_IN_ROSTER, suggestions=PAGES), "es")
+    assert text.startswith("No recibí de la wiki información relacionada con esta pregunta.")
+    assert "no nombra" not in text
+    assert text.endswith("Podés ver todos los temas en el índice de la wiki, en la pestaña de lectura.")
 
 
 def test_no_page_points_to_the_wiki_index():
@@ -182,3 +192,13 @@ def test_model_fixed_sentence_is_cause_5(demo_db):
 def test_answer_not_opening_with_the_sentence_is_left_alone(demo_db):
     out = _turn("¿Cuánto rinden los plazos fijos?", "Un plazo fijo rinde una tasa fija.", demo_db)
     assert "El modelo no encontró" not in out
+
+
+def test_the_model_refusal_says_what_the_model_received_not_what_the_wiki_holds():
+    """fin-04, fin-05, fin-19: "No encontré la respuesta en los documentos." and "El modelo
+    no encontró la respuesta en las páginas ni en los documentos de esta wiki." stated that
+    the wiki lacks an answer the context held. Both now describe what the model received."""
+    assert fixed_sentence("es") == "No encontré la respuesta en el texto que recibí de la wiki."
+    text = render(Refusal(RefusalCause.MODEL, model_text=fixed_sentence("es")), "es")
+    assert "El modelo no encontró la respuesta en el texto que recibió de la wiki." in text
+    assert "documentos de esta wiki" not in text

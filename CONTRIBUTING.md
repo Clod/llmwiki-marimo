@@ -17,6 +17,34 @@ Prerequisites: **Python 3.12+**, **[uv](https://docs.astral.sh/uv/)**, and an
 OpenAI-compatible LLM endpoint (OpenRouter, Ollama, LM Studio, …). Java is needed to ingest PDF and
 office files, and LibreOffice only for office files (DOCX, DOC, ODT, RTF). See the [README](README.md) for provider config.
 
+### The local sentence verifier (optional)
+
+The web interface can mark the sentences of a chat answer that no page the model
+read supports. It needs the `verify` dependency group (`transformers`, `torch`)
+and a multilingual NLI model in the Hugging Face cache:
+
+```bash
+uv sync --group verify    # on Linux this pulls the CUDA build of torch (about 2 GB)
+uv run python -c "import sys; sys.path.insert(0, 'base'); from domain.verify.nli import download_model; download_model()"
+```
+
+`python3 quickstart.py --with-verifier` does both for an installed copy and, on
+Linux, installs the CPU build of `torch` from `https://download.pytorch.org/whl/cpu`.
+Without the group and the model the checkbox "Verificar las oraciones" is
+disabled, and the tests of the local model skip.
+
+Regenerating `requirements-verify.txt` after a change of the group (the export
+drops the CUDA libraries, which `quickstart.py` replaces with the CPU `torch`):
+
+```bash
+uv lock
+uv export --only-group verify --no-emit-project \
+  $(uv export --only-group verify --no-emit-project --no-header | grep -E '^(cuda-|nvidia-|triton)' | cut -d= -f1 | sed 's/^/--no-emit-package /') \
+  -o requirements-verify.txt
+uv export --no-dev --no-emit-project -o requirements.txt
+```
+
+## Running the apps
 ## Running the web interface
 
 ```bash

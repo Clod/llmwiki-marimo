@@ -34,3 +34,12 @@ low-level, framework-agnostic pieces were carried over into this codebase:
       extended for this project.
 
 Everything not listed above was written for this project.
+
+
+Third-party code shipped in web/static/js/
+------------------------------------------
+
+  * mermaid.min.js — Mermaid 12.1.0, MIT License, Copyright (c) 2014 - 2022
+      Knut Sveidqvist (https://github.com/mermaid-js/mermaid). Draws the
+      diagrams of the audit page. The licence text is in
+      web/static/js/mermaid.LICENSE.

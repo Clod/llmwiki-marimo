@@ -127,6 +127,10 @@ suggested_prompts = [
 #
 # [pre_retrieval]
 # enabled = true
+# A follow-up that names no topic ("And what are its risks?") is rewritten by the
+# model, from the conversation, into a question that stands alone, and the
+# coverage gate and the search run on the rewrite. On by default.
+# condense_question = true
 
 # The three lists below only matter when pre_retrieval is on.
 
@@ -144,3 +148,13 @@ suggested_prompts = [
 # expanding a question's terms.
 # [falsos_sinonimos]
 # cedear = ["accion", "acciones"]
+
+# Sentence verification (web interface, optional install: see quickstart.py).
+# A sentence of the answer is "supported" when one passage the model read
+# entails it with at least this probability, from 0 to 1. Higher marks more
+# sentences as unsupported. The default is 0.5; calibrate it on your own wiki.
+# A wiki page is verified against its sources; each sentence is compared only with
+# the `candidates` passages most like it (full-text ranking). Default 5.
+# [verify]
+# threshold = 0.5
+# candidates = 5

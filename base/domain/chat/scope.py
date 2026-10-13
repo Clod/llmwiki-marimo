@@ -59,16 +59,18 @@ def _mentions_stem(question_stemmed: str, term: str, language: str) -> bool:
     return re.search(rf"\b{re.escape(stemmed_term)}\b", question_stemmed) is not None
 
 
-def mentions_known_data(
+def matched_terms(
     question: str,
     vocabulary: Iterable[str],
     aliases: Iterable[str] = (),
     *,
     language: str | None = None,
     exact: Iterable[str] = (),
-) -> bool:
-    """True if the question mentions a known data term or a whitelisted alias.
+) -> list[str]:
+    """The known data terms and whitelisted aliases the question mentions, each as it
+    is written in the roster (`plazo_fijo`, not its stem), without repeats.
 
+    The order is: the `exact` terms, the `vocabulary` terms, the `aliases`.
     With `language`, `vocabulary` and `aliases` are compared by stem in that
     language, so "plazos fijos" matches the category `plazo_fijo`
     (design_stemming.md, decision 15). `exact` holds the terms compared by whole
@@ -77,18 +79,28 @@ def mentions_known_data(
     compared by whole normalized word.
     """
     q = _normalize(question)
-    if any(_mentions(q, term) for term in exact):
-        return True
     if language is None:
-        return any(_mentions(q, term) for term in vocabulary) or any(
-            _mentions(q, alias) for alias in aliases
-        )
-    from domain.text.stemming import stem_text
+        candidates = [(term, _mentions(q, term)) for term in (*exact, *vocabulary, *aliases)]
+    else:
+        from domain.text.stemming import stem_text
 
-    q_stemmed = stem_text(question, language)
-    return any(_mentions_stem(q_stemmed, term, language) for term in vocabulary) or any(
-        _mentions_stem(q_stemmed, alias, language) for alias in aliases
-    )
+        q_stemmed = stem_text(question, language)
+        candidates = [(term, _mentions(q, term)) for term in exact]
+        candidates += [(term, _mentions_stem(q_stemmed, term, language)) for term in (*vocabulary, *aliases)]
+    return list(dict.fromkeys(term for term, hit in candidates if hit))
+
+
+def mentions_known_data(
+    question: str,
+    vocabulary: Iterable[str],
+    aliases: Iterable[str] = (),
+    *,
+    language: str | None = None,
+    exact: Iterable[str] = (),
+) -> bool:
+    """True if the question mentions a known data term or a whitelisted alias
+    (`matched_terms` is not empty)."""
+    return bool(matched_terms(question, vocabulary, aliases, language=language, exact=exact))
 
 
 _ADVISORY_CUES = (

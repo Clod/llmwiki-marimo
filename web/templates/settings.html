@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Settings") }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/settings.css">{% endblock %}
+{% block body %}
+<main class="settings-screen">
+  <h1 class="sr-only">{{ _("Settings") }}</h1>
+  {% if message %}<p class="{{ message.kind }} settings-message" role="{{ 'alert' if message.kind == 'warn' else 'status' }}">{{ message.text }}</p>{% endif %}
+  <form method="post" action="/w/{{ wiki_id }}/settings" class="settings-form">
+    <section class="panel settings-block" aria-labelledby="h-wiki">
+      <div class="panel-head"><h2 id="h-wiki"><code>[wiki]</code></h2></div>
+      <div class="setting">
+        <div class="setting-head"><span class="setting-label">{{ _("Content language") }}</span><code>language</code></div>
+        <p class="setting-value"><code>{{ language }}</code> <span class="origin">{{ _("read only") }}</span></p>
+        <p class="setting-help muted">{{ _("The search index keeps every fragment reduced to stems in this language, so changing it needs a reindex. It is edited in wiki_config.toml.") }}</p>
+      </div>
+    </section>
+
+    <section class="panel settings-block" aria-labelledby="h-assistant">
+      <div class="panel-head"><h2 id="h-assistant"><code>[assistant]</code></h2></div>
+      <div class="setting{% if errors.system_prompt %} invalid{% endif %}">
+        <div class="setting-head"><label for="f-system_prompt">{{ _("System prompt") }}</label><code>system_prompt</code></div>
+        <textarea class="field prompt" id="f-system_prompt" name="system_prompt" rows="16" data-default="{{ defaults.system_prompt }}">{{ values.system_prompt }}</textarea>
+        <p class="setting-help muted">{{ _("The instructions the model receives in every conversation. An empty prompt is refused.") }}</p>
+        <div><button class="btn btn-sm" type="button" id="restore-prompt" title="{{ _('Fill the field with the default prompt. It is saved only when you press Save') }}">{{ _("Restore the default") }}</button></div>
+        {% if errors.system_prompt %}<p class="field-error" role="alert">{{ errors.system_prompt }}</p>{% endif %}
+      </div>
+      <div class="setting{% if errors.suggested_prompts %} invalid{% endif %}">
+        <div class="setting-head"><label for="f-suggested_prompts">{{ _("Suggested prompts") }}</label><code>suggested_prompts</code></div>
+        <textarea class="field" id="f-suggested_prompts" name="suggested_prompts" rows="5">{{ values.suggested_prompts }}</textarea>
+        <p class="setting-help muted">{{ _("The questions the chat offers as buttons. One per line.") }}</p>
+        <details class="setting-default"><summary>{{ _("Default value") }}</summary><pre>{{ defaults.suggested_prompts }}</pre></details>
+        {% if errors.suggested_prompts %}<p class="field-error" role="alert">{{ errors.suggested_prompts }}</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="panel settings-block" aria-labelledby="h-pre">
+      <div class="panel-head"><h2 id="h-pre"><code>[pre_retrieval]</code></h2></div>
+      <div class="setting">
+        <div class="setting-head"><label for="f-enabled">{{ _("Pre-retrieval") }}</label><code>enabled</code></div>
+        <label class="check"><input type="checkbox" id="f-enabled" name="enabled"{% if values.enabled %} checked{% endif %}> {{ _("Enabled") }}</label>
+        <p class="setting-help muted">{{ _("The code searches the wiki before calling the model and refuses the questions the wiki does not cover.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ _("no") if not defaults.enabled else _("yes") }}</code></p>
+      </div>
+      <div class="setting{% if errors.min_coverage %} invalid{% endif %}">
+        <div class="setting-head"><label for="f-min_coverage">{{ _("Minimum coverage") }}</label><code>min_coverage</code></div>
+        <input class="field num" id="f-min_coverage" name="min_coverage" type="number" step="any" min="0" max="1" value="{{ values.min_coverage }}">
+        <p class="setting-help muted">{{ _("From 0 to 1: the fraction of the words of an answer that must appear in the fragment it came from.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ defaults.min_coverage }}</code></p>
+        {% if errors.min_coverage %}<p class="field-error" role="alert">{{ errors.min_coverage }}</p>{% endif %}
+      </div>
+      <div class="setting">
+        <div class="setting-head"><label for="f-condense_question">{{ _("Condense the question") }}</label><code>condense_question</code></div>
+        <label class="check"><input type="checkbox" id="f-condense_question" name="condense_question"{% if values.condense_question %} checked{% endif %}> {{ _("Enabled") }}</label>
+        <p class="setting-help muted">{{ _("A follow-up that names no topic is rewritten by the model into a question that stands alone.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ _("no") if not defaults.condense_question else _("yes") }}</code></p>
+      </div>
+    </section>
+
+    <section class="panel settings-block" aria-labelledby="h-verify">
+      <div class="panel-head"><h2 id="h-verify"><code>[verify]</code></h2></div>
+      <div class="setting{% if errors.threshold %} invalid{% endif %}">
+        <div class="setting-head"><label for="f-threshold">{{ _("Threshold") }}</label><code>threshold</code></div>
+        <input class="field num" id="f-threshold" name="threshold" type="number" step="any" min="0" max="1" value="{{ values.threshold }}">
+        <p class="setting-help muted">{{ _("From 0 to 1: the probability a passage needs to entail a sentence for the sentence to count as supported.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ defaults.threshold }}</code></p>
+        {% if errors.threshold %}<p class="field-error" role="alert">{{ errors.threshold }}</p>{% endif %}
+      </div>
+      <div class="setting{% if errors.candidates %} invalid{% endif %}">
+        <div class="setting-head"><label for="f-candidates">{{ _("Candidates") }}</label><code>candidates</code></div>
+        <input class="field num" id="f-candidates" name="candidates" type="number" step="1" min="1" value="{{ values.candidates }}">
+        <p class="setting-help muted">{{ _("The passages kept for each sentence of a page before the verifier runs. A whole number, 1 or more.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ defaults.candidates }}</code></p>
+        {% if errors.candidates %}<p class="field-error" role="alert">{{ errors.candidates }}</p>{% endif %}
+      </div>
+    </section>
+
+    <p class="notice">{% trans link="/w/" ~ wiki_id ~ "/vocabulary" %}The vocabulary lists (<code>[fuera_de_alcance]</code>, <code>[alias_datos]</code>, <code>[falsos_sinonimos]</code>) are edited in <a href="{{ link }}">Vocabulary</a>.{% endtrans %}</p>
+    <div class="settings-actions"><button class="btn btn-primary" title="{{ _('Write the settings to wiki_config.toml. They apply from the next question') }}">{{ _("Save") }}</button></div>
+  </form>
+</main>
+<script src="/static/js/settings.js"></script>
+{% endblock %}

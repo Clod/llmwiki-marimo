@@ -10,6 +10,7 @@ class RepairResult:
     action: str   # "deleted" | "regenerated" | "concept_created" | "skipped" | "failed"
     success: bool
     message: str
+    written: str = ""   # the page the model wrote (`summaries/x`, `concepts/y`), for the verification
 
 
 @dataclass

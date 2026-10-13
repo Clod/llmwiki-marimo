@@ -153,3 +153,13 @@ suggested_prompts = [
 # expandir los términos de una pregunta.
 # [falsos_sinonimos]
 # cedear = ["accion", "acciones"]
+
+# Verificación de oraciones (interfaz web, instalación opcional: ver quickstart.py).
+# Una oración de la respuesta tiene respaldo cuando una página que leyó el modelo
+# la implica con al menos esta probabilidad, de 0 a 1. Un valor mayor marca más
+# oraciones sin respaldo. El valor por defecto es 0.5; calibralo con tu wiki.
+# Una página de la wiki se verifica contra sus fuentes; cada oración se compara solo
+# con las `candidates` pasajes más parecidos (ranking de texto completo). Por defecto 5.
+# [verify]
+# threshold = 0.5
+# candidates = 5

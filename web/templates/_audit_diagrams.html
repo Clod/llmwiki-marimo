@@ -1,0 +1,4 @@
+<h2 class="audit-diagrams-title">{{ _("Diagrams of the query · turn %(n)s", n=n) }}</h2>
+{% for text in diagrams %}<pre class="mermaid">{{ text }}</pre>
+{% else %}<p class="empty-row">{{ _("The diagrams could not be read from docs/query_nodes.md.") }}</p>{% endfor %}
+<p class="audit-diagrams-note">{{ _("The highlighted nodes are the ones this turn went through.") }}</p>

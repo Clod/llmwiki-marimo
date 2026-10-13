@@ -16,6 +16,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from domain.verify import nli
+from domain.verify.verifier import Verifier
 from domain.wiki_registry import discover_wikis, is_wiki_dir, load_recent, merge_options
 from services import chat as chat_service
 from services.wiki import Wiki, open_wiki
@@ -30,6 +32,20 @@ class Message:
     role: str
     content: str
     mode: str = ""   # of an assistant message: the chat mode that produced it
+    # of an assistant message: the passages the model read to write it, kept so that a
+    # page drafted from the conversation can be verified against them
+    context: tuple = ()
+    # of an assistant message: what the model wrote when the code replaced it (None when the
+    # answer shows it), and the nodes the turn went through; the audit page shows both
+    raw_answer: str | None = None
+    path: tuple = ()
+    # of an assistant message: the tokens of the turn, summed over its model calls
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+    @property
+    def tokens(self) -> int:
+        return self.input_tokens + self.output_tokens
 
 
 @dataclass
@@ -52,6 +68,7 @@ class Turn:
     conversation_id: str
     mode: str
     open_page: str | None
+    verify: bool = False
 
 
 @dataclass
@@ -80,8 +97,11 @@ class UnknownWiki(KeyError):
 
 
 class AppState:
-    def __init__(self, settings: WebSettings, agents_factory: AgentsFactory | None = None) -> None:
+    def __init__(self, settings: WebSettings, agents_factory: AgentsFactory | None = None,
+                 verifier: Verifier | None = None) -> None:
         self.settings = settings
+        self._verifier = verifier
+        self._local_verifier_installed: bool | None = None
         self._agents_factory = agents_factory or self._build_agents
         self._open: dict[str, OpenWiki] = {}
         # Keyed by (wiki id, conversation id): a conversation belongs to one wiki.
@@ -133,10 +153,32 @@ class AppState:
             entry.agents = self._agents_factory(entry.wiki)
         return entry.agents
 
+    def reset_agents(self, wiki_id: str) -> None:
+        """Drop the agents of a wiki: the next question builds new ones from the files on disk.
+        A wiki that is not open has none."""
+        entry = self._open.get(wiki_id)
+        if entry is not None:
+            entry.agents = None
+
     def _build_agents(self, wiki: Wiki) -> chat_service.ChatAgents:
         s = self.settings
         _require("LLM", BASE_URL=s.llm_base_url, API_KEY=s.llm_api_key, MODEL=s.llm_model)
         return chat_service.build_agents(wiki, s.llm_base_url, s.llm_api_key, s.llm_model)
+
+    def verifier_available(self) -> bool:
+        """True if the sentence verification can run: a verifier was given, or the
+        local NLI packages and model are installed. The local probe runs once."""
+        if self._verifier is not None:
+            return True
+        if self._local_verifier_installed is None:
+            self._local_verifier_installed = nli.is_available()
+        return self._local_verifier_installed
+
+    def get_verifier(self) -> Verifier:
+        """The verifier, built on first use and kept (the model loads once)."""
+        if self._verifier is None:
+            self._verifier = nli.LocalNliVerifier()
+        return self._verifier
 
     def ingest_model(self) -> tuple[str, str]:
         """The model and the base URL ingestion uses; no client is built."""

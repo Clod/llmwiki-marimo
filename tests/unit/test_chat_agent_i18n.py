@@ -18,7 +18,7 @@ def test_apply_chat_directive_english_adds_the_refusal_directive() -> None:
     base = "You are a helpful assistant."
     result = apply_chat_directive(base, "en")
     assert result.startswith(base)
-    assert "I did not find the answer in the documents." in result
+    assert "I did not find the answer in the text I received from the wiki." in result
 
 
 def test_create_agent_spanish_system_prompt_contains_chat_directive() -> None:

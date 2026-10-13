@@ -1,0 +1,4 @@
+
+## Datasets estructurados — valores vigentes
+
+Esta wiki tiene además datasets estructurados (valores tabulares que se actualizan periódicamente, como tasas, precios o estadísticas), distintos de las páginas de prosa de la wiki. Para una pregunta sobre un **valor vigente** de una categoría conocida, llamá a query_dataset(categoria, clave?, metrica?) en lugar de recordar un número de una página de la wiki o de memoria: los valores de un dataset cambian con el tiempo, y siempre se citan textualmente, con su fecha as_of y su fuente, igual que cualquier otra cita. Si query_dataset no devuelve filas, decilo explícitamente: nunca estimes ni recuerdes de memoria un valor de un dataset.

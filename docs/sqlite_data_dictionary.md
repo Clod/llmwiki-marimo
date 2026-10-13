@@ -8,23 +8,34 @@ This document provides a comprehensive data dictionary for the SQLite schema def
 
 ### Derived State Principle
 The LLM Wiki local index is designed around the concept of **derived state**. The database acts as a high-performance local cache and index for workspace files (such as Markdown files, PDFs, and assets).
-* **Rebuildable, with caveats:** The database is a derived index, not the system of record — that role belongs to the files in `sources/` and `wiki/`. It can be repopulated by re-running the ingestion pipeline over the files still in `sources/`, but this is **not** a passive filesystem scan: it re-invokes the LLM, so reconstruction is **non-deterministic** — re-ingesting the same source will not reproduce byte-identical wiki pages, IDs, or chunk boundaries. Re-ingestion also **overwrites** the generated wiki markdown, assigns new internal document IDs, and re-derives the citation graph. Data that exists *only* in the database — extracted page text (`document_pages`), chunks (`document_chunks`), and the summary→source link (`source_document_id`, which is never written to disk) — is recoverable solely by re-extracting the original source files. Consequences: wiki pages whose source file has been removed from `sources/`, and any manual edits to generated pages, **cannot** be reconstructed. The non-LLM complement is `reindex_from_disk` (`base/domain/tools/reindex.py`): it writes a fresh database from `sources/` and `wiki/` without a model call and without modifying a markdown or a source file, and keeps the old index as `index.db.bak`. It recovers the `documents` rows, `document_pages`, `document_chunks`, `chunks_fts`, the reference graph and each summary's `source_document_id`; `version`, `document_number`, the creation dates and `stale_since` are reset. A wiki page whose source file is gone is registered, and its `cites` edge has no target. See [`ROADMAP.md`](../ROADMAP.md).
-* **Sync-Centric Design:** Every table includes mechanisms (e.g. `content_hash`, `mtime_ns`, `stale_since`) to detect skew between physical disk files and database records.
+* **Rebuildable, with caveats:** The database is a derived index, not the system of record — that role belongs to the files in `sources/` and `wiki/`. It can be repopulated by re-running the ingestion pipeline over the files still in `sources/`, but this is **not** a passive filesystem scan: it re-invokes the LLM, so reconstruction is **non-deterministic** — re-ingesting the same source will not reproduce byte-identical wiki pages, IDs, or chunk boundaries. Re-ingestion also **overwrites** the generated wiki markdown, assigns new internal document IDs, and re-derives the citation graph. Data that exists *only* in the database — extracted page text (`document_pages`), chunks (`document_chunks`), and the summary→source link (`source_document_id`, which is never written to disk) — is recoverable only from the original source files: by re-ingesting them, or by `reindex_from_disk`, described below. Consequences: wiki pages whose source file has been removed from `sources/`, and any manual edits to generated pages, **cannot** be reconstructed. The non-LLM complement is `reindex_from_disk` (`base/domain/tools/reindex.py`): it writes a fresh database from `sources/` and `wiki/` without a model call and without modifying a markdown or a source file, and keeps the old index as `index.db.bak`. It recovers the `documents` rows, `document_pages`, `document_chunks`, `chunks_fts`, the reference graph and each summary's `source_document_id`; `version`, `document_number`, the creation dates and `stale_since` are reset. A wiki page whose source file is gone is registered, and its `cites` edge has no target. See [`ROADMAP.md`](../ROADMAP.md).
+* **Sync-Centric Design:** The `documents` table carries `content_hash`, `mtime_ns` and `stale_since`, which detect a difference between a file on disk and its database row. The other tables hang from `documents` and are deleted or rebuilt with it.
 
 ### Database Performance Tuning
 The database uses two performance-critical SQLite configurations:
-1. **Write-Ahead Logging (`PRAGMA journal_mode=WAL;`):** Enables concurrent reading and writing. Multiple reader processes (e.g., Marimo notebook frontend cells, search queries) can read the database while a backend process is indexing new files.
+1. **Write-Ahead Logging (`PRAGMA journal_mode=WAL;`):** Enables concurrent reading and writing. The request threads of the web interface (`web/`) read the database while an ingestion thread writes to it.
 2. **Foreign Key Enforcement (`PRAGMA foreign_keys=ON;`):** Ensures relational integrity. Cascade deletes (`ON DELETE CASCADE`) are heavily utilized to prevent "orphan" pages, chunks, and citations when a document is deleted.
 
 ### Schema Source
-The runtime schema is exactly [sqlite_schema.sql](../database/sqlite_schema.sql), applied
-verbatim by `open_db()` (`base/domain/tools/db.py`) on first connection — every statement is
-`CREATE … IF NOT EXISTS`, so re-opening an existing database is a no-op. There is **no
-migration layer**: this is a greenfield project with no deployed databases to upgrade, so the
-final schema lives in the DDL from the start. (A self-reference column, `documents.source_document_id`,
-was briefly added at runtime during development; it has since been folded into the base DDL and
-the runtime `ALTER` removed.) If a post-release schema change ever becomes necessary, the
-right tool is a `PRAGMA user_version`-gated migration step, added then — not before.
+The runtime schema is exactly [sqlite_schema.sql](../database/sqlite_schema.sql).
+`open_db()` (`base/domain/tools/db.py`) applies it verbatim on every connection. Every
+statement is `CREATE … IF NOT EXISTS`, so on an existing database the script creates only the
+tables and indexes that are missing, and changes nothing else. A table added to the schema
+later, such as `page_verifications`, therefore appears empty in an older database.
+
+There is **no migration layer**: no `ALTER TABLE` adds a column to an existing table. Before
+applying the schema, `_verify_schema` compares the columns of every existing table with the
+columns the schema declares:
+
+1. A table that lacks only `content_stemmed` (in `document_chunks` and `chunks_fts`) is an index
+   built before stemming. `_rebuild_stemmed_index` adds the column and rebuilds the full-text
+   index, with no model call (§4.1).
+2. Any other missing column raises `SchemaMismatchError`, which names the database and the
+   missing columns. Without this check the mismatch would surface later as a raw
+   `sqlite3.OperationalError`.
+
+If a schema change ever needs to keep the data of a deployed database, the tool is a
+`PRAGMA user_version`-gated migration step.
 
 ---
 
@@ -82,6 +93,7 @@ erDiagram
         TEXT document_id FK
         INTEGER chunk_index
         TEXT content
+        TEXT content_stemmed
         INTEGER page
         INTEGER start_char
         INTEGER token_count
@@ -98,7 +110,32 @@ erDiagram
     }
 
     chunks_fts {
-        TEXT content
+        TEXT content_stemmed
+    }
+
+    page_verifications {
+        TEXT id PK
+        TEXT document_id FK
+        TEXT body_hash
+        TEXT source_hashes
+        TEXT verifier
+        TEXT model
+        TEXT verified_at
+        INTEGER sentences_checked
+        INTEGER pairs_compared
+        INTEGER pairs_possible
+    }
+
+    verification_sentences {
+        TEXT id PK
+        TEXT verification_id FK
+        INTEGER position
+        INTEGER start_char
+        INTEGER end_char
+        TEXT sentence
+        REAL probability
+        TEXT best_source
+        TEXT best_excerpt
     }
 
     documents ||--o{ document_pages : "has"
@@ -106,6 +143,8 @@ erDiagram
     documents ||--o{ document_references : "cites / links (source)"
     documents ||--o{ document_references : "cites / links (target)"
     documents ||--o{ documents : "derived page → source (summary)"
+    documents ||--o| page_verifications : "last verification"
+    page_verifications ||--o{ verification_sentences : "checked sentences"
     document_chunks ||--|| chunks_fts : "automatically synced to"
 ```
 
@@ -181,7 +220,8 @@ Stores smaller, semantic fragments (chunks) of documents. They back the **FTS5 k
 | `id` | `TEXT` | `PRIMARY KEY` | `(lower(hex(randomblob(16))))` | A custom 32-character hexadecimal UUID string. |
 | `document_id` | `TEXT` | `NOT NULL`, `FOREIGN KEY REFERENCES documents(id) ON DELETE CASCADE` | None | Links to the parent document. Cascade deleted if the document is deleted. |
 | `chunk_index` | `INTEGER` | `NOT NULL`, `UNIQUE(document_id, chunk_index)` | None | The order index of this chunk within the parent document (starts at `0`). |
-| `content` | `TEXT` | `NOT NULL` | None | The textual payload of the chunk. |
+| `content` | `TEXT` | `NOT NULL` | None | The textual payload of the chunk. The reader and the chat agent always receive this text. |
+| `content_stemmed` | `TEXT` | `NOT NULL` | `''` | The same text, stemmed with the Snowball stemmer of the wiki's language (`base/domain/text/stemming.py:stem_text`). Only the full-text index `chunks_fts` reads this column (§4.1). |
 | `page` | `INTEGER` | None | None | The page number from which this chunk originated (optional). |
 | `start_char` | `INTEGER` | None | None | Character offset from the beginning of the original document where this chunk starts. |
 | `token_count` | `INTEGER` | `NOT NULL` | None | Number of words or LLM tokens contained inside this chunk. |
@@ -203,10 +243,49 @@ Represents the directed graph of linkages and citations between workspace docume
 
 ---
 
+### 3.6. `page_verifications`
+The last sentence-level verification of a wiki page against the text of its sources (`base/domain/verify/store.py`). One row per page: a new verification replaces the previous one. Derived state: it is not rebuilt from disk, but verifying the page again gives the same rows with the same verifier. A database created before this table gets it, empty, when it opens (`CREATE TABLE IF NOT EXISTS`).
+
+| Column | Data Type | Key / Constraints | Default Value | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | `(lower(hex(randomblob(16))))` | A custom 32-character hexadecimal UUID string. |
+| `document_id` | `TEXT` | `NOT NULL`, `UNIQUE`, `FOREIGN KEY REFERENCES documents(id) ON DELETE CASCADE` | None | The verified wiki page. Deleting the page deletes its verification. |
+| `body_hash` | `TEXT` | `NOT NULL` | None | SHA-256 of the page body without its front-matter, as it was verified. |
+| `source_hashes` | `TEXT` | `NOT NULL` | `'{}'` | JSON object: relative path of each context source → SHA-256 of the text used as context. |
+| `verifier` | `TEXT` | `NOT NULL` | None | Name of the verifier: `nli:<model>` for the local NLI verifier (`base/domain/verify/nli.py`), `fake` for the verifier of the tests. |
+| `model` | `TEXT` | `NOT NULL` | `''` | Model of the verifier, when it has one. |
+| `verified_at` | `TEXT` | `NOT NULL` | `(datetime('now'))` | UTC timestamp of the verification. |
+| `sentences_checked` | `INTEGER` | `NOT NULL` | `0` | Number of sentences checked. |
+| `pairs_compared` | `INTEGER` | `NOT NULL` | `0` | Pairs (passage, sentence) sent to the verifier, after the pre-selection of passages. |
+| `pairs_possible` | `INTEGER` | `NOT NULL` | `0` | Pairs a comparison of every sentence with every passage would have sent. |
+
+There is no column for the number of supported sentences: it depends on `[verify] threshold`, which is read when the page is shown.
+
+A write of the page through `create_page` or `write_page_content` deletes its row in the same transaction. A page changed outside the application is detected when it is shown: the hash of the body, or of a context source, differs from the stored one.
+
+---
+
+### 3.7. `verification_sentences`
+Every sentence checked in the verification of a page, supported or not.
+
+| Column | Data Type | Key / Constraints | Default Value | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | `(lower(hex(randomblob(16))))` | A custom 32-character hexadecimal UUID string. |
+| `verification_id` | `TEXT` | `NOT NULL`, `FOREIGN KEY REFERENCES page_verifications(id) ON DELETE CASCADE` | None | The verification the sentence belongs to. |
+| `position` | `INTEGER` | `NOT NULL`, `UNIQUE(verification_id, position)` | None | Order of the sentence in the page body, from 0. |
+| `start_char` | `INTEGER` | `NOT NULL` | None | Offset in the page body where the sentence starts. |
+| `end_char` | `INTEGER` | `NOT NULL` | None | Offset in the page body where the sentence ends (exclusive). |
+| `sentence` | `TEXT` | `NOT NULL` | None | The sentence, as in `body[start_char:end_char]`. |
+| `probability` | `REAL` | `NOT NULL` | None | Entailment probability of the best passage, from 0 to 1. A sentence is supported when it reaches the threshold in force. |
+| `best_source` | `TEXT` | None | None | Source of the best passage (relative path). `NULL` when no passage was compared. |
+| `best_excerpt` | `TEXT` | None | None | An excerpt of the best passage. |
+
+---
+
 ## 4. Derived & Virtual Tables (FTS5)
 
 ### 4.1. `chunks_fts` (FTS5 Virtual Table)
-`chunks_fts` is an **FTS5 Virtual Table**. Unlike regular SQLite tables, a virtual table is managed by an extension module (FTS5 in this case) and is used to provide ultra-fast, Google-like text search over chunk contents.
+`chunks_fts` is an **FTS5 Virtual Table**. Unlike regular SQLite tables, a virtual table is managed by an extension module (FTS5 in this case) and is provides the BM25 keyword search over the stemmed text of the chunks.
 
 ```sql
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
@@ -236,7 +315,7 @@ Because `chunks_fts` uses an external content configuration, SQLite does not aut
 Fires automatically whenever a new semantic chunk is inserted into `document_chunks`.
 ```sql
 CREATE TRIGGER IF NOT EXISTS chunks_fts_insert AFTER INSERT ON document_chunks BEGIN
-    INSERT INTO chunks_fts(rowid, content) VALUES (new.rowid, new.content);
+    INSERT INTO chunks_fts(rowid, content_stemmed) VALUES (new.rowid, new.content_stemmed);
 END;
 ```
 
@@ -244,18 +323,18 @@ END;
 Fires automatically when a chunk is deleted (including cascade deletes triggered by deleting a parent document).
 ```sql
 CREATE TRIGGER IF NOT EXISTS chunks_fts_delete AFTER DELETE ON document_chunks BEGIN
-    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+    INSERT INTO chunks_fts(chunks_fts, rowid, content_stemmed) VALUES('delete', old.rowid, old.content_stemmed);
 END;
 ```
 
 ### 5.3. `chunks_fts_update`
-Fires automatically when the text content of a chunk is modified. It handles this in two distinct steps within the transaction:
+Fires automatically when a chunk row is updated. It handles this in two distinct steps within the transaction:
 1. Deletes the old index token mapping.
 2. Inserts the newly updated content token mapping.
 ```sql
 CREATE TRIGGER IF NOT EXISTS chunks_fts_update AFTER UPDATE ON document_chunks BEGIN
-    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.rowid, old.content);
-    INSERT INTO chunks_fts(rowid, content) VALUES (new.rowid, new.content);
+    INSERT INTO chunks_fts(chunks_fts, rowid, content_stemmed) VALUES('delete', old.rowid, old.content_stemmed);
+    INSERT INTO chunks_fts(rowid, content_stemmed) VALUES (new.rowid, new.content_stemmed);
 END;
 ```
 
@@ -275,3 +354,4 @@ Speed indexes allow the SQLite engine to locate records in $O(\log N)$ logarithm
 | `idx_refs_source` | `document_references`| `source_document_id`| Optimizes graph traversal for finding outbound links (what documents does *this* document cite?). |
 | `idx_refs_target` | `document_references`| `target_document_id`| Optimizes graph traversal for finding inbound links/backlinks (what documents cite *this* document?). |
 | `idx_documents_source_doc` | `documents` | `source_document_id` | Optimizes backlinks from derived wiki pages to their origin document (e.g. summary → source). |
+| `idx_verification_sentences_verification` | `verification_sentences` | `verification_id` | Optimizes reading the sentences of a verification. |

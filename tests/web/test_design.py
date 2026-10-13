@@ -47,6 +47,7 @@ PAIRS = [
     ("color-on-attention", "color-attention"), ("color-on-attention-soft", "color-attention"),
     ("color-danger", "color-bg"), ("color-danger", "color-surface"), ("color-danger", "color-attention"),
     ("color-on-danger", "color-danger"),
+    ("color-text", "color-flag-soft"), ("color-flag", "color-surface"),
     ("color-bg", "color-text"),   # the tooltip
 ]
 
@@ -54,6 +55,11 @@ PAIRS = [
 @pytest.mark.parametrize("foreground, background", PAIRS)
 def test_every_text_pair_meets_wcag_aa(foreground, background):
     assert contrast(foreground, background) >= 4.5, (foreground, background, contrast(foreground, background))
+
+
+def test_the_underline_of_an_unsupported_sentence_meets_the_non_text_contrast_of_3_to_1():
+    assert contrast("color-flag", "color-flag-soft") >= 3
+    assert contrast("color-flag", "color-bg") >= 3
 
 
 def test_the_border_that_marks_a_control_meets_the_non_text_contrast_of_3_to_1():

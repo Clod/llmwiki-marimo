@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Audit of the conversation") }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/audit.css">
+<script src="/static/js/mermaid.min.js" defer></script>
+<script src="/static/js/audit-diagram.js" defer></script>{% endblock %}
+{% block body %}
+<main class="container audit audit-columns" data-selected="{{ selected }}">
+  <div class="audit-left" id="audit-left">
+  <header>
+    <h1>{{ _("Audit of the conversation") }}</h1>
+    <p class="lede"><span class="mono">{{ wiki_id }}</span>{% for label in mode_labels %} · {{ _(label) }}{% endfor %}</p>
+  </header>
+
+  <nav class="audit-index" aria-label="{{ _('Sections of this page') }}">
+    <ul>
+      <li><a href="#resumen">{{ _("Summary of the conversation") }}</a></li>
+      {% for t in turns %}
+      <li>
+        <a href="#t{{ t.n }}">{{ _("Turn %(n)s", n=t.n) }} · {{ t.question }}</a>
+        <ul>
+          <li><a href="#t{{ t.n }}-criterio">{{ _("Criterion") }}</a></li>
+          <li><a href="#t{{ t.n }}-wiki">{{ _("What the wiki found (%(n)s)", n=t.passages|length) }}</a></li>
+          <li><a href="#t{{ t.n }}-modelo">{{ _("Unverified answer of the model") }}</a></li>
+        </ul>
+      </li>
+      {% endfor %}
+    </ul>
+  </nav>
+
+  <section class="panel audit-section" id="resumen" aria-labelledby="h-resumen">
+    <div class="panel-head"><h2 id="h-resumen">{{ _("Summary of the conversation") }}</h2></div>
+    <div class="panel-body">
+      <ol class="audit-turns">
+        {% for t in turns %}
+        <li>
+          <dl class="audit-head">
+            <dt>{{ _("Question") }}</dt><dd><a href="#t{{ t.n }}-criterio">{{ t.question }}</a></dd>
+            <dt>{{ _("Answer shown") }}</dt><dd class="audit-text">{{ t.answer }}</dd>
+          </dl>
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+  </section>
+
+  {% for t in turns %}
+  <section class="audit-turn" id="t{{ t.n }}" aria-labelledby="h-t{{ t.n }}">
+    <h2 id="h-t{{ t.n }}">{{ _("Turn %(n)s", n=t.n) }} · {{ t.question }}</h2>
+    <button type="button" class="btn btn-sm audit-select" data-turn="{{ t.n }}" hx-get="/w/{{ wiki_id }}/audit/{{ conversation_id }}/diagram/{{ t.n }}" hx-target="#audit-diagrams" hx-swap="innerHTML" title="{{ _('Highlight the path of this turn in the diagrams') }}">{{ _("Show in the diagram") }}</button>
+
+    <section class="panel audit-section" id="t{{ t.n }}-criterio" aria-labelledby="h-t{{ t.n }}-criterio">
+      <div class="panel-head"><h3 id="h-t{{ t.n }}-criterio">{{ _("Criterion") }}</h3></div>
+      <div class="panel-body">
+        <p class="audit-tokens">{{ _("Tokens of the turn: input %(input)s · output %(output)s · total %(total)s", input=t.tokens.input, output=t.tokens.output, total=t.tokens.total) }}</p>
+        {% if t.nodes %}
+        <p class="audit-path mono">{{ t.path }}</p>
+        <ol class="audit-nodes">
+          {% for node in t.nodes %}
+          <li class="audit-node">
+            <h4><span class="mono">{{ node.id }}</span>{% if node.text %} · {{ node.text }}{% endif %}</h4>
+            {% if node.attributes or node.stemmed or node.topics is not none %}
+            <dl>
+              {% if node.stemmed %}<dt>{{ _("question reduced to stems") }}</dt><dd class="mono">{{ node.stemmed }}</dd>{% endif %}
+              {% for name, value in node.attributes %}<dt class="mono">{{ name }}</dt><dd>{{ value }}</dd>{% endfor %}
+              {% if node.topics is not none %}<dt>{{ _("topics of the wiki the question can name") }}</dt><dd>{% if node.topics %}{{ node.topics|join(", ") }}{% else %}{{ _("The wiki has no topic yet.") }}{% endif %}</dd>{% endif %}
+            </dl>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}<p class="empty-row">{{ _("No path was recorded for this answer.") }}</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="panel audit-section" id="t{{ t.n }}-wiki" aria-labelledby="h-t{{ t.n }}-wiki">
+      <div class="panel-head"><h3 id="h-t{{ t.n }}-wiki">{{ _("What the wiki found (%(n)s)", n=t.passages|length) }}</h3></div>
+      <div class="panel-body">
+        {% if t.passages %}
+        <ul class="audit-summary">
+          {% for p in t.passages %}
+          <li>{% if p.link %}<a class="mono" href="{{ p.link }}">{{ p.page }}</a>{% else %}<span class="mono">{{ p.page }}</span>{% endif %} — <a href="#t{{ t.n }}-frag-{{ loop.index }}">{{ p.summary }}</a></li>
+          {% endfor %}
+        </ul>
+        {% for p in t.passages %}
+        <article class="audit-passage" id="t{{ t.n }}-frag-{{ loop.index }}" aria-labelledby="t{{ t.n }}-frag-{{ loop.index }}-title">
+          <h4 id="t{{ t.n }}-frag-{{ loop.index }}-title" class="mono">{{ loop.index }}. {{ p.page }}</h4>
+          <pre>{{ p.text }}</pre>
+        </article>
+        {% endfor %}
+        {% else %}<p class="empty-row">{{ _("No passage was retrieved: the refusal was decided before the model was consulted.") }}</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="panel audit-section" id="t{{ t.n }}-modelo" aria-labelledby="h-t{{ t.n }}-modelo">
+      <div class="panel-head"><h3 id="h-t{{ t.n }}-modelo">{{ _("Unverified answer of the model") }}</h3></div>
+      <div class="panel-body">
+        {% if t.raw_answer %}
+        <p class="audit-warning" role="note">{{ _("This text is not verified: the code replaced it because it could not back it with the wiki.") }}</p>
+        <pre>{{ t.raw_answer }}</pre>
+        {% else %}<p class="empty-row">{{ _("The code did not change the answer of the model.") }}</p>{% endif %}
+      </div>
+    </section>
+  </section>
+  {% endfor %}
+  </div>
+  <aside class="audit-right" id="audit-diagrams" aria-label="{{ _('Diagrams of the query') }}">
+    {% include "_audit_diagrams.html" %}
+  </aside>
+</main>
+{% endblock %}

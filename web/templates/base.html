@@ -27,6 +27,7 @@
       <a href="/w/{{ wiki_id }}/relations" {% if section == 'relations' %}aria-current="page"{% endif %} title="{{ _('See the graph of relations between the pages and the sources of the wiki') }}">{{ pgettext("tab", "Relations") }}</a>
       <a href="/w/{{ wiki_id }}/vocabulary" {% if section == 'vocabulary' %}aria-current="page"{% endif %} title="{{ _('See and edit the names the wiki covers, their aliases and the blacklist') }}">{{ _("Vocabulary") }}</a>
       <a href="/w/{{ wiki_id }}/history" {% if section == 'history' %}aria-current="page"{% endif %} title="{{ _('See the points of the wiki and go back to an earlier one') }}">{{ _("History") }}</a>
+      <a href="/w/{{ wiki_id }}/settings" {% if section == 'settings' %}aria-current="page"{% endif %} title="{{ _('See and edit the settings of the wiki: the assistant, the pre-retrieval and the verification') }}">{{ _("Settings") }}</a>
     </nav>
     {% else %}<span class="bar-crumb">/ wikis</span>{% endif %}
     <div class="bar-right">{% block bar_right %}{% endblock %}

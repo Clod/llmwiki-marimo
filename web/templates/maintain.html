@@ -23,10 +23,25 @@
           <button class="btn task-action" type="button" aria-controls="confirm-regen" title="{{ _('Regenerate the summary pages of all the sources; asks for confirmation') }}" onclick="toggle('confirm-regen', true)">{{ _("Regenerate summary pages") }}</button>
           <div class="confirm" id="confirm-regen" hidden>
             <p>{% trans count=sources|length %}Regenerate the {{ count }} summary page? The page is rewritten whole, and changes made by hand to it are lost.{% pluralize %}Regenerate the {{ count }} summary pages? Each page is rewritten whole, and changes made by hand to those pages are lost.{% endtrans %}</p>
+            <label class="check" {% if verifier_available %}title="{{ _('When done, checks each sentence of the regenerated pages against the text of their source. The text of the pages does not change.') }}"{% else %}title="{{ _('The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group verify)') }}"{% endif %}><input type="checkbox" name="verify" id="verify-regen" value="true"{% if not verifier_available %} disabled{% endif %}>{{ _("Verify the generated pages") }}</label>
             <div class="actions">
-              <button class="btn btn-danger" title="{{ _('Start the regeneration; progress appears in the console') }}" hx-post="/w/{{ wiki_id }}/regenerate" hx-target="#progress" hx-swap="innerHTML"
+              <button class="btn btn-danger" title="{{ _('Start the regeneration; progress appears in the console') }}" hx-post="/w/{{ wiki_id }}/regenerate" hx-include="#verify-regen" hx-target="#progress" hx-swap="innerHTML"
                       onclick="toggle('confirm-regen', false)">{{ _("Regenerate") }}</button>
               <button class="btn cancel" type="button" title="{{ _('Close without regenerating') }}" onclick="toggle('confirm-regen', false)">{{ _("Cancel") }}</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="task panel panel-body">
+          <h2 class="card-title">{{ _("Verify pages") }}</h2>
+          <p class="task-text">{{ _("Checks each sentence of each page against the text of its sources. It uses no ingestion model, only the local verifier, and changes the text of no page.") }}</p>
+          <button class="btn task-action" type="button" aria-controls="confirm-verify" {% if verifier_available %}title="{{ _('Verify every page that has sources; asks for confirmation') }}" onclick="toggle('confirm-verify', true)"{% else %}disabled title="{{ _('The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group verify)') }}"{% endif %}>{{ _("Verify all pages") }}</button>
+          <div class="confirm" id="confirm-verify" hidden>
+            <p>{% trans count=verifiable %}Verify the {{ count }} page that has sources? It replaces its previous verification.{% pluralize %}Verify the {{ count }} pages that have sources? Each page replaces its previous verification. On a large wiki it can take several minutes.{% endtrans %}</p>
+            <div class="actions">
+              <button class="btn btn-danger" title="{{ _('Start the verification; progress appears in the console') }}" hx-post="/w/{{ wiki_id }}/verify-all" hx-target="#progress" hx-swap="innerHTML"
+                      onclick="toggle('confirm-verify', false)">{{ _("Verify") }}</button>
+              <button class="btn cancel" type="button" title="{{ _('Close without verifying') }}" onclick="toggle('confirm-verify', false)">{{ _("Cancel") }}</button>
             </div>
           </div>
         </section>
@@ -37,8 +52,9 @@
           <button class="btn task-action" type="button" aria-controls="confirm-lint" title="{{ _('Review and repair the whole wiki; asks for confirmation') }}" onclick="toggle('confirm-lint', true)">{{ _("Run Wiki Lint & Repair") }}</button>
           <div class="confirm" id="confirm-lint" hidden>
             <p>{{ _("Review and repair every page of the wiki? The repair can rewrite and delete pages.") }}</p>
+            <label class="check" {% if verifier_available %}title="{{ _('When done, checks each sentence of the pages the repairs wrote with the model against the text of their sources. The text of the pages does not change.') }}"{% else %}title="{{ _('The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group verify)') }}"{% endif %}><input type="checkbox" name="verify" id="verify-lint" value="true"{% if not verifier_available %} disabled{% endif %}>{{ _("Verify the generated pages") }}</label>
             <div class="actions">
-              <button class="btn btn-danger" title="{{ _('Start the review; progress appears in the console') }}" hx-post="/w/{{ wiki_id }}/lint" hx-target="#progress" hx-swap="innerHTML"
+              <button class="btn btn-danger" title="{{ _('Start the review; progress appears in the console') }}" hx-post="/w/{{ wiki_id }}/lint" hx-include="#verify-lint" hx-target="#progress" hx-swap="innerHTML"
                       onclick="toggle('confirm-lint', false)">{{ _("Review and repair") }}</button>
               <button class="btn cancel" type="button" title="{{ _('Close without reviewing') }}" onclick="toggle('confirm-lint', false)">{{ _("Cancel") }}</button>
             </div>

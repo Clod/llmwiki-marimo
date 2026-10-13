@@ -147,3 +147,10 @@ def test_strip_ignores_refusal_substring_that_is_not_exact() -> None:
         _ChatMsg("assistant", f"{REFUSAL_ES} Pero puedo ayudarte con plazo fijo. Fuente: [x.md]"),
     ]
     assert _contents(strip_refused_exchanges(msgs)) == _contents(msgs)
+
+
+def test_strip_still_removes_the_old_guardrail_refusal():
+    """A conversation stored before the guardrail text changed holds the old phrase."""
+    msgs = [_ChatMsg("user", "¿quinoto?"), _ChatMsg("assistant", "Eso no está en mi base de conocimiento."),
+            _ChatMsg("user", "¿plazo fijo?")]
+    assert [m.content for m in strip_refused_exchanges(msgs)] == ["¿plazo fijo?"]

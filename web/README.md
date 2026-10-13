@@ -43,16 +43,80 @@ The `.env` file at the repository root is read as in the marimo apps.
 | `i18n_extract.py` | Extracts the message ids of `web/` and updates the catalogs: `uv run --group web python -m web.i18n_extract`. |
 | `locale/` | `messages.pot` and `<lang>/LC_MESSAGES/messages.po`: one catalog per language except English, the source. |
 | `routes/lang.py` | `POST /lang`: sets the `ui_lang` cookie and returns to the page the switch was on. |
-| `routes/picker.py` | The wiki picker. |
-| `routes/pages.py` | View, edit and delete a page; the live preview of the editor (`POST /w/{wiki_id}/preview/{page}`, rendered by `render.py`, nothing saved); the source documents at `/w/{wiki_id}/view/{filename}`. |
-| `routes/chat.py` | A chat turn over SSE, the thread of a conversation, clear, and the two steps of saving: the draft (`/chat/draft`, which opens the review dialog), the preview, and the write of the page the user approved (`/chat/save`). |
-| `routes/ingest.py` | The ingestion screen and its operations, streamed over SSE: ingest, scan, regenerate, lint and repair, rebuild the index (`services.wiki.reindex`, no model call), delete stale pages and sources. |
+| `routes/picker.py` | The wiki picker and its folder browser. Creating a wiki in the browser asks its language (`language` of `POST /open`); `services.wiki.open_wiki` writes only `[wiki] language` into the new wiki's `wiki_config.toml`. |
+| `routes/pages.py` | View, edit, verify (`POST /w/{wiki_id}/verify/{page}`) and delete a page; the live preview of the editor (`POST /w/{wiki_id}/preview/{page}`, rendered by `render.py`, nothing saved); the source documents at `/w/{wiki_id}/view/{filename}`. |
+| `routes/chat.py` | A chat turn over SSE (the line under each answer, `templates/_chat_meta.html`, gives the mode, the cited pages and the tokens of the turn and of the conversation), the thread of a conversation, clear, and the two steps of saving: the draft (`/chat/draft`, which opens the review dialog), the preview, the verification of the draft (`/chat/verify-draft`), and the write of the page the user approved (`/chat/save`). |
+| `routes/audit.py` | The audit page of a conversation (`/w/{wiki_id}/audit/{conversation_id}`): its index, the summary and, for each answer, the criterion (the path of the question through the nodes), the passages the wiki gave the model and the text of the model. The buttons Criterio, Fuentes and Respuesta of the reading screen open it at the last answer (`templates/_audit_buttons.html`). The page has two columns that scroll apart: on the right, the Mermaid diagrams of `docs/query_nodes.md` (read at run time by `audit_diagram.py`; section 1 and the one of the mode of the selected turn), with the nodes of the turn highlighted. Selecting a turn replaces them (`static/js/audit-diagram.js`). |
+| `routes/ingest.py` | Two screens and their operations, streamed over SSE. Ingestar (`/w/{wiki_id}/ingest`): ingest, scan the `sources/` folder, delete a source. Mantener (`/w/{wiki_id}/maintain`): regenerate, verify every page (`/verify-all`), lint and repair, rebuild the index (`services.wiki.reindex`, no model call), delete stale pages. `GET /w/{wiki_id}/sources` returns the sources panel alone, which Ingestar asks for again when an operation ends. |
 | `routes/history.py` | The history of the wiki and of each page: the list of commits, the revert as a streamed operation, the version of a page at a commit and its comparison with the current one. |
 | `routes/relations.py` | The relations screen and the graph it draws (`relations.json`). |
+| `routes/settings.py` | The Settings screen (`/w/{wiki_id}/settings`): the scalar keys of `wiki_config.toml` (`[assistant]`, `[pre_retrieval]`, `[verify]`), read with their defaults and saved through `services.settings` (one commit of the wiki). `[wiki] language` is shown read only. A save drops the cached agents of the wiki (`AppState.reset_agents`), as every change of the vocabulary does. |
 | `routes/vocabulary.py` | The Vocabulary screen: the roster, the aliases, the rejected aliases and the blacklist of a wiki (`services.vocabulary`), and one route per change (`POST …/vocabulary/{op}`). |
 | `render.py` | `render_markdown`: markdown to HTML with every internal reference rewritten to an application URL. No FastAPI import. |
 | `templates/` | The Jinja2 templates. |
-| `static/` | The CSS (design B, blue and yellow: every colour, size and spacing step is a custom property of `css/tokens.css`; `tests/web/test_design.py` checks the contrast) and the JavaScript, including `htmx.min.js` (htmx 2.0.4) and `htmx-ext-sse.js` (htmx-ext-sse 2.2.2). The Geist and Geist Mono stylesheet loads from Google Fonts; the page works without it, in the fallback fonts. |
+| `static/` | The CSS (design B, blue and yellow: every colour, size and spacing step is a custom property of `css/tokens.css`; `tests/web/test_design.py` checks the contrast) and the JavaScript, including `htmx.min.js` (htmx 2.0.4) and `htmx-ext-sse.js` (htmx-ext-sse 2.2.2) and `mermaid.min.js` (Mermaid 12.1.0, MIT; see `NOTICE`). The Geist and Geist Mono stylesheet loads from Google Fonts; the page works without it, in the fallback fonts. |
+
+## Sentence verification
+
+The checkbox "Verificar las oraciones" sits under the mode selector. It is valid
+in "Recuperación previa" and "Estricto", and its state is kept in `localStorage`
+(`llmwiki.verify`). It is disabled in "Sin verificación" and when the local
+verifier is not installed; each tooltip says why (`static/js/reader.js`).
+
+With the box checked, the answer streams as before. Then
+`routes/chat.py:chat_stream` calls `services.chat.chat_turn_with_context`,
+verifies each sentence of the answer against the passages the model read
+(`domain/verify/`, in a thread), and sends one more SSE event, `verification`,
+before `done`. The event replaces the answer bubble with the same answer, each
+unsupported sentence wrapped in `<mark class="unsupported">`, and a summary line
+("N de M oraciones sin respaldo"). When the verification fails, the bubble keeps
+the answer and the line says "No se pudo verificar". The stored answer never
+changes.
+
+The verifier is the local NLI model (`uv sync --group verify`, or
+`python3 quickstart.py --with-verifier`; see `CONTRIBUTING.md`). The threshold is
+`[verify] threshold` in `wiki_config.toml`. `create_app(..., verifier=...)` takes
+another verifier, as the tests do with `FakeVerifier`.
+
+## Page verification
+
+The pages of the wiki are verified against their sources with the same core and
+verifier (`domain/verify/page.py`, `services/verification.py`). The text of a
+page never changes.
+
+| Where | What |
+|---|---|
+| Ingestar | The checkbox "Verificar las páginas generadas" in the upload form and in "Escanear sources/". Each page the operation wrote is verified at the end; the console prints "✔ concepts/x: 20 oraciones, 1 sin respaldo". |
+| Mantener | The same checkbox in "Regenerar las páginas de resumen" and in the lint and repair; and the task "Verificar todas las páginas": a streamed operation under the wiki's lock, with an in-page confirmation that states the number of pages that have sources. |
+| Reading screen | The action "Verificar" next to "Editar" (`routes/pages.py:verify`, which runs under the lock and redirects back). |
+| Review dialog of a saved conversation | "Verificar el borrador" (`/chat/verify-draft`): the sentences of the draft that no passage the model read supports. Nothing is written. |
+
+All the entry points are disabled, with a tooltip that says how to install it,
+when the local verifier is not installed.
+
+When a page opens, the server reads its last verification and compares the hash
+of the page body and the hashes of the context sources with the stored ones:
+
+| State | What the page shows |
+|---|---|
+| No verification | "Sin verificar". |
+| Hashes differ | "Verificación desactualizada", no highlights. |
+| Hashes match | A line "N de M oraciones sin respaldo". Each sentence below `[verify] threshold` is wrapped in `<mark class="unsupported">` with the tooltip "Ninguna de las fuentes de esta página respalda esta oración"; each sentence at or above it, in `<span class="supported">` with "Respaldada por <fuente>". |
+| No sources | "Sin fuentes para verificar". |
+
+The marks are placed by the stored offsets on the page body
+(`render.py:render_page_verified`). A sentence is marked per line, outside the
+markup that opens a block, and a table row cell by cell, so links, lists and
+tables keep working. The threshold is read when the page is shown, so changing
+it reclassifies the stored sentences without verifying again.
+
+## Reading panels
+
+Two separators in the reading page change the width of the index and of the chat
+(`static/js/panels.js`): drag, arrow keys (16 px, Shift 64 px) or double click to
+restore the default. Minimums: index 160 px, chat 280 px, page 360 px. The widths
+are kept in `localStorage` (`llmwiki.indexW`, `llmwiki.chatW`) and applied by an
+inline script of the head. Under 1100 px there are no separators.
 
 ## State
 
@@ -146,3 +210,8 @@ cannot start a browser (`uv run playwright install chromium`).
   authentication: keep it on `localhost`, for one user.
 - The progress lines of the ingestion come from `base/domain/` and are in English
   on both interface languages.
+- The marks of a verified answer are not stored: reloading the page or opening
+  the thread again shows the answer without them. The marks of a verified page
+  are: they come from the stored verification.
+- The first verification of a run loads the NLI model (several seconds on the
+  CPU); the answer is already on the screen by then.

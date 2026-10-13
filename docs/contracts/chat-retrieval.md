@@ -144,6 +144,10 @@ concept-citation check false-failed a correctly cited answer. Tests:
 
 ## 3. Pre-retrieval plan order — both tiers gated on the roster
 
+The nodes of the plan (Q7 to Q12) and of the whole pre-retrieval turn are in
+`docs/query_nodes.md`, section 2; `tests/unit/test_flow_nodes.py` keeps that
+document and the tracing calls of the code in step.
+
 **Contract.** `domain.chat.preretrieval.plan_retrieval(question, *, off_limits,
 wiki_hits, doc_hits, has_data, in_roster, collection_hits=[])` decides in this
 order:

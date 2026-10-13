@@ -17,7 +17,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from domain.tools.wiki_fs import create_page
+from pydantic_ai import AgentRunResultEvent
+from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, TextPart, TextPartDelta
 from pydantic_ai.messages import ModelRequest, ToolReturnPart
+from pydantic_ai.usage import RunUsage
 
 from services import chat
 from services.wiki import open_wiki, save_page
@@ -40,6 +43,7 @@ class FakeAgent:
 
     def __init__(self, output) -> None:
         self.output = output
+        self.tokens = (0, 0)   # (input, output) tokens that each run reports; a test sets it
         self.prompts: list[str] = []
 
     def _messages(self) -> list:
@@ -49,12 +53,16 @@ class FakeAgent:
                               tool_call_id="call-1")
         return [ModelRequest(parts=[part])]
 
+    def _usage(self):
+        return lambda: RunUsage(input_tokens=self.tokens[0], output_tokens=self.tokens[1])
+
     def _text(self, prompt: str) -> str:
         return self.output(prompt) if callable(self.output) else self.output
 
     async def run(self, prompt, deps, message_history):
         self.prompts.append(prompt)
-        return SimpleNamespace(output=self._text(prompt), all_messages=self._messages)
+        return SimpleNamespace(output=self._text(prompt), all_messages=self._messages,
+                               usage=self._usage())
 
     @asynccontextmanager
     async def run_stream(self, prompt, deps, message_history):
@@ -68,6 +76,24 @@ class FakeAgent:
             yield text[half:]
 
         yield SimpleNamespace(stream_text=stream_text)
+
+    @asynccontextmanager
+    async def run_stream_events(self, prompt, deps, message_history):
+        """The events of a streamed run, as `chat_turn_stream_with_context` reads them:
+        the text in two chunks, then the result of the run."""
+        self.prompts.append(prompt)
+        text = self._text(prompt)
+        half = len(text) // 2
+        messages = self._messages
+
+        async def events():
+            yield PartStartEvent(index=0, part=TextPart(text[:half]))
+            await asyncio.sleep(self.delay)
+            yield PartDeltaEvent(index=0, delta=TextPartDelta(text[half:]))
+            yield AgentRunResultEvent(SimpleNamespace(output=text, all_messages=messages,
+                                                      usage=self._usage()))
+
+        yield events()
 
 
 def fake_agents(output, language: str = "en") -> chat.ChatAgents:

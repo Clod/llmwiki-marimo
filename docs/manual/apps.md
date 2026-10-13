@@ -32,8 +32,9 @@ separate change removes them, and this manual does not describe them.
 The application listens on `localhost` and has no authentication: it is for one user
 on one machine. The interface is in English and in Spanish (the **EN | ES** switch at the right of
 the header; §7.11); the labels quoted below are the English ones, the message ids of the templates. Every screen of a wiki has the same
-header: the name of the project (a link to the picker), the wiki selector, and six
-tabs, **Read**, **Ingest**, **Maintain**, **Relations**, **Vocabulary** and **History**.
+header: the name of the project (a link to the picker), the wiki selector, and seven
+tabs, **Read**, **Ingest**, **Maintain**, **Relations**, **Vocabulary**, **History** and
+**Settings** (§7.12).
 
 ### 7.1 Wiki picker
 
@@ -58,8 +59,12 @@ leading dot, or one that exists, is refused). **Open this folder** posts to
 (`picker.check_folder`), adds it to the recent list and opens the wiki; a refused path
 returns to the picker. A folder that holds no wiki yet (no `wiki/` nor `.llmwiki/`)
 shows **Create a wiki here…** instead: a confirmation in the dialog says what is created
-(`wiki/`, `sources/`, `.llmwiki/` and a git repository), and only **Create the wiki**
-posts `create=true`. Without it, `POST /open` creates nothing in a plain folder and
+(`wiki/`, `sources/`, `.llmwiki/` and a git repository) and asks the language of the wiki,
+**Wiki language** (English or Español; the language of the interface is preselected).
+Only **Create the wiki** posts `create=true` and `language`; `open_wiki(path, language=…)`
+(`base/services/wiki.py`) writes `wiki_config.toml` with only `[wiki] language` when it
+creates the wiki, and never writes on an existing one. An unsupported `language` is
+ignored, and the wiki is English. Without it, `POST /open` creates nothing in a plain folder and
 does not list it. `GET /w/{wiki_id}/` opens a
 wiki on its `overview` page, or on its first page, and a wiki without pages on Ingest.
 
@@ -82,19 +87,24 @@ creates nothing on disk, and a wiki without an index shows no counts.
 
 Routes: `web/routes/pages.py` and `web/routes/chat.py`. The screen has three panels:
 the page index, the open page and the conversation. The buttons **Index** and **Chat**
-in the header show or hide the index and the conversation.
+in the header show or hide the index and the conversation. Above 1100 px of width, two
+vertical separators between the panels change the width of the index and of the
+conversation, with the mouse or with the arrow keys (`web/static/js/panels.js`); the
+browser keeps the widths chosen (`localStorage`, keys `llmwiki.indexW` and
+`llmwiki.chatW`).
 
 | Route | What it does |
 | --- | --- |
-| `GET /w/{wiki_id}/pages/{page}` | The page, rendered by `web/render.py`. The toolbar shows the path of the page and the actions **Edit**, **Relations**, **History** and **Delete**. |
+| `GET /w/{wiki_id}/pages/{page}` | The page, rendered by `web/render.py`. The toolbar shows the path of the page and the actions **Edit**, **Relations**, **Verify**, **History** and **Delete**. A verified page shows its sentences marked against its sources (`web/README.md`, "Verification of the pages"). |
+| `POST /w/{wiki_id}/verify/{page}` | **Verify**: checks each sentence of the page against the text of its sources with the local verifier, under the wiki's lock, and returns to the page. A busy wiki or a missing verifier is reported on the page. |
 | `GET /w/{wiki_id}/edit/{page}` | The editor: the Markdown at the left and a live preview at the right. The front-matter block is not edited. |
 | `POST /w/{wiki_id}/preview/{page}` | The preview of the editor; the textarea sends it 500 ms after the last input. It saves nothing. |
 | `POST /w/{wiki_id}/edit/{page}` | Saves the page as one commit. A page changed by someone else since it was opened is refused (`PageConflict`). |
 | `POST /w/{wiki_id}/delete/{page}` | Deletes the page. The fixed pages (`index`, `overview`, `log`) cannot be deleted. The button **Delete** asks first: "Delete the page “…”?"; the links to the page are removed, and the page stays in the git history. |
 | `GET /w/{wiki_id}/view/{filename}` | A source document: a PDF as it is, an office file as the PDF that ingestion converted it to, a `.txt` as text, a `.md` rendered read-only. A name outside `sources/` is a 404. |
 
-**The index.** Pages are grouped (Resúmenes, Conceptos, General) with a count per group,
-and a field "Buscar una página…" filters them by title.
+**The index.** Pages are grouped (Summaries, Concepts, General) with a count per group,
+and a field "Search for a page…" filters them by title.
 
 **The conversation.** `POST /w/{wiki_id}/chat` registers the question and returns the
 elements that open `GET /w/{wiki_id}/chat/{turn_id}/stream`, which streams the answer
@@ -106,7 +116,18 @@ over SSE. The selector **Mode** has three values (`web/deps.py:MODES`):
 | `strict` | Strict | The model consults the wiki with tools; if it did not, the answer is replaced by a refusal (§15.3). |
 | `streaming` | No verification | The answer appears as the model writes it. Code does not check that it comes from the wiki. |
 
-Under each answer, one line names the mode and links up to three cited pages. A
+Under each answer, one line names the mode, links up to three cited pages and gives the
+tokens: "N / M tokens", the tokens of the turn and of the whole conversation, with the
+input and output tokens of the turn in its tooltip.
+
+**The audit of the conversation.** Above the question field, three buttons refer to the
+last answer: **Criterion**, **Sources (N)** and **Model answer**. Each one opens, in a new
+tab, the audit page of the conversation (`GET /w/{wiki_id}/audit/{conversation_id}`,
+`web/routes/audit.py`) at that answer. The page holds an index of the turns, a summary
+and, for each answer, three sections: the criterion (the path of the question through
+the nodes of the system, with each decision), the passages the wiki gave the model, and
+the text of the model before the code replaced it. `GET …/audit/{conversation_id}/{n}`
+redirects to answer `n` in that page. A
 conversation belongs to one wiki; the browser keeps its id per wiki in `sessionStorage`,
 so the conversation survives navigation, the editor and a reload in the same tab
 (`GET /w/{wiki_id}/chat/{conversation_id}/thread`). A new tab starts a new
@@ -114,9 +135,12 @@ conversation. **Clear** (`POST /w/{wiki_id}/chat/clear`) forgets the messages.
 
 **Saving a conversation (§6.8).** **Save** asks for a title and its button
 **Save** calls `POST /w/{wiki_id}/chat/draft`: the model drafts one concept page for
-the whole conversation and the route returns the dialog "Revisar la página". Nothing is
-written yet. The dialog holds the Markdown for editing; **Vista previa** switches to the
-rendering (`POST /w/{wiki_id}/chat/preview`). **Save to wiki** calls
+the whole conversation and the route returns the dialog "Review the page". Nothing is
+written yet. The dialog holds the Markdown for editing; **Preview** switches to the
+rendering (`POST /w/{wiki_id}/chat/preview`). **Verify the draft**
+(`POST /w/{wiki_id}/chat/verify-draft`) marks the sentences of the draft, as it is in the
+editor, that no passage the model read during the conversation supports; nothing is
+written. **Save to wiki** calls
 `POST /w/{wiki_id}/chat/save`, which writes the text exactly as edited, as one commit
 (`services.chat.save_reviewed_page`). If a page with that title exists, the dialog
 warns that the save replaces it. The agent has no write tool: the save is the user's
@@ -131,21 +155,24 @@ documents" and "Folder sources/", the console "Progress" and the table "Sources"
 | --- | --- | --- |
 | File field and **Ingest** | `POST /w/{wiki_id}/ingest` | Saves the files to `sources/` and ingests them. The box "Full repair with the model, slower" adds the model-driven repair of the pages the ingestion touched. A file with an unsupported extension or an invalid name is refused with a line in the console. |
 | **Scan sources/ for changes** | `POST /w/{wiki_id}/scan` | Ingests the files of `sources/` that are new or changed since their last ingestion. |
+| Box "Verify the generated pages" | (with the two routes above) | When the ingestion ends, verifies each page it wrote against its sources. Disabled when the local verifier is not installed. |
 | **Delete** in a row of "Sources" | `POST /w/{wiki_id}/sources/{doc_id}/delete` | After a confirmation, deletes the source and its summary page as a streamed operation: the console shows each step (the summary page deleted, the pages marked stale, the file removed). The pages that cite it stay and are marked stale. The box "Also remove file from sources/" also removes the file; without it the next scan ingests the file again. |
 
 The accepted extensions come from `base/domain/ingestion/formats.py`
 (`SUPPORTED_EXTENSIONS`). The table lists each source with its status, number of pages
-and update time, and links to `/w/{wiki_id}/view/{filename}`.
+and update time, and links to `/w/{wiki_id}/view/{filename}`. When an operation ends, the
+screen asks for the table again (`GET /w/{wiki_id}/sources`).
 
 ### 7.4 Maintain
 
 Route: `GET /w/{wiki_id}/maintain`. A configuration line shows the model, the server,
-Java and LibreOffice (`services.ingest.tool_status`). Four panels follow, and the same
+Java and LibreOffice (`services.ingest.tool_status`). Five panels follow, and the same
 console "Progress".
 
 | Panel | Button | Route | Effect |
 | --- | --- | --- | --- |
 | Summary pages | **Regenerate summary pages** | `POST /w/{wiki_id}/regenerate` | Regenerates every summary page with the model, from the text already extracted (§6.6). Concept pages do not change. |
+| Verify pages | **Verify all pages** | `POST /w/{wiki_id}/verify-all` | Verifies every page that has sources, with the local verifier and no model of the ingestion. Disabled when the verifier is not installed. |
 | Lint and repair | **Run Wiki Lint & Repair** | `POST /w/{wiki_id}/lint` | The wiki-wide lint and repair, with model calls (§6.1, §6.2). |
 | Stale pages | **Delete N stale pages** | `POST /w/{wiki_id}/stale/delete` | Deletes the stale pages after a confirmation. |
 | Index of the wiki | **Rebuild the index** | `POST /w/{wiki_id}/reindex` | Rebuilds the search database from `sources/` and `wiki/` with no model call (`services.wiki.reindex`). The previous index is kept as `.llmwiki/index.db.bak`. |
@@ -286,6 +313,23 @@ language needs one catalog and one entry in `LANGUAGES` (`web/i18n.py`); `web/RE
 steps. Left in English on both languages: the progress lines `base/domain/` emits during ingestion,
 lint and repair, and the messages `services` return.
 
+### 7.12 Settings
+
+Routes: `web/routes/settings.py`, `base/services/settings.py`. `GET /w/{wiki_id}/settings`
+shows every scalar key of `wiki_config.toml` (§8) with its value, its default and a line
+of help: `[assistant] system_prompt`, `[pre_retrieval] enabled`, `min_coverage` and
+`condense_question`, and `[verify] threshold` and `candidates`. `[wiki] language` is shown
+read only, because the index keeps the stems of that language. The field of the system
+prompt shows the file `prompts/system_prompt.<lang>.md` of the wiki's language when the
+wiki defines none. The button **Restore the default** fills the field with that file's
+text; the text is written only by **Save**.
+
+`POST /w/{wiki_id}/settings` validates the form under the wiki's lock. An invalid form
+writes nothing and is shown again with the errors. A valid form writes only the keys
+that changed, with `tomlkit` (`domain.chat.settings_writer`: comments and order stay),
+commits the wiki, and drops the cached agents of the wiki (`AppState.reset_agents`), so
+the next question uses the new settings without a restart.
+
 ---
 
 ## 8. Configuration
@@ -313,9 +357,13 @@ PDF extraction uses opendataloader-pdf (text-based PDFs only; no OCR backend yet
 
 ### `workspace/wiki_config.toml` (optional, per-workspace)
 
-Two optional sections, each with built-in defaults (absent file → an English
-wiki with the default assistant). See `wiki_config.example.toml` (English) or
-`wiki_config_es.example.toml` (Spanish, `language = "es"`) for a template.
+Every section is optional and has a built-in default (absent file → an English
+wiki with the default assistant). `domain.wiki_settings.load_wiki_language` reads
+`[wiki]`; `domain.chat.config.load_config` reads the other sections. See
+`wiki_config.example.toml` (English) or `wiki_config_es.example.toml` (Spanish,
+`language = "es"`) for a template of `[wiki]` and `[assistant]`. The Settings screen
+(§7.12) edits the scalar keys of `[assistant]`, `[pre_retrieval]` and `[verify]`; the
+Vocabulary screen (§7.6) edits the lists.
 
 - **`[wiki] language`** — the wiki's **content language** (`"en"` default, `"es"`
   supported; extensible — add a `Locale` to `base/domain/i18n.py`). It is a
@@ -325,12 +373,26 @@ wiki with the default assistant). See `wiki_config.example.toml` (English) or
   index / See-also / Sources headers, the lint/repair regenerations, and the chat
   assistant's answers and default suggested prompts. It is resolved once by
   `domain.wiki_settings.load_wiki_language`, threaded through the ingestion
-  pipeline (and the lint/repair pass and chat→wiki save), and applied to the chat
-  agent's system prompt at creation. **Not** localized in v1: the `log.md` ingest log, the lint/repair *diagnostic* notes (contradiction /
-  data-gap), and the legacy `regenerate_wiki_pages` path.
+  pipeline (and the lint/repair pass and chat→wiki save), and selects the prompt
+  files the model receives: `prompts/<name>.<lang>.md`, read by
+  `domain.prompts.load_prompt`, with English as the fallback of a language without
+  the file. The wiki picker asks it when it creates a wiki (§7.1). **Not** localized:
+  the `log.md` ingest log, the text of the lint/repair *diagnostic* notes
+  (contradiction / data-gap), and the legacy `regenerate_wiki_pages` path.
 - **`[assistant] system_prompt` / `suggested_prompts`** — override the chat
-  assistant. See §6.7 for an example. When `suggested_prompts` is omitted, the
-  localized defaults for the wiki language are used.
+  assistant. See §6.7 for an example. When `system_prompt` is omitted, the wiki
+  uses `prompts/system_prompt.<lang>.md` of its language; when `suggested_prompts`
+  is omitted, the localized defaults for the wiki language are used.
+- **`[pre_retrieval]`** — `enabled` (default `false`), `min_coverage` (default
+  `0.2`) and `condense_question` (default `true`) of the code-driven retrieval.
+- **`[verify]`** — `threshold` (default `0.5`): the probability at which a sentence
+  counts as supported; `candidates` (default `5`): the passages kept for each
+  sentence before the verifier runs (`domain/verify/preselect.py`).
+- **`[fuera_de_alcance] terminos`**, **`[alias_datos]`** and **`[falsos_sinonimos]`**
+  — the blacklist, the hand-written aliases and the rejected aliases of the
+  vocabulary (§7.6). The aliases generated at ingestion
+  (`.llmwiki/aliases.generated.toml`) are merged under the hand-written ones, minus
+  the rejected ones.
 
 ### Environment flags
 
@@ -350,9 +412,9 @@ wiki with the default assistant). See `wiki_config.example.toml` (English) or
 ### Run
 
 ```bash
-uv run pytest tests/unit tests/regression -q       # 1057 unit + 16 regression tests — fast, no LLM, no network
-uv run --group web pytest -q tests/web             # 239 tests: 209 routes, rendering and design checks, 30 Playwright flows
-uv run pytest tests/e2e/ -v -s                     # 23 E2E tests — live marimo apps + LLM (not in CI; goes away with the marimo apps)
+uv run pytest tests/unit tests/regression -q       # 1410 unit + 16 regression tests — fast, no LLM, no network
+uv run --group web pytest -q tests/web             # 444 tests: 382 routes, rendering and design checks, 62 Playwright flows
+uv run pytest tests/e2e/ -v -s                     # E2E tests of the marimo apps + LLM (not in CI; goes away with the marimo apps)
 ```
 
 CI (`.github/workflows/test.yml`) runs the first two commands, in the jobs `unit` and `web`. No test of the first two calls a model.
@@ -534,13 +596,19 @@ byte-identical to before (guarded by `tests/unit/test_chat_agent_datasets.py::te
 
 A deterministic post-check: a run is *grounded* iff some tool returned
 substantive content (`has_grounding`); otherwise `enforce_grounding` replaces the
-answer with a language-appropriate refusal (`REFUSAL_ES`/`REFUSAL_EN`). It catches
-answers the model leaks despite the system prompt (general knowledge on "related"
-topics). Wired in `services.chat.chat_turn` (mode `strict`, chosen with the **Mode** selector of the reading screen, §7.2):
+answer with a language-appropriate refusal (`REFUSAL_ES`/`REFUSAL_EN`: "I could not
+back this answer with a lookup in the wiki in this turn."). It catches answers the
+model leaks despite the system prompt (general knowledge on "related" topics). Wired in
+`services.chat.chat_turn` (mode `strict`, chosen with the **Mode** selector of the
+reading screen, §7.2):
 
-- **ON** → run to completion, then gate (refuse if ungrounded). Cannot stream —
-  you can't retract text already shown.
-- **Other modes** → `streaming` streams token-by-token, ungated; `pre-retrieval` retrieves in code before the model is called.
+- **`strict`** → the agent runs to completion, then the gate applies (refuse if
+  ungrounded). The answer is not streamed, because text already shown cannot be
+  retracted.
+- **`streaming`** → the whole agent runs, tool calls included
+  (`run_stream_events`), and the text reaches the screen as the model writes it;
+  no gate applies.
+- **`pre-retrieval`** → code retrieves the wiki pages before the model is called.
 
 The mode is chosen per question, so changing it never rebuilds the agents. Known limit: it catches *no-evidence* answers, not an answer that ignored
 evidence it did retrieve (that needs answer-vs-source verification — deferred).
@@ -569,9 +637,17 @@ engine's `DatasetSource` + dataset-file front-matter; the engine never imports i
   section (flagged "no estimable" with its `depende_de` driver). Every figure
   cited (value · `as_of` · `fuente`) under the stated assumption *"si la tasa
   actual se mantiene"*.
+- **Typed data tools** (`data_tools.py`) — one tool per dataset category:
+  `tasa_plazo_fijo`, `tasa_caucion`, `cotizacion_dolar`, `precio_accion` and
+  `rendimiento_fci` (trace nodes K6 to K10). The allowed values of each argument are
+  read from the dataset files when the agents are built (`make_data_tools`) and
+  written into the JSON schema of the tool as an `enum`; a value outside them raises
+  `ModelRetry` with the allowed values. Each tool returns the rows as the table of
+  `format_rows_as_table`, with `as_of` and `fuente`.
 - **Tool + activation** (`agent_tool.py`) — the Spanish `estimar_alternativas`
-  tool and `activate(workspace)`, which registers it (via `extra_tools`) only
-  when the manifest validates with ≥1 passing category.
+  tool and `activate(workspace)`, which registers it and the typed data tools of
+  the passing categories (via `extra_tools`) only when the manifest validates with
+  ≥1 passing category.
 
 **Honesty guarantees:** cite source **and date** for every figure; gain math is
 deterministic code, never the LLM; equities / inflation- / FX-linked instruments

@@ -41,8 +41,11 @@ _DISPATCH = {
 # page, or accept the Tier-2 fallback for the uncovered part. Both are judgement
 # calls, and the first would need the model to write new prose, so there is
 # nothing safe to do automatically.
+#
+# `unsupported_sentences` and `unverified_pages` are report only: nothing deletes
+# or rewrites a sentence of a page, and verifying a page is an action of its own.
 _ADVISORY_CHECKS = {"vocab_stale", "vocab_covered", "vocab_ambiguous", "thin_page",
-                    "unpaged_source"}
+                    "unpaged_source", "unsupported_sentences", "unverified_pages"}
 
 # Shown in the ingest app's Activity Log, which is where a human actually reads
 # it — so it names the two buttons that supply a model, not the keyword argument

@@ -16,6 +16,9 @@ from pathlib import Path
 # Import RunContext from pydantic_ai to access runtime context and dependencies passed to agent tools
 from pydantic_ai import RunContext
 
+from domain import tracing
+from domain.chat.guardrail import _is_substantive
+
 # Initialize a logger for this module to assist with debugging and monitoring
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,13 @@ def read_wiki_page(ctx: RunContext[str], path: str) -> str:
     Returns:
         Full markdown content of the page, or a 'not found' message.
     """
+    text = _read_wiki_page(ctx, path)
+    tracing.mark("K1", tracing.READING, path=path, substantive=_is_substantive(text))
+    return text
+
+
+def _read_wiki_page(ctx: RunContext[str], path: str) -> str:
+    """The body of `read_wiki_page`; `read_wiki_page` records node K1 with the returned text."""
     # 1. Retrieve the SQLite database path from the agent's context dependencies
     db_path = ctx.deps
 
@@ -91,26 +101,45 @@ def search_wiki_fts(ctx: RunContext[str], query: str, limit: int = 10) -> str:
     Returns:
         Formatted results with page path, section details, and a content snippet.
     """
+    text, widened = _search_wiki_fts(ctx, query, limit)
+    tracing.mark("K2", tracing.READING, query=query, limit=limit, widened=widened,
+                 substantive=_is_substantive(text))
+    return text
+
+
+def _search_wiki_fts(ctx: RunContext[str], query: str, limit: int = 10) -> tuple[str, bool]:
+    """The body of `search_wiki_fts`: `(text, widened)`; `search_wiki_fts` records
+    node K2 with them. `widened` is True when no page had every word of `query`
+    and the results match some of its words (`any_word_query`)."""
     # Import the specialized search function dynamically to keep startup times fast
-    from domain.tools.search import search_chunks
+    from domain.tools.search import any_word_query, search_chunks
 
     # 1. Retrieve the SQLite database path from the context
     db_path = ctx.deps
 
     try:
-        # 2. Run a full-text search (FTS) using the database, scoped specifically to "wiki" pages
+        # 2. Run a full-text search (FTS) using the database, scoped specifically to "wiki" pages.
+        #    Every word first; when no page has every word, any word, so that one word the
+        #    wiki lacks ("manzana envenenada simbolismo") does not empty the result.
         results = search_chunks(db_path, query, limit=limit, scope="wiki")
+        widened = False
+        if not results:
+            wide = any_word_query(query, db_path)
+            if wide and wide != query:
+                results = search_chunks(db_path, wide, limit=limit, scope="wiki")
+                widened = bool(results)
     except Exception as exc:
         # If the database query fails, log the warning and return a clean error message to the agent
         logger.warning("search_wiki_fts failed for %r: %s", query, exc)
-        return f"Wiki search failed for '{query}': {exc}"
+        return f"Wiki search failed for '{query}': {exc}", False
 
     # 3. If no matching pages or chunks were found, inform the agent
     if not results:
-        return f"No wiki pages found for '{query}'."
+        return f"No wiki pages found for '{query}'.", False
 
     # 4. Format the search results into a clean, easy-to-read markdown string for the agent
-    lines = [f"**{len(results)} wiki result(s)** for '{query}':\n"]
+    partial = " (no page has every word; these match some of the words)" if widened else ""
+    lines = [f"**{len(results)} wiki result(s)** for '{query}'{partial}:\n"]
     for r in results:
         # If the result points to a specific page number, format it
         page_str = f" p.{r['page']}" if r.get("page") else ""
@@ -131,7 +160,7 @@ def search_wiki_fts(ctx: RunContext[str], query: str, limit: int = 10) -> str:
         lines.append(f"```\n{snippet}\n```\n")
 
     # 5. Join all lines with newlines and return the completed report
-    return "\n".join(lines)
+    return "\n".join(lines), widened
 
 
 # ── Related-page context helper ───────────────────────────────────────────────

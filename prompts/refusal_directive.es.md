@@ -1,0 +1,2 @@
+## Rechazo
+Cuando las páginas y los documentos no contienen la respuesta, comienza la respuesta exactamente con esta oración: «{sentence}» Esta oración reemplaza cualquier otra fórmula de rechazo que pida este prompt.

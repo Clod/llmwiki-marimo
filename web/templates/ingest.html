@@ -13,6 +13,7 @@
         <label class="drop" title="{{ _('Choose one or more files. The ODT, RTF, DOC and DOCX formats need LibreOffice (and Java); MD and TXT files need neither Java nor LibreOffice') }}">{{ format_label }}<input type="file" name="files" multiple accept="{{ accept }}" required></label>
         <div class="add-options">
           <label class="check" title="{{ _('Besides the deterministic repair, the model reviews and repairs the pages this ingestion touched. It calls the model and takes longer.') }}"><input type="checkbox" name="full_repair" value="true">{{ _("Full repair with the model, slower") }}</label>
+          <label class="check" {% if verifier_available %}title="{{ _('When done, checks each sentence of the pages the ingestion wrote against the text of their sources. The text of the pages does not change.') }}"{% else %}title="{{ _('The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group verify)') }}"{% endif %}><input type="checkbox" name="verify" value="true"{% if not verifier_available %} disabled{% endif %}>{{ _("Verify the generated pages") }}</label>
           <button class="btn btn-primary" title="{{ _('Ingest the chosen files and show the progress') }}">{{ _("Ingest") }}</button>
         </div>
       </form>
@@ -21,8 +22,9 @@
     <section class="panel panel-body scan" aria-labelledby="h-scan">
       <h2 class="card-title" id="h-scan">{% trans %}Folder <span class="mono">sources/</span>{% endtrans %}</h2>
           <p class="task-text">{% trans %}For files copied to <code>sources/</code> without going through the upload form.{% endtrans %}</p>
+          <label class="check" {% if verifier_available %}title="{{ _('When done, checks each sentence of the pages the ingestion wrote against the text of their sources. The text of the pages does not change.') }}"{% else %}title="{{ _('The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group verify)') }}"{% endif %}><input type="checkbox" name="verify" id="verify-scan" value="true"{% if not verifier_available %} disabled{% endif %}>{{ _("Verify the generated pages") }}</label>
           <button class="btn task-action" type="button" title="{{ _('Ingest the files of sources/ that are new or changed since their last ingestion') }}"
-                  hx-post="/w/{{ wiki_id }}/scan" hx-target="#progress" hx-swap="innerHTML">{{ _("Scan sources/ for changes") }}</button>
+                  hx-post="/w/{{ wiki_id }}/scan" hx-include="#verify-scan" hx-target="#progress" hx-swap="innerHTML">{{ _("Scan sources/ for changes") }}</button>
     </section>
     </div>
 

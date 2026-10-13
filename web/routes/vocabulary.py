@@ -96,6 +96,7 @@ def vocabulary_change(request: Request, wiki_id: str, op: str, term: str = Form(
             else:
                 vocab.unreject_alias(entry.wiki, canonical, term)
             ok, text = True, ""
+            state.reset_agents(wiki_id)
         except vocab.VocabularyEditError as exc:
             text = _refusal(exc)
         finally:

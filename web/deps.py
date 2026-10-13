@@ -77,4 +77,5 @@ def page_context(state: AppState, wiki_id: str, page: str, section: str = "read"
             "kind": _KIND.get(posixpath.dirname(page), N_("Page")),
             "path_label": f"wiki/{page}.md" if page else "",
             "model": state.settings.llm_model, "modes": MODES,
-            "prompts": load_config(entry.wiki.path).suggested_prompts}
+            "prompts": load_config(entry.wiki.path).suggested_prompts,
+            "verifier_available": state.verifier_available()}

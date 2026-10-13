@@ -142,4 +142,4 @@ def test_apply_chat_directive_es_appends_directive() -> None:
 
     es_directive = get_locale("es").chat_directive
     assert result == f"{base}\n\n{es_directive}\n\n{refusal_directive('es')}"
-    assert "No encontré la respuesta en los documentos." in result
+    assert "No encontré la respuesta en el texto que recibí de la wiki." in result

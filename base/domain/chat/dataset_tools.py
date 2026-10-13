@@ -24,6 +24,8 @@ from pathlib import Path
 
 from pydantic_ai import RunContext
 
+from domain import tracing
+from domain.chat.guardrail import _is_substantive
 from domain.datasets.models import DatasetRow
 from domain.datasets.source import LocalMarkdownSource
 
@@ -58,6 +60,19 @@ def query_dataset(
         as_of, fuente), or an honest "no data" message when the category or
         filter combination has no rows. Never invents a value.
     """
+    text = _query_dataset(ctx, categoria, clave, metrica)
+    tracing.mark("K4", tracing.READING, categoria=categoria, clave=clave, metrica=metrica,
+                 substantive=_is_substantive(text))
+    return text
+
+
+def _query_dataset(
+    ctx: RunContext[str],
+    categoria: str,
+    clave: str | None = None,
+    metrica: str | None = None,
+) -> str:
+    """The body of `query_dataset`; `query_dataset` records node K4 with the returned text."""
     db_path = ctx.deps
     datasets_dir = _workspace(db_path) / "datasets"
     source = LocalMarkdownSource(datasets_dir)

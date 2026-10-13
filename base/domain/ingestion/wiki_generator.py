@@ -21,220 +21,13 @@ from pathlib import Path
 
 from domain.datasets.frontmatter import render_frontmatter, split_frontmatter
 from domain.i18n import get_locale, with_content_directive
+from domain.prompts import load_prompt
 
 logger = logging.getLogger(__name__)
 
 _MAX_INPUT_CHARS = 80_000
 _LONG_DOC_HEAD_PAGES = 5
 _LONG_DOC_TAIL_PAGES = 2
-
-# ── Legacy single-pass prompt ─────────────────────────────────────────────────
-
-_SYSTEM_PROMPT = """\
-You are a knowledge-base assistant. Your task is to write a structured wiki page
-that summarises the provided document. Be factual, concise, and well-organised.
-Use markdown formatting. Do not invent information that is not in the document."""
-
-_USER_TEMPLATE = """\
-Write a wiki page for the following document.
-
-Document metadata:
-- Filename: {filename}
-- File type: {file_type}
-- Pages: {page_count}
-- Parser: {parser}
-- Ingested: {ingested_at}
-
-Document content:
----
-{content}
----
-
-Produce a wiki page with exactly these sections in this order:
-
-# {title}
-
-**Source:** {filename} | **Type:** {file_type} | **Pages:** {page_count} | **Ingested:** {ingested_at}
-
-## Summary
-(2–4 paragraphs: what the document is about, its purpose, main conclusions)
-
-## Key Topics
-(bullet list of the main themes and subjects covered)
-
-## Key Entities
-(bullet list of notable people, organisations, places, and dates mentioned)
-
-## Important Data & Figures
-(bullet list of notable numbers, statistics, metrics, or conclusions)
-
-## Source Information
-- **File:** {filename}
-- **Type:** {file_type}
-- **Pages:** {page_count}
-- **Ingested:** {ingested_at}
-- **Parser:** {parser}
-
-Output only the markdown. Do not add any preamble or explanation outside the page."""
-
-
-# ── Phase 2: structured extraction ───────────────────────────────────────────
-
-_EXTRACT_SYSTEM = """\
-You are a knowledge extraction assistant. Given a document, extract:
-1. A concise summary (2-3 sentences)
-2. Key concepts: entities, instruments, or themes worth a standalone wiki page.
-   For each concept give a short, clean canonical name (a noun phrase — no
-   parenthetical glosses, no "X vs Y") plus any aliases: other names for exactly
-   the SAME thing (abbreviations, synonyms, an acronym's expansion). Never list a
-   related-but-different concept as an alias.
-
-Respond with valid JSON only — no markdown fences, no commentary."""
-
-_EXTRACT_USER_TEMPLATE = """\
-Extract knowledge from this document.
-
-Document: {filename} ({file_type}, {page_count} pages)
-
-Content:
----
-{content}
----
-
-Return JSON with this exact structure:
-{{
-  "document_summary": "2-3 sentence summary of the document",
-  "concepts": [
-    {{
-      "name": "Short canonical name — a noun phrase, no parentheses or vs-comparisons",
-      "category": "entity|instrument|theme",
-      "insight": "The specific new insight this document adds about this concept",
-      "aliases": ["other names for the exact same thing", "abbreviations, synonyms"]
-    }}
-  ]
-}}
-
-Extract 2-5 concepts. Only include concepts worth a dedicated wiki page. Use an
-empty list for "aliases" when the concept has no common alternate names."""
-
-_CONCEPT_SYSTEM = """\
-You are a wiki page author. Write clear, factual concept pages in markdown.
-Each page should have a brief definition, key characteristics, and context.
-Never invent facts not supported by the provided content.
-
-Preserve traceability above all. If the provided content carries inline citations \
-— e.g. (wiki/summaries/cinderella.md) or (Cinderella.pdf, p. 3) — keep EVERY one \
-exactly as written, attached to the same claim. Never drop, merge, summarise away, \
-or reword a citation while reshaping the text. A claim you cannot keep its citation \
-for must be removed, not left uncited."""
-
-_CONCEPT_NEW_TEMPLATE = """\
-Write a wiki concept page for: {name}
-
-Category: {category}
-New insight from document "{filename}": {insight}
-
-Produce a markdown page with this structure:
-
-# {name}
-
-## {h_definition}
-(1-2 sentences defining the concept)
-
-## {h_key_characteristics}
-(bullet list)
-
-## {h_context}
-(how this concept relates to the broader domain)
-
-## {h_sources}
-- {filename}
-
-Output only the markdown."""
-
-_CONCEPT_UPDATE_TEMPLATE = """\
-Update this existing wiki concept page for: {name}
-
-New insight from document "{filename}": {insight}
-
-Existing page:
----
-{existing}
----
-
-Integrate the new insight. Add the source to the Sources section as a new list item: - {filename}.
-Keep all existing content. Output only the updated markdown page."""
-
-_CHAT_CONCEPT_NEW_TEMPLATE = """\
-Write a wiki concept page for: {name}
-
-Category: {category}
-Content synthesised from a chat conversation:
----
-{content}
----
-
-Produce a markdown page with this structure:
-
-# {name}
-
-## {h_definition}
-(1-2 sentences defining the concept)
-
-## {h_key_characteristics}
-(bullet list)
-
-## {h_context}
-(how this concept relates to the broader domain)
-
-## {h_sources}
-(list each distinct source cited in the content above, one per line — \
-e.g. "- wiki/summaries/cinderella.md" or "- Cinderella.pdf, p. 3")
-
-Keep every inline citation from the content above attached to the exact claim it \
-supports — carry them verbatim into the Definition, Key Characteristics, and \
-Context sections. Do NOT strip citations when reshaping into this structure, and \
-do NOT replace them with a generic "Chat synthesis" line. Output only the markdown."""
-
-_CHAT_CONCEPT_UPDATE_TEMPLATE = """\
-Update this existing wiki concept page for: {name}
-
-New content from a chat synthesis to integrate:
----
-{content}
----
-
-Existing page:
----
-{existing}
----
-
-Merge the new content into the existing page. Add insights, avoid duplication. \
-Keep every inline citation from BOTH the existing page and the new content exactly \
-as written, attached to its claim — never drop or reword one. In the Sources \
-section, keep the existing entries and add any new distinct source cited in the new \
-content (one per line, e.g. "- wiki/summaries/cinderella.md").
-Keep all existing content intact. Output only the updated markdown page."""
-
-_OVERVIEW_SYSTEM = """\
-You are a knowledge base curator. Rewrite the overview page to reflect the current
-state of the knowledge base. Be narrative and synthetic — do not just list pages."""
-
-_OVERVIEW_TEMPLATE = """\
-Update the knowledge base overview incorporating the new document.
-
-Current overview:
----
-{current_overview}
----
-
-New document summary: {new_summary}
-
-Known concepts: {concept_list}
-
-Write an updated overview (3-5 paragraphs) that synthesises all the knowledge.
-Output only the markdown (no frontmatter)."""
-
 
 @dataclass
 class ExtractedConcept:
@@ -264,13 +57,13 @@ def extract_structured(
     JSON keys and category values (entity|instrument|theme) stay English.
     """
     content = _prepare_content(page_contents)
-    user_msg = _EXTRACT_USER_TEMPLATE.format(
+    user_msg = load_prompt("extract_user_template", language).format(
         filename=doc_meta["filename"],
         file_type=doc_meta["file_type"],
         page_count=doc_meta["page_count"],
         content=content,
     )
-    system = with_content_directive(_EXTRACT_SYSTEM, language)
+    system = with_content_directive(load_prompt("extract_system", language), language)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -314,27 +107,6 @@ def _parse_extraction(raw: str, filename: str) -> ExtractionResult:
         return ExtractionResult(document_summary=raw, concepts=[])
 
 
-_DATASET_ALIAS_SYSTEM = """\
-You map each KNOWN DATA TERM to the common alternative names or nicknames a user \
-would type for the SAME thing. Return ONLY JSON, no prose:
-
-{"aliases": {"<term>": ["<other name>", ...], ...}}
-
-Rules:
-- An alias must mean EXACTLY the same thing as the term — a nickname, an \
-abbreviation, or a true synonym. NEVER list a related-but-different instrument as \
-an alias (for example, "acciones" is NOT an alias of "CEDEAR").
-- Only use the terms you are given as keys. Omit a term entirely if it has no \
-common alias — do not invent one.
-- Keep it short: a handful of real aliases per term at most."""
-
-_DATASET_ALIAS_USER_TEMPLATE = """\
-Known data terms:
-{terms}
-
-Return the JSON aliases map."""
-
-
 def extract_dataset_aliases(terms, client, model, language: str = "en") -> dict[str, list[str]]:
     """Phase-4 LLM pass: propose aliases for the closed set of known data terms.
 
@@ -348,10 +120,10 @@ def extract_dataset_aliases(terms, client, model, language: str = "en") -> dict[
     terms = [t for t in terms if isinstance(t, str) and t.strip()]
     if not terms:
         return {}
-    user_msg = _DATASET_ALIAS_USER_TEMPLATE.format(
+    user_msg = load_prompt("dataset_alias_user_template", language).format(
         terms=json.dumps(sorted(terms), ensure_ascii=False)
     )
-    system = with_content_directive(_DATASET_ALIAS_SYSTEM, language)
+    system = with_content_directive(load_prompt("dataset_alias_system", language), language)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -439,17 +211,17 @@ def build_concept_page(
     if existing_content:
         # Strip any frontmatter before handing the page to the model: it no
         # longer needs to see (and possibly reproduce) that block, and
-        # _CONCEPT_UPDATE_TEMPLATE itself wraps {existing} in a `---` pair —
+        # the concept update template itself wraps {existing} in a `---` pair —
         # a real delimiter collision if {existing} starts with its own `---`.
         _, existing_body = split_frontmatter(existing_content)
-        user_msg = _CONCEPT_UPDATE_TEMPLATE.format(
+        user_msg = load_prompt("concept_update_template", language).format(
             name=concept.name,
             filename=filename,
             insight=concept.insight,
             existing=existing_body,
         )
     else:
-        user_msg = _CONCEPT_NEW_TEMPLATE.format(
+        user_msg = load_prompt("concept_new_template", language).format(
             name=concept.name,
             category=concept.category,
             filename=filename,
@@ -460,7 +232,7 @@ def build_concept_page(
             h_sources=loc.h_sources,
         )
 
-    system = with_content_directive(_CONCEPT_SYSTEM, language)
+    system = with_content_directive(load_prompt("concept_system", language), language)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -514,15 +286,15 @@ def structure_chat_content(
     if existing_content:
         # Strip any frontmatter before handing the page to the model — same
         # reasoning as build_concept_page: the model shouldn't reproduce it,
-        # and _CHAT_CONCEPT_UPDATE_TEMPLATE wraps {existing} in a `---` pair.
+        # and the chat update template wraps {existing} in a `---` pair.
         _, existing_body = split_frontmatter(existing_content)
-        user_msg = _CHAT_CONCEPT_UPDATE_TEMPLATE.format(
+        user_msg = load_prompt("chat_concept_update_template", language).format(
             name=title,
             content=raw_content,
             existing=existing_body,
         )
     else:
-        user_msg = _CHAT_CONCEPT_NEW_TEMPLATE.format(
+        user_msg = load_prompt("chat_concept_new_template", language).format(
             name=title,
             category=category,
             content=raw_content,
@@ -532,7 +304,7 @@ def structure_chat_content(
             h_sources=loc.h_sources,
         )
 
-    system = with_content_directive(_CONCEPT_SYSTEM, language)
+    system = with_content_directive(load_prompt("concept_system", language), language)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -568,15 +340,15 @@ def update_overview(
     concept_list = ", ".join(all_concept_names) if all_concept_names else "none yet"
     # Strip any frontmatter before handing the current overview to the model —
     # same reasoning as build_concept_page: it shouldn't reproduce it, and
-    # _OVERVIEW_TEMPLATE wraps {current_overview} in a `---` pair, a real
+    # the overview template wraps {current_overview} in a `---` pair, a real
     # delimiter collision now that overview.md carries its own `---` block.
     _, current_body = split_frontmatter(current_overview)
-    user_msg = _OVERVIEW_TEMPLATE.format(
+    user_msg = load_prompt("overview_template", language).format(
         current_overview=current_body,
         new_summary=new_summary,
         concept_list=concept_list,
     )
-    system = with_content_directive(_OVERVIEW_SYSTEM, language)
+    system = with_content_directive(load_prompt("overview_system", language), language)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -605,7 +377,7 @@ def build_wiki_page(
     ingested_at = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     title = _title_from_filename(doc_meta["filename"])
 
-    user_msg = _USER_TEMPLATE.format(
+    user_msg = load_prompt("ingest_user_template", "en").format(
         filename=doc_meta["filename"],
         file_type=doc_meta["file_type"],
         page_count=doc_meta["page_count"],
@@ -618,7 +390,7 @@ def build_wiki_page(
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "system", "content": load_prompt("ingest_system", "en")},
             {"role": "user", "content": user_msg},
         ],
         temperature=0.3,
@@ -719,9 +491,18 @@ def inject_see_also(
     if not matches:
         return content
 
-    see_also_block = (
-        f"\n## {loc.h_see_also}\n\n" + "\n".join(f"- [{p['title']}]({p['rel_path']})" for p in matches) + "\n"
-    )
+    bullets = "\n".join(f"- [{p['title']}]({p['rel_path']})" for p in matches)
+
+    # A page that already has the section (the `missing_xref` repair opens it before
+    # the ingestion's last cross-link pass) gets the links inside it, not a second one.
+    heading = re.search(rf"(?m)^## {re.escape(loc.h_see_also)}[ \t]*$", content)
+    if heading:
+        nxt = content.find("\n## ", heading.end())
+        end = len(content) if nxt == -1 else nxt
+        section = content[heading.end():end].rstrip("\n")
+        return f"{content[:heading.end()]}{section}\n{bullets}\n{content[end:]}"
+
+    see_also_block = f"\n## {loc.h_see_also}\n\n" + bullets + "\n"
 
     # Insert before the localized ## Sources header if present, otherwise append.
     # This must use the same locale as the page was generated with.

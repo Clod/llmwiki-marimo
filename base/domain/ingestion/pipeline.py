@@ -278,6 +278,8 @@ def _ingest_file(
             _cb(f"✂️ Chunked into {len(chunks)} chunks")
 
             # ── Step 6: Atomic source document DB write ────────────────────────
+            with tracing.node("W2", W, document_id=doc_id, fragments=len(chunks), language=language):
+                stemmed = [stem_text(c.content, language) for c in chunks]
             with conn:
                 conn.execute(
                     "UPDATE documents SET status='ready', content=?, page_count=?, "
@@ -297,9 +299,9 @@ def _ingest_file(
                     "start_char, token_count, header_breadcrumb) VALUES (?,?,?,?,?,?,?,?,?)",
                     [
                         (str(uuid.uuid4()), doc_id, c.index, c.content,
-                         stem_text(c.content, language), c.page,
+                         stem, c.page,
                          c.start_char, c.token_count, c.header_breadcrumb)
-                        for c in chunks
+                        for c, stem in zip(chunks, stemmed)
                     ],
                 )
             tracing.mark("W3", W, document_id=doc_id, fragments=len(chunks))
@@ -484,20 +486,24 @@ def _snapshot_wiki_page(db_path: str, relative_path: str) -> dict | None:
     """
     import json
     from domain.tools.db import get_connection
+    from domain.verify.store import load_verification
     with get_connection(db_path) as conn:
         row = conn.execute(
             "SELECT id, title, content, tags, source_document_id FROM documents"
             " WHERE relative_path=? AND source_kind='wiki'",
             (relative_path,),
         ).fetchone()
-    if row is None:
-        return None
+        if row is None:
+            return None
+        # The overwrite deletes the page's sentence verification; a rollback puts it back.
+        verification = load_verification(conn, row["id"])
     return {
         "id": row["id"],
         "title": row["title"],
         "content": row["content"] or "",
         "tags": json.loads(row["tags"]) if row["tags"] else [],
         "source_document_id": row["source_document_id"],
+        "verification": verification,
     }
 
 
@@ -535,6 +541,11 @@ def _rollback_wiki_pages(
                     replace_sources=True,
                 )
                 update_references(db_path, prior["id"], prior["content"], dir_path)
+                if prior.get("verification") is not None:
+                    from domain.tools.db import get_connection
+                    from domain.verify.store import restore_verification
+                    with get_connection(db_path) as conn:
+                        restore_verification(conn, prior["verification"])
                 acted += 1
         except Exception:
             logger.exception("Rollback failed for %s%s.md", dir_path, slug)

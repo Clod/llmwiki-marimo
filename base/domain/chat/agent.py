@@ -26,9 +26,8 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.settings import ModelSettings
 
 # Import the default system prompt instructions that guide the AI's behavior
-from .config import _DEFAULT_SYSTEM_PROMPT
 # Import the dataset-lookup tool, conditionally registered when the workspace
-# has an active datasets/ directory (see _DATASET_PROMPT_ADDENDUM below).
+# has an active datasets/ directory (see `prompts/dataset_addendum.<lang>.md`).
 from .dataset_tools import query_dataset
 # Import the tool that searches raw source document text chunks (fallback search)
 from .tools import search_source_chunks
@@ -38,26 +37,15 @@ from .tools import search_source_chunks
 from .wiki_tools import read_wiki_page, search_wiki_fts
 # Appends the wiki's chat answer-language directive to the system prompt.
 from domain.i18n import apply_chat_directive
+from domain.prompts import load_prompt
 # Activation trigger for the dataset capability (§4 of datasets-format.md):
 # presence of a datasets/ directory with at least one valid dataset file.
 from domain.datasets.source import has_active_datasets
 
 
 # Appended to the system prompt only when the dataset capability is active
-# (see has_active_datasets below). Engine-generic — no domain vocabulary,
-# `categoria` values are workspace content.
-_DATASET_PROMPT_ADDENDUM = """\
-
-## Structured datasets — current values
-
-This wiki also has structured datasets (periodically-refreshed tabular \
-values such as rates, prices, or stats) — distinct from the prose wiki \
-pages. For a question about a **current value** in a known category, call \
-query_dataset(categoria, clave?, metrica?) instead of recalling a number \
-from a wiki page or from memory: dataset values change over time and must \
-always be quoted verbatim with their as_of date and fuente, exactly like any \
-other citation. If query_dataset returns no rows, say so plainly — never \
-estimate or recall a dataset value from memory."""
+# (see has_active_datasets below): the file `prompts/dataset_addendum.<lang>.md`.
+# Engine-generic — no domain vocabulary, `categoria` values are workspace content.
 
 
 def _make_provider(base_url: str, api_key: str):
@@ -84,12 +72,13 @@ def create_agent(
     base_url: str,
     api_key: str,
     model: str,
-    system_prompt: str = _DEFAULT_SYSTEM_PROMPT,
+    system_prompt: str | None = None,
     language: str = "en",
     workspace: Path | None = None,
     extra_tools: list | None = None,
     extra_prompt: str | None = None,
     include_wiki_tools: bool = True,
+    include_dataset_tool: bool = True,
 ) -> Agent[str, str]:
     """Return a configured wiki assistant agent.
 
@@ -97,7 +86,8 @@ def create_agent(
         base_url: OpenAI-compatible API base URL (e.g. OpenRouter, Local LM Studio, or OpenAI).
         api_key: API key to authenticate with the LLM provider.
         model: Model identifier string (e.g., "gpt-4o", "claude-3-5-sonnet").
-        system_prompt: Loaded from wiki_config.toml; falls back to generic default.
+        system_prompt: Loaded from wiki_config.toml; None reads the default
+            `prompts/system_prompt.<language>.md`.
         language: ISO 639-1 code for this wiki's content language (from
             WikiAssistantConfig.language). Appends the chat answer-language
             directive to system_prompt; a no-op for English ("en").
@@ -145,6 +135,8 @@ def create_agent(
 
     # Append the wiki's chat answer-language directive (no-op for English, so the
     # English agent's system prompt stays byte-identical to before this feature).
+    if system_prompt is None:
+        system_prompt = load_prompt("system_prompt", language)
     effective_prompt = apply_chat_directive(system_prompt, language)
 
     # Dataset capability is opt-in per workspace (datasets-format.md §4): dormant
@@ -156,9 +148,9 @@ def create_agent(
     # have) the search/read tools — dropping them is what stops it from skipping
     # retrieval. query_dataset and overlay tools (e.g. the advisory) stay.
     tools = [read_wiki_page, search_wiki_fts, search_source_chunks] if include_wiki_tools else []
-    if workspace is not None and has_active_datasets(workspace):
+    if workspace is not None and include_dataset_tool and has_active_datasets(workspace):
         tools.append(query_dataset)
-        effective_prompt = f"{effective_prompt}{_DATASET_PROMPT_ADDENDUM}"
+        effective_prompt = f"{effective_prompt}{load_prompt('dataset_addendum', language)}"
 
     # Domain-overlay tools (e.g. finance_argentina) are injected by the caller
     # (the composition root / read_app), keeping this engine module

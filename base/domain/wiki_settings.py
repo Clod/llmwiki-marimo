@@ -52,3 +52,17 @@ def language_for_db(db_path: str | Path) -> str:
     path outside a wiki, `load_wiki_language` finds no config and returns "en".
     """
     return load_wiki_language(Path(db_path).parent.parent)
+
+
+def write_language(wiki_path: Path, language: str) -> None:
+    """Write `wiki_config.toml` with only `[wiki] language` into a wiki being created.
+
+    A folder that already holds a `wiki_config.toml` is left as it is. `language` is
+    normalized (`domain.i18n.get_locale`); an unsupported value writes "en".
+    """
+    wiki_path = Path(wiki_path)
+    config_file = wiki_path / "wiki_config.toml"
+    if config_file.exists():
+        return
+    wiki_path.mkdir(parents=True, exist_ok=True)
+    config_file.write_text(f'[wiki]\nlanguage = "{get_locale(language).code}"\n', encoding="utf-8")

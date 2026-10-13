@@ -13,6 +13,8 @@ from .checks import (
     staleness_check,
     thin_page_check,
     unpaged_source_check,
+    unsupported_sentences_check,
+    unverified_pages_check,
     vocabulary_check,
 )
 from .report import LintReport
@@ -52,6 +54,10 @@ def lint_wiki(
     issues.extend(thin_page_check(db_path))
     _p("🔎 lint: sources with no page")
     issues.extend(unpaged_source_check(db_path))
+    _p("🔎 lint: unsupported sentences")
+    issues.extend(unsupported_sentences_check(db_path, workspace))
+    _p("🔎 lint: unverified pages")
+    issues.extend(unverified_pages_check(db_path, workspace))
     if client:
         _p("🔎 lint: contradiction sweep (LLM, pairwise)…")
         issues.extend(contradiction_check(db_path, workspace, client, model, progress_cb))

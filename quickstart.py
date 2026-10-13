@@ -331,6 +331,67 @@ def install_deps(venv_dir: Path) -> None:
     )
 
 
+# ── Optional local sentence verifier ──────────────────────────────────────────
+
+VERIFIER_NOTE = (
+    "  The web interface can check each sentence of a chat answer against the pages\n"
+    "  the model read, and mark the sentences no page supports. It runs on this\n"
+    "  computer, with no network after the install. It adds:\n"
+    "    - transformers and torch (the CPU build on Linux): about 0.5 to 1 GB;\n"
+    "    - a multilingual NLI model, downloaded once to the Hugging Face cache:\n"
+    "      about 1.1 GB.\n"
+    "  Answering no installs nothing of it; the checkbox stays disabled."
+)
+CPU_TORCH_INDEX = "https://download.pytorch.org/whl/cpu"
+
+
+def pinned_version(requirements: Path, package: str) -> str | None:
+    """The version `requirements` pins `package` to, or None."""
+    prefix = f"{package}=="
+    for line in requirements.read_text(encoding="utf-8").splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix):].split()[0].rstrip("\\").strip()
+    return None
+
+
+def verifier_install_commands(py: str, requirements: Path, *, platform: str = sys.platform) -> list[list[str]]:
+    """The pip commands that install the `verify` group, in order.
+
+    On Linux `torch` comes first, from the CPU wheel index: the default wheel
+    pulls about 2 GB of CUDA libraries, and `requirements-verify.txt` leaves
+    those out. Then the pinned file, which finds `torch` already installed.
+    """
+    commands: list[list[str]] = []
+    torch_version = pinned_version(requirements, "torch")
+    if platform.startswith("linux") and torch_version:
+        commands.append([py, "-m", "pip", "install", f"torch=={torch_version}", "--index-url", CPU_TORCH_INDEX])
+    commands.append([py, "-m", "pip", "install", "--require-hashes", "-r", str(requirements)])
+    return commands
+
+
+def want_verifier(choice: bool | None, *, assume_yes: bool) -> bool:
+    """Whether to install the verifier. `choice` is the flag (`--with-verifier`
+    or `--no-verifier`), or None to ask. `--yes` alone does not install it: it is
+    a large optional download, so unattended runs skip it unless asked."""
+    if choice is not None:
+        return choice
+    if assume_yes:
+        return False
+    say(VERIFIER_NOTE)
+    return confirm("  Install the local sentence verifier?", assume_yes=False, default=False)
+
+
+def install_verifier(venv_dir: Path) -> None:
+    py = str(venv_python(venv_dir))
+    for command in verifier_install_commands(py, REPO_ROOT / "requirements-verify.txt"):
+        _run(command, "install the verifier packages (this can take several minutes)")
+    _run(
+        [py, "-c", "import sys; sys.path.insert(0, 'base'); "
+                   "from domain.verify.nli import download_model; print(download_model())"],
+        "download the NLI model into the Hugging Face cache",
+    )
+
+
 def _run(cmd: list[str], what: str) -> None:
     say(f"  → {what} …")
     try:
@@ -431,12 +492,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--no-launch", action="store_true", help="don't offer to launch at the end")
     p.add_argument("--no-eval", action="store_true",
                    help="skip the post-install model grounding check")
+    verifier = p.add_mutually_exclusive_group()
+    verifier.add_argument("--with-verifier", dest="verifier", action="store_true", default=None,
+                          help="install the local sentence verifier without asking")
+    verifier.add_argument("--no-verifier", dest="verifier", action="store_false",
+                          help="do not install the local sentence verifier, and do not ask")
     return p.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    total = 7
+    total = 8
 
     say(style("1", "LLM Wiki — quick start"))
     check_python()
@@ -466,13 +532,20 @@ def main(argv: list[str]) -> int:
     install_deps(venv_dir)
     check_provider(provider)
 
-    step(6, total, "Validate the chat model")
+    step(6, total, "Optional: local sentence verifier")
+    if want_verifier(args.verifier, assume_yes=args.yes):
+        install_verifier(venv_dir)
+    else:
+        say("  Skipped. The web interface keeps the checkbox disabled; install it later "
+            "by re-running quickstart.py with --with-verifier.")
+
+    step(7, total, "Validate the chat model")
     if args.no_eval:
         say("  Skipped (--no-eval).")
     else:
         validate_model(venv_dir)
 
-    step(7, total, "Launch")
+    step(8, total, "Launch")
     maybe_launch(venv_dir, args.port, do_launch=not args.no_launch, assume_yes=args.yes)
     return 0
 

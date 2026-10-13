@@ -309,7 +309,7 @@ def test_a_question_outside_the_topics_of_the_wiki_is_refused_with_no_page_open(
     goto(page, live, "pages/concepts/no-existe")
     ask(page, "¿Va a llover mañana en Rosario?")
     expect(page.locator("#messages .a")).to_contain_text(
-        "No puedo responder esta pregunta: no nombra ninguno de los temas de esta wiki.")
+        "No recibí de la wiki información relacionada con esta pregunta.")
     assert live.agents.agent_pre_retrieval.prompts == []
 
 
@@ -492,6 +492,80 @@ def test_layout_toggles_are_remembered_and_the_index_is_a_drawer_when_narrow(pag
     expect(page.locator("#index")).to_be_in_viewport()
 
 
+# ── Sentence verification ────────────────────────────────────────────────────
+
+def test_the_verify_checkbox_is_remembered_and_follows_the_mode(page, tmp_path):
+    from domain.verify import FakeVerifier
+    from tests.web.e2e.server import serve
+
+    with serve(tmp_path, verifier=FakeVerifier()) as live:
+        goto(page, live)
+        box = page.locator("#verify-box")
+        expect(box).to_be_enabled()
+        box.check()
+        page.reload()
+        expect(page.locator("#verify-box")).to_be_checked()          # remembered per browser
+        page.locator("#mode").select_option("streaming")
+        expect(page.locator("#verify-box")).to_be_disabled()
+        assert "no comprueba la respuesta" in page.locator("#verify-label").get_attribute("title")
+        page.locator("#mode").select_option("strict")
+        expect(page.locator("#verify-box")).to_be_enabled()
+
+
+def test_the_unsupported_sentence_is_highlighted_with_its_tooltip_and_a_summary(page, tmp_path):
+    from domain.verify import FakeVerifier
+    from tests.web.e2e.server import serve
+
+    with serve(tmp_path, verifier=FakeVerifier()) as live:
+        live.agents.agent_pre_retrieval.output = (
+            "Un plazo fijo UVA se ajusta por inflación. Los dragones pagan intereses mensuales en oro.")
+        goto(page, live, f"pages/{CONCEPT}")
+        page.locator("#verify-box").check()
+        ask(page, "¿Qué es un plazo fijo UVA?")
+        mark = page.locator("#messages .a mark.unsupported")
+        expect(mark).to_have_count(1)
+        expect(mark).to_contain_text("dragones")
+        expect(page.locator("#messages .verify-note")).to_have_text("1 de 2 oraciones sin respaldo")
+        mark.hover()
+        expect(page.locator("#tip")).to_have_text(
+            "Ninguna de las páginas que leyó el modelo respalda esta oración")
+
+
+def test_verify_the_draft_marks_the_sentence_no_passage_of_the_conversation_supports(page, tmp_path, drafts):
+    from domain.verify import FakeVerifier
+    from tests.web.e2e.server import serve
+
+    with serve(tmp_path, verifier=FakeVerifier()) as live:
+        goto(page, live, "pages/overview")
+        review = open_review(page)
+        review.get_by_role("button", name="Verificar el borrador").click()
+        preview = review.locator(".review-preview")
+        expect(preview.locator("mark.unsupported", has_text="Una frase del borrador.")).to_have_count(1)
+        expect(preview).to_contain_text("oraciones sin respaldo")
+        expect(review.locator("textarea[name=markdown]")).to_be_hidden()
+        review.get_by_role("button", name="Editar").click()                 # back to the editor, unchanged
+        expect(review.locator("textarea[name=markdown]")).to_be_visible()
+        assert "<mark" not in review.locator("textarea[name=markdown]").input_value()
+
+
+# ── Verification of pages ────────────────────────────────────────────────────
+
+def test_verify_a_page_marks_its_unsupported_sentences_and_shows_the_tooltip(page, tmp_path):
+    from domain.verify import FakeVerifier
+    from tests.web.e2e.server import serve
+
+    with serve(tmp_path, verifier=FakeVerifier(lambda passage, sentence: 0.0 if "UVA" not in sentence else 1.0)) as live:
+        goto(page, live, f"pages/{CONCEPT}")
+        expect(page.locator("#verification-state")).to_have_text("Sin verificar")
+        page.locator(".page-head").get_by_role("button", name="Verificar", exact=True).click()
+        expect(page.locator("#verification-state")).to_contain_text("oraciones sin respaldo")
+        marks = page.locator(".prose mark.unsupported")
+        assert marks.count() >= 1
+        assert page.locator(".prose a").count() > 0          # the links of the page survive
+        marks.first.hover()
+        expect(page.locator("#tip")).to_have_text("Ninguna de las fuentes de esta página respalda esta oración")
+        page.locator(".prose .supported").first.hover()
+        expect(page.locator("#tip")).to_contain_text("Respaldada por ")
 def test_rebuild_the_index_from_the_maintenance_screen(page, live, monkeypatch):
     """The rebuild runs for real over the copy of the finance example; only the
     extractor is replaced, since it needs Java and LibreOffice."""

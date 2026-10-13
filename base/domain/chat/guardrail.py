@@ -28,8 +28,12 @@ from pydantic_ai.messages import ModelMessage, ToolReturnPart
 from domain.chat import refusal
 
 # Refusal text, by wiki language. Must match the system prompt's exact phrase.
-REFUSAL_ES = "Eso no está en mi base de conocimiento."
-REFUSAL_EN = "That isn't in my knowledge base."
+# What the system could not do, not what the wiki holds: "Eso no está en mi base de
+# conocimiento." said the wiki lacks a datum it held (pil-01, pil-04, pil-06).
+REFUSAL_ES = "No pude respaldar esta respuesta con una consulta a la wiki en este turno."
+REFUSAL_EN = "I could not back this answer with a lookup in the wiki in this turn."
+# The phrases before 2026-10-11, still recognised in stored conversations.
+LEGACY_REFUSALS = ("Eso no está en mi base de conocimiento.", "That isn't in my knowledge base.")
 
 # Lowercased substrings that mark a tool return as "nothing found / failed".
 # Sourced from the chat tools' own empty/error messages (wiki_tools.py,
@@ -90,7 +94,7 @@ def strip_refused_exchanges(messages: list) -> list:
     """Drop each guardrail refusal from the chat history, with the user turn
     that triggered it.
 
-    A terse, citation-less refusal ("Eso no está en mi base de conocimiento.")
+    A terse, citation-less refusal (`REFUSAL_ES`)
     left in the conversation primes the model to answer the *next* question
     without a citation either — verified: two off-corpus refusals followed by a
     real question come back grounded-but-uncited, whereas the same question as
@@ -105,7 +109,7 @@ def strip_refused_exchanges(messages: list) -> list:
     for i, m in enumerate(msgs):
         content = (getattr(m, "content", "") or "").strip()
         is_refusal = getattr(m, "role", None) == "assistant" and (
-            content in (REFUSAL_ES, REFUSAL_EN) or refusal.is_refusal(content)
+            content in (REFUSAL_ES, REFUSAL_EN, *LEGACY_REFUSALS) or refusal.is_refusal(content)
         )
         if is_refusal:
             drop.add(i)

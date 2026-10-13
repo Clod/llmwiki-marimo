@@ -161,6 +161,7 @@ def repair_stale(
             check="stale", page=issue.page,
             action="regenerated", success=True,
             message=f"Regenerated from source: {src['filename']}",
+            written=f"summaries/{wiki_slug}",
         )
     except Exception as exc:
         logger.exception("repair_stale failed for %s", issue.page)
@@ -321,6 +322,7 @@ def repair_missing_concept(
             check="missing_concept", page=issue.page,
             action="concept_created", success=True,
             message=f"Created wiki/concepts/{concept_file}",
+            written=f"concepts/{slug}",
         )
     except FileExistsError:
         return RepairResult(

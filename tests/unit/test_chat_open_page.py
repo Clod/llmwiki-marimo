@@ -39,7 +39,7 @@ def _turn(workspace, question, open_page):
 
 def test_question_without_topic_is_refused_without_an_open_page(demo):
     answer, prompts = _turn(demo, "¿Cuánto rinde?", None)
-    assert answer.startswith("No puedo responder esta pregunta")
+    assert answer.startswith("No recibí de la wiki información relacionada")
     assert prompts == []
 
 
@@ -51,7 +51,7 @@ def test_question_without_topic_is_answered_from_the_open_page(demo):
 
 def test_a_missing_open_page_changes_nothing(demo):
     answer, _ = _turn(demo, "¿Cuánto rinde?", "concepts/no-existe")
-    assert answer.startswith("No puedo responder esta pregunta")
+    assert answer.startswith("No recibí de la wiki información relacionada")
 
 
 def test_tool_modes_get_the_open_page_as_a_note():

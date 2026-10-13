@@ -56,6 +56,9 @@ _WORKSPACE_ATTR = _PREFIX + "workspace"
 # The workspace of the run in progress, for payload files.
 _workspace: ContextVar[Path | None] = ContextVar("_tracing_workspace", default=None)
 
+# The path of the turn in progress, in memory, when a caller opened `collect()`.
+_collected: ContextVar[list[dict] | None] = ContextVar("_tracing_collected", default=None)
+
 _provider: TracerProvider | None = None
 _provider_lock = threading.Lock()
 
@@ -186,15 +189,21 @@ def _set(span: trace.Span, attributes: dict[str, Any], prefix: str = _PREFIX) ->
 class Node:
     """The open span of one diagram node."""
 
-    def __init__(self, span: trace.Span) -> None:
+    def __init__(self, span: trace.Span, entry: dict | None = None) -> None:
         self.span = span
+        # The entry of this node in the path being collected, or None.
+        self.entry = entry
 
     def set(self, **attributes: Any) -> None:
         """Record values the node computed, under ``llmwiki.<name>``."""
+        if self.entry is not None:
+            self.entry["attributes"].update({k: v for k, v in attributes.items() if v is not None})
         _set(self.span, attributes)
 
     def payload(self, name: str, content: str, *, channel: str, ext: str = "txt") -> None:
-        """Store heavy content in a payload file and record its sha256, size and path."""
+        """Store heavy content in a payload file and record its sha256, size and path.
+
+        The path being collected receives only ``<name>.ref``, never the content."""
         if not self.span.is_recording():
             return
         try:
@@ -209,6 +218,8 @@ class Node:
                 if not path.exists():
                     path.write_bytes(data)
                 fields[f"{name}.ref"] = f"payloads/{sha}.{ext}"
+                if self.entry is not None:
+                    self.entry["attributes"][f"{name}.ref"] = fields[f"{name}.ref"]
             _set(self.span, fields)
         except Exception:  # noqa: BLE001 — tracing is best-effort
             logger.debug("span payload failed", exc_info=True)
@@ -217,7 +228,26 @@ class Node:
 # ── Spans ─────────────────────────────────────────────────────────────────────
 
 @contextlib.contextmanager
-def _span(name: str, attributes: dict[str, Any]) -> Iterator[Node]:
+def collect() -> Iterator[list[dict]]:
+    """Keep, in memory, the path of the run: one entry per node opened inside.
+
+    Yields a list that receives ``{"node", "diagram", "attributes"}`` for every
+    ``node`` and ``mark``, whether ``WIKI_TRACE`` is on or off. Nothing is written
+    to disk by this function.
+    """
+    path: list[dict] = []
+    token = _collected.set(path)
+    try:
+        yield path
+    finally:
+        try:
+            _collected.reset(token)
+        except ValueError:   # reset in another context (an async generator): drop the list instead
+            _collected.set(None)
+
+
+@contextlib.contextmanager
+def _span(name: str, attributes: dict[str, Any], entry: dict | None = None) -> Iterator[Node]:
     # The attributes go in at start: the file processor reads the root's
     # workspace in on_start, before any later set_attribute.
     start_attrs = {
@@ -228,7 +258,7 @@ def _span(name: str, attributes: dict[str, Any]) -> Iterator[Node]:
     with tracer.start_as_current_span(
         name, attributes=start_attrs, record_exception=True,
     ) as span:
-        yield Node(span)
+        yield Node(span, entry)
 
 
 @contextlib.contextmanager
@@ -262,7 +292,13 @@ def root(name: str, workspace: Path | str | None, **attributes: Any) -> Iterator
 @contextlib.contextmanager
 def node(node_id: str, diagram: str, **attributes: Any) -> Iterator[Node]:
     """Open the span of one diagram node, named by its identifier."""
-    with _span(node_id, {"node": node_id, "diagram": diagram, **attributes}) as node_obj:
+    entry = None
+    path = _collected.get()
+    if path is not None:
+        entry = {"node": node_id, "diagram": diagram,
+                 "attributes": {k: v for k, v in attributes.items() if v is not None}}
+        path.append(entry)
+    with _span(node_id, {"node": node_id, "diagram": diagram, **attributes}, entry) as node_obj:
         yield node_obj
 
 

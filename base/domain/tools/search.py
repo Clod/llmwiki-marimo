@@ -57,3 +57,14 @@ def search_chunks(
             return []
 
     return [dict(row) for row in rows]
+
+
+def any_word_query(text: str, db_path: str) -> str:
+    """`text` as an FTS5 expression that matches ANY of its words: stop words of the
+    wiki's language and 1–2 character words dropped, the rest quoted and joined with
+    OR (the query of the pre-retrieval search, `_fts_query`). Empty when nothing
+    meaningful remains. The search tools of the model use it when no fragment has
+    every word of the query."""
+    from domain.chat.preretrieval import _fts_query
+
+    return _fts_query(text, language_for_db(db_path))
