@@ -30,7 +30,6 @@ from domain.chat.vocabulary import merge_aliases, read_generated_aliases
 
 # Entailment probability a sentence needs to count as supported. Defined here,
 # not in domain.verify, so that loading the config imports nothing of the verifier.
-# See privado/encargos/2026-10-05_sentence_verification_informe.md.
 DEFAULT_VERIFY_THRESHOLD = 0.5
 # Passages kept for each sentence of a wiki page before the verifier runs
 # (`[verify] candidates`). See domain/verify/preselect.py.
