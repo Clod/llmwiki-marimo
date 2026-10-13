@@ -11,6 +11,8 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
 ### Added
 
 - **Sentence-level verification of chat answers** (`base/domain/verify/`). After
@@ -899,7 +901,8 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.4.0...master
+[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.5.0...master
+[0.5.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.2...v0.2.3
