@@ -3,7 +3,7 @@
 > **Status:** DRAFT — collaborative. The concrete spec of the **`finance_argentina`**
 > domain module (`base/domain/finance_argentina/`). Architecture/seams live in
 > `docs/design_datasets.md`; the generic dataset format in
-> `.trellis/spec/backend/datasets-format.md`.
+> `docs/contracts/datasets-format.md`.
 >
 > **Domain-specific by design.** This module is **Argentine** finance — plazo
 > fijo, FCI, MEP, CER/UVA, caución. It is **not** general, and we don't pretend

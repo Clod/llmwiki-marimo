@@ -1,7 +1,5 @@
 """TDD tests for the three new repair actions: missing_xref, contradiction, data_gap,
 and the new gap_filled check+repair.
-
-Implements PRD: .trellis/tasks/05-25-finish-repair-actions/prd.md
 """
 
 import uuid

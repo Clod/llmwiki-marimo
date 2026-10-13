@@ -22,12 +22,12 @@ uv run python scripts/capture_query_walkthrough.py
 ```
 
 The authoritative contract for everything below is
-[`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md).
+[`docs/contracts/chat-retrieval.md`](contracts/chat-retrieval.md).
 
 A **contract** here is the specification a piece of code has to satisfy: its
 exact signature, what state it leaves behind, what happens in each case, and the
-tests that check each of those claims. They live in `.trellis/spec/backend/` and
-are updated in the same commit as the code they describe.
+tests that check each of those claims. The contracts this walkthrough cites live in
+`docs/contracts/` and are updated in the same commit as the code they describe.
 
 This document is prose written around a generated appendix, and it simplifies
 where simplifying helps. So where it and a contract seem to disagree, the
@@ -731,7 +731,7 @@ else. Every Spanish term is glossed in parentheses the first time it appears.
 
 `preretrieval.plan_retrieval` is an `if`/`elif` chain checked in a fixed order,
 and the order itself is the design decision (§3 of the
-[contract](../.trellis/spec/backend/chat-retrieval.md)). In a wiki built out of
+[contract](contracts/chat-retrieval.md)). In a wiki built out of
 documents alone — no `datasets/` folder — it has five branches:
 
 ```mermaid
@@ -943,7 +943,7 @@ live number, each with its own citation. The two labels mean different things:
   the dataset file the number was read from.
 - **`Fuente:`** names where the number came from *outside* — here, `ambito.com`.
 
-See [§2 of the contract](../.trellis/spec/backend/chat-retrieval.md) for the
+See [§2 of the contract](contracts/chat-retrieval.md) for the
 rule. `postprocess.ensure_citation` is what guarantees the second line appears
 even when the model's own text forgets to mention `dolar.md` by name.
 
@@ -1233,7 +1233,7 @@ None of the seven acts above reached that path. Every question here ended in
 Tier 1, in tools-only, or in a refusal, before Tier 2 was ever considered. The
 mechanism exists and is covered by `test_chat_retrieval_plan.py` and
 `test_chat_pre_retrieval_answer.py` (both cited in the
-[contract](../.trellis/spec/backend/chat-retrieval.md)) — but this walkthrough is
+[contract](contracts/chat-retrieval.md)) — but this walkthrough is
 built from real questions put to a real demo, not from constructed ones, and it
 would be dishonest to describe a case that was never actually observed.
 
@@ -1365,7 +1365,7 @@ it is the scorecard behind the previous section.
 
 Otherwise:
 
-- [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
+- [`docs/contracts/chat-retrieval.md`](contracts/chat-retrieval.md)
   — the current, authoritative contract for the plan order, the roster gate and
   the citation format.
 - [Workflows](manual/workflows/6.7-chat-rag.md) §6.7 — the per-operation reference for the

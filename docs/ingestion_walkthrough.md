@@ -1747,6 +1747,6 @@ If you would rather go sideways than forward:
   outputs, table-write matrices, today-vs-target status.
 - [`sqlite_data_dictionary.md`](sqlite_data_dictionary.md) for every column of
   every table, rather than only the four that carry the argument here.
-- [`.trellis/spec/backend/chat-retrieval.md`](../.trellis/spec/backend/chat-retrieval.md)
+- [`docs/contracts/chat-retrieval.md`](contracts/chat-retrieval.md)
   — the retrieval **contract**: the specification that code has to satisfy, kept
   in step with it commit by commit, and the document to trust over any prose.

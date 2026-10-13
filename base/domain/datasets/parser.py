@@ -1,6 +1,6 @@
 """Dataset markdown parser: file -> normalized DatasetRow list.
 
-Implements the file contract in .trellis/spec/backend/datasets-format.md
+Implements the file contract in docs/contracts/datasets-format.md
 exactly — §2 (signatures), §3 (front-matter contracts), §5 (Validation &
 Error Matrix). Reject-file vs skip-row vs warn-and-continue are all logged
 via the project's `wiki` logger (never silently swallowed) per

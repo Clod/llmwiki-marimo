@@ -1,6 +1,6 @@
 """Tests for domain/datasets/parser.py — dataset markdown → normalized rows.
 
-Spec: .trellis/spec/backend/datasets-format.md §2-§3, §5 (Validation & Error
+Spec: docs/contracts/datasets-format.md §2-§3, §5 (Validation & Error
 Matrix), §7 (Tests Required). All inputs are deterministic in-memory markdown
 strings — no LLM, no network, no filesystem.
 """

@@ -496,7 +496,7 @@ assert_wiki_ok(src["id"], filename)
 > engine: alongside the durable concept pages it can carry **live, structured
 > datasets**, and a domain overlay can compute **deterministic, cited advice**
 > over them. The engine is domain-neutral; `finance_argentina` is the first
-> overlay. Full design: `.trellis/spec/backend/datasets-format.md` (the
+> overlay. Full design: `docs/contracts/datasets-format.md` (the
 > executable format contract), `docs/design_datasets.md` (interface design),
 > `docs/design_finance_argentina.md` (the overlay).
 
