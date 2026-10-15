@@ -420,6 +420,10 @@ msgstr ""
 msgid "Open the page"
 msgstr ""
 
+#: web/routes/datasets.py
+msgid "The data file does not exist."
+msgstr ""
+
 #: web/routes/history.py
 msgid "⏪ Restoring the pages of "
 msgstr ""
@@ -932,18 +936,18 @@ msgstr ""
 msgid "Close the dataset"
 msgstr ""
 
-#: web/templates/_dataset_dialog.html
+#: web/templates/_dataset_dialog.html web/templates/_history_confirm.html
+msgid "Close"
+msgstr ""
+
+#: web/templates/_dataset_table.html
 #, python-format
 msgid "as of %(date)s"
 msgstr ""
 
-#: web/templates/_dataset_dialog.html
+#: web/templates/_dataset_table.html
 #, python-format
 msgid "source: %(source)s"
-msgstr ""
-
-#: web/templates/_dataset_dialog.html web/templates/_history_confirm.html
-msgid "Close"
 msgstr ""
 
 #: web/templates/_history_confirm.html
@@ -1547,6 +1551,15 @@ msgid "Vocabulary"
 msgstr ""
 
 #: web/templates/base.html
+msgid "See the data files of the wiki: their metadata and their tables"
+msgstr ""
+
+#: web/templates/base.html web/templates/data.html
+msgctxt "tab"
+msgid "Data"
+msgstr ""
+
+#: web/templates/base.html
 msgid "See the points of the wiki and go back to an earlier one"
 msgstr ""
 
@@ -1568,6 +1581,28 @@ msgstr ""
 
 #: web/templates/chat_turn.html
 msgid "Typing"
+msgstr ""
+
+#: web/templates/data.html
+msgid "Data files"
+msgstr ""
+
+#: web/templates/data.html
+msgid "Show the content of this data file"
+msgstr ""
+
+#: web/templates/data.html
+msgid ""
+"This wiki has no data files. A data file is a markdown table with its front-matter in the <code>datasets/</code> "
+"folder of the wiki."
+msgstr ""
+
+#: web/templates/data.html
+msgid "No data file"
+msgstr ""
+
+#: web/templates/data.html
+msgid "Metadata of the data file"
 msgstr ""
 
 #: web/templates/edit.html

@@ -5,17 +5,7 @@
   </header>
   <div class="dataset-body">
     {% for t in tables %}
-    <section class="dataset-table" aria-label="{{ t.category }}">
-      <p class="dataset-meta">{% if tables|length > 1 %}<b class="mono">{{ t.path }}</b> · {% endif %}{{ t.metrics|join(", ") }}{% if t.unit %} · {{ t.unit }}{% endif %}{% if t.as_of %} · {{ _("as of %(date)s", date=t.as_of) }}{% endif %}{% if t.source %} · {{ _("source: %(source)s", source=t.source) }}{% endif %}</p>
-      <div class="table-scroll"><table>
-        <thead><tr><th scope="col"></th>{% for c in t.columns %}<th scope="col" class="num">{{ c }}</th>{% endfor %}</tr></thead>
-        <tbody>
-        {% for key, cells in t.rows %}
-        <tr{% if key == t.marked %} class="marked" aria-current="true"{% endif %}><th scope="row">{{ key }}</th>{% for v in cells %}<td class="num">{{ v or "–" }}</td>{% endfor %}</tr>
-        {% endfor %}
-        </tbody>
-      </table></div>
-    </section>
+    {% include "_dataset_table.html" %}
     {% endfor %}
   </div>
   <footer class="dataset-actions">

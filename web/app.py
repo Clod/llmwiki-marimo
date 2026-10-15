@@ -25,7 +25,7 @@ from domain.tools.db import SchemaMismatchError  # noqa: E402
 from web import i18n  # noqa: E402
 from web.deps import status_label  # noqa: E402
 from web.i18n import _  # noqa: E402
-from web.routes import audit, chat, history, ingest, lang, pages, picker, relations, vocabulary  # noqa: E402
+from web.routes import audit, chat, datasets, history, ingest, lang, pages, picker, relations, vocabulary  # noqa: E402
 from web.routes import settings as wiki_settings  # noqa: E402
 from web.settings import WebSettings  # noqa: E402
 from web.state import AgentsFactory, AppState, UnknownWiki  # noqa: E402
@@ -100,7 +100,7 @@ def create_app(settings: WebSettings | None = None, *, agents_factory: AgentsFac
     app.state.web = AppState(settings or WebSettings.from_env(), agents_factory, verifier)
     app.state.templates = make_templates()
     app.mount("/static", RevalidatedStaticFiles(directory=str(_HERE / "static")), name="static")
-    for module in (picker, pages, chat, audit, ingest, history, relations, wiki_settings, vocabulary, lang):
+    for module in (picker, pages, chat, audit, ingest, history, relations, wiki_settings, vocabulary, datasets, lang):
         app.include_router(module.router)
 
     app.add_middleware(InterfaceLanguage)
