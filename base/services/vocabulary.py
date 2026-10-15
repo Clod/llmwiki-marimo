@@ -242,3 +242,17 @@ def dataset_tables(wiki: Wiki, *, category: str = "", key: str = "") -> tuple[Da
         if wanted and hit is not None:
             tables.append(_table(source, name, marked=hit))
     return tuple(tables)
+
+
+# ── the data files, as the Data screen shows them ─────────────────────────────
+
+def dataset_categories(wiki: Wiki) -> tuple[str, ...]:
+    """The categories of the files under `datasets/` that parse as datasets, sorted.
+    Empty when the wiki has no `datasets/` folder."""
+    return tuple(LocalMarkdownSource(Path(wiki.path) / "datasets").categories())
+
+
+def dataset_attributes(wiki: Wiki, category: str) -> dict[str, object]:
+    """The front-matter of `datasets/<category>.md` as the file carries it. Empty when
+    the file does not exist or its front-matter does not parse."""
+    return dict(LocalMarkdownSource(Path(wiki.path) / "datasets").attributes(category))

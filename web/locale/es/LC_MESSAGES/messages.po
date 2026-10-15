@@ -419,6 +419,10 @@ msgstr "Se creó la página «%(title)s»."
 msgid "Open the page"
 msgstr "Abrir la página"
 
+#: web/routes/datasets.py
+msgid "The data file does not exist."
+msgstr "El archivo de datos no existe."
+
 #: web/routes/history.py
 msgid "⏪ Restoring the pages of "
 msgstr "⏪ Restaurando las páginas de "
@@ -935,19 +939,19 @@ msgstr "Datasets que tienen «%(name)s»"
 msgid "Close the dataset"
 msgstr "Cerrar el dataset"
 
-#: web/templates/_dataset_dialog.html
+#: web/templates/_dataset_dialog.html web/templates/_history_confirm.html
+msgid "Close"
+msgstr "Cerrar"
+
+#: web/templates/_dataset_table.html
 #, python-format
 msgid "as of %(date)s"
 msgstr "al %(date)s"
 
-#: web/templates/_dataset_dialog.html
+#: web/templates/_dataset_table.html
 #, python-format
 msgid "source: %(source)s"
 msgstr "fuente: %(source)s"
-
-#: web/templates/_dataset_dialog.html web/templates/_history_confirm.html
-msgid "Close"
-msgstr "Cerrar"
 
 #: web/templates/_history_confirm.html
 msgid "Cannot go back to this point."
@@ -1571,6 +1575,15 @@ msgid "Vocabulary"
 msgstr "Vocabulario"
 
 #: web/templates/base.html
+msgid "See the data files of the wiki: their metadata and their tables"
+msgstr "Ver los archivos de datos de la wiki: sus metadatos y sus tablas"
+
+#: web/templates/base.html web/templates/data.html
+msgctxt "tab"
+msgid "Data"
+msgstr "Datos"
+
+#: web/templates/base.html
 msgid "See the points of the wiki and go back to an earlier one"
 msgstr "Ver los puntos de la wiki y volver a uno anterior"
 
@@ -1593,6 +1606,30 @@ msgstr "Idioma de la interfaz"
 #: web/templates/chat_turn.html
 msgid "Typing"
 msgstr "Escribiendo"
+
+#: web/templates/data.html
+msgid "Data files"
+msgstr "Archivos de datos"
+
+#: web/templates/data.html
+msgid "Show the content of this data file"
+msgstr "Mostrar el contenido de este archivo de datos"
+
+#: web/templates/data.html
+msgid ""
+"This wiki has no data files. A data file is a markdown table with its front-matter in the <code>datasets/</code> "
+"folder of the wiki."
+msgstr ""
+"Esta wiki no tiene archivos de datos. Un archivo de datos es una tabla markdown con su front-matter en la carpeta "
+"<code>datasets/</code> de la wiki."
+
+#: web/templates/data.html
+msgid "No data file"
+msgstr "Ningún archivo de datos"
+
+#: web/templates/data.html
+msgid "Metadata of the data file"
+msgstr "Metadatos del archivo de datos"
 
 #: web/templates/edit.html
 #, python-format

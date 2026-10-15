@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ pgettext("tab", "Data") }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/dataset.css">{% endblock %}
+{% block body %}
+<main class="data-screen">
+  <h1 class="sr-only">{{ pgettext("tab", "Data") }}</h1>
+  <section class="panel data-panel" aria-labelledby="data-files-title">
+    <header class="panel-head"><h2 id="data-files-title">{{ _("Data files") }} · {{ categories|length }}</h2></header>
+    {% if categories %}
+    <ul class="data-files">
+      {% for c in categories %}
+      <li><a class="mono" href="/w/{{ wiki_id }}/data?category={{ c|urlencode }}" {% if c == selected %}aria-current="page"{% endif %} title="{{ _('Show the content of this data file') }}">{{ c }}.md</a></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="data-empty muted">{% trans %}This wiki has no data files. A data file is a markdown table with its front-matter in the <code>datasets/</code> folder of the wiki.{% endtrans %}</p>
+    {% endif %}
+  </section>
+  <section class="panel data-panel" aria-labelledby="data-file-title">
+    <header class="panel-head"><h2 id="data-file-title" class="mono">{% if selected %}datasets/{{ selected }}.md{% else %}{{ _("No data file") }}{% endif %}</h2></header>
+    {% if selected %}
+    <div class="data-file">
+      {% if attributes %}
+      <dl class="data-attributes" aria-label="{{ _('Metadata of the data file') }}">
+        {% for name, value in attributes %}<dt>{{ name }}</dt><dd>{{ value }}</dd>{% endfor %}
+      </dl>
+      {% endif %}
+      {% for t in tables %}
+      {% include "_dataset_table.html" %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

@@ -187,11 +187,12 @@ SCREENS = [
      ["Mantenimiento", "Reconstruir el índice", "Páginas de resumen", "Páginas obsoletas", "Modelo"]),
     ("relations", f"/w/{WIKI_ID}/relations", ["Mostrar resúmenes", "Encuadrar", "Leyenda", "Acercar"]),
     ("local graph", f"/w/{WIKI_ID}/relations?page=concepts/cinderella", ["Profundidad", "Ver todo el grafo", "Leer la página"]),
+    ("data", f"/w/{WIKI_ID}/data", ["Archivos de datos", "Esta wiki no tiene archivos de datos", "Ningún archivo de datos"]),
     ("history", f"/w/{WIKI_ID}/history", ["Puntos de la wiki", "Volver a este punto", "copia del índice", "Progreso"]),
     ("page history", f"/w/{WIKI_ID}/history/page/concepts/cinderella", ["Versiones", "Ver esta versión", "Historial de"]),
 ]
-TABS_ES = [">Leer<", ">Ingestar<", ">Mantener<", ">Ver relaciones<", ">Historial<"]
-TABS_EN = [">Read<", ">Ingest<", ">Maintain<", ">Relations<", ">History<"]
+TABS_ES = [">Leer<", ">Ingestar<", ">Mantener<", ">Ver relaciones<", ">Datos<", ">Historial<"]
+TABS_EN = [">Read<", ">Ingest<", ">Maintain<", ">Relations<", ">Data<", ">History<"]
 
 
 @pytest.mark.parametrize("name,url,spanish", SCREENS, ids=[s[0] for s in SCREENS])
