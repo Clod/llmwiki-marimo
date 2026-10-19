@@ -386,7 +386,7 @@ def plan_retrieval(
     if is_off_limits(question, off_limits):
         return _REFUSE
     if in_roster:
-        tracing.mark("Q7", R, answer=bool(wiki_hits), wiki_pages=len(wiki_hits))
+        tracing.mark("Q7", R, answer=bool(wiki_hits), wiki_fragments=len(wiki_hits))
     if wiki_hits and in_roster:
         return RetrievalPlan("invoke", "curado", "\n\n".join(wiki_hits), False, tuple(wiki_hits))
     tracing.mark("Q9", R, answer=bool(collection_hits), collection_pages=len(collection_hits))
