@@ -59,7 +59,9 @@ def serve(tmp_path: Path, verifier=None) -> Iterator[Live]:
     home = tmp_path / "home"
     home.mkdir()
     wiki_dir = home / WIKI_ID
-    shutil.copytree(EXAMPLE, wiki_dir)
+    # Without `.git`: a local checkout may hold a history of the example wiki
+    # (from using the app on it), and the history tests count commits.
+    shutil.copytree(EXAMPLE, wiki_dir, ignore=shutil.ignore_patterns(".git"))
     settings = WebSettings(
         wiki_path=str(wiki_dir), wiki_home=home, recent_file=tmp_path / "recent_wikis.json",
         llm_base_url="http://llm.invalid/v1", llm_api_key="key", llm_model="model",
