@@ -1,5 +1,8 @@
-"""The application on a free port over a copy of `examples/finanzas-argentinas`,
-with simulated agents. Used by the Playwright tests and by `capture.py`."""
+"""The application on a free port over a copy of `examples/finanzas-argentinas`.
+
+`serve` runs it with simulated agents; the Playwright tests and `capture.py`
+use it. `serve_live` runs it with the model of `.env`; only the opt-in test
+`test_lint_live.py` uses it."""
 
 from __future__ import annotations
 
@@ -54,14 +57,38 @@ def answer_for(prompt: str) -> str:
     return "Respuesta simulada."
 
 
-@contextmanager
-def serve(tmp_path: Path, verifier=None) -> Iterator[Live]:
+def _copy_example(tmp_path: Path) -> tuple[Path, Path]:
+    """Copy the example wiki to `tmp_path/home/WIKI_ID`; return `(home, wiki_dir)`."""
     home = tmp_path / "home"
     home.mkdir()
     wiki_dir = home / WIKI_ID
     # Without `.git`: a local checkout may hold a history of the example wiki
     # (from using the app on it), and the history tests count commits.
     shutil.copytree(EXAMPLE, wiki_dir, ignore=shutil.ignore_patterns(".git"))
+    return home, wiki_dir
+
+
+@contextmanager
+def _run(app) -> Iterator[str]:
+    """Run `app` with uvicorn on a free port; yield its base URL."""
+    port = _free_port()
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.time() + 15
+    while not server.started and time.time() < deadline:
+        time.sleep(0.05)
+    assert server.started, "the server did not start"
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
+@contextmanager
+def serve(tmp_path: Path, verifier=None) -> Iterator[Live]:
+    home, wiki_dir = _copy_example(tmp_path)
     settings = WebSettings(
         wiki_path=str(wiki_dir), wiki_home=home, recent_file=tmp_path / "recent_wikis.json",
         llm_base_url="http://llm.invalid/v1", llm_api_key="key", llm_model="model",
@@ -73,16 +100,28 @@ def serve(tmp_path: Path, verifier=None) -> Iterator[Live]:
     # (off-limits topics, scope) are the code's, and need it.
     agents = replace(simulated, config=load_config(wiki_dir))
     app = create_app(settings, agents_factory=lambda wiki: agents, verifier=verifier)
-    port = _free_port()
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    deadline = time.time() + 15
-    while not server.started and time.time() < deadline:
-        time.sleep(0.05)
-    assert server.started, "the server did not start"
-    try:
-        yield Live(f"http://127.0.0.1:{port}", app, wiki_dir, agents)
-    finally:
-        server.should_exit = True
-        thread.join(timeout=10)
+    with _run(app) as url:
+        yield Live(url, app, wiki_dir, agents)
+
+
+def live_model_missing() -> list[str]:
+    """The ingestion settings that are blank in `.env` and the environment.
+
+    An empty list means the ingestion model is configured."""
+    settings = WebSettings.from_env()
+    fields = (("WIKI_LLM_BASE_URL/LLM_BASE_URL", settings.ingest_base_url),
+              ("WIKI_LLM_API_KEY/LLM_API_KEY", settings.ingest_api_key),
+              ("WIKI_LLM_MODEL/LLM_MODEL", settings.ingest_model))
+    return [name for name, value in fields if not value]
+
+
+@contextmanager
+def serve_live(tmp_path: Path) -> Iterator[Live]:
+    """The application with the model of `.env`: the real settings, with the
+    wiki paths replaced by the copy, and the real agents (`agents` is None)."""
+    home, wiki_dir = _copy_example(tmp_path)
+    settings = replace(WebSettings.from_env(), wiki_path=str(wiki_dir), wiki_home=home,
+                       recent_file=tmp_path / "recent_wikis.json")
+    app = create_app(settings)
+    with _run(app) as url:
+        yield Live(url, app, wiki_dir, None)

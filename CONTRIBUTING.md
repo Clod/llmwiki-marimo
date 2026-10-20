@@ -64,7 +64,9 @@ uv run --group web pytest -q tests/web
 uv run ruff check .
 ```
 
-The web tests simulate the model and need no network. The end-to-end tests of the marimo
+The web tests simulate the model and need no network. The exception is
+`tests/web/e2e/test_lint_live.py`, which calls the model of `.env` and runs only with
+`E2E_FULL=1 uv run --group web pytest -q tests/web/e2e/test_lint_live.py`. The end-to-end tests of the marimo
 apps (`tests/e2e/`) require a real LLM endpoint and are not part of CI.
 
 CI runs two jobs on every push and PR to `master`: `unit` (the unit and regression suites and
