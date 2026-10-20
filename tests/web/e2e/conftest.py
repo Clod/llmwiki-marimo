@@ -2,7 +2,9 @@
 of `examples/finanzas-argentinas`, with simulated agents (`server.py`).
 
 The tests are skipped when Playwright cannot start a browser. No test calls a
-model: the agents are simulated, and the ingestion services are replaced.
+model: the agents are simulated, and the ingestion services are replaced. The
+one exception is `test_lint_live.py`, which runs only with `E2E_FULL=1` and
+calls the model of `.env` (`server.serve_live`).
 """
 
 from __future__ import annotations

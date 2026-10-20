@@ -14,10 +14,6 @@ describe how the system actually behaves, measured rather than asserted.
 
 ## Next
 
-**Run the full end-to-end lint sweep.** `E2E_FULL=1` against
-`tests/e2e/test_ingest_app_v2.py` exercises the LLM lint checks in a browser and
-has never been run. `E2E_DESTRUCTIVE=1` has.
-
 **Italian.** The engine is already multilingual per wiki (`[wiki] language` in
 `wiki_config.toml`); adding a language is one `Locale` entry in
 `base/domain/i18n.py`. Scheduled last on purpose — the user-facing docs get

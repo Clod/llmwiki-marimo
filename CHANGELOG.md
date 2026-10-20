@@ -11,6 +11,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Added
+
+- **An opt-in end-to-end test of the wiki-wide lint and repair in the web app**
+  (`tests/web/e2e/test_lint_live.py`). It runs the operation of the Maintain screen
+  with the model of `.env`, on a copy of the example wiki, and checks the closing line
+  of the operation log and the absence of an error line. It runs only with
+  `E2E_FULL=1`; CI skips it. First run, 2026-10-19: passed in 408 s. It supersedes the
+  `E2E_FULL=1` test of the marimo ingest app, which was never run.
+
 ## [0.5.0] - 2026-10-13
 
 ### Added
