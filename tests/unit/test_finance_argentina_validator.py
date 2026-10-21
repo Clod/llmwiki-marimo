@@ -1,4 +1,4 @@
-"""Tests for domain/finance_argentina/validator.py — domain lint check.
+"""Tests for domain/extensions/finance_argentina/validator.py — domain lint check.
 
 Spec: docs/design_finance_argentina.md §3, §8 `test_validator_gate`. Uses an
 in-memory fake DatasetSource (conforms to domain.datasets.models.DatasetSource)
@@ -8,8 +8,8 @@ that carries both rows and per-category attributes — no LLM, no network, no di
 from datetime import date
 
 from domain.datasets.models import DatasetRow
-from domain.finance_argentina.requirements import parse_requirements_markdown
-from domain.finance_argentina.validator import validate_workspace
+from domain.extensions.finance_argentina.requirements import parse_requirements_markdown
+from domain.extensions.finance_argentina.validator import validate_workspace
 
 _MANIFEST = """\
 ---

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ pgettext("tab", "Tools") }} — llmwiki{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/tools.css">{% endblock %}
+{% block body %}
+<main class="tools-screen">
+  <h1 class="sr-only">{{ pgettext("tab", "Tools") }}</h1>
+  <section class="panel" aria-labelledby="generic-tools-title">
+    <header class="panel-head"><h2 id="generic-tools-title">{{ _("Generic tools") }} · {{ generic|length }}</h2></header>
+    <p class="tools-intro muted">{{ _("The chat reads the wiki and its data with these tools. A tool is active when the chat can call it in this wiki.") }}</p>
+    <div class="tool-list">
+      {% for tool in generic %}{% include "_tool.html" %}{% endfor %}
+    </div>
+  </section>
+  {% for domain in domains %}
+  <details class="domain{% if domain.active_count %} domain-active{% endif %}">
+    <summary>
+      <span class="domain-name mono">{{ domain.name }}</span>
+      <span class="domain-count">{{ _("%(active)s of %(total)s active", active=domain.active_count, total=domain.tools|length) }}</span>
+    </summary>
+    <div class="domain-body">
+      <p class="domain-categories">
+        <strong>{{ _("Categories that meet the requirements") }}:</strong>
+        <span class="mono">{% if domain.passing %}{{ domain.passing|join(", ") }}{% else %}{{ _("none") }}{% endif %}</span>
+      </p>
+      {% if domain.excluded %}
+      <div class="domain-excluded">
+        <strong>{{ _("Excluded categories") }}:</strong>
+        <ul>{% for category, reasons in domain.excluded %}<li><span class="mono">{{ category }}</span> — {{ reasons }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+      <div class="tool-list">
+        {% for tool in domain.tools %}{% include "_tool.html" %}{% endfor %}
+      </div>
+      {% if domain.calculations %}
+      <h3 class="domain-calc-title">{{ _("Calculation functions") }}</h3>
+      {% for calc in domain.calculations %}
+      <details class="calculation">
+        <summary class="mono">{{ calc.name }}</summary>
+        <pre class="mono">{{ calc.source }}</pre>
+      </details>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </details>
+  {% endfor %}
+</main>
+{% endblock %}

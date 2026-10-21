@@ -163,7 +163,7 @@ do, instead of scrolling away.
 
 ## 5. It only knows "what is", not "what is it worth today" — and it cannot do arithmetic
 
-`Status: ✅ done` · `base/domain/datasets/`, `base/domain/finance_argentina/`
+`Status: ✅ done` · `base/domain/datasets/`, `base/domain/extensions/finance_argentina/`
 
 **The leak.** The wiki in the original idea is an encyclopedia: nothing keeps
 numbers current, and nothing computes. It can explain what a fixed-term deposit

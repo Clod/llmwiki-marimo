@@ -206,7 +206,7 @@ the table has twelve rows.
 | **Retrieval & Chat** | the read side: agent, the pre-retrieval scope gate, grounding, post-processing | `chat/agent.py` · `chat/preretrieval.py` |
 | **Persistence & Tools** | SQLite, FTS5 search, the citation graph, deletion, git | `tools/db.py` · `tools/search.py` |
 | **Quality & Maintenance** | lint finds defects, repair fixes the safe ones — one layer because they are a producer/consumer pair | `lint/runner.py` · `repair/runner.py` |
-| **Datasets & Overlays** | the optional lane for facts that expire, plus one example domain overlay | `datasets/source.py` · `finance_argentina/agent_tool.py` |
+| **Datasets & Overlays** | the optional lane for facts that expire, plus one example domain overlay | `datasets/source.py` · `extensions/finance_argentina/agent_tool.py` |
 | **Evaluation** | the offline harness that scores chat and ingestion quality | `eval/packet.py` |
 | **Services** *(added)* | the calls every interface makes to the domain: open a wiki, list and save pages, one chat turn per mode, uploads, maintenance, history, the relations graph. No interface code | `base/services/wiki.py` · `base/services/chat.py` · `base/services/ingest.py` |
 | **Web interface** *(added)* | the interface of the project: FastAPI routes, Jinja2 templates, HTMX, SSE. Routes hold no logic and call `base/services/` | `web/app.py` · `web/routes/` |
@@ -269,14 +269,18 @@ llmwiki/
 │       │   ├── rubric.py               # frozen judge instructions + 1–5 rubric + probes
 │       │   ├── packet.py               # dataclasses + pure markdown render
 │       │   └── reader.py               # read-only evidence gathering from a wiki DB
-│       ├── finance_argentina/           # Example domain overlay: investment advisory (§15)
-│       │   ├── requirements.py / .md   # manifest: what each category needs
-│       │   ├── instrument_attrs.py     # finance attrs read from DATASET front-matter
-│       │   ├── validator.py            # domain lint (datasets + attributes)
-│       │   ├── formulae.py             # deterministic TEA / gain math
-│       │   ├── advisory.py             # estimate_alternatives()
-│       │   ├── data_tools.py           # one typed data tool per category (K6–K10)
-│       │   └── agent_tool.py           # estimar_alternativas tool + activate()
+│       ├── extensions/                  # domain tools, one subpackage per domain (§15.5)
+│       │   ├── __init__.py             # domain interface and registry (DomainTools, ToolRoles, activate_all, roles)
+│       │   ├── description.py          # what the Tools tab shows (ToolDescription, DomainDescription)
+│       │   ├── finance_argentina/      # Example domain: investment advisory (§15.4, §15.5)
+│       │   │   ├── __init__.py         # NAME, ROLES, activate(), describe()
+│       │   │   ├── requirements.py / .md   # manifest: what each category needs
+│       │   │   ├── instrument_attrs.py # finance attrs read from DATASET front-matter
+│       │   │   ├── validator.py        # domain lint (datasets + attributes)
+│       │   │   ├── formulae.py         # deterministic TEA / gain math
+│       │   │   ├── advisory.py         # estimate_alternatives()
+│       │   │   ├── data_tools.py       # one typed data tool per category (K6–K10)
+│       │   │   └── agent_tool.py       # estimar_alternativas tool + activate()
 │       ├── ingestion/
 │       │   ├── pipeline.py             # ingest_file, scan_and_ingest,
 │       │   │                           #   regenerate_wiki_pages

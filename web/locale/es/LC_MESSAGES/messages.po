@@ -684,6 +684,34 @@ msgstr "Escribí un número entero, 1 o más."
 msgid "The value is not valid."
 msgstr "El valor no es válido."
 
+#: web/routes/tools.py
+msgid "The wiki has no data files."
+msgstr "La wiki no tiene archivos de datos."
+
+#: web/routes/tools.py
+msgid "The data tools of a domain replace it."
+msgstr "Las herramientas de datos de un dominio la reemplazan."
+
+#: web/routes/tools.py
+msgid "No data category of the domain meets its requirements."
+msgstr "Ninguna categoría de datos del dominio cumple sus requisitos."
+
+#: web/routes/tools.py
+msgid "The data category of the tool does not meet its requirements."
+msgstr "La categoría de datos de la herramienta no cumple sus requisitos."
+
+#: web/routes/tools.py
+msgid "Evidence: the code cites its result as a source."
+msgstr "Evidencia: el código cita su resultado como fuente."
+
+#: web/routes/tools.py
+msgid "Verbatim: the code appends its result to the answer."
+msgstr "Textual: el código agrega su resultado a la respuesta."
+
+#: web/routes/tools.py
+msgid "The code does not cite its result."
+msgstr "El código no cita su resultado."
+
 #: web/routes/vocabulary.py
 msgid "Write a term."
 msgstr "Escribí un término."
@@ -1270,6 +1298,46 @@ msgstr "Cerrar sin borrar"
 msgid "This wiki has no sources yet."
 msgstr "Esta wiki no tiene fuentes todavía."
 
+#: web/templates/_tool.html
+msgid "The node of the trace that records a call of this tool"
+msgstr "El nodo de la traza que registra una llamada a esta herramienta"
+
+#: web/templates/_tool.html
+msgid "Active"
+msgstr "Activa"
+
+#: web/templates/_tool.html
+msgid "Inactive"
+msgstr "Inactiva"
+
+#: web/templates/_tool.html
+msgid "Arguments of the tool"
+msgstr "Argumentos de la herramienta"
+
+#: web/templates/_tool.html
+msgid "Argument"
+msgstr "Argumento"
+
+#: web/templates/_tool.html
+msgid "Type"
+msgstr "Tipo"
+
+#: web/templates/_tool.html
+msgid "Description"
+msgstr "Descripción"
+
+#: web/templates/_tool.html
+msgid "required"
+msgstr "obligatorio"
+
+#: web/templates/_tool.html
+msgid "Allowed values"
+msgstr "Valores permitidos"
+
+#: web/templates/_tool.html
+msgid "The tool takes no arguments."
+msgstr "La herramienta no tiene argumentos."
+
 #: web/templates/_vocabulary_body.html
 msgid "Findings of the vocabulary review"
 msgstr "Hallazgos de la revisión del vocabulario"
@@ -1582,6 +1650,15 @@ msgstr "Ver los archivos de datos de la wiki: sus metadatos y sus tablas"
 msgctxt "tab"
 msgid "Data"
 msgstr "Datos"
+
+#: web/templates/base.html
+msgid "See the tools the chat can use in this wiki and the calculations behind them"
+msgstr "Ver las herramientas que el chat puede usar en esta wiki y los cálculos que las respaldan"
+
+#: web/templates/base.html web/templates/tools.html
+msgctxt "tab"
+msgid "Tools"
+msgstr "Herramientas"
 
 #: web/templates/base.html
 msgid "See the points of the wiki and go back to an earlier one"
@@ -2645,6 +2722,37 @@ msgstr ""
 #: web/templates/settings.html
 msgid "Write the settings to wiki_config.toml. They apply from the next question"
 msgstr "Escribe la configuración en wiki_config.toml. Se aplica desde la próxima pregunta"
+
+#: web/templates/tools.html
+msgid "Generic tools"
+msgstr "Herramientas genéricas"
+
+#: web/templates/tools.html
+msgid "The chat reads the wiki and its data with these tools. A tool is active when the chat can call it in this wiki."
+msgstr ""
+"El chat lee la wiki y sus datos con estas herramientas. Una herramienta está activa cuando el chat puede llamarla en "
+"esta wiki."
+
+#: web/templates/tools.html
+#, python-format
+msgid "%(active)s of %(total)s active"
+msgstr "%(active)s de %(total)s activas"
+
+#: web/templates/tools.html
+msgid "Categories that meet the requirements"
+msgstr "Categorías que cumplen los requisitos"
+
+#: web/templates/tools.html
+msgid "none"
+msgstr "ninguna"
+
+#: web/templates/tools.html
+msgid "Excluded categories"
+msgstr "Categorías excluidas"
+
+#: web/templates/tools.html
+msgid "Calculation functions"
+msgstr "Funciones de cálculo"
 
 #~ msgid "Dataset"
 #~ msgstr "Dataset"

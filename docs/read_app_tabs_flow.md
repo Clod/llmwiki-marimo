@@ -19,7 +19,7 @@ Celdas (27) y módulos `domain/` referenciados: `domain.chat.agent`,
 `domain.chat.config`, `domain.chat.guardrail`, `domain.chat.preretrieval`,
 `domain.chat.postprocess`, `domain.chat.history`, `domain.chat.trace`,
 `domain.chat.wiki_tools`, `domain.tools.wiki_fs`, `domain.wiki_registry`,
-`domain.finance_argentina.agent_tool`, `widgets.delete_confirm`.
+`domain.extensions.finance_argentina.agent_tool`, `widgets.delete_confirm`.
 
 ---
 

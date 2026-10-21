@@ -211,7 +211,7 @@ base/                   # Pipeline de ingesta + agente de chat (Python autoconte
 └── domain/
     ├── ingestion/         # PDF/office/md/txt → texto → fragmentos → páginas de resumen + concepto
     ├── datasets/          # Motor genérico para datos vivos y estructurados (tasas/precios/estadísticas)
-    ├── finance_argentina/ # Overlay de dominio de ejemplo: asesoría de inversión determinista y citada
+    ├── extensions/        # Herramientas de dominio, un subpaquete por dominio: finance_argentina/ (asesoría de inversión determinista y citada)
     ├── chat/              # Agente PydanticAI + herramientas de wiki/fuente/guardado/dataset + guardia de fundamento
     ├── eval/              # UAT semi-automatizado: arma un paquete de evaluación listo para el juez
     ├── lint/              # Comprobaciones de salud de la wiki
@@ -369,7 +369,7 @@ uv run --group web uvicorn web.app:app --port 8765
 
 Abre [http://localhost:8765](http://localhost:8765). La página lista las wikis; abre una. El servidor escucha en `localhost` y no tiene autenticación: es para un solo usuario en una sola máquina. Sin `uv`, usa `python -m uvicorn web.app:app --port 8765` en un entorno que tenga instalado el grupo `web`.
 
-El encabezado de cada wiki tiene siete pestañas:
+El encabezado de cada wiki tiene nueve pestañas:
 
 | Pestaña | Qué hace |
 | --- | --- |
@@ -378,6 +378,8 @@ El encabezado de cada wiki tiene siete pestañas:
 | **Mantener** | Regenerar las páginas de resumen, **Verificar todas las páginas**, **Revisar y reparar la wiki** (lint y reparación), borrar páginas obsoletas, reconstruir el índice sin el modelo. |
 | **Ver relaciones** | El grafo de páginas y fuentes, con búsqueda de páginas, botones de zoom y el entorno de una página. |
 | **Vocabulario** | Los nombres que la wiki cubre (solo lectura, con un campo de búsqueda), sus alias, los alias descartados y la lista negra; agregar, quitar o descartar una entrada. Cada cambio es un punto del historial. |
+| **Datos** | Los archivos de datos de la wiki: sus metadatos y sus tablas. |
+| **Herramientas** | Las herramientas que puede usar el chat, con su nodo de la traza, sus argumentos y su rol, y si cada una está activa en esta wiki y por qué; una sección cerrada por dominio, con el código de sus funciones de cálculo. Solo lectura. |
 | **Historial** | Los puntos de la wiki y el retorno a un punto anterior. |
 | **Configuración** | Las claves de `wiki_config.toml`: el prompt de sistema, la recuperación previa y la verificación. El idioma de la wiki se muestra en solo lectura. |
 

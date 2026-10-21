@@ -45,6 +45,9 @@ _TOOLS = {
     "rendimiento_fci": ("fci_money_market", "fondo", False),
 }
 
+# Public name of the table above, for the description of the tools.
+TOOL_SPECS = _TOOLS
+
 _PLAZO = re.compile(r"^(\d+)d$")
 
 

@@ -1,0 +1,29 @@
+<article class="tool{% if not tool.active %} inactive{% endif %}" aria-label="{{ tool.name }}">
+  <header class="tool-head">
+    <h4 class="mono">{{ tool.name }}</h4>
+    <span class="tool-node mono" title="{{ _('The node of the trace that records a call of this tool') }}">{{ tool.node }}</span>
+    <span class="tool-state">{% if tool.active %}{{ _("Active") }}{% else %}{{ _("Inactive") }}{% endif %}</span>
+  </header>
+  <p class="tool-text">{{ tool.description }}</p>
+  <p class="tool-role muted">{{ role_text(tool) }}</p>
+  {% if not tool.active %}
+  <p class="tool-reason">{{ reason_text(tool) }}</p>
+  {% endif %}
+  {% if tool.arguments %}
+  <table class="tool-args">
+    <caption class="sr-only">{{ _("Arguments of the tool") }}</caption>
+    <thead><tr><th scope="col">{{ _("Argument") }}</th><th scope="col">{{ _("Type") }}</th><th scope="col">{{ _("Description") }}</th></tr></thead>
+    <tbody>
+    {% for a in tool.arguments %}
+      <tr>
+        <th scope="row" class="mono">{{ a.name }}{% if a.required %} <span class="muted">({{ _("required") }})</span>{% endif %}</th>
+        <td class="mono">{{ a.type }}</td>
+        <td>{{ a.description }}{% if a.allowed %}<br><span class="muted">{{ _("Allowed values") }}:</span> <span class="mono">{{ a.allowed|join(", ") }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">{{ _("The tool takes no arguments.") }}</p>
+  {% endif %}
+</article>

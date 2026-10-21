@@ -64,24 +64,25 @@ class ChatAgents:
 
 
 def build_agents(wiki: Wiki, base_url: str, api_key: str, model: str) -> ChatAgents:
-    """Build the chat agents of `wiki`, with the finance overlay when its data
-    satisfies the finance manifest."""
-    from domain.finance_argentina.agent_tool import activate as activate_finance
-    from domain.finance_argentina.data_tools import DATA_TOOL_NAMES
+    """Build the chat agents of `wiki`, with the tools of every domain whose
+    requirements its data satisfies (`domain/extensions/`)."""
+    from domain.extensions import activate_all
 
     config = load_config(wiki.path)
-    finance_tools, finance_prompt = activate_finance(wiki.path)
-    # The finance data tools replace query_dataset (and its prompt addendum).
-    has_data_tools = any(getattr(t, "name", None) in DATA_TOOL_NAMES for t in finance_tools or [])
+    domain = activate_all(wiki.path)
+    domain_tools = domain.tools if domain else None
+    domain_prompt = domain.prompt if domain else None
+    # A domain may replace query_dataset (and its prompt addendum) with its own data tools.
+    replaces_dataset = bool(domain and domain.replaces_dataset_tool)
     common = dict(
         system_prompt=config.system_prompt, language=config.language,
-        workspace=wiki.path, extra_tools=finance_tools, include_dataset_tool=not has_data_tools,
+        workspace=wiki.path, extra_tools=domain_tools, include_dataset_tool=not replaces_dataset,
     )
     agent = create_agent(
-        base_url, api_key, model, extra_prompt=finance_prompt, include_wiki_tools=True, **common,
+        base_url, api_key, model, extra_prompt=domain_prompt, include_wiki_tools=True, **common,
     )
     agent_pre_retrieval = create_agent(
-        base_url, api_key, model, extra_prompt=(finance_prompt or "") + load_prompt("pre_retrieval", config.language),
+        base_url, api_key, model, extra_prompt=(domain_prompt or "") + load_prompt("pre_retrieval", config.language),
         include_wiki_tools=False, **common,
     )
     condenser = create_agent(

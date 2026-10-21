@@ -209,7 +209,7 @@ base/                   # Ingestion pipeline + chat agent (self-contained Python
 └── domain/
     ├── ingestion/         # PDF/office/md/txt → text → chunks → summary + concept pages
     ├── datasets/          # Generic engine for live, structured data (rates/prices/stats)
-    ├── finance_argentina/ # Example domain overlay: deterministic, cited investment advisory
+    ├── extensions/        # Domain tools, one subpackage per domain: finance_argentina/ (deterministic, cited investment advisory)
     ├── chat/              # PydanticAI agent + wiki/source/save/dataset tools + grounding guardrail
     ├── eval/              # Half-automated UAT: build a judge-ready eval packet
     ├── lint/              # Wiki health checks
@@ -363,7 +363,7 @@ uv run --group web uvicorn web.app:app --port 8765
 
 Open [http://localhost:8765](http://localhost:8765). The page lists the wikis; open one. The server listens on `localhost` and has no authentication: it is for one user on one machine. Without `uv`, use the `python -m uvicorn web.app:app --port 8765` of an environment that has the `web` group installed.
 
-The header of every wiki has seven tabs:
+The header of every wiki has nine tabs:
 
 | Tab | What it does |
 | --- | --- |
@@ -372,6 +372,8 @@ The header of every wiki has seven tabs:
 | **Maintain** | Regenerate the summary pages, **Verify all pages**, **Run Wiki Lint & Repair** (lint and repair), delete stale pages, rebuild the index without the model. |
 | **Relations** | The graph of pages and sources, with a page search, zoom buttons and the neighbourhood of one page. |
 | **Vocabulary** | The names the wiki covers (read only, with a search field), their aliases, the rejected aliases and the blacklist; add, remove or reject an entry. Every change is a point of the history. |
+| **Data** | The data files of the wiki: their metadata and their tables. |
+| **Tools** | The tools the chat can use, with their trace node, arguments and role, and whether each is active in this wiki and why; one closed section per domain, with the source of its calculation functions. Read only. |
 | **History** | The points of the wiki, and the return to an earlier point. |
 | **Settings** | The keys of `wiki_config.toml`: the system prompt, the pre-retrieval and the verification. The language of the wiki is shown read only. |
 

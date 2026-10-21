@@ -30,15 +30,15 @@ from collections.abc import Iterable
 
 from pydantic_ai.messages import ModelMessage, ToolReturnPart
 
-# The advisory tool (domain.finance_argentina.agent_tool). Its return is a
-# complete markdown block we surface verbatim.
-ADVISORY_TOOL = "estimar_alternativas"
+from domain.extensions import roles
 
 # Tools whose returns represent a DELIBERATE use of a source (not a search
-# candidate): the page the model opened, and the dataset value it looked up.
-# search_wiki_fts / search_source_chunks are intentionally excluded.
+# candidate): the page the model opened (READ_TOOL), and the dataset values it
+# looked up. The dataset tools are the evidence tools of `domain.extensions.roles()`
+# other than READ_TOOL: `query_dataset` and the data tools of the domains, which
+# return the `format_rows_as_table` table. search_wiki_fts / search_source_chunks
+# are intentionally excluded.
 READ_TOOL = "read_wiki_page"
-DATASET_TOOL = "query_dataset"
 
 # Header cell of the advisory ranked table — its presence means a table is
 # already in the text (model complied), so we don't append a duplicate.
@@ -76,11 +76,13 @@ def _is_substantive(content: str) -> bool:
 # ── advisory table ───────────────────────────────────────────────────────────
 
 def advisory_table(messages: list[ModelMessage]) -> str | None:
-    """Verbatim markdown of the LAST substantive `estimar_alternativas` return,
-    or None if the advisory tool did not run / returned nothing usable."""
+    """Verbatim markdown of the LAST substantive return of a tool whose role is
+    `verbatim` (`domain.extensions.roles()`; the finance advisory), or None if no such
+    tool ran / returned nothing usable."""
+    verbatim = roles().verbatim
     table: str | None = None
     for part in _tool_returns(messages):
-        if part.tool_name == ADVISORY_TOOL:
+        if part.tool_name in verbatim:
             content = str(part.content)
             if _is_substantive(content):
                 table = content.strip()
@@ -129,13 +131,14 @@ def _dedupe(names: list[str]) -> list[str]:
 def deliberate_sources(messages: list[ModelMessage]) -> tuple[list[str], list[str]]:
     """`(referencias, fuentes)` the run DELIBERATELY used, de-duplicated:
       - referencias: internal artifacts — the wiki page read (`read_wiki_page`)
-        and the dataset FILE a value came from (`query_dataset`, `<categoria>.md`);
-      - fuentes: external origins of dataset values (`query_dataset` `fuente`
-        column, e.g. ambito.com, bcra.gob.ar).
+        and the dataset FILE a value came from (a dataset tool, `<categoria>.md`);
+      - fuentes: external origins of dataset values (the `fuente` column of a
+        dataset tool, e.g. ambito.com, bcra.gob.ar).
     A dataset value therefore yields BOTH a fuente (origin) and a referencia
     (file). Search candidates are excluded (buscar ≠ usar)."""
     references: list[str] = []
     fuentes: list[str] = []
+    dataset_tools = roles().evidence - {READ_TOOL}
     for part in _tool_returns(messages):
         content = str(part.content)
         if not _is_substantive(content):
@@ -144,7 +147,7 @@ def deliberate_sources(messages: list[ModelMessage]) -> tuple[list[str], list[st
             match = _WIKI_PAGE_RE.search(content)
             if match:
                 references.append(match.group(1).strip().rsplit("/", 1)[-1])  # basename
-        elif part.tool_name == DATASET_TOOL:
+        elif part.tool_name in dataset_tools:
             fuentes.extend(_dataset_fuentes(content))
             cat = _DATASET_CAT_RE.search(content)
             if cat:

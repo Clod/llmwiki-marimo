@@ -20,12 +20,12 @@ from pydantic_ai import RunContext
 from domain import tracing
 from domain.chat.guardrail import _is_substantive
 from domain.datasets.source import LocalMarkdownSource
-from domain.finance_argentina.advisory import estimate_alternatives, render_markdown
-from domain.finance_argentina.data_tools import make_data_tools
-from domain.finance_argentina.requirements import load_default_requirements
-from domain.finance_argentina.validator import validate_workspace
+from domain.extensions.finance_argentina.advisory import estimate_alternatives, render_markdown
+from domain.extensions.finance_argentina.data_tools import make_data_tools
+from domain.extensions.finance_argentina.requirements import load_default_requirements
+from domain.extensions.finance_argentina.validator import validate_workspace
 
-logger = logging.getLogger("wiki.domain.finance_argentina.agent_tool")
+logger = logging.getLogger("wiki.domain.extensions.finance_argentina.agent_tool")
 
 # Appended to the system prompt only when the finance overlay is active.
 FINANCE_PROMPT_ADDENDUM = """

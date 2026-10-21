@@ -1,4 +1,4 @@
-"""Tests for domain/finance_argentina/advisory.py — estimate_alternatives.
+"""Tests for domain/extensions/finance_argentina/advisory.py — estimate_alternatives.
 
 Spec: docs/design_finance_argentina.md §6-§8. In-memory manifest + a fake
 DatasetSource carrying both rows and per-category attributes — no LLM, no
@@ -10,9 +10,9 @@ from datetime import date
 import pytest
 
 from domain.datasets.models import DatasetRow
-from domain.finance_argentina.advisory import estimate_alternatives, render_markdown
-from domain.finance_argentina.formulae import projected_gain, tea
-from domain.finance_argentina.requirements import parse_requirements_markdown
+from domain.extensions.finance_argentina.advisory import estimate_alternatives, render_markdown
+from domain.extensions.finance_argentina.formulae import projected_gain, tea
+from domain.extensions.finance_argentina.requirements import parse_requirements_markdown
 
 _MANIFEST = """\
 ---

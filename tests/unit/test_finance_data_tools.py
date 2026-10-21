@@ -16,8 +16,8 @@ from pydantic_ai.models.test import TestModel
 
 from domain import tracing
 from domain.chat.agent import create_agent
-from domain.finance_argentina.agent_tool import FINANCE_PROMPT_ADDENDUM, activate
-from domain.finance_argentina.data_tools import (
+from domain.extensions.finance_argentina.agent_tool import FINANCE_PROMPT_ADDENDUM, activate
+from domain.extensions.finance_argentina.data_tools import (
     DATA_TOOL_NAMES,
     cotizacion_dolar,
     precio_accion,

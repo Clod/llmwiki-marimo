@@ -1,0 +1,45 @@
+/* The Tools screen: the generic tools on top, then one closed section per domain. The bar of a
+   domain with an active tool is blue and says "N of M active"; a domain with none is quiet. */
+.tools-screen { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-2);
+                padding: var(--space-2); }
+.tools-screen > .panel > .panel-head { padding: 0 var(--space-4); }
+.tools-intro { margin: 0; padding: var(--space-2) var(--space-4) 0; font-size: var(--text-xs); }
+
+.tool-list { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
+.tool { border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); background: var(--color-bg);
+        display: flex; flex-direction: column; gap: var(--space-2); }
+.tool.inactive { background: var(--color-surface); }
+.tool-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.tool-head h4 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+.tool-node, .tool-state { font-size: var(--text-2xs); padding: 1px var(--space-2); border-radius: var(--radius-pill);
+                          background: var(--color-pill-quiet); border: 1px solid var(--color-border); color: var(--color-text-secondary); }
+.tool:not(.inactive) .tool-state { background: var(--color-selected); border-color: var(--color-selected-border); color: var(--color-text); }
+.tool-text, .tool-role, .tool-reason { margin: 0; font-size: var(--text-sm); white-space: pre-line; }
+.tool-role { font-size: var(--text-xs); }
+.tool-reason { color: var(--color-on-attention); background: var(--color-attention); border: 1px solid var(--color-attention-border);
+               border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); font-size: var(--text-xs); }
+.tool-args { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
+.tool-args th, .tool-args td { padding: var(--space-1) var(--space-3); border-bottom: 1px solid var(--color-canvas); text-align: left; vertical-align: top; }
+.tool-args thead th { color: var(--color-text-muted); font-weight: var(--weight-medium); background: var(--color-surface); }
+.tool-args tbody th { font-weight: var(--weight-regular); }
+.tool-args td { overflow-wrap: anywhere; }
+
+.domain { background: var(--color-bg); border: var(--border); border-radius: var(--radius-lg); }
+.domain > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); cursor: pointer;
+                    padding: var(--space-2) var(--space-4); background: var(--color-surface); border-radius: var(--radius-lg);
+                    font-weight: var(--weight-semibold); }
+.domain[open] > summary { border-bottom: var(--border); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.domain-active > summary { background: var(--color-selected); }
+.domain-count { font-size: var(--text-xs); font-weight: var(--weight-regular); color: var(--color-text-secondary); }
+.domain-body { padding: var(--space-3) 0; }
+.domain-categories, .domain-excluded { margin: 0; padding: 0 var(--space-4) var(--space-2); font-size: var(--text-xs); }
+.domain-excluded ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); }
+.domain-calc-title { margin: 0; padding: var(--space-2) var(--space-4) var(--space-1); font-size: var(--text-md); font-weight: var(--weight-semibold); }
+.calculation { margin: 0 var(--space-4) var(--space-2); font-size: var(--text-xs); }
+.calculation > summary { cursor: pointer; }
+.calculation pre { margin: var(--space-2) 0 0; padding: var(--space-3); overflow-x: auto; background: var(--color-surface);
+                   border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+
+@media (max-width: 800px) {
+  .tool-args th, .tool-args td { padding: var(--space-1); }
+}
