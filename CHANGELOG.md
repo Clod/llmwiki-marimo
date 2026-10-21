@@ -20,6 +20,52 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   `E2E_FULL=1`; CI skips it. First run, 2026-10-19: passed in 408 s. It supersedes the
   `E2E_FULL=1` test of the marimo ingest app, which was never run.
 
+- **A Data tab in the web app** (`/w/{wiki_id}/data`, #39). It lists the data
+  files of `datasets/` and shows the rows of the selected one. Read only. The
+  table markup is shared with the dataset dialog of the Vocabulary tab
+  (`web/templates/_dataset_table.html`).
+
+- **Domain extensions behind a generic interface** (`base/domain/extensions/`,
+  #42). Each domain is one subpackage that defines `NAME`, `ROLES`,
+  `activate(workspace)` and `describe(workspace)`. `ROLES` says which tool
+  results are citable evidence and which are appended to the answer verbatim.
+  The registry discovers the subpackages, so `build_agents`
+  (`base/services/chat.py`) and `base/domain/chat/postprocess.py` import no
+  domain by name. `docs/manual/apps.md` §15.5 describes how to add a domain.
+
+- **A Tools tab in the web app** (`/w/{wiki_id}/tools`, #42). It lists every
+  registered tool with its trace node, arguments, allowed values and role, and
+  says whether the tool is active in the open wiki and why. The generic tools
+  are always visible; each domain is a closed section with the count of its
+  active tools and the source of its calculation functions. Read only.
+
+### Changed
+
+- **The finance extension moved** from `base/domain/finance_argentina/` to
+  `base/domain/extensions/finance_argentina/` (#42). The old import path is an
+  alias of the new package, kept until after 2026-11-13.
+
+### Fixed
+
+- **Citation of the finance data tools** (#42). `ensure_citation` recognised only
+  `read_wiki_page` and `query_dataset`, so an answer built only from
+  `tasa_plazo_fijo`, `tasa_caucion`, `cotizacion_dolar`, `precio_accion` or
+  `rendimiento_fci` had no `Fuente` line. Those five tools are now evidence.
+
+- **The Q7 trace field is named after what it counts** (#40). `wiki_pages`
+  counted the chunks of the wiki search, not the pages; it is now
+  `wiki_fragments`.
+
+- **The E2E test server copies the example wiki without its `.git` folder**
+  (#40). A local history in that folder made `test_history_flow.py` count extra
+  commits.
+
+### Removed
+
+- **Three development leftovers in the public tree** (#38): an internal review
+  plan (`docs/fix_plan_project_review.md`), an empty SQLite file committed by
+  mistake (`db`) and a comment that cited a document absent from the repository.
+
 ## [0.5.0] - 2026-10-13
 
 ### Added
