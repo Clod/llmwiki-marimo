@@ -1717,7 +1717,7 @@ The model's job is to explain figures in words, never to arrive at them. The
 output.
 
 On where that arithmetic should live: it is in the engine
-(`base/domain/finance_argentina/`) and activated per workspace, rather than
+(`base/domain/extensions/finance_argentina/`) and activated per workspace, rather than
 living inside the workspace. The activation is decided by the *data* —
 `agent_tool.py:activate` returns nothing at all unless the workspace's
 `datasets/` folder satisfies a declared manifest — so the engine stays

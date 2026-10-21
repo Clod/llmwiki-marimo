@@ -1215,7 +1215,7 @@ moves the trust to the curation step rather than removing it.
 `DatasetSource` hands back the front-matter as a plain mapping, and only the
 finance module interprets it. *Buy quote below sell quote* is not a fact about
 wikis. Every check in the table above is domain knowledge that somebody wrote
-down, and `base/domain/finance_argentina/` — 868 lines — is the only instance of
+down, and `base/domain/extensions/finance_argentina/` — 868 lines — is the only instance of
 that in this repository.
 
 This is the trade the whole document has been circling, stated at its most

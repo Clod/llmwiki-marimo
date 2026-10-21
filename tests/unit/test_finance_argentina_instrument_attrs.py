@@ -1,11 +1,11 @@
-"""Tests for domain/finance_argentina/instrument_attrs.py — attribute interpretation.
+"""Tests for domain/extensions/finance_argentina/instrument_attrs.py — attribute interpretation.
 
 Spec: docs/design_finance_argentina.md §4. Inputs are already-parsed front-matter
 mappings (as a DatasetSource.attributes() returns) — YAML parsing lives in the
 datasets layer, so these tests pass dicts directly.
 """
 
-from domain.finance_argentina.instrument_attrs import attributes_from_meta
+from domain.extensions.finance_argentina.instrument_attrs import attributes_from_meta
 
 _PLAZO_FIJO_META = {
     "tags": ["entity"],  # engine/other keys are ignored by the finance overlay

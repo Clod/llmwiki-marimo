@@ -1,4 +1,4 @@
-"""Tests for domain/finance_argentina/formulae.py — TEA + projected gain.
+"""Tests for domain/extensions/finance_argentina/formulae.py — TEA + projected gain.
 
 Spec: docs/design_finance_module.md §5, §8 `test_tea_simple` / `test_tea_daily`.
 Deterministic pure-function math — no LLM, no network, no filesystem.
@@ -6,7 +6,7 @@ Deterministic pure-function math — no LLM, no network, no filesystem.
 
 import pytest
 
-from domain.finance_argentina.formulae import projected_gain, tea
+from domain.extensions.finance_argentina.formulae import projected_gain, tea
 
 
 # ── §8 test_tea_simple ──────────────────────────────────────────────────────

@@ -613,7 +613,7 @@ reading screen, §7.2):
 The mode is chosen per question, so changing it never rebuilds the agents. Known limit: it catches *no-evidence* answers, not an answer that ignored
 evidence it did retrieve (that needs answer-vs-source verification — deferred).
 
-### 15.4 `finance_argentina` overlay (`base/domain/finance_argentina/`)
+### 15.4 `finance_argentina` overlay (`base/domain/extensions/finance_argentina/`)
 
 Concrete domain logic (Argentine personal finance), Spanish-facing. Reads the
 engine's `DatasetSource` + dataset-file front-matter; the engine never imports it.
@@ -653,7 +653,46 @@ engine's `DatasetSource` + dataset-file front-matter; the engine never imports i
 deterministic code, never the LLM; equities / inflation- / FX-linked instruments
 are flagged *not estimable* rather than guessed.
 
-### 15.5 Deferred (the "how" and beyond)
+### 15.5 Domain tools directory and how to add a domain
+
+`base/domain/extensions/` holds one subpackage per domain. The finance extension
+is `base/domain/extensions/finance_argentina/`. The old path
+`base/domain/finance_argentina/` is an alias of the new package
+(`base/domain/finance_argentina/__init__.py`); it is removed after the workshop of
+2026-11-13. `base/domain/tools/` is a different directory: it holds the wiki
+utilities (`wiki_fs.py`, `db.py`, `search.py`), which are not domains.
+
+The interface is in `base/domain/extensions/__init__.py`. A domain subpackage defines in
+its `__init__.py`:
+
+| Name | Type | Use |
+|------|------|-----|
+| `NAME` | `str` | The domain name. Unique. |
+| `ROLES` | `ToolRoles` | Tool names whose result is citable evidence (`evidence`) or is appended to the answer verbatim (`verbatim`). Static, by tool name. |
+| `activate(workspace)` | `DomainTools` or `None` | The tools, the prompt addendum and `replaces_dataset_tool`. `None` when the data of the workspace does not satisfy the domain. |
+| `describe(workspace)` | `DomainDescription` | What the Tools tab shows (`base/domain/extensions/description.py`), for an active and for an inactive domain. |
+
+The registry (`domains`, `roles`, `activate_all`, `describe_all`) discovers the
+subpackages with `pkgutil`. `build_agents` (`base/services/chat.py`) calls
+`activate_all`; `base/domain/chat/postprocess.py` calls `roles()`. Neither imports a
+domain by name. A tool name declared by two domains raises `ValueError` when the
+registry loads (`_check_unique_tool_names`).
+
+To add a domain:
+
+1. Create `base/domain/extensions/<domain>/__init__.py` with the four names above.
+2. Give each tool a trace node and record it in the tool body with `tracing.mark`.
+   Register the node in `web/audit_nodes.py` and in `docs/query_nodes.md`.
+3. Put the tool names whose result carries the `fuente` column of
+   `format_rows_as_table` in `ROLES.evidence`; `ensure_citation` then cites them.
+4. Add the unit tests next to `tests/unit/test_domain_tools_registry.py`, and a web
+   test of the Tools tab (`tests/web/test_tools.py`).
+
+The Tools tab (`/w/{wiki_id}/tools`, `web/routes/tools.py`) lists the generic tools
+and, in one closed section per domain, the tools of the domain with their state in
+the open wiki.
+
+### 15.6 Deferred (the "how" and beyond)
 
 - **Producer / data feed** — datasets are authored by hand today (a future
   scheduled job or data-as-a-service would fill them). The cite-source-and-date

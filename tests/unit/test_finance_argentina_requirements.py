@@ -1,9 +1,9 @@
-"""Tests for domain/finance_argentina/requirements.py — manifest parsing.
+"""Tests for domain/extensions/finance_argentina/requirements.py — manifest parsing.
 
 Spec: docs/design_finance_module.md §2. In-memory manifest strings only.
 """
 
-from domain.finance_argentina.requirements import load_requirements_file, parse_requirements_markdown
+from domain.extensions.finance_argentina.requirements import load_requirements_file, parse_requirements_markdown
 
 _MANIFEST = """\
 ---
@@ -62,10 +62,10 @@ categorias:
 
 
 def test_load_requirements_file_seed_manifest() -> None:
-    """The actual shipped base/domain/finance_argentina/requirements.md parses with the v1 seed categories."""
+    """The actual shipped base/domain/extensions/finance_argentina/requirements.md parses with the v1 seed categories."""
     from pathlib import Path
 
-    manifest_path = Path(__file__).parent.parent.parent / "base" / "domain" / "finance_argentina" / "requirements.md"
+    manifest_path = Path(__file__).parent.parent.parent / "base" / "domain" / "extensions" / "finance_argentina" / "requirements.md"
     reqs = load_requirements_file(manifest_path)
 
     expected = {"plazo_fijo", "fci_money_market", "caucion", "acciones", "dolar"}

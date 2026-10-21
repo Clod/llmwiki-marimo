@@ -17,7 +17,7 @@ from pydantic_ai.messages import ModelRequest, ModelResponse, ToolCallPart, Tool
 
 from domain import tracing
 from domain.chat import dataset_tools, tools, wiki_tools
-from domain.finance_argentina import agent_tool
+from domain.extensions.finance_argentina import agent_tool
 from domain.tools.wiki_fs import create_page
 from services import chat
 from services.wiki import open_wiki

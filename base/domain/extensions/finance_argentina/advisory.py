@@ -5,7 +5,7 @@ This is the "UC-A north star": given an amount and a horizon, list every
 eligible investment alternative the workspace's data supports, ranked by
 estimated gain — and separately list variable-return instruments that are
 honestly flagged as "not estimable" rather than guessed. All gain arithmetic
-is delegated to `domain.finance_argentina.formulae` (deterministic code, never an LLM).
+is delegated to `domain.extensions.finance_argentina.formulae` (deterministic code, never an LLM).
 """
 
 from __future__ import annotations
@@ -15,12 +15,12 @@ import re
 from dataclasses import dataclass, field
 
 from domain.datasets.models import DatasetRow, DatasetSource
-from domain.finance_argentina.formulae import projected_gain, tea
-from domain.finance_argentina.instrument_attrs import InstrumentAttributes, attributes_from_meta
-from domain.finance_argentina.requirements import FinanceRequirements
-from domain.finance_argentina.validator import validate_workspace
+from domain.extensions.finance_argentina.formulae import projected_gain, tea
+from domain.extensions.finance_argentina.instrument_attrs import InstrumentAttributes, attributes_from_meta
+from domain.extensions.finance_argentina.requirements import FinanceRequirements
+from domain.extensions.finance_argentina.validator import validate_workspace
 
-logger = logging.getLogger("wiki.domain.finance_argentina.advisory")
+logger = logging.getLogger("wiki.domain.extensions.finance_argentina.advisory")
 
 _NO_DETERMINISTICO = "no_deterministico"
 _A_PLAZO = "a_plazo"

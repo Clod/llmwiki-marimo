@@ -1,7 +1,7 @@
 # `finance_argentina` Module — Concrete Design (working doc)
 
 > **Status:** DRAFT — collaborative. The concrete spec of the **`finance_argentina`**
-> domain module (`base/domain/finance_argentina/`). Architecture/seams live in
+> domain module (`base/domain/extensions/finance_argentina/`). Architecture/seams live in
 > `docs/design_datasets.md`; the generic dataset format in
 > `docs/contracts/datasets-format.md`.
 >

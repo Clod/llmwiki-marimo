@@ -19,10 +19,10 @@ import logging
 from dataclasses import dataclass, field
 
 from domain.datasets.models import DatasetSource
-from domain.finance_argentina.instrument_attrs import InstrumentAttributes, attributes_from_meta
-from domain.finance_argentina.requirements import FinanceRequirements
+from domain.extensions.finance_argentina.instrument_attrs import InstrumentAttributes, attributes_from_meta
+from domain.extensions.finance_argentina.requirements import FinanceRequirements
 
-logger = logging.getLogger("wiki.domain.finance_argentina.validator")
+logger = logging.getLogger("wiki.domain.extensions.finance_argentina.validator")
 
 
 @dataclass(frozen=True)

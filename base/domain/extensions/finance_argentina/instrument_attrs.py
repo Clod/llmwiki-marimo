@@ -20,7 +20,7 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("wiki.domain.finance_argentina.instrument_attrs")
+logger = logging.getLogger("wiki.domain.extensions.finance_argentina.instrument_attrs")
 
 _DISPONIBILIDAD_VALUES = {"inmediata", "a_plazo"}
 _METODO_CALCULO_VALUES = {

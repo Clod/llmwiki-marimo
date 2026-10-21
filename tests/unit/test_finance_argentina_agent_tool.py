@@ -1,11 +1,11 @@
-"""Tests for domain/finance_argentina/agent_tool.py — the activation gate.
+"""Tests for domain/extensions/finance_argentina/agent_tool.py — the activation gate.
 
 `activate(workspace)` returns `(extra_tools, extra_prompt)` only when the shipped
 requirements manifest validates against the workspace with >=1 passing category;
 otherwise `(None, None)`. Real files in tmp_path; no LLM/network.
 """
 
-from domain.finance_argentina.agent_tool import (
+from domain.extensions.finance_argentina.agent_tool import (
     FINANCE_PROMPT_ADDENDUM,
     activate,
     estimar_alternativas,
@@ -58,3 +58,20 @@ def test_activate_returns_tool_when_finance_ready(tmp_path) -> None:
     assert tools[0] is estimar_alternativas
     assert [t.name for t in tools[1:]] == ["tasa_plazo_fijo"]
     assert prompt == FINANCE_PROMPT_ADDENDUM
+
+
+def test_old_path_is_an_alias_of_the_new_package():
+    """`domain.finance_argentina` resolves to the same module objects as
+    `domain.extensions.finance_argentina`, so monkeypatching either name acts on both."""
+    import sys
+
+    import domain.finance_argentina as old
+    import domain.extensions.finance_argentina as new
+    from domain.finance_argentina.agent_tool import estimar_alternativas as old_tool
+
+    assert old_tool is estimar_alternativas
+    assert old.tea is new.tea
+    for name in ("advisory", "agent_tool", "data_tools", "formulae",
+                 "instrument_attrs", "requirements", "validator"):
+        assert getattr(old, name) is getattr(new, name)
+        assert sys.modules[f"domain.finance_argentina.{name}"] is sys.modules[f"domain.extensions.finance_argentina.{name}"]

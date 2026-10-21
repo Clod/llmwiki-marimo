@@ -152,7 +152,7 @@ perderse en el historial del chat.
 
 ## 5. Solo sabe "qué es", no "cuánto vale hoy" — y no hace cuentas (el diferencial)
 
-`Estado: ✅ hecho` · *ancla: `base/domain/datasets/`, `base/domain/finance_argentina/`*
+`Estado: ✅ hecho` · *ancla: `base/domain/datasets/`, `base/domain/extensions/finance_argentina/`*
 
 **La fuga.** La wiki de la idea original es una enciclopedia: nada mantiene
 números al día ni hace cuentas por vos. Sabe explicar qué es un plazo fijo, pero

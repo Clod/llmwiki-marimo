@@ -16,7 +16,7 @@ from pathlib import Path
 
 from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
 
-logger = logging.getLogger("wiki.domain.finance_argentina.requirements")
+logger = logging.getLogger("wiki.domain.extensions.finance_argentina.requirements")
 
 
 @dataclass(frozen=True)
