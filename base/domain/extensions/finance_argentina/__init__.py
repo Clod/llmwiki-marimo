@@ -11,6 +11,7 @@ from domain.extensions.description import (
     CATEGORY_EXCLUDED,
     NO_CATEGORY,
     DomainDescription,
+    RequirementDescription,
     ToolDescription,
     calculation,
     describe_tool,
@@ -24,6 +25,7 @@ from .data_tools import DATA_TOOL_NAMES, TOOL_SPECS, allowed_values, make_data_t
 from .formulae import projected_gain, tea
 from .instrument_attrs import InstrumentAttributes, attributes_from_meta
 from .requirements import (
+    default_manifest_path,
     load_default_requirements,
     CategoryRequirements,
     FinanceRequirements,
@@ -59,11 +61,22 @@ def activate(workspace: Path) -> DomainTools | None:
     )
 
 
+def _declared(value: object) -> str:
+    """A front-matter value as the Tools tab shows it ("" when absent)."""
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(v) for v in value)
+    return str(value)
+
+
 def describe(workspace: Path) -> DomainDescription:
     """The tools of the domain, active or not in `workspace`, with the reason of
-    each inactive one, and the calculation functions of the advisory."""
+    each inactive one, the calculation functions of the advisory, and what each
+    category requires (`requirements.md`) next to what its dataset declares."""
     source = LocalMarkdownSource(workspace / "datasets")
-    report = validate_workspace(load_default_requirements(), source)
+    requirements = load_default_requirements()
+    report = validate_workspace(requirements, source)
     passing = set(report.passing)
     tools: list[ToolDescription] = [describe_tool(
         estimar_alternativas, NODES["estimar_alternativas"],
@@ -79,8 +92,17 @@ def describe(workspace: Path) -> DomainDescription:
             reason="" if ok else CATEGORY_EXCLUDED, detail="" if ok else report.reason_for(categoria),
             allowed=allowed_values(source, categoria, key_arg, with_plazo) if ok else None,
         ))
+    required = tuple(
+        RequirementDescription(
+            category=categoria, metrics=spec.metricas,
+            attributes=tuple((name, _declared(source.attributes(categoria).get(name))) for name in spec.attributes),
+            ok=categoria in passing,
+        )
+        for categoria, spec in requirements.categorias.items()
+    )
     return DomainDescription(
         name=NAME, tools=tuple(tools), calculations=(calculation(tea), calculation(projected_gain)),
+        requirements=required, requirements_file=default_manifest_path().read_text(encoding="utf-8"),
         passing=report.passing, excluded=tuple((r.categoria, "; ".join(r.reasons)) for r in report.failing),
     )
 

@@ -13,6 +13,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **The data requirements of a domain in the Tools tab.** The section of a
+  domain now shows, for each data category, the metrics and attributes its
+  `requirements.md` asks for, the value the data file of the wiki declares for
+  each attribute (for example `metodo_calculo: interes_simple_vencimiento`), and
+  whether the category meets them. The text of `requirements.md` follows, in a
+  closed section. Before, the tab showed only which categories passed.
+
 - **An opt-in end-to-end test of the wiki-wide lint and repair in the web app**
   (`tests/web/e2e/test_lint_live.py`). It runs the operation of the Maintain screen
   with the model of `.env`, on a copy of the example wiki, and checks the closing line

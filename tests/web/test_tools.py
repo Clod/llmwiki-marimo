@@ -137,3 +137,28 @@ def test_every_tool_of_the_domain_traces_the_node_it_declares():
     for name, node in NODES.items():
         module = agent_tool if name == "estimar_alternativas" else data_tools
         assert f'tracing.mark("{node}"' in inspect.getsource(getattr(module, name))
+
+
+def test_the_domain_section_shows_what_each_category_requires_and_what_its_dataset_declares(finance):
+    section = _section(finance.get(URL).text, "finance_argentina")
+    assert "Requisitos de los datos" in section
+    row = re.search(r'<tr aria-label="plazo_fijo">.*?</tr>', section, re.DOTALL)
+    assert row, "no requirements row for plazo_fijo"
+    assert "TNA" in row.group(0) and "metodo_calculo" in row.group(0)
+    assert "interes_simple_vencimiento" in row.group(0) and "Cumple" in row.group(0)
+
+
+def test_the_domain_section_holds_the_text_of_requirements_md(finance):
+    section = _section(finance.get(URL).text, "finance_argentina")
+    assert "<summary class=\"mono\">requirements.md</summary>" in section
+    assert "# Finance requirements" in section
+
+
+def test_a_category_whose_dataset_lacks_an_attribute_shows_it_missing(tmp_path):
+    client = _client_for("finanzas-argentinas", tmp_path)
+    dataset = tmp_path / "home" / WIKI_ID / "datasets" / "caucion.md"
+    dataset.write_text(re.sub(r"^metodo_calculo:.*\n", "", dataset.read_text(encoding="utf-8"), flags=re.MULTILINE),
+                       encoding="utf-8")
+    section = _section(client.get(URL).text, "finance_argentina")
+    row = re.search(r'<tr aria-label="caucion">.*?</tr>', section, re.DOTALL)
+    assert row and "<em>falta</em>" in row.group(0) and "No cumple" in row.group(0)
