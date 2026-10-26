@@ -102,11 +102,13 @@ def test_answer_with_table_noop_without_advisory():
     assert answer_with_table(prose, messages) == prose
 
 
-def test_answer_with_table_idempotent_when_model_already_pasted():
+def test_answer_with_table_appends_even_when_model_pasted_one():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
-    # The model already included the table (fresh-session happy path).
-    answer = f"Aquí van:\n\n{TABLE}"
-    assert answer_with_table(answer, messages) == answer  # no duplicate
+    # The model copied the table with a changed figure: the tool's table is
+    # appended anyway, so the user always sees the tool's figures.
+    pasted = TABLE.replace("$90,000", "$95,000")
+    answer = f"Aquí van:\n\n{pasted}"
+    assert answer_with_table(answer, messages) == f"{answer}\n\n{TABLE.strip()}"
 
 
 # ── ensure_citation ──────────────────────────────────────────────────────────

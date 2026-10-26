@@ -89,9 +89,11 @@ def test_post_processed_answer(tool_name, content, with_table, with_citation):
     assert ensure_citation(ANSWER, messages) == with_citation
 
 
-def test_the_advisory_table_is_not_appended_twice():
+def test_the_advisory_table_is_appended_when_the_answer_has_one():
     answer = f"{ANSWER}\n\n| opción | clave |\n|---|---|"
-    assert answer_with_table(answer, _messages("estimar_alternativas", ADVISORY)) == answer
+    assert answer_with_table(answer, _messages("estimar_alternativas", ADVISORY)) == (
+        f"{answer}\n\n{ADVISORY.strip()}"
+    )
 
 
 def _names(agent) -> list[str]:

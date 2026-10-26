@@ -33,7 +33,8 @@ FINANCE_PROMPT_ADDENDUM = """
 ## Inversiones (mercado argentino)
 Para preguntas del tipo "tengo $X que no voy a necesitar por Y meses, ¿qué
 alternativas tengo y cuánto ganaría con cada una?", usá la herramienta
-`estimar_alternativas`. Presentá su tabla tal cual, indicá siempre la fecha
+`estimar_alternativas`. No copies su tabla: el sistema la agrega debajo de tu
+respuesta. Comentá las opciones sin repetir sus cifras, indicá siempre la fecha
 (`as_of`) de cada tasa y la fuente, y nunca inventes un rendimiento. Los
 instrumentos de renta variable (acciones, CEDEARs, etc.) la herramienta los marca
 como "no estimable": no estimes su ganancia, solo informá de qué dependen.
