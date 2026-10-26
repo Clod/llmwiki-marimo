@@ -2663,6 +2663,44 @@ msgid "Excluded categories"
 msgstr ""
 
 #: web/templates/tools.html
+msgid "Data requirements"
+msgstr ""
+
+#: web/templates/tools.html
+msgid ""
+"Each category needs these metrics in the rows of its data file and these attributes in its header. The value is the "
+"one the data file of this wiki declares."
+msgstr ""
+
+#: web/templates/tools.html
+msgid "Category"
+msgstr ""
+
+#: web/templates/tools.html
+msgid "Metrics"
+msgstr ""
+
+#: web/templates/tools.html
+msgid "Attributes"
+msgstr ""
+
+#: web/templates/tools.html
+msgid "State"
+msgstr ""
+
+#: web/templates/tools.html
+msgid "missing"
+msgstr ""
+
+#: web/templates/tools.html
+msgid "Meets them"
+msgstr ""
+
+#: web/templates/tools.html
+msgid "Does not meet them"
+msgstr ""
+
+#: web/templates/tools.html
 msgid "Calculation functions"
 msgstr ""
 

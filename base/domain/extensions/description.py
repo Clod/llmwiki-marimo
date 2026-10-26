@@ -59,10 +59,22 @@ class CalculationDescription:
 
 
 @dataclass(frozen=True)
+class RequirementDescription:
+    """What one data category must provide, and what its dataset in the wiki declares."""
+
+    category: str
+    metrics: tuple[str, ...]                 # the metrics its rows must have
+    attributes: tuple[tuple[str, str], ...]  # (attribute, value the dataset declares; "" when absent)
+    ok: bool                                 # True when the category meets its requirements
+
+
+@dataclass(frozen=True)
 class DomainDescription:
     name: str
     tools: tuple[ToolDescription, ...]
     calculations: tuple[CalculationDescription, ...] = ()
+    requirements: tuple[RequirementDescription, ...] = ()
+    requirements_file: str = ""              # the text of the file that declares the requirements
     passing: tuple[str, ...] = ()            # the categories that pass the requirements
     excluded: tuple[tuple[str, str], ...] = field(default_factory=tuple)  # (category, reasons)
 

@@ -34,6 +34,8 @@
 .domain-body { padding: var(--space-3) 0; }
 .domain-categories, .domain-excluded { margin: 0; padding: 0 var(--space-4) var(--space-2); font-size: var(--text-xs); }
 .domain-excluded ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); }
+.requirements-wrap { padding: var(--space-2) var(--space-4); overflow-x: auto; }
+.requirement-attrs { margin: 0; padding: 0; list-style: none; }
 .domain-calc-title { margin: 0; padding: var(--space-2) var(--space-4) var(--space-1); font-size: var(--text-md); font-weight: var(--weight-semibold); }
 .calculation { margin: 0 var(--space-4) var(--space-2); font-size: var(--text-xs); }
 .calculation > summary { cursor: pointer; }

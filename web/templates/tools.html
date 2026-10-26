@@ -31,6 +31,31 @@
       <div class="tool-list">
         {% for tool in domain.tools %}{% include "_tool.html" %}{% endfor %}
       </div>
+      {% if domain.requirements %}
+      <h3 class="domain-calc-title">{{ _("Data requirements") }}</h3>
+      <p class="tools-intro muted">{{ _("Each category needs these metrics in the rows of its data file and these attributes in its header. The value is the one the data file of this wiki declares.") }}</p>
+      <div class="requirements-wrap">
+        <table class="tool-args requirements">
+          <thead><tr><th scope="col">{{ _("Category") }}</th><th scope="col">{{ _("Metrics") }}</th><th scope="col">{{ _("Attributes") }}</th><th scope="col">{{ _("State") }}</th></tr></thead>
+          <tbody>
+          {% for req in domain.requirements %}
+            <tr aria-label="{{ req.category }}">
+              <th scope="row" class="mono">{{ req.category }}</th>
+              <td class="mono">{{ req.metrics|join(", ") }}</td>
+              <td><ul class="requirement-attrs">{% for name, value in req.attributes %}<li><span class="mono">{{ name }}</span>: {% if value %}<span class="mono">{{ value }}</span>{% else %}<em>{{ _("missing") }}</em>{% endif %}</li>{% endfor %}</ul></td>
+              <td>{% if req.ok %}{{ _("Meets them") }}{% else %}{{ _("Does not meet them") }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if domain.requirements_file %}
+      <details class="calculation">
+        <summary class="mono">requirements.md</summary>
+        <pre class="mono">{{ domain.requirements_file }}</pre>
+      </details>
+      {% endif %}
+      {% endif %}
       {% if domain.calculations %}
       <h3 class="domain-calc-title">{{ _("Calculation functions") }}</h3>
       {% for calc in domain.calculations %}
