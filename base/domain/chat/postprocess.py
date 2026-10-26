@@ -40,10 +40,6 @@ from domain.extensions import roles
 # are intentionally excluded.
 READ_TOOL = "read_wiki_page"
 
-# Header cell of the advisory ranked table — its presence means a table is
-# already in the text (model complied), so we don't append a duplicate.
-_ADVISORY_TABLE_MARKER = "| opción"
-
 _WIKI_PAGE_RE = re.compile(r"\[wiki page:\s*([^\]]+)\]")
 # query_dataset returns start with: **N dataset row(s)** for categoria='dolar':
 _DATASET_CAT_RE = re.compile(r"categoria='([^']+)'")
@@ -91,13 +87,13 @@ def advisory_table(messages: list[ModelMessage]) -> str | None:
 
 def answer_with_table(answer: str, messages: list[ModelMessage]) -> str:
     """Append the advisory table below the model's answer (append, not replace,
-    so comparison / single-instrument prose is preserved). Idempotent: if the
-    answer already contains the table, leave it untouched."""
+    so comparison / single-instrument prose is preserved). The table is appended
+    even when the answer already holds one: a table the model copied is not
+    checked against the tool's, so the figures the user sees always come from
+    the tool."""
     table = advisory_table(messages)
     if not table:
         return answer
-    if _ADVISORY_TABLE_MARKER in answer:
-        return answer  # model already pasted a table — no duplicate
     return f"{answer.rstrip()}\n\n{table}"
 
 

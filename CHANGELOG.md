@@ -47,6 +47,12 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The advisory table is always the tool's table.** `answer_with_table` skipped
+  the table of `estimar_alternativas` when the answer already contained `| opción`,
+  so a table the model copied with a changed figure or missing rows stayed in the
+  answer unchecked. The code now always appends the tool's table, and the finance
+  prompt asks the model not to copy the table. A model that copies the table anyway
+  shows the table twice.
 - **Citation of the finance data tools** (#42). `ensure_citation` recognised only
   `read_wiki_page` and `query_dataset`, so an answer built only from
   `tasa_plazo_fijo`, `tasa_caucion`, `cotizacion_dolar`, `precio_accion` or
