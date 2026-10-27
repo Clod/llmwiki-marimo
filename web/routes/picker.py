@@ -16,7 +16,6 @@ from services.ingest import peek_stats
 from services.wiki import list_pages, open_wiki
 from web.deps import get_state, get_templates
 from web.i18n import _
-from web.render import page_url
 from web.state import AppState
 
 router = APIRouter()
@@ -172,9 +171,8 @@ def recent_remove(path: str = Form(...), state: AppState = Depends(get_state)):
 
 @router.get("/w/{wiki_id}/")
 def wiki_home(wiki_id: str, state: AppState = Depends(get_state)):
-    """The wiki on its overview page, or on its first page; a wiki without pages opens on Ingest."""
+    """The wiki on its Home screen; a wiki without pages opens on Ingest."""
     pages = list_pages(state.get_wiki(wiki_id).wiki)
     if not pages:
         return RedirectResponse(f"/w/{quote(wiki_id)}/ingest", status_code=303)
-    first = "overview" if "overview" in pages else pages[0]
-    return RedirectResponse(page_url(wiki_id, first), status_code=303)
+    return RedirectResponse(f"/w/{quote(wiki_id)}/home", status_code=303)

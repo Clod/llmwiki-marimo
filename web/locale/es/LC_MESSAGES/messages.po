@@ -608,6 +608,10 @@ msgstr "🏁 Se borró la fuente «%(filename)s»."
 msgid "That operation has already finished."
 msgstr "Esa operación ya terminó."
 
+#: web/routes/pages.py web/templates/page.html
+msgid "Home"
+msgstr "Inicio"
+
 #: web/routes/pages.py
 #, python-format
 msgid "Could not verify: %(error)s"
@@ -2261,6 +2265,10 @@ msgid "Filter the index by page title"
 msgstr "Filtrar el índice por el título de la página"
 
 #: web/templates/page.html
+msgid "Go to the Home screen of the wiki: a question asked there is about the whole wiki, with no page open"
+msgstr "Ir a la pantalla de inicio de la wiki: una pregunta hecha ahí es sobre la wiki entera, sin ninguna página abierta"
+
+#: web/templates/page.html
 msgid "Edit the text of this page"
 msgstr "Editar el texto de esta página"
 
@@ -2321,6 +2329,10 @@ msgstr "Borrar la página definitivamente de la wiki"
 #: web/templates/page.html
 msgid "Delete the page"
 msgstr "Borrar la página"
+
+#: web/templates/page.html
+msgid "A question asked from this screen is about the whole wiki: the chat sends no open page with it."
+msgstr "Una pregunta hecha desde esta pantalla es sobre la wiki entera: el chat no envía ninguna página abierta con la pregunta."
 
 #: web/templates/page.html
 msgid "Conversation"
@@ -2759,8 +2771,8 @@ msgid ""
 "Each category needs these metrics in the rows of its data file and these attributes in its header. The value is the "
 "one the data file of this wiki declares."
 msgstr ""
-"Cada categoría necesita estas métricas en las filas de su archivo de datos y estos atributos en su encabezado. "
-"El valor es el que declara el archivo de datos de esta wiki."
+"Cada categoría necesita estas métricas en las filas de su archivo de datos y estos atributos en su encabezado. El "
+"valor es el que declara el archivo de datos de esta wiki."
 
 #: web/templates/tools.html
 msgid "Category"

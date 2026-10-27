@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LLMWIKI">
+  <!-- A page with its corner folded: the wiki page the model compiles. -->
+  <path d="M14 6h26l12 12v38a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" fill="#dbe8f7" stroke="#2f5d9e" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M40 6v10a2 2 0 0 0 2 2h10" fill="#c4d6ee" stroke="#2f5d9e" stroke-width="3" stroke-linejoin="round"/>
+  <!-- The name, as the title of the page: LLM in the accent blue, WIKI in the yellow of the source node, with its outline. -->
+  <text x="32" y="28" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="7.5" font-weight="700" textLength="32" lengthAdjust="spacingAndGlyphs"><tspan fill="#2f5d9e">LLM</tspan><tspan fill="#e7c75a" stroke="#6b86ab" stroke-width="0.35" paint-order="stroke">WIKI</tspan></text>
+  <!-- Three linked nodes, in the colours of the relations graph:
+       two concept pages (blue) and the source document they come from (yellow). -->
+  <g stroke="#6b86ab" stroke-width="2.2" stroke-linecap="round">
+    <line x1="23" y1="37" x2="41" y2="41"/>
+    <line x1="23" y1="37" x2="29" y2="50"/>
+    <line x1="41" y1="41" x2="29" y2="50"/>
+  </g>
+  <circle cx="23" cy="37" r="4.2" fill="#2f5d9e"/>
+  <circle cx="41" cy="41" r="4.2" fill="#2f5d9e"/>
+  <circle cx="29" cy="50" r="4.2" fill="#e7c75a" stroke="#6b86ab" stroke-width="1.3"/>
+</svg>

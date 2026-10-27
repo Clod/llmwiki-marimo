@@ -13,6 +13,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **A Home screen for each wiki, and a favicon.** A wiki now opens on its Home
+  screen (`/w/<wiki>/home`), which shows the logo and the name of the wiki
+  beside the chat. No page is open there, so a question asked from Home is
+  about the whole wiki: the chat sends no `open_page`, node `Q5a` answers no,
+  and the coverage roster decides the path. Before, the wiki opened on
+  `overview`, and that page made every question covered. Each page links to
+  Home beside Edit and History. Every screen declares the favicon
+  (`web/static/img/`).
 - **The data requirements of a domain in the Tools tab.** The section of a
   domain now shows, for each data category, the metrics and attributes its
   `requirements.md` asks for, the value the data file of the wiki declares for

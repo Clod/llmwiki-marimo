@@ -607,6 +607,10 @@ msgstr ""
 msgid "That operation has already finished."
 msgstr ""
 
+#: web/routes/pages.py web/templates/page.html
+msgid "Home"
+msgstr ""
+
 #: web/routes/pages.py
 #, python-format
 msgid "Could not verify: %(error)s"
@@ -2191,6 +2195,10 @@ msgid "Filter the index by page title"
 msgstr ""
 
 #: web/templates/page.html
+msgid "Go to the Home screen of the wiki: a question asked there is about the whole wiki, with no page open"
+msgstr ""
+
+#: web/templates/page.html
 msgid "Edit the text of this page"
 msgstr ""
 
@@ -2248,6 +2256,10 @@ msgstr ""
 
 #: web/templates/page.html
 msgid "Delete the page"
+msgstr ""
+
+#: web/templates/page.html
+msgid "A question asked from this screen is about the whole wiki: the chat sends no open page with it."
 msgstr ""
 
 #: web/templates/page.html
