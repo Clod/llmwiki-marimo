@@ -76,10 +76,10 @@ def test_the_picker_still_shows_the_counts(client, wiki):
     assert '<td class="num">0</td>' in row and '<td class="num">3</td>' in row
 
 
-def test_a_wiki_home_redirects_to_its_overview(client):
+def test_a_wiki_home_redirects_to_its_home_screen(client):
     response = client.get(f"/w/{WIKI_ID}/")
     assert response.status_code == 303
-    assert response.headers["location"] == f"/w/{WIKI_ID}/pages/overview"
+    assert response.headers["location"] == f"/w/{WIKI_ID}/home"
 
 
 def test_a_wiki_without_pages_opens_on_ingest(client, tmp_path):

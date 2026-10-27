@@ -41,11 +41,11 @@ def git_log(live) -> str:
 
 # ── 3.1 and 3.2: picker and navigation ───────────────────────────────────────
 
-def test_picker_opens_the_overview(page, live):
+def test_picker_opens_the_home_screen(page, live):
     page.goto(live.url)
     expect(page.get_by_role("heading", name="Elegí una wiki")).to_be_visible()
     page.get_by_role("link", name=WIKI_ID).click()
-    expect(page).to_have_url(f"{live.url}/w/{WIKI_ID}/pages/overview")
+    expect(page).to_have_url(f"{live.url}/w/{WIKI_ID}/home")
 
 
 def test_navigation_by_index_by_link_and_by_back_button(page, live):

@@ -34,6 +34,7 @@ try {
     <div class="column-head page-head">
       <span class="page-path mono" title="{{ _(kind) }}">{{ path_label }}</span>
       {% if html and not source %}<div class="actions">
+        <a class="btn-link" href="/w/{{ wiki_id }}/home" title="{{ _('Go to the Home screen of the wiki: a question asked there is about the whole wiki, with no page open') }}">{{ _("Home") }}</a>
         <a class="btn-link" href="/w/{{ wiki_id }}/edit/{{ page }}" title="{{ _('Edit the text of this page') }}">{{ _("Edit") }}</a>
         {% if deletable %}<a class="btn-link" href="/w/{{ wiki_id }}/relations?page={{ page }}&depth=1" title="{{ _('See the graph of the pages and sources related to this page') }}">{{ _("Relations") }}</a>{% endif %}
         {% if check.status in ('none', 'outdated', 'valid') %}
@@ -68,7 +69,13 @@ try {
           </form>
         </div>
         {% endif %}
-        {% if html %}<div class="prose">{{ html | safe }}</div>{% else %}<p class="missing">{{ _("The page does not exist.") }}</p>{% endif %}
+        {% if home %}
+        <div class="home">
+          <img class="home-logo" src="/static/img/logo.svg" alt="LLMWIKI" width="192" height="192">
+          <h1 class="home-name">{{ wiki_id }}</h1>
+          <p class="home-note">{{ _("A question asked from this screen is about the whole wiki: the chat sends no open page with it.") }}</p>
+        </div>
+        {% elif html %}<div class="prose">{{ html | safe }}</div>{% else %}<p class="missing">{{ _("The page does not exist.") }}</p>{% endif %}
       </div>
     </div>
   </article>

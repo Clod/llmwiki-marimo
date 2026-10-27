@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="llmwiki">
+  <!-- A page with its corner folded: the wiki page the model compiles. -->
+  <path d="M14 6h26l12 12v38a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" fill="#dbe8f7" stroke="#2f5d9e" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M40 6v10a2 2 0 0 0 2 2h10" fill="#c4d6ee" stroke="#2f5d9e" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Three linked nodes, in the colours of the relations graph:
+       two concept pages (blue) and the source document they come from (yellow). -->
+  <g stroke="#6b86ab" stroke-width="2.5" stroke-linecap="round">
+    <line x1="24" y1="30" x2="40" y2="36"/>
+    <line x1="24" y1="30" x2="28" y2="47"/>
+    <line x1="40" y1="36" x2="28" y2="47"/>
+  </g>
+  <circle cx="24" cy="30" r="5" fill="#2f5d9e"/>
+  <circle cx="40" cy="36" r="5" fill="#2f5d9e"/>
+  <circle cx="28" cy="47" r="5" fill="#e7c75a" stroke="#6b86ab" stroke-width="1.5"/>
+</svg>
