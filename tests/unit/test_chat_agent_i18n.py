@@ -103,5 +103,13 @@ def test_openrouter_openai_model_not_profiled_as_reasoning() -> None:
         api_key="fake-key",
         model="openai/gpt-4o",
     )
-    assert agent.model.profile.openai_supports_reasoning is False
+    # The profile is a TypedDict in Pydantic AI 2 (`pydantic_ai.profiles.ModelProfile`).
+    assert agent.model.profile.get("openai_supports_reasoning") is False
     assert agent.model_settings == {"temperature": 0.0}
+
+
+def test_agents_end_early() -> None:
+    """The end strategy of Pydantic AI 1 ('early'), set explicitly: the default
+    of Pydantic AI 2 is 'graceful'."""
+    agent = create_agent(base_url="http://localhost:1234/v1", api_key="fake-key", model="m")
+    assert agent.end_strategy == "early"

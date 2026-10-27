@@ -191,4 +191,10 @@ def create_agent(
         # retrieve-then-cite behavior deterministic and reproducible (and stops
         # reliability from depending on the provider's default sampling).
         model_settings=ModelSettings(temperature=0.0),
+
+        # The default of Pydantic AI 2 is 'graceful'; 'early' was the default of
+        # Pydantic AI 1, and these agents were written for it. For the plain text
+        # output of these agents both strategies run every tool call
+        # (`EndStrategy`, pydantic_ai/_agent_graph.py).
+        end_strategy="early",
     )

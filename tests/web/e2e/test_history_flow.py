@@ -70,9 +70,13 @@ def test_ingest_delete_a_page_then_go_back_to_the_point_before_the_delete(page, 
     assert not (live.wiki_dir / "wiki/concepts/byma.md").exists()      # cancelling changed nothing
 
     ingest_commit.get_by_role("button", name="Volver a este punto").click()
-    # Wait for the confirmation's text: a click on a button htmx has not processed yet is lost.
+    # A click on a button htmx has not processed yet is lost. The text of the confirmation
+    # appears when htmx inserts it, a moment before htmx binds `hx-post` to the button, so
+    # the test waits for the binding itself: htmx marks a processed element with `initHash`.
     expect(ingest_commit.locator(".confirm")).to_contain_text("vuelve a la copia guardada")
-    ingest_commit.locator(".confirm").get_by_role("button", name="Volver a este punto").click()
+    go_back = ingest_commit.locator(".confirm").get_by_role("button", name="Volver a este punto")
+    page.wait_for_function("b => b['htmx-internal-data']?.initHash", arg=go_back.element_handle())
+    go_back.click()
     expect(page.locator("#progress .log")).to_contain_text("🏁 La wiki volvió al punto")
     expect(page.locator("#progress .log")).to_contain_text("índice restaurado de su copia")
 

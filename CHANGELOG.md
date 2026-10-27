@@ -56,12 +56,26 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **Pydantic AI 2.** `pydantic-ai` goes from 1.97.0 to 2.62.0, and with it
+  `pydantic-graph`, `openai` 3.31.0 and `anthropic` 1.15.0, each at the lowest
+  version Pydantic AI 2 accepts. `requirements.txt` and
+  `requirements-verify.txt` are regenerated. In version 2, a tool call the tool
+  rejects with `ModelRetry` reaches the messages as a `ToolReturnPart` with
+  `outcome='retried'`. `guardrail.is_tool_result` accepts only a successful
+  result, so that error message is neither grounding evidence (check 11) nor a
+  table, a citation or a passage for the verifier. `create_agent` sets
+  `end_strategy="early"`, the default of version 1. With the real model, the
+  demo questions take the same path through the nodes the code decides, in
+  the three modes.
 - **The finance extension moved** from `base/domain/finance_argentina/` to
   `base/domain/extensions/finance_argentina/` (#42). The old import path is an
   alias of the new package, kept until after 2026-11-13.
 
 ### Fixed
 
+- **A flaky end-to-end test of the revert.** The test clicked the confirm
+  button as soon as its text appeared, a moment before htmx binds `hx-post` to
+  it, and the click was lost. It now waits for htmx to process the button.
 - **The advisory table is always the tool's table.** `answer_with_table` skipped
   the table of `estimar_alternativas` when the answer already contained `| opción`,
   so a table the model copied with a changed figure or missing rows stayed in the

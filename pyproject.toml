@@ -15,7 +15,7 @@ dependencies = [
     "pydantic-settings",
     "aiosqlite",
     "opendataloader-pdf",
-    "pydantic-ai>=1.97.0",
+    "pydantic-ai>=2.62.0,<3",
     "anywidget>=0.11.0",
     "traitlets>=5.15.0",
     "pyyaml>=6.0",
