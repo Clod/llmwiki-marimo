@@ -283,3 +283,51 @@ def test_block_without_front_matter_is_untouched(monkeypatch):
                                               path="/sources/")])
     block = retrieve_source_chunks("db", "cinderella")[0]
     assert block == "[/sources/Cinderella.pdf]\nOnce upon a time"
+
+
+def _rows(*pages):
+    return [{"content": f"texto de {p}", "path": "/wiki/concepts/", "filename": f"{p}.md", "title": p}
+            for p in pages]
+
+
+def _search_by_query(by_query):
+    """A search_chunks that answers each FTS query with its own rows."""
+    def fake(db, query, limit=10, scope="all", language=None):
+        return by_query.get(query, [])[:limit]
+    return fake
+
+
+def test_retrieve_wiki_adds_a_page_of_a_topic_the_hits_miss(monkeypatch):
+    main = _rows("fci-1", "fci-2", "fci-3", "fci-4", "fci-5", "fci-6")
+    monkeypatch.setattr(preretrieval, "search_chunks", _search_by_query({
+        '"plazo" OR "fijo" OR "FCI" OR "money" OR "market"': main,
+        '"FCI" OR "money" OR "market"': _rows("fci-1", "fci-2"),
+        '"plazo" OR "fijo"': _rows("plazo-fijo-a", "plazo-fijo-b"),
+    }))
+    hits = retrieve_wiki("db", "plazo fijo o FCI money market", topics=["FCI money market", "plazo_fijo"])
+    assert preretrieval._hit_labels(hits) == [
+        "/wiki/concepts/fci-1.md", "/wiki/concepts/fci-2.md", "/wiki/concepts/fci-3.md",
+        "/wiki/concepts/fci-4.md", "/wiki/concepts/fci-5.md", "/wiki/concepts/plazo-fijo-a.md"]
+
+
+def test_retrieve_wiki_keeps_the_hits_when_every_topic_has_a_page(monkeypatch):
+    main = _rows("caucion-1", "caucion-2", "byma")
+    monkeypatch.setattr(preretrieval, "search_chunks", _search_by_query({
+        '"caución" OR "bursátil"': main,
+        '"caucion"': _rows("otra", "caucion-2"),
+    }))
+    hits = retrieve_wiki("db", "caución bursátil", topics=["caucion"])
+    assert preretrieval._hit_labels(hits) == [
+        "/wiki/concepts/caucion-1.md", "/wiki/concepts/caucion-2.md", "/wiki/concepts/byma.md"]
+
+
+def test_retrieve_wiki_prefers_the_page_titled_with_the_topic(monkeypatch):
+    main = _rows("queen", "apple", "mirror", "snow-white", "dwarfs", "summary")
+    monkeypatch.setattr(preretrieval, "search_chunks", _search_by_query({
+        '"Cinderella" OR "Snow" OR "White"': main,
+        '"Cinderella"': _rows("stepmother", "godmother", "slipper", "Cinderella"),
+        '"Snow" OR "White"': _rows("snow-white"),
+    }))
+    hits = retrieve_wiki("db", "Cinderella Snow White", topics=["Cinderella", "Snow White"])
+    assert preretrieval._hit_labels(hits)[-1] == "/wiki/concepts/Cinderella.md"
+    assert len(hits) == 6
