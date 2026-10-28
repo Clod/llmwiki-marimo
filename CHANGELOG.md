@@ -56,6 +56,18 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The chat checks run as two pydantic-graph workflows.** The input workflow
+  (`base/domain/chat/workflow/input_checks.py`) runs the checks of the question
+  of the pre-retrieval mode, from `Q1` to a refusal (`R1`, `R2a`, `R2b`) or to
+  the node that calls the agent (`Q13` to `Q16`). The output workflow
+  (`base/domain/chat/workflow/output_checks.py`) runs the checks of the answer:
+  `Q17` to `Q21` in the pre-retrieval mode, `T2` to `T5` in the strict mode. The
+  agent call stays between the two workflows. Each check is the function it was
+  before; only the order, the condition of each step and the point where a turn
+  ends in a refusal moved from `_pre_retrieval_turn` and
+  `chat_turn_with_context` into the graphs. The streaming mode runs no workflow.
+  The behavior does not change: the node codes, the node attributes and the
+  final answers are the same, and the graphs add no span to the trace.
 - **Pydantic AI 2.** `pydantic-ai` goes from 1.97.0 to 2.62.0, and with it
   `pydantic-graph`, `openai` 3.31.0 and `anthropic` 1.15.0, each at the lowest
   version Pydantic AI 2 accepts. `requirements.txt` and

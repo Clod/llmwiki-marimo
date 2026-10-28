@@ -13,37 +13,32 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
+from typing import Any
 
 from domain import tracing
 from domain.chat.dataset_tools import format_rows_as_table
-from domain.chat.guardrail import has_grounding
 from domain.chat.refusal import (
     Refusal,
-    RefusalCause,
-    fixed_sentence,
     render,
     roster_suggestions,
     search_suggestions,
 )
-from domain.chat.overlap import coverage
-from domain.chat.postprocess import answer_with_table, ensure_citation
 from domain.chat.scope import (
     _mentions,
     _normalize,
     advisory_intent,
-    collection_intent,
+    # The input workflow reads it through this module, where the workshop
+    # replaces it (`mock.patch.object(preretrieval, "collection_intent", ...)`).
+    collection_intent,  # noqa: F401
     is_off_limits,
-    off_limits_term,
     matched_terms,
     mentions_known_data,
 )
 from domain.datasets.frontmatter import split_frontmatter
-from domain.i18n import get_locale
 from domain.prompts import load_prompt
 from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
-from domain.text.stemming import stem_text
 from domain.text.stopwords import STOPWORDS, stopwords
 from domain.tools.search import search_chunks
 from domain.tools.wiki_fs import concept_page_names
@@ -516,149 +511,140 @@ def _answer_node(plan: RetrievalPlan, wiki_hits: list[str], in_roster: bool) -> 
     return "Q15"
 
 
+@dataclass
+class PreRetrievalTurn:
+    """The state of one pre-retrieval turn: the inputs, and what each check found.
+
+    One object per turn. `build_roster`, `blacklist`, `match_roster`, `screen`,
+    `suggestions` and `refuse` read and write it; so do the steps of the input
+    and the output workflows (`domain/chat/workflow/`).
+    """
+
+    question: str
+    config: Any
+    db_path: str
+    workspace: Any
+    history: list
+    language: str | None
+    stem_language: str
+    source: DatasetSource
+    open_page: str | None = None
+    condense: Any = None
+    on_trace: Any = None
+    # What the gate and the search examine: the question, or its rewrite (Q5b).
+    search: str = ""
+    off_limits: bool = False
+    # The coverage roster (`build_roster`).
+    aliases: list[str] = field(default_factory=list)
+    categories: set[str] = field(default_factory=set)
+    keys: set[str] = field(default_factory=set)
+    roster_terms: set[str] = field(default_factory=set)
+    # The data detection and the roster match (`match_roster`).
+    has_data: bool = False
+    matched: list[str] = field(default_factory=list)
+    in_roster: bool = False
+    open_block: str | None = None
+    wiki_hits: list[str] = field(default_factory=list)
+    doc_hits: list[str] = field(default_factory=list)
+    collection_hits: list[str] = field(default_factory=list)
+    plan: RetrievalPlan | None = None
+    injection: DatasetInjection = field(default_factory=lambda: DatasetInjection([], [], []))
+
+    def __post_init__(self) -> None:
+        if not self.search:
+            self.search = self.question
+
+
+def build_roster(turn: PreRetrievalTurn) -> None:
+    """The coverage roster of node Q5: the aliases, the dataset categories and
+    keys, and the roster terms (categories and concept-page titles)."""
+    turn.aliases = [alias for names in turn.config.data_aliases.values() for alias in names]
+    vocabulary = build_vocabulary(turn.source)
+    turn.categories = set(turn.source.categories())
+    # Dataset categories, concept-page titles and aliases are compared by
+    # stem; dataset keys (proper names, codes) by whole word (decision 15).
+    turn.keys = vocabulary - turn.categories
+    # "In the padrón" = the question names something the wiki actually covers
+    # (a dataset term OR a concept page name OR a known alias). Tier-2 (raw
+    # docs) is allowed ONLY for a covered topic, so an uncovered question
+    # can't pull a tangential chunk as a fig leaf — that was the CEDEARs leak.
+    turn.roster_terms = turn.categories | set(concept_page_names(turn.db_path))
+
+
+def blacklist(turn: PreRetrievalTurn, text: str) -> bool:
+    """Node Q3 on `text`: whether `text` names a blacklist term, by whole
+    normalized word, never by stem (decision 5)."""
+    turn.off_limits = is_off_limits(text, turn.config.off_limits)
+    return turn.off_limits
+
+
+def match_roster(turn: PreRetrievalTurn, text: str) -> None:
+    """Node Q5 on `text`: the data detection (`has_data`) and the roster match
+    (`matched`, `in_roster`). `build_roster` runs first."""
+    # Route to the tools either by a NAMED data term or by generic advisory
+    # intent ("$1M, 3 meses, ¿qué alternativas?") — the latter names no
+    # instrument but still belongs on the query_dataset/estimar_alternativas
+    # path, not a refusal.
+    turn.has_data = mentions_known_data(
+        text, turn.categories, turn.aliases, language=turn.stem_language, exact=turn.keys,
+    ) or advisory_intent(text)
+    turn.matched = matched_terms(
+        text, sorted(turn.roster_terms), turn.aliases, language=turn.stem_language,
+        exact=sorted(turn.keys),
+    )
+    turn.in_roster = bool(turn.matched)
+
+
+def screen(turn: PreRetrievalTurn, text: str) -> None:
+    """The blacklist, the data detection and the roster on `text`: `blacklist`,
+    then `match_roster` when `text` names no blacklist term. Node Q5b runs it on
+    the rewrite; nodes Q3 and Q5 run its two parts on the question."""
+    if not blacklist(turn, text):
+        match_roster(turn, text)
+
+
+def suggestions(turn: PreRetrievalTurn) -> list[tuple[str, str]]:
+    """Roster pages for a question in the roster (decision 13), else the search."""
+    if turn.in_roster:
+        return roster_suggestions(turn.db_path, turn.search, turn.categories, turn.stem_language)
+    return search_suggestions(turn.db_path, turn.search, turn.stem_language)
+
+
+def refuse(node_id: str, turn: PreRetrievalTurn, refusal: Refusal, *, raw: str = "", result=None) -> str:
+    """Render the refusal, record its node, and report it to the caller."""
+    text = render(refusal, turn.language)
+    tracing.mark(node_id, tracing.READING, cause=refusal.cause.value, final_answer=text,
+                 suggestions=[title for title, _ in refusal.suggestions])
+    if turn.on_trace:
+        turn.on_trace(raw=raw, final=text, result=result, refusal_substituted=True)
+    return text
+
+
 async def _pre_retrieval_turn(
     question: str, *, config, db_path, workspace, history, language, run_agent, on_trace,
     open_page: str | None = None, on_context=None, condense=None,
 ) -> str:
-    """The body of `pre_retrieval_answer`, inside the turn's root span."""
-    R = tracing.READING
-    tracing.mark("Q1", R, question=question)
-    stem_language = language or language_for_db(db_path)
-    tracing.mark("Q2", R, normalized=_normalize(question))
-    # What the gate and the search examine: the question, or its rewrite (Q5b).
-    search = question
+    """The body of `pre_retrieval_answer`, inside the turn's root span.
 
-    # The blacklist first (design_stemming.md, decision 14): a blacklisted
-    # question is refused before the datasets are read or the index searched.
-    # The blacklist compares whole normalized words, never stems (decision 5).
-    off_limits = is_off_limits(question, config.off_limits)
-    tracing.mark("Q3", R, answer=off_limits)
+    The input workflow (`domain/chat/workflow/input_checks.py`) runs the checks
+    of the question. When it ends in a refusal, the model is not called. Else
+    the agent runs here, between the two workflows, and the output workflow
+    (`domain/chat/workflow/output_checks.py`) runs the checks of the answer.
+    """
+    from domain.chat.workflow import input_checks, output_checks
 
-    has_data = in_roster = False
-    categories: set[str] = set()
-    open_block: str | None = None
-    wiki_hits: list[str] = []
-    doc_hits: list[str] = []
-    collection_hits: list[str] = []
-    source = LocalMarkdownSource(workspace / "datasets")
-    if not off_limits:
-        tracing.mark("Q4", R, stemmed=stem_text(question, stem_language))
-        aliases = [alias for names in config.data_aliases.values() for alias in names]
-        vocabulary = build_vocabulary(source)
-        categories = set(source.categories())
-        # Dataset categories, concept-page titles and aliases are compared by
-        # stem; dataset keys (proper names, codes) by whole word (decision 15).
-        keys = vocabulary - categories
-        # Route to the tools either by a NAMED data term or by generic advisory
-        # intent ("$1M, 3 meses, ¿qué alternativas?") — the latter names no
-        # instrument but still belongs on the query_dataset/estimar_alternativas
-        # path, not a refusal.
-        has_data = mentions_known_data(
-            question, categories, aliases, language=stem_language, exact=keys,
-        ) or advisory_intent(question)
-        # "In the padrón" = the question names something the wiki actually covers
-        # (a dataset term OR a concept page name OR a known alias). Tier-2 (raw
-        # docs) is allowed ONLY for a covered topic, so an uncovered question
-        # can't pull a tangential chunk as a fig leaf — that was the CEDEARs leak.
-        roster_terms = categories | set(concept_page_names(db_path))
-        matched = matched_terms(
-            question, sorted(roster_terms), aliases, language=stem_language, exact=sorted(keys),
-        )
-        in_roster = bool(matched)
-        tracing.mark("Q5", R, answer=in_roster, roster_size=len(roster_terms) + len(keys),
-                     aliases=len(aliases), matched=matched)
-        # The page the user is reading: injected first, and it makes the
-        # question covered — the user asks about what is on the screen.
-        open_block = _open_page_block(workspace, open_page)
-        tracing.mark("Q5a", R, answer=open_block is not None, page=open_page)
-        if open_block is not None:
-            in_roster = True
-
-        # Query condensation (node Q5b): a follow-up that names no topic is
-        # rewritten from the conversation, and the gate runs again on the rewrite.
-        # The blacklist runs on the rewrite too, so a follow-up cannot bring in a
-        # blacklisted subject.
-        if condense is not None and history and not (in_roster or has_data or open_block):
-            from domain.chat import condense as condensation
-
-            rewritten = condensation.accepted(await condense(question, history), question)
-            matched = []
-            if rewritten != question:
-                search = rewritten
-                off_limits = is_off_limits(search, config.off_limits)
-                if not off_limits:
-                    has_data = mentions_known_data(
-                        search, categories, aliases, language=stem_language, exact=keys,
-                    ) or advisory_intent(search)
-                    matched = matched_terms(
-                        search, sorted(roster_terms), aliases, language=stem_language, exact=sorted(keys),
-                    )
-                    in_roster = bool(matched)
-            tracing.mark("Q5b", R, rewritten=rewritten, answer=in_roster, off_limits=bool(off_limits),
-                         matched=matched)
-
-        # The wiki search runs only for a question in the roster: the plan uses
-        # its pages only then (decision 14).
-        if in_roster:
-            with tracing.node("Q6", R, fts_query=_fts_query(search, language)) as q6:
-                wiki_hits = retrieve_wiki(db_path, search, language=stem_language)
-                if open_block is not None:
-                    open_label = _hit_labels([open_block])[0]
-                    wiki_hits = [open_block] + [
-                        h for h in wiki_hits if _hit_labels([h])[0] != open_label
-                    ]
-                q6.set(pages=_hit_labels(wiki_hits))
-            if not wiki_hits:
-                with tracing.node("Q8", R, fts_query=_fts_query(search, language)) as q8:
-                    doc_hits = retrieve_source_chunks(db_path, search, language=stem_language)
-                    q8.set(fragments=_hit_labels(doc_hits))
-        # Collection-shaped question ("what tales are in this wiki?") — inject
-        # the overview/index read from disk. Empty when the wiki has neither
-        # page, so an ordinary wiki with no collection page falls through to
-        # has_data/doc_hits/refuse exactly as it did before this branch existed.
-        collection_hits = retrieve_collection_pages(workspace) if collection_intent(search) else []
-
-    plan = plan_retrieval(
-        search, off_limits=config.off_limits,
-        wiki_hits=wiki_hits, doc_hits=doc_hits, has_data=has_data, in_roster=in_roster,
-        collection_hits=collection_hits,
+    turn = PreRetrievalTurn(
+        question, config, db_path, workspace, history, language,
+        stem_language=language or language_for_db(db_path),
+        source=LocalMarkdownSource(workspace / "datasets"),
+        open_page=open_page, condense=condense, on_trace=on_trace,
     )
+    outcome = await input_checks.graph.run(state=turn, inputs=turn)
+    if isinstance(outcome, input_checks.Refused):
+        return outcome.text
 
-    def refuse(node_id: str, refusal: Refusal, *, raw: str = "", result=None) -> str:
-        """Render the refusal, record its node, and report it to the caller."""
-        text = render(refusal, language)
-        tracing.mark(node_id, R, cause=refusal.cause.value, final_answer=text,
-                     suggestions=[title for title, _ in refusal.suggestions])
-        if on_trace:
-            on_trace(raw=raw, final=text, result=result, refusal_substituted=True)
-        return text
-
-    def suggestions() -> list[tuple[str, str]]:
-        """Roster pages for a question in the roster (decision 13), else the search."""
-        if in_roster:
-            return roster_suggestions(db_path, search, categories, stem_language)
-        return search_suggestions(db_path, search, stem_language)
-
-    if plan.action == "refuse":
-        if off_limits:
-            return refuse("R1", Refusal(
-                RefusalCause.BLACKLIST, term=off_limits_term(search, config.off_limits),
-            ))
-        if in_roster:
-            return refuse("R2b", Refusal(RefusalCause.NOTHING_FOUND, suggestions=suggestions()))
-        return refuse("R2a", Refusal(RefusalCause.NOT_IN_ROSTER, suggestions=suggestions()))
-
-    # Tier 1 from wiki pages: the code adds the dataset the question names
-    # (decision 16) — the pages hold no values, and the model, told to answer
-    # from the context, does not reliably call query_dataset on its own.
-    injection = DatasetInjection([], [], [])
-    if _answer_node(plan, wiki_hits, in_roster) == "Q13":
-        injection = dataset_injection(search, source, config.data_aliases, language)
-        if injection.blocks:
-            plan = replace(plan, context="\n\n".join([plan.context or "", *injection.blocks]),
-                           blocks=(*plan.blocks, *injection.blocks))
-
-    asked = with_open_page(question, open_page if open_block is not None else None, language)
+    plan = turn.plan
+    asked = with_open_page(question, open_page if turn.open_block is not None else None, language)
     prompt = (
         load_prompt("inject_template", language).format(context=plan.context, question=asked)
         if plan.context else asked
@@ -666,64 +652,14 @@ async def _pre_retrieval_turn(
     if on_context is not None:
         on_context([context_passage(block) for block in plan.blocks])
     with tracing.node(
-        _answer_node(plan, wiki_hits, in_roster), R,
+        outcome.node, tracing.READING,
         tier=plan.tier or "data", context_chars=len(plan.context or ""),
     ) as answer_node:
         answer_node.payload("prompt", prompt, channel="prompts")
         result = await run_agent(prompt, history)
-        raw = result.output
-        messages = result.all_messages()
-        answer_node.set(raw_output=raw)
+        answer_node.set(raw_output=result.output)
 
-    # Tier 2 (raw doc): verify the answer actually draws on the retrieved chunk.
-    if plan.verify:
-        min_coverage = getattr(config, "min_coverage", _MIN_COVERAGE)
-        score = coverage(raw, plan.context or "", stem_language)
-        supported = score >= min_coverage
-        tracing.mark("Q17", R, answer=supported, coverage=round(score, 3),
-                     min_coverage=min_coverage)
-        if not supported:
-            document = _hit_labels(doc_hits)[0].rsplit("/", 1)[-1] if doc_hits else ""
-            return refuse("R3", Refusal(
-                RefusalCause.UNSUPPORTED, document=document, suggestions=suggestions(),
-            ), raw=raw, result=result)
-
-    # Grounding: injected context IS the grounding for Tier 1/2 (skip the
-    # tool-based guardrail, which would wrongly refuse a context-only answer);
-    # for a data/advisory question (no injected context) keep the guardrail.
-    if plan.context is None:
-        grounded = has_grounding(messages)
-        tracing.mark("Q19", R, answer=grounded)
-        if not grounded:
-            return refuse("R4", Refusal(RefusalCause.UNGROUNDED, suggestions=suggestions()),
-                          raw=raw, result=result)
-    gated = raw
-
-    # The model's own refusal (cause 5): the code keeps the model's text and
-    # adds the cause line and the suggestions (decision 8).
-    opens_with_fixed = raw.lstrip().startswith(fixed_sentence(language))
-    tracing.mark("Q20", R, answer=opens_with_fixed)
-    if opens_with_fixed:
-        return refuse("R5", Refusal(
-            RefusalCause.MODEL, model_text=raw, suggestions=suggestions(),
-        ), raw=raw, result=result)
-    refusal_substituted = False
-
-    with_table = answer_with_table(gated, messages)
-    tabled = offer_available_keys(with_table, messages, injection, language)
-    keys_offered = tabled != with_table
-    answer = ensure_citation(
-        tabled, messages,
-        extra_references=injection.references, extra_fuentes=injection.fuentes,
+    checks = output_checks.AnswerChecks(
+        result.output, result.all_messages(), language, result=result, turn=turn,
     )
-    citation_added = answer != tabled
-    if plan.tier == "crudo":
-        answer = f"{answer}\n\n{get_locale(stem_language).tier2_warning}"
-        tracing.mark("Q18", R)
-
-    if not refusal_substituted:
-        tracing.mark("Q21", R, final_answer=answer, citation_added=citation_added,
-                     keys_offered=keys_offered)
-    if on_trace:
-        on_trace(raw=raw, final=answer, result=result, refusal_substituted=refusal_substituted)
-    return answer
+    return await output_checks.graph.run(state=checks, inputs=checks)
