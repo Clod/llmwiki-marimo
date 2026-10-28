@@ -123,13 +123,40 @@ def _fts_query(text: str, language: str | None = None) -> str:
     return " OR ".join(f'"{t}"' for t in tokens)
 
 
+TOPIC_CANDIDATES = 3
+
+
 def retrieve_wiki(
-    db_path: str, query: str, *, limit: int = 6, language: str | None = None
+    db_path: str, query: str, *, limit: int = 6, language: str | None = None,
+    topics: Iterable[str] = (),
 ) -> list[str]:
-    """Top curated-wiki chunks for `query` (Tier 1). Empty list if none."""
-    return _format_hits(
+    """Top curated-wiki chunks for `query` (Tier 1). Empty list if none.
+
+    `topics` are the roster terms the question names (node Q5). The query joins its
+    words with OR, and BM25 adds up the words that match: in "¿plazo fijo o FCI money
+    market?", the three words of one topic outrank the two of the other, and the six
+    hits can all belong to one topic. Each topic is searched alone. Its pages are its
+    first `TOPIC_CANDIDATES` pages, plus the page whose title is the topic. A topic is
+    missing when none of its pages is among the hits. For each missing topic, the
+    chunk of the page titled with the topic, or else its best chunk, replaces the
+    last hit, so the number of hits stays at most `limit`."""
+    hits = _format_hits(
         search_chunks(db_path, _fts_query(query, language), limit=limit, scope="wiki", language=language)
     )
+    added: list[str] = []
+    for topic in topics:
+        rows = [row for row in search_chunks(
+            db_path, _fts_query(topic.replace("_", " "), language), limit=TOPIC_CANDIDATES * 4,
+            scope="wiki", language=language) if (row.get("content") or "").strip()]
+        if not rows or len(added) >= limit - 1:
+            continue
+        titled = [row for row in rows if _normalize(row.get("title") or "") == _normalize(topic)]
+        candidates = _format_hits(rows)
+        pages = set(list(dict.fromkeys(_hit_labels(candidates)))[:TOPIC_CANDIDATES])
+        pages.update(_hit_labels(_format_hits(titled)))
+        if not pages.intersection(_hit_labels(hits[:limit - len(added)] + added)):
+            added.append(_format_hits(titled or rows)[0])
+    return hits[:limit - len(added)] + added if added else hits
 
 
 def retrieve_source_chunks(
