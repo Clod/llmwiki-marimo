@@ -85,6 +85,10 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The header fits one row in Spanish.** With the Spanish tab names and a long
+  model name (`anthropic/claude-haiku-5.5`), the header of the reading screen
+  needed about 1475 px and broke into two rows at 1440 px. The model name now has
+  a maximum width of 140 px and ends in "…"; its tooltip gives the full name.
 - **A flaky end-to-end test of the revert.** The test clicked the confirm
   button as soon as its text appeared, a moment before htmx binds `hx-post` to
   it, and the click was lost. It now waits for htmx to process the button.
