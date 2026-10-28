@@ -25,12 +25,13 @@ from pydantic_ai.messages import (
 from domain import tracing
 from domain.chat.agent import create_agent
 from domain.chat.config import WikiAssistantConfig, load_config
-from domain.chat.guardrail import enforce_grounding, has_grounding, refusal_for, strip_refused_exchanges
+from domain.chat.guardrail import strip_refused_exchanges
 from domain.chat.history import trim_history
-from domain.chat.postprocess import advisory_table, answer_with_table, ensure_citation
+from domain.chat.postprocess import advisory_table
 from domain.chat.condense import prompt as condense_user_prompt
 from domain.chat.condense import system_prompt as condense_prompt
 from domain.chat.preretrieval import pre_retrieval_answer, with_open_page
+from domain.chat.workflow import output_checks
 from domain.prompts import load_prompt
 from domain.verify.context import context_from_messages
 from domain.verify.models import ContextPassage
@@ -279,22 +280,11 @@ async def chat_turn_with_context(
             raw = result.output
             messages_run = result.all_messages()
             t1.set(tools_called=_tools_called(messages_run), raw_output=raw)
-        grounded = has_grounding(messages_run)
-        tracing.mark("T2", R, answer=grounded)
-        answer = enforce_grounding(raw, messages_run, refusal=refusal_for(language))
-        refusal_substituted = answer != raw
-        if refusal_substituted:
-            tracing.mark("T3", R, final_answer=answer)
-        # Deterministic post-processing (domain/chat/postprocess.py): guarantee
-        # the advisory table and a source citation regardless of whether the
-        # model reproduced them under history priming. Both no-op on a refusal.
-        tabled = answer_with_table(answer, messages_run)
-        cited = ensure_citation(tabled, messages_run)
-        tracing.mark("T4", R, table_added=tabled != answer, citation_added=cited != tabled)
-        answer = cited
-        tracing.mark("T5", R, final_answer=answer, refusal_substituted=refusal_substituted)
-        root.set(raw_output=raw, final_answer=answer, grounded=grounded,
-                 refusal_substituted=refusal_substituted)
+        # The checks of the answer, T2 to T5: the output workflow of the strict mode.
+        checks = output_checks.AnswerChecks(raw, messages_run, language)
+        answer = await output_checks.graph.run(state=checks, inputs=checks)
+        root.set(raw_output=raw, final_answer=answer, grounded=checks.grounded,
+                 refusal_substituted=checks.refusal_substituted)
     table = advisory_table(messages_run)
     return ChatResult(answer, tuple(context_from_messages(messages_run)), (table,) if table else (),
                       raw_answer=_raw_answer(raw, answer), path=tuple(path),

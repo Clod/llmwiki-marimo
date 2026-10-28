@@ -185,23 +185,35 @@ finds no page, the four questions that follow — whole wiki (Q9), data question
 (Q10), source fragment (Q11), coverage roster (Q12) — decide between an answer
 from the overview, an answer from the data tools, a Tier-2 answer and a refusal.
 
+Two workflows of pydantic-graph run the checks of this section. The input
+workflow, `graph` in `base/domain/chat/workflow/input_checks.py`, runs the nodes
+Q1 to Q12 and Q7a to Q7d, and ends in a refusal (R1, R2a, R2b) or in the node
+that calls the agent (Q13 to Q16). `_pre_retrieval_turn`
+(`base/domain/chat/preretrieval.py`) calls the agent between the two workflows.
+The output workflow, `graph` in `base/domain/chat/workflow/output_checks.py`,
+runs the nodes Q17 to Q21 and ends in the answer or in a refusal (R3, R4, R5).
+The input workflow reads and writes the `PreRetrievalTurn` of the turn
+(`base/domain/chat/preretrieval.py`). The state of the output workflow,
+`AnswerChecks` (`base/domain/chat/workflow/output_checks.py`), holds the answer
+of the agent and that `PreRetrievalTurn`.
+
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
-| Q1 | The question enters the pre-retrieval flow | `base/domain/chat/preretrieval.py`, `pre_retrieval_answer`, `_pre_retrieval_turn` | `question` | code |
-| Q2 | Lowercases the question and removes the accents of the question; punctuation stays | `base/domain/chat/scope.py`, `_normalize`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `normalized` | code |
-| Q3 | Checks the normalised question against the blacklist, by whole word | `base/domain/chat/scope.py`, `is_off_limits`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `answer` | code |
-| Q4 | Stems the question | `base/domain/text/stemming.py`, `stem_text`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `stemmed` | code |
-| Q5 | Checks the question against the coverage roster: stemmed against the dataset categories, the concept-page titles and the aliases; exact against the dataset keys | `base/domain/chat/scope.py`, `mentions_known_data`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn`, `build_vocabulary` | `answer`, `roster_size`, `aliases`, `matched` | code |
-| Q5a | Checks whether the user is reading a wiki page; the page that the user is reading is injected first, and makes the question covered | `base/domain/chat/preretrieval.py`, `_open_page_block`, `_pre_retrieval_turn` | `answer`, `page` | code |
-| Q5b | Rewrites a follow-up that names no topic into a question that stands alone, and runs the blacklist and the roster check again on the rewrite; the search uses the rewrite, the model answers the original question | `base/domain/chat/condense.py`, `accepted`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn`; `base/services/chat.py`, `_condenser` | `rewritten`, `answer`, `off_limits`, `matched` | code |
-| Q6 | Searches the wiki pages: removes the stop words, stems the terms, and runs the FTS query | `base/domain/chat/preretrieval.py`, `retrieve_wiki`, `_fts_query`, `_pre_retrieval_turn` | `fts_query`, `pages` | code |
+| Q1 | The question enters the pre-retrieval flow | `base/domain/chat/preretrieval.py`, `pre_retrieval_answer`, `PreRetrievalTurn`; `base/domain/chat/workflow/input_checks.py`, `question` | `question` | code |
+| Q2 | Lowercases the question and removes the accents of the question; punctuation stays | `base/domain/chat/scope.py`, `_normalize`; `base/domain/chat/workflow/input_checks.py`, `normalize` | `normalized` | code |
+| Q3 | Checks the normalised question against the blacklist, by whole word | `base/domain/chat/scope.py`, `is_off_limits`; `base/domain/chat/preretrieval.py`, `blacklist`; `base/domain/chat/workflow/input_checks.py`, `blacklist` | `answer` | code |
+| Q4 | Stems the question | `base/domain/text/stemming.py`, `stem_text`; `base/domain/chat/workflow/input_checks.py`, `stem` | `stemmed` | code |
+| Q5 | Checks the question against the coverage roster: stemmed against the dataset categories, the concept-page titles and the aliases; exact against the dataset keys | `base/domain/chat/scope.py`, `mentions_known_data`; `base/domain/chat/preretrieval.py`, `build_vocabulary`, `build_roster`, `match_roster`; `base/domain/chat/workflow/input_checks.py`, `roster` | `answer`, `roster_size`, `aliases`, `matched` | code |
+| Q5a | Checks whether the user is reading a wiki page; the page that the user is reading is injected first, and makes the question covered | `base/domain/chat/preretrieval.py`, `_open_page_block`; `base/domain/chat/workflow/input_checks.py`, `open_page` | `answer`, `page` | code |
+| Q5b | Rewrites a follow-up that names no topic into a question that stands alone, and runs the blacklist and the roster check again on the rewrite; the search uses the rewrite, the model answers the original question | `base/domain/chat/condense.py`, `accepted`; `base/domain/chat/preretrieval.py`, `screen`; `base/services/chat.py`, `_condenser`; `base/domain/chat/workflow/input_checks.py`, `condense` | `rewritten`, `answer`, `off_limits`, `matched` | code |
+| Q6 | Searches the wiki pages: removes the stop words, stems the terms, and runs the FTS query | `base/domain/chat/preretrieval.py`, `retrieve_wiki`, `_fts_query`; `base/domain/chat/workflow/input_checks.py`, `wiki_search` | `fts_query`, `pages` | code |
 | Q7 | Asks whether the wiki search returned a page | `base/domain/chat/preretrieval.py`, `plan_retrieval` | `answer`, `wiki_fragments` | code |
 | Q7a | Asks whether the question names a dataset category, by stemmed match | `base/domain/chat/preretrieval.py`, `dataset_injection` | `answer`, `categories` | code |
 | Q7b | Asks whether the question names a key of that category, by exact match | `base/domain/chat/preretrieval.py`, `dataset_injection` | `category`, `answer`, `keys` | code |
 | Q7c | Reads the rows of the key and renders the rows as `query_dataset` renders the rows: `valor`, `unidad`, `as_of`, `fuente` | `base/domain/datasets/source.py`, `LocalMarkdownSource`; `base/domain/chat/dataset_tools.py`, `format_rows_as_table`; `base/domain/chat/preretrieval.py`, `dataset_injection` | `category`, `keys`, `rows` | code |
 | Q7d | Reads only the key names of the category, without values | `base/domain/datasets/source.py`, `LocalMarkdownSource`; `base/domain/chat/preretrieval.py`, `dataset_injection` | `category`, `key_names` | code |
-| Q8 | Searches the source documents, at most four fragments | `base/domain/chat/preretrieval.py`, `retrieve_source_chunks`, `_pre_retrieval_turn` | `fts_query`, `fragments` | code |
-| Q9 | Asks whether the question is about the whole wiki, and whether the wiki has an overview or an index to inject | `base/domain/chat/scope.py`, `collection_intent`; `base/domain/chat/preretrieval.py`, `retrieve_collection_pages`, `plan_retrieval` | `answer`, `collection_pages` | code |
+| Q8 | Searches the source documents, at most four fragments | `base/domain/chat/preretrieval.py`, `retrieve_source_chunks`; `base/domain/chat/workflow/input_checks.py`, `source_search` | `fts_query`, `fragments` | code |
+| Q9 | Asks whether the question is about the whole wiki, and whether the wiki has an overview or an index to inject | `base/domain/chat/scope.py`, `collection_intent`; `base/domain/chat/preretrieval.py`, `retrieve_collection_pages`, `plan_retrieval`; `base/domain/chat/workflow/input_checks.py`, `collection_pages` | `answer`, `collection_pages` | code |
 | Q10 | Asks whether the question is a data question: the question names a dataset category or key, or a data alias, or asks for investment advice | `base/domain/chat/scope.py`, `advisory_intent`; `base/domain/chat/preretrieval.py`, `plan_retrieval` | `answer` | code |
 | Q11 | Asks whether the source search returned a fragment, for a question in the coverage roster | `base/domain/chat/preretrieval.py`, `plan_retrieval` | `answer`, `source_fragments`, `in_roster` | code |
 | Q12 | Chooses between R2a and R2b by the coverage roster | `base/domain/chat/preretrieval.py`, `plan_retrieval` | `answer` | code |
@@ -209,17 +221,17 @@ from the overview, an answer from the data tools, a Tier-2 answer and a refusal.
 | Q14 | Injects `overview.md` and `index.md`; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q15 | Injects nothing; the model calls the data tools of section 5 | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q16 | Injects the source fragments; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
-| Q17 | Checks that the answer is grounded in the fragments, with the stop words of the wiki's language, stemming and the configured threshold | `base/domain/chat/overlap.py`, `coverage`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `answer`, `coverage`, `min_coverage` | code |
-| Q18 | Appends the fixed Tier-2 warning to the answer | `base/domain/i18n.py`, `get_locale`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | no attributes | code |
-| Q19 | Asks whether a data tool returned evidence | `base/domain/chat/guardrail.py`, `has_grounding`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `answer` | code |
-| Q20 | Asks whether the answer opens with the fixed refusal sentence of the model | `base/domain/chat/refusal.py`, `fixed_sentence`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `answer` | code |
-| Q21 | Shows the answer; `ensure_citation` adds the citation of the tools the model used; for injected dataset rows the code adds the dataset citation; for injected pages the citation is the model's own | `base/domain/chat/postprocess.py`, `ensure_citation`, `answer_with_table`; `base/domain/chat/preretrieval.py`, `offer_available_keys`, `_pre_retrieval_turn` | `final_answer`, `citation_added`, `keys_offered` | code |
-| R1 | Refusal of cause 1: the question, or the rewrite of Q5b, names a blacklist term; the refusal names the matched term | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `cause`, `final_answer`, `suggestions` | code |
-| R2a | Refusal of cause 2a: the question names no topic of the wiki | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `cause`, `final_answer`, `suggestions` | code |
-| R2b | Refusal of cause 2b: the question names a topic of the wiki, and the searches found no text | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `cause`, `final_answer`, `suggestions` | code |
-| R3 | Refusal of cause 3: the Tier-2 answer is not grounded in the fragments; the refusal names the source document | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `cause`, `final_answer`, `suggestions` | code |
-| R4 | Refusal of cause 4: no tool returned evidence behind the answer | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `cause`, `final_answer`, `suggestions` | code |
-| R5 | Refusal of cause 5: the model refused with the fixed sentence; the refusal keeps the text of the model and adds the cause line and the suggestions | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `_pre_retrieval_turn` | `cause`, `final_answer`, `suggestions` | code |
+| Q17 | Checks that the answer is grounded in the fragments, with the stop words of the wiki's language, stemming and the configured threshold | `base/domain/chat/overlap.py`, `coverage`; `base/domain/chat/workflow/output_checks.py`, `fragment_coverage` | `answer`, `coverage`, `min_coverage` | code |
+| Q18 | Appends the fixed Tier-2 warning to the answer | `base/domain/i18n.py`, `get_locale`; `base/domain/chat/workflow/output_checks.py`, `tier2_warning` | no attributes | code |
+| Q19 | Asks whether a data tool returned evidence | `base/domain/chat/guardrail.py`, `has_grounding`; `base/domain/chat/workflow/output_checks.py`, `tool_evidence` | `answer` | code |
+| Q20 | Asks whether the answer opens with the fixed refusal sentence of the model | `base/domain/chat/refusal.py`, `fixed_sentence`; `base/domain/chat/workflow/output_checks.py`, `model_refusal` | `answer` | code |
+| Q21 | Shows the answer; `ensure_citation` adds the citation of the tools the model used; for injected dataset rows the code adds the dataset citation; for injected pages the citation is the model's own | `base/domain/chat/postprocess.py`, `ensure_citation`, `answer_with_table`; `base/domain/chat/preretrieval.py`, `offer_available_keys`; `base/domain/chat/workflow/output_checks.py`, `table`, `keys`, `citation`, `shown` | `final_answer`, `citation_added`, `keys_offered` | code |
+| R1 | Refusal of cause 1: the question, or the rewrite of Q5b, names a blacklist term; the refusal names the matched term | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`; `base/domain/chat/workflow/input_checks.py`, `refuse_blacklist` | `cause`, `final_answer`, `suggestions` | code |
+| R2a | Refusal of cause 2a: the question names no topic of the wiki | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/input_checks.py`, `refuse_not_in_roster` | `cause`, `final_answer`, `suggestions` | code |
+| R2b | Refusal of cause 2b: the question names a topic of the wiki, and the searches found no text | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/input_checks.py`, `refuse_nothing_found` | `cause`, `final_answer`, `suggestions` | code |
+| R3 | Refusal of cause 3: the Tier-2 answer is not grounded in the fragments; the refusal names the source document | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/output_checks.py`, `refuse_unsupported` | `cause`, `final_answer`, `suggestions` | code |
+| R4 | Refusal of cause 4: no tool returned evidence behind the answer | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/output_checks.py`, `refuse_ungrounded` | `cause`, `final_answer`, `suggestions` | code |
+| R5 | Refusal of cause 5: the model refused with the fixed sentence; the refusal keeps the text of the model and adds the cause line and the suggestions | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/output_checks.py`, `refuse_model` | `cause`, `final_answer`, `suggestions` | code |
 | S | Builds the suggestions of a refusal from the coverage roster or from the wiki search | `base/domain/chat/refusal.py`, `roster_suggestions`, `search_suggestions` | none: the result of S is the `suggestions` attribute of the R record | code |
 
 ## 3. Strict
@@ -227,6 +239,11 @@ from the overview, an answer from the data tools, a Tier-2 answer and a refusal.
 In the strict mode the model receives the question and the history, and decides
 which tools to call (section 5). After the model answers, the code checks that a
 tool returned evidence.
+
+The nodes T2 to T5 are steps of the output workflow, `graph` in
+`base/domain/chat/workflow/output_checks.py`, the same graph that runs the checks
+of the answer of the pre-retrieval mode. `chat_turn_with_context`
+(`base/services/chat.py`) runs it after T1.
 
 ```mermaid
 flowchart TD
@@ -243,10 +260,10 @@ flowchart TD
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
 | T1 | The model runs with the question, the history and the tools, and writes the answer | `base/services/chat.py`, `chat_turn_with_context`; `base/domain/chat/agent.py`, `create_agent` | `tools_called`, `raw_output` | code |
-| T2 | Asks whether a tool return of the run carries evidence: a return that is not empty and is not one of the "nothing found" sentences of the tools | `base/domain/chat/guardrail.py`, `has_grounding`, `_is_substantive`; `base/services/chat.py`, `chat_turn_with_context` | `answer` | code |
-| T3 | Replaces the answer by the guardrail refusal of the wiki's language | `base/domain/chat/guardrail.py`, `enforce_grounding`, `refusal_for`; `base/services/chat.py`, `chat_turn_with_context` | `final_answer` | code |
-| T4 | Appends the advisory table, and adds the citation of the tools that the model used | `base/domain/chat/postprocess.py`, `answer_with_table`, `ensure_citation`; `base/services/chat.py`, `chat_turn_with_context` | `table_added`, `citation_added` | code |
-| T5 | Shows the answer | `base/services/chat.py`, `chat_turn_with_context` | `final_answer`, `refusal_substituted` | code |
+| T2 | Asks whether a tool return of the run carries evidence: a return that is not empty and is not one of the "nothing found" sentences of the tools | `base/domain/chat/guardrail.py`, `has_grounding`, `_is_substantive`; `base/domain/chat/workflow/output_checks.py`, `evidence` | `answer` | code |
+| T3 | Replaces the answer by the guardrail refusal of the wiki's language | `base/domain/chat/guardrail.py`, `enforce_grounding`, `refusal_for`; `base/domain/chat/workflow/output_checks.py`, `guardrail` | `final_answer` | code |
+| T4 | Appends the advisory table, and adds the citation of the tools that the model used | `base/domain/chat/postprocess.py`, `answer_with_table`, `ensure_citation`; `base/domain/chat/workflow/output_checks.py`, `additions` | `table_added`, `citation_added` | code |
+| T5 | Shows the answer | `base/services/chat.py`, `chat_turn_with_context`; `base/domain/chat/workflow/output_checks.py`, `strict_answer` | `final_answer`, `refusal_substituted` | code |
 
 ## 4. Streaming
 

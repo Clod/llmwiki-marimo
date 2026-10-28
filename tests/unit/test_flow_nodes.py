@@ -22,6 +22,14 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "base"
 PRERETRIEVAL = "base/domain/chat/preretrieval.py"
+# The files whose `refuse("R…", ...)` and `preretrieval.refuse("R…", ...)` calls
+# record a refusal node: the pre-retrieval module and the two workflows of the
+# chat checks.
+REFUSING = {
+    PRERETRIEVAL,
+    "base/domain/chat/workflow/input_checks.py",
+    "base/domain/chat/workflow/output_checks.py",
+}
 
 DOCS = {
     "reading": ROOT / "docs" / "query_nodes.md",
@@ -95,7 +103,11 @@ def _code_calls() -> list[tuple[str, str, str]]:
                 diagram = _diagram_of(n.args[1], aliases)
                 if node_id and node_id not in STRUCTURE and diagram:
                     found.append((node_id, diagram, rel))
-            elif rel == PRERETRIEVAL and isinstance(func, ast.Name) and func.id == "refuse" and n.args:
+            elif rel in REFUSING and n.args and (
+                (isinstance(func, ast.Name) and func.id == "refuse")
+                or (isinstance(func, ast.Attribute) and func.attr == "refuse"
+                    and isinstance(func.value, ast.Name) and func.value.id == "preretrieval")
+            ):
                 node_id = _str_literal(n.args[0])
                 if node_id:
                     found.append((node_id, "reading", rel))
