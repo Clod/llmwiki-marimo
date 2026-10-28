@@ -1570,6 +1570,14 @@ msgid "The code did not change the answer of the model."
 msgstr ""
 
 #: web/templates/audit.html
+msgid "Change the width of the diagrams"
+msgstr ""
+
+#: web/templates/audit.html web/templates/page.html
+msgid "Drag, or use the arrow keys, to change the width; double click restores it"
+msgstr ""
+
+#: web/templates/audit.html
 msgid "Diagrams of the query"
 msgstr ""
 
@@ -2350,10 +2358,6 @@ msgstr ""
 
 #: web/templates/page.html
 msgid "Change the width of the index"
-msgstr ""
-
-#: web/templates/page.html
-msgid "Drag, or use the arrow keys, to change the width; double click restores it"
 msgstr ""
 
 #: web/templates/page.html

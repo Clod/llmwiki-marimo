@@ -85,6 +85,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The columns of the audit page can be resized.** The two columns had fixed
+  equal widths, and a wide diagram did not fit. A separator between the turns and
+  the diagrams changes the width of the diagrams, by drag or with the arrow keys;
+  double click restores equal columns. The width is stored per browser, as on the
+  reading screen, and the column of the turns keeps at least 320 px.
 - **A flaky end-to-end test of the revert.** The test clicked the confirm
   button as soon as its text appeared, a moment before htmx binds `hx-post` to
   it, and the click was lost. It now waits for htmx to process the button.

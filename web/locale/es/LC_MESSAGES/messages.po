@@ -1594,6 +1594,14 @@ msgid "The code did not change the answer of the model."
 msgstr "El código no modificó la respuesta del modelo."
 
 #: web/templates/audit.html
+msgid "Change the width of the diagrams"
+msgstr "Cambiar el ancho de los diagramas"
+
+#: web/templates/audit.html web/templates/page.html
+msgid "Drag, or use the arrow keys, to change the width; double click restores it"
+msgstr "Arrastrar, o usar las flechas, para cambiar el ancho; el doble clic lo restaura"
+
+#: web/templates/audit.html
 msgid "Diagrams of the query"
 msgstr "Diagramas de la consulta"
 
@@ -2332,7 +2340,9 @@ msgstr "Borrar la página"
 
 #: web/templates/page.html
 msgid "A question asked from this screen is about the whole wiki: the chat sends no open page with it."
-msgstr "Una pregunta hecha desde esta pantalla es sobre la wiki entera: el chat no envía ninguna página abierta con la pregunta."
+msgstr ""
+"Una pregunta hecha desde esta pantalla es sobre la wiki entera: el chat no envía ninguna página abierta con la "
+"pregunta."
 
 #: web/templates/page.html
 msgid "Conversation"
@@ -2427,10 +2437,6 @@ msgstr "Verificar las oraciones"
 #: web/templates/page.html
 msgid "Change the width of the index"
 msgstr "Cambiar el ancho del índice"
-
-#: web/templates/page.html
-msgid "Drag, or use the arrow keys, to change the width; double click restores it"
-msgstr "Arrastrar, o usar las flechas, para cambiar el ancho; el doble clic lo restaura"
 
 #: web/templates/page.html
 msgid "Change the width of the conversation"

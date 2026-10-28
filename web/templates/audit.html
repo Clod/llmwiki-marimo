@@ -2,7 +2,8 @@
 {% block title %}{{ _("Audit of the conversation") }} — llmwiki{% endblock %}
 {% block head %}<link rel="stylesheet" href="/static/css/audit.css">
 <script src="/static/js/mermaid.min.js" defer></script>
-<script src="/static/js/audit-diagram.js" defer></script>{% endblock %}
+<script src="/static/js/audit-diagram.js" defer></script>
+<script src="/static/js/audit-columns.js" defer></script>{% endblock %}
 {% block body %}
 <main class="container audit audit-columns" data-selected="{{ selected }}">
   <div class="audit-left" id="audit-left">
@@ -103,6 +104,9 @@
   </section>
   {% endfor %}
   </div>
+  <div class="separator audit-separator" role="separator" aria-orientation="vertical" tabindex="0" aria-controls="audit-diagrams"
+       aria-label="{{ _('Change the width of the diagrams') }}" aria-valuemin="320"
+       title="{{ _('Drag, or use the arrow keys, to change the width; double click restores it') }}"></div>
   <aside class="audit-right" id="audit-diagrams" aria-label="{{ _('Diagrams of the query') }}">
     {% include "_audit_diagrams.html" %}
   </aside>
