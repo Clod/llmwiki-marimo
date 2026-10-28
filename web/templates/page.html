@@ -13,7 +13,7 @@ try {
 } catch {}
 </script>{% endblock %}
 {% block bar_right %}
-  {% if model %}<span class="bar-model" title="{{ _('The model that answers in the conversation') }}">{{ model }}</span>{% endif %}
+  {% if model %}<span class="bar-model" title="{{ model }} — {{ _('The model that answers in the conversation') }}">{{ model }}</span>{% endif %}
   <button class="btn btn-sm" id="index-btn" aria-pressed="false" aria-controls="index" title="{{ _('Show or hide the index of pages') }}">☰ {{ _("Index") }}</button>
   <button class="btn btn-sm" id="chat-btn" aria-pressed="true" aria-controls="chat" title="{{ _('Show or hide the conversation') }}">{{ _("Chat") }}</button>
 {% endblock %}

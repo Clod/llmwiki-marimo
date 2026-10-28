@@ -164,7 +164,10 @@ async def wiki_search(ctx: Ctx) -> PreRetrievalTurn:
     pages only then (decision 14)."""
     turn = ctx.state
     with tracing.node("Q6", R, fts_query=preretrieval._fts_query(turn.search, turn.language)) as q6:
-        turn.wiki_hits = preretrieval.retrieve_wiki(turn.db_path, turn.search, language=turn.stem_language)
+        # Dataset keys (MEP, YPFD, a bank) name rows of a data file, not pages.
+        topics = [term for term in turn.matched if term not in turn.keys]
+        turn.wiki_hits = preretrieval.retrieve_wiki(turn.db_path, turn.search, language=turn.stem_language,
+                                                    topics=topics)
         if turn.open_block is not None:
             open_label = preretrieval._hit_labels([turn.open_block])[0]
             turn.wiki_hits = [turn.open_block] + [

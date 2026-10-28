@@ -102,13 +102,24 @@ def test_answer_with_table_noop_without_advisory():
     assert answer_with_table(prose, messages) == prose
 
 
-def test_answer_with_table_appends_even_when_model_pasted_one():
+def test_answer_with_table_replaces_the_copy_the_model_pasted():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
-    # The model copied the table with a changed figure: the tool's table is
-    # appended anyway, so the user always sees the tool's figures.
+    # The model copied the table, its title and a changed figure: the copy goes,
+    # the prose stays, and the user sees the tool's table once, with its figures.
     pasted = TABLE.replace("$90,000", "$95,000")
-    answer = f"Aquí van:\n\n{pasted}"
-    assert answer_with_table(answer, messages) == f"{answer}\n\n{TABLE.strip()}"
+    answer = f"Aquí van:\n\n{pasted}\n\nEl plazo fijo rinde más."
+    assert answer_with_table(answer, messages) == f"Aquí van:\n\nEl plazo fijo rinde más.\n\n{TABLE}"
+
+
+def test_answer_with_table_keeps_a_table_whose_header_the_model_changed():
+    messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
+    changed = "| instrumento | ganancia |\n|---|---|\n| plazo fijo | $90,000 |"
+    assert answer_with_table(changed, messages) == f"{changed}\n\n{TABLE}"
+
+
+def test_answer_with_table_of_an_answer_that_is_only_the_copy():
+    messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
+    assert answer_with_table(TABLE, messages) == TABLE
 
 
 # ── ensure_citation ──────────────────────────────────────────────────────────

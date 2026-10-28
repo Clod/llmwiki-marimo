@@ -26,7 +26,7 @@ from domain import tracing
 from domain.chat.agent import create_agent
 from domain.chat.config import WikiAssistantConfig, load_config
 from domain.chat.guardrail import strip_refused_exchanges
-from domain.chat.history import trim_history
+from domain.chat.history import data_origin, trim_history
 from domain.chat.postprocess import advisory_table
 from domain.chat.condense import prompt as condense_user_prompt
 from domain.chat.condense import system_prompt as condense_prompt
@@ -94,19 +94,24 @@ def build_agents(wiki: Wiki, base_url: str, api_key: str, model: str) -> ChatAge
                       condenser=condenser)
 
 
-def model_history(messages: Sequence[Any]) -> list:
+def model_history(messages: Sequence[Any], language: str | None = None) -> list:
     """The prior turns as Pydantic AI messages, without refused exchanges.
 
     A citation-less refusal left in the context primes the model to answer the
     next question without a citation too (verified), so refused exchanges are
-    dropped before the history is trimmed and converted.
+    dropped before the history is trimmed and converted. An assistant turn that
+    read data ends with its origin line (`data_origin`): the history has no tool
+    call and no injected context, so without the line the model calls the figures
+    of a past answer unsupported.
     """
     history: list = []
     for message in trim_history(strip_refused_exchanges(list(messages))):
         if message.role == "user":
             history.append(ModelRequest(parts=[UserPromptPart(content=message.content)]))
         elif message.role == "assistant":
-            history.append(ModelResponse(parts=[TextPart(content=message.content)]))
+            origin = data_origin(getattr(message, "context", ()), language)
+            content = f"{message.content}\n\n{origin}" if origin else message.content
+            history.append(ModelResponse(parts=[TextPart(content=content)]))
     return history
 
 
@@ -228,7 +233,7 @@ async def chat_turn_with_context(
     `open_page` is the id of the page the user is reading, or None. The context
     does not depend on `WIKI_TRACE`.
     """
-    history = model_history(messages[:-1])
+    history = model_history(messages[:-1], agents.config.language)
     question = messages[-1].content
     language = agents.config.language
     attributes = _turn_attributes(messages, mode, conversation_id, language, history)
@@ -314,7 +319,7 @@ async def chat_turn_stream_with_context(
     Yields the text chunks as they arrive, then one `ChatResult` as the last
     item, with the whole answer and the tool returns of the run.
     """
-    history = model_history(messages[:-1])
+    history = model_history(messages[:-1], agents.config.language)
     question = messages[-1].content
     attributes = _turn_attributes(messages, STREAMING, conversation_id,
                                   agents.config.language, history)
