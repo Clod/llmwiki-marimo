@@ -117,6 +117,27 @@ def test_model_history_drops_refused_exchanges():
     assert [type(m).__name__ for m in history] == ["ModelRequest", "ModelResponse"]
 
 
+def test_model_history_ends_a_turn_that_read_data_with_its_origin():
+    from domain.verify.models import ContextPassage
+
+    table = "| Plazo | TNA |\n|---|---|\n| 30 días | 32,5 % |"
+    answered = SimpleNamespace(role="assistant", content=table, context=(
+        ContextPassage("/wiki/concepts/plazo-fijo-uva.md", "Un plazo fijo UVA…"),
+        ContextPassage("datasets/plazo_fijo.md", "| clave | valor |"),
+    ))
+    history = chat.model_history([_msg("user", "¿Qué tasa ofrece el Banco Galicia?"), answered], "es")
+    text = history[1].parts[0].content
+    assert text.startswith(table)                                   # the table stays
+    assert text.endswith("[Origen de las cifras de esta respuesta: `datasets/plazo_fijo.md`, leído por "
+                         "el código. Esa lectura ocurrió en ese turno y no figura en este historial.]")
+    assert "plazo-fijo-uva" not in text                             # a wiki page is not data
+
+
+def test_model_history_leaves_a_turn_without_data_as_it_is():
+    history = chat.model_history([_msg("user", "who is Cinderella?"), _msg("assistant", "A girl in a tale.")])
+    assert history[1].parts[0].content == "A girl in a tale."
+
+
 class _Agent:
     def __init__(self, output):
         self.output = output

@@ -10,7 +10,8 @@ builds a LEAN history for the model (the user still sees the full answers):
 Operates on chat messages duck-typed as `.role` ("user"/"assistant") + `.content`.
 """
 
-from domain.chat.history import trim_history
+from domain.chat.history import data_origin, trim_history
+from domain.verify.models import ContextPassage
 
 
 class _Msg:
@@ -89,3 +90,29 @@ def test_preserves_order_and_roles():
     hist = _msgs(("user", "q0"), ("assistant", "a0"), ("user", "q1"))
     out = trim_history(hist, max_turns=3)
     assert [(m.role, m.content) for m in out] == [("user", "q0"), ("assistant", "a0"), ("user", "q1")]
+
+
+# ── origin of the data of a turn ─────────────────────────────────────────────
+
+def test_data_origin_names_each_dataset_and_calculation_once():
+    context = (
+        ContextPassage("datasets/plazo_fijo.md", "filas", "query_dataset"),
+        ContextPassage("datasets/plazo_fijo.md", "más filas", "query_dataset"),
+        ContextPassage("estimar_alternativas", "| opción | …", "estimar_alternativas"),
+        ContextPassage("/wiki/concepts/caucion.md", "texto", "read_wiki_page"),
+    )
+    assert data_origin(context, "en") == (
+        "[Origin of the figures of this answer: `datasets/plazo_fijo.md`, returned by the tool "
+        "`query_dataset`; the tool `estimar_alternativas`. That read happened in that turn and is "
+        "not in this history.]")
+
+
+def test_data_origin_is_none_without_data():
+    assert data_origin((ContextPassage("/wiki/concepts/caucion.md", "texto"),), "es") is None
+    assert data_origin((), "es") is None
+
+
+def test_a_compacted_turn_keeps_its_context():
+    message = _Msg("assistant", BIG_TABLE_ANSWER)
+    message.context = (ContextPassage("estimar_alternativas", "tabla", "estimar_alternativas"),)
+    assert trim_history([message])[0].context == message.context

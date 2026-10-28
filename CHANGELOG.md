@@ -85,6 +85,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The model no longer doubts the figures of its own past answer.** The history
+  the model receives keeps the text of each past answer and drops the context and
+  the tool calls of its turn. A table of rates in a past answer therefore reached
+  the model with no source in sight, and the model sometimes warned that the table
+  was not supported. An assistant turn that read data now ends, in the history,
+  with a line that names the data file or the calculation tool it came from
+  (`data_origin`, `base/domain/chat/history.py`). The table stays in the history.
+- **The advisory table shows once.** `answer_with_table` appended the table of
+  `estimar_alternativas` below the answer even when the model had copied it, so
+  the user saw it twice. It now removes the copy first: a run of table lines that
+  starts with a header row of the tool's table, and any other line equal to a line
+  of the tool's table. The figures the user sees still come from the tool. A copy
+  whose header the model changed is not found and stays.
 - **A flaky end-to-end test of the revert.** The test clicked the confirm
   button as soon as its text appeared, a moment before htmx binds `hx-post` to
   it, and the click was lost. It now waits for htmx to process the button.

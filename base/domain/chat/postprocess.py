@@ -86,16 +86,40 @@ def advisory_table(messages: list[ModelMessage]) -> str | None:
     return table
 
 
+def _without_copy(answer: str, table: str) -> str:
+    """`answer` without the parts it copied from the tool's `table`.
+
+    A copied table is a run of lines that start with `|`, from a line equal to a
+    header row of `table` (the first row of each of its tables): it is removed with
+    every figure in it, changed or not. Any other line equal to a line of `table`
+    (its title, its warning about nominal figures) is removed too. A table whose
+    header the model changed is not found, and stays."""
+    lines = [line.strip() for line in table.splitlines()]
+    headers = {line for previous, line in zip([""] + lines, lines)
+               if line.startswith("|") and not previous.startswith("|")}
+    others = {line for line in lines if line and not line.startswith("|")}
+    kept: list[str] = []
+    in_copy = False
+    for line in answer.splitlines():
+        stripped = line.strip()
+        in_copy = stripped in headers or (in_copy and stripped.startswith("|"))
+        if not in_copy and stripped not in others:
+            kept.append(line)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip()
+
+
 def answer_with_table(answer: str, messages: list[ModelMessage]) -> str:
-    """Append the advisory table below the model's answer (append, not replace,
-    so comparison / single-instrument prose is preserved). The table is appended
-    even when the answer already holds one: a table the model copied is not
-    checked against the tool's, so the figures the user sees always come from
-    the tool."""
+    """Put the advisory table below the model's answer, in place of any copy of it
+    (`_without_copy`). The prose around the table stays, so a comparison or the
+    prose of a single instrument is preserved. A table the model copied is not
+    checked against the tool's, so the copy goes and the figures the user sees
+    always come from the tool; the prompt still asks for the copy, which is the
+    only table the streaming mode shows."""
     table = advisory_table(messages)
     if not table:
         return answer
-    return f"{answer.rstrip()}\n\n{table}"
+    prose = _without_copy(answer, table)
+    return f"{prose}\n\n{table}" if prose else table
 
 
 # ── citation ─────────────────────────────────────────────────────────────────
