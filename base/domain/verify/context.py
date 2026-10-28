@@ -1,9 +1,9 @@
 """The passages a chat run read, taken from the tool returns of its messages.
 
 The strict and streaming modes give the model tools. Each `ToolReturnPart` of
-`result.all_messages()` is text the model read. This module turns those parts
-into `ContextPassage` values with the page each comes from. It does not read the
-trace.
+`result.all_messages()` whose call succeeded (`guardrail.is_tool_result`) is
+text the model read. This module turns those parts into `ContextPassage` values
+with the page each comes from. It does not read the trace.
 """
 
 from __future__ import annotations
@@ -11,9 +11,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
-from pydantic_ai.messages import ToolReturnPart
-
-from domain.chat.guardrail import _is_substantive
+from domain.chat.guardrail import _is_substantive, is_tool_result
 from domain.verify.models import ContextPassage
 
 _WIKI_PAGE = re.compile(r"\A\[wiki page:\s*([^\]]+)\]\s*", re.IGNORECASE)
@@ -50,6 +48,6 @@ def context_from_messages(messages: Iterable) -> list[ContextPassage]:
     passages: list[ContextPassage] = []
     for message in messages or []:
         for part in getattr(message, "parts", []):
-            if isinstance(part, ToolReturnPart):
+            if is_tool_result(part):
                 passages.extend(passages_from_tool_return(part.tool_name, part.content))
     return passages

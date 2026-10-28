@@ -16,6 +16,7 @@ from pydantic_ai.models.test import TestModel
 
 from domain import tracing
 from domain.chat.agent import create_agent
+from domain.chat.guardrail import has_grounding
 from domain.extensions.finance_argentina.agent_tool import FINANCE_PROMPT_ADDENDUM, activate
 from domain.extensions.finance_argentina.data_tools import (
     DATA_TOOL_NAMES,
@@ -25,6 +26,7 @@ from domain.extensions.finance_argentina.data_tools import (
     tasa_caucion,
     tasa_plazo_fijo,
 )
+from domain.verify.context import context_from_messages
 from services import chat
 from services.wiki import open_wiki
 
@@ -137,6 +139,45 @@ def test_the_retry_reaches_the_model_through_the_agent(ws):
     with agent.override(model=FunctionModel(model_fn)):
         agent.run_sync("tasa", deps=str(ws / ".llmwiki" / "index.db"))
     assert "plazo_dias must be one of 1, 7, 14, 30" in str(seen[1].content)
+
+
+def _run_with_one_rejected_call(ws, then):
+    """The messages of a run whose first tool call is rejected with `ModelRetry`.
+
+    `then` is the second model response: a text answer, or a valid tool call (the
+    third response is then a text answer).
+    """
+    def model_fn(messages, info: AgentInfo):
+        rounds = sum(isinstance(m, ModelResponse) for m in messages)
+        if rounds == 0:
+            return ModelResponse(parts=[ToolCallPart("tasa_caucion", {"plazo_dias": 5})])
+        if rounds == 1:
+            return then
+        return ModelResponse(parts=[TextPart("ok")])
+
+    agent = finance_agent(ws)
+    with agent.override(model=FunctionModel(model_fn)):
+        return agent.run_sync("tasa", deps=str(ws / ".llmwiki" / "index.db")).all_messages()
+
+
+def test_a_rejected_call_is_not_grounding_evidence(ws):
+    """Check 11: the error of a call rejected with `ModelRetry` (check 18) is not a
+    tool result. A run whose only tool call was rejected has no grounding and no
+    context passage (check 17)."""
+    messages = _run_with_one_rejected_call(ws, ModelResponse(parts=[TextPart("la tasa es 30%")]))
+    assert has_grounding(messages) is False
+    assert context_from_messages(messages) == []
+
+
+def test_a_valid_call_after_a_rejected_one_is_grounding_evidence(ws):
+    """The valid call that follows the rejected one is the only tool result."""
+    messages = _run_with_one_rejected_call(
+        ws, ModelResponse(parts=[ToolCallPart("tasa_caucion", {"mercado": "BYMA", "plazo_dias": 7})]),
+    )
+    assert has_grounding(messages) is True
+    passages = context_from_messages(messages)
+    assert len(passages) == 1
+    assert "plazo=7d" in passages[0].text and "must be one of" not in passages[0].text
 
 
 def test_the_answer_of_a_tool_states_the_currency_of_the_dataset(ws):

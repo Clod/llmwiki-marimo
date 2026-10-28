@@ -64,11 +64,21 @@ def _is_substantive(content: object) -> bool:
     return not any(marker in low for marker in NEGATIVE_MARKERS)
 
 
+def is_tool_result(part: object) -> bool:
+    """True if `part` is the return of a tool call that ran and succeeded.
+
+    Pydantic AI 2 records a call rejected with `ModelRetry` as a `ToolReturnPart`
+    with `outcome='retried'`, and its content is the error (check 18). Only
+    `outcome='success'` is a result.
+    """
+    return isinstance(part, ToolReturnPart) and part.outcome == "success"
+
+
 def has_grounding(messages: list[ModelMessage]) -> bool:
     """True if any tool in the run returned substantive content."""
     for message in messages:
         for part in getattr(message, "parts", []):
-            if isinstance(part, ToolReturnPart) and _is_substantive(part.content):
+            if is_tool_result(part) and _is_substantive(part.content):
                 return True
     return False
 

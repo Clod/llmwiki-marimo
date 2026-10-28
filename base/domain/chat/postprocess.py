@@ -28,8 +28,9 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
-from pydantic_ai.messages import ModelMessage, ToolReturnPart
+from pydantic_ai.messages import ModelMessage
 
+from domain.chat.guardrail import is_tool_result
 from domain.extensions import roles
 
 # Tools whose returns represent a DELIBERATE use of a source (not a search
@@ -60,7 +61,7 @@ _NEGATIVE_MARKERS = (
 def _tool_returns(messages: list[ModelMessage]):
     for message in messages or []:
         for part in getattr(message, "parts", []):
-            if isinstance(part, ToolReturnPart):
+            if is_tool_result(part):
                 yield part
 
 
