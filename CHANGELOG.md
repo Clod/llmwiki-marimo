@@ -98,6 +98,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   starts with a header row of the tool's table, and any other line equal to a line
   of the tool's table. The figures the user sees still come from the tool. A copy
   whose header the model changed is not found and stays.
+- **A question that names two topics gets wiki pages of both.** The wiki search of
+  the pre-retrieval mode (node `Q6`) joins the words of the question with OR, and
+  BM25 adds up the words that match, so the words of one topic could outrank the
+  other: "¿me conviene un plazo fijo o un FCI money market para 60 días?" got six
+  pages of FCI money market and none of plazo fijo, and "What do Cinderella and
+  Snow White have in common?" got only Snow White pages. `retrieve_wiki` now
+  receives the topics the question names (node `Q5`, without dataset keys). A
+  topic with no page among the hits gets the chunk of its own page in place of
+  the last hit, so the number of hits does not grow.
 - **A flaky end-to-end test of the revert.** The test clicked the confirm
   button as soon as its text appeared, a moment before htmx binds `hx-post` to
   it, and the click was lost. It now waits for htmx to process the button.
@@ -105,8 +114,7 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   the table of `estimar_alternativas` when the answer already contained `| opción`,
   so a table the model copied with a changed figure or missing rows stayed in the
   answer unchecked. The code now always appends the tool's table, and the finance
-  prompt asks the model not to copy the table. A model that copies the table anyway
-  shows the table twice.
+  prompt asks the model not to copy the table.
 - **Citation of the finance data tools** (#42). `ensure_citation` recognised only
   `read_wiki_page` and `query_dataset`, so an answer built only from
   `tasa_plazo_fijo`, `tasa_caucion`, `cotizacion_dolar`, `precio_accion` or
