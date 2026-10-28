@@ -358,7 +358,8 @@ llmwiki/
 │   ├── wiki_revert.py                  # Go back to an earlier point of a wiki (command line)
 │   ├── capture_ingestion_walkthrough.py · capture_query_walkthrough.py
 │   │                                   #   regenerate the figures of the two walkthroughs
-│   └── capture_screenshots.py · record_demo.py   # README screenshots and demo video (marimo read app)
+│   ├── capture_screenshots.py          # screenshots of the marimo read app
+│   └── record_demo.py                  # the two README demo videos and the reading screenshot (web)
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}

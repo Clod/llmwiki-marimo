@@ -56,6 +56,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **New README demos and screenshots, from the web interface.** The README
+  links two videos: a one-minute demo in English and a full tour of 4:15 with
+  the Spanish interface. The screenshots of the reading screen and of the
+  history, and the social preview (`docs/assets/web_social.png`, which
+  replaces `read_app_social.png`), show the web interface. Before, the video
+  and the social preview showed the marimo app. `scripts/record_demo.py` now
+  drives the web interface: `short` and `long` record the videos, and
+  `stills` writes the screenshots of the reading screen with real answers.
 - **The chat checks run as two pydantic-graph workflows.** The input workflow
   (`base/domain/chat/workflow/input_checks.py`) runs the checks of the question
   of the pre-retrieval mode, from `Q1` to a refusal (`R1`, `R2a`, `R2b`) or to
