@@ -17,13 +17,15 @@ The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas 
 
 ![The reading screen of the web interface on the sample finance wiki: the page index on the left, the page "Plazo fijo UVA" in the middle, and on the right a conversation with two questions and their answers, each followed by its answering mode and the pages it cites](docs/assets/web_read_chat_en.png)
 
-*The **Read** tab on the finance example. The page index is on the left and the open page is in the middle. The conversation is on the right: under each answer, one line names the answering mode and the pages the answer cites. The mode selector under the question field has three values: **Pre-retrieval** (code retrieves first and refuses before the model is called), **Strict** (the answer is replaced by a refusal when the model did not consult the wiki) and **No verification** (the answer streams and is not checked) ([which to pick, and why](docs/query_walkthrough.md)). The **Save** button turns the conversation into a wiki page only after you review the draft: the agent has no write tool.*
+*The **Read** tab on the finance example. The page index is on the left and the open page is in the middle. The conversation is on the right: under each answer, one line names the answering mode, the pages the answer cites, and the tokens of the turn and of the conversation. The buttons **Criterion**, **Sources** and **Model answer** open the audit of the last answer. The mode selector under the question field has three values: **Pre-retrieval** (code retrieves first and refuses before the model is called), **Strict** (the answer is replaced by a refusal when the model did not consult the wiki) and **No verification** (the answer streams and is not checked) ([which to pick, and why](docs/query_walkthrough.md)). The **Save** button turns the conversation into a wiki page only after you review the draft: the agent has no write tool.*
 
 ![The History tab of the web interface: a list of seven wiki points, each with its date, message, short git identifier, number of changed pages and a button to return to that point; the newest point is marked as current](docs/assets/web_history_en.png)
 
 *The **History** tab. Every ingestion, saved conversation, deletion and repair is one point of the wiki. A point marked "index copy" has a copy of the search index, so returning to it is immediate; for the others the index is rebuilt without calling the model. This capture was taken on the finance example with seven points added by the capture script.*
 
-▶ **[Watch the 1-minute demo](https://youtu.be/VLX5kLczQbk)** — reading a generated wiki, then one cross-document answer citing a page for every claim (9s), then the same kind of question refused **in 1.2s because the model was never called**.
+▶ **[Watch the 1-minute demo](https://youtu.be/g1Qg3ZJzuek)**: a generated page, then an answer that compares two tales and cites a page for every claim (4 s), then a question the wiki does not cover, refused **in 0.1 s because the model was never called**.
+
+▶ **[Watch the full tour](https://youtu.be/uBj1jrn3MgU)** (Spanish interface, 4:15): the ingestion of a document, the reading screen, the relations, the vocabulary, a data file with its tool, the three chat modes, a refusal and its audit, the save of a conversation, lint and repair, and the history. The spans that wait for the model are sped up, and a badge on screen gives the factor.
 
 ---
 
