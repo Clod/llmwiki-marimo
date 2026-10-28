@@ -20,10 +20,16 @@
 .audit-turns { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-4); }
 .audit-turn { scroll-margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-6); }
 
-/* Two columns, each with its own vertical scroll: the turns on the left, the diagrams on the right. */
-.audit-columns { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); height: calc(100vh - var(--header-h)); }
+/* Two columns, each with its own vertical scroll: the turns on the left, the diagrams on the right.
+   The separator between them sets --audit-diagrams-w (audit-columns.js); unset, the columns are equal. */
+.audit-columns { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) var(--space-2) minmax(0, var(--audit-diagrams-w, 1fr));
+                 gap: var(--space-1); height: calc(100vh - var(--header-h)); }
 .audit-left, .audit-right { overflow-y: auto; min-height: 0; padding: var(--space-2); }
 .audit-right { border-left: var(--border); }
+.audit-separator { margin: var(--space-2) 0; border-radius: var(--radius-sm); cursor: col-resize; touch-action: none; transition: background var(--transition); }
+.audit-separator:hover, .audit-separator.dragging { background: var(--color-selected-border); }
+.audit-separator:focus-visible { background: var(--color-accent); }
+body.resizing { cursor: col-resize; user-select: none; }
 .audit-right pre.mermaid { overflow-x: auto; background: none; border: 0; white-space: pre; text-align: center; }
 .audit-right pre.mermaid:not([data-processed]) { visibility: hidden; }
 .audit-diagrams-title { font: var(--weight-medium) var(--text-md)/var(--leading-tight) var(--font-sans); }
@@ -33,4 +39,5 @@
   .audit-columns { display: block; height: auto; }
   .audit-left, .audit-right { overflow-y: visible; }
   .audit-right { border-left: 0; }
+  .audit-separator { display: none; }
 }

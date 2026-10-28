@@ -85,6 +85,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The columns of the audit page can be resized.** The two columns had fixed
+  equal widths, and a wide diagram did not fit. A separator between the turns and
+  the diagrams changes the width of the diagrams, by drag or with the arrow keys;
+  double click restores equal columns. The width is stored per browser, as on the
+  reading screen, and the column of the turns keeps at least 320 px.
 - **The header fits one row in Spanish.** With the Spanish tab names and a long
   model name (`anthropic/claude-haiku-5.5`), the header of the reading screen
   needed about 1475 px and broke into two rows at 1440 px. The model name now has
