@@ -85,6 +85,10 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The header fits one row in Spanish.** With the Spanish tab names and a long
+  model name (`anthropic/claude-haiku-5.5`), the header of the reading screen
+  needed about 1475 px and broke into two rows at 1440 px. The model name now has
+  a maximum width of 140 px and ends in "…"; its tooltip gives the full name.
 - **The model no longer doubts the figures of its own past answer.** The history
   the model receives keeps the text of each past answer and drops the context and
   the tool calls of its turn. A table of rates in a past answer therefore reached
