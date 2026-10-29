@@ -1498,6 +1498,62 @@ msgstr ""
 msgid "No alias has been rejected."
 msgstr ""
 
+#: web/templates/_vocabulary_body.html
+msgid "Questions about the whole wiki"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Calculation requests"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid ""
+"Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node Q9). An "
+"expression matches at the start of a word, without case nor accents"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid ""
+"Expressions of a request for an investment calculation: with a money amount or a time horizon, the question goes to "
+"the data tools (node Q5). An expression matches at the start of a word, without case nor accents"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "The list of this wiki, in wiki_config.toml."
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "The base list of the language of the wiki. The first change writes it into wiki_config.toml."
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "The base list of the active domains. The first change writes it into wiki_config.toml."
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Expression"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "New expression"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "An expression a question may contain"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Add the expression to the list"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove the expression from the list"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "The list is empty."
+msgstr ""
+
 #: web/templates/audit.html
 msgid "Sections of this page"
 msgstr ""

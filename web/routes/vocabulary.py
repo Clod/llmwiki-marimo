@@ -1,4 +1,5 @@
-"""The Vocabulario screen: the roster, the aliases, the rejected aliases and the blacklist."""
+"""The Vocabulario screen: the roster, the aliases, the rejected aliases, the blacklist and
+the two intent lists."""
 
 from __future__ import annotations
 
@@ -15,7 +16,8 @@ router = APIRouter()
 
 # The panel each change belongs to: its message appears there.
 _PANEL = {"blacklist-add": "blacklist", "blacklist-remove": "blacklist", "alias-add": "aliases",
-          "alias-remove": "aliases", "alias-reject": "aliases", "rejected-remove": "rejected"}
+          "alias-remove": "aliases", "alias-reject": "aliases", "rejected-remove": "rejected",
+          "intent-add": "intent", "intent-remove": "intent"}
 
 
 def _refusal(exc: vocab.VocabularyEditError) -> str:
@@ -73,12 +75,14 @@ def vocabulary_dataset(request: Request, wiki_id: str, category: str = "", key: 
 
 @router.post("/w/{wiki_id}/vocabulary/{op}", response_class=HTMLResponse)
 def vocabulary_change(request: Request, wiki_id: str, op: str, term: str = Form(""), canonical: str = Form(""),
+                      key: str = Form(""),
                       state: AppState = Depends(get_state), templates: Jinja2Templates = Depends(get_templates)):
     """Apply one change under the wiki's lock and return the screen's body again."""
     if op not in _PANEL:
         raise HTTPException(status_code=404)
     entry = state.get_wiki(wiki_id)
-    panel, ok = _PANEL[op], False
+    # An intent change shows its message in the panel of its list.
+    panel, ok = (f"intent-{key}" if _PANEL[op] == "intent" else _PANEL[op]), False
     if not entry.busy.acquire(blocking=False):
         text = _(BUSY)
     else:
@@ -91,6 +95,10 @@ def vocabulary_change(request: Request, wiki_id: str, op: str, term: str = Form(
                 vocab.add_alias(entry.wiki, canonical, term)
             elif op == "alias-remove":
                 vocab.remove_alias(entry.wiki, canonical, term)
+            elif op == "intent-add":
+                vocab.add_intent_cue(entry.wiki, key, term)
+            elif op == "intent-remove":
+                vocab.remove_intent_cue(entry.wiki, key, term)
             elif op == "alias-reject":
                 vocab.reject_alias(entry.wiki, canonical, term)
             else:

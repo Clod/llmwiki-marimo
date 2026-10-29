@@ -94,6 +94,27 @@ def activate_all(workspace: Path) -> DomainTools | None:
     )
 
 
+def advisory_base(workspace: Path, language: str) -> tuple[tuple[str, ...], tuple]:
+    """`(expressions, shapes)` of the advisory requests of the active domains of
+    `workspace`, in `language`.
+
+    A domain contributes the `advisory` list of its `intent.<language>.toml` and
+    its `ADVISORY_SHAPES[language]`; a domain without them, or not active,
+    contributes nothing."""
+    import tomllib
+
+    cues: list[str] = []
+    shapes: list = []
+    for module in domains().values():
+        if module.activate(workspace) is None:
+            continue
+        path = Path(module.__file__).parent / f"intent.{language}.toml"
+        if path.is_file():
+            cues += [str(c) for c in tomllib.loads(path.read_text(encoding="utf-8")).get("advisory", [])]
+        shapes += list(getattr(module, "ADVISORY_SHAPES", {}).get(language, ()))
+    return tuple(cues), tuple(shapes)
+
+
 def describe_all(workspace: Path) -> tuple[tuple, list]:
     """`(generic tools, domain descriptions)` of `workspace`, for the Tools tab."""
     from domain.extensions.description import generic_tools

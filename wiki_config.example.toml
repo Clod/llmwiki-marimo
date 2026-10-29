@@ -132,7 +132,7 @@ suggested_prompts = [
 # coverage gate and the search run on the rewrite. On by default.
 # condense_question = true
 
-# The three lists below only matter when pre_retrieval is on.
+# The lists below only matter when pre_retrieval is on.
 
 # BLACKLIST — subjects you know this wiki does not cover. Checked first, so a
 # match refuses immediately, before any document is read.
@@ -148,6 +148,17 @@ suggested_prompts = [
 # expanding a question's terms.
 # [falsos_sinonimos]
 # cedear = ["accion", "acciones"]
+
+# INTENT — expressions of two kinds of question. `collection`: a question about
+# the wiki as a whole, which gets the overview and the index. `advisory`: a
+# request for an investment calculation, which goes to the data tools when it
+# also has an amount or a horizon. An expression matches at the start of a word,
+# without case nor accents. While a key is absent the wiki uses the base list
+# (base/domain/chat/intent.<language>.toml for `collection`, the active domains
+# for `advisory`); a key you write replaces its base list completely. Edit the
+# lists from the Vocabulary tab: its first change writes the whole base list here.
+# [intent]
+# collection = ["this wiki", "each", "all the", "every", "how many", "in common"]
 
 # Sentence verification (web interface, optional install: see quickstart.py).
 # A sentence of the answer is "supported" when one passage the model read

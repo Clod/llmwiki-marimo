@@ -3,6 +3,7 @@
 Domain interface (`domain/extensions/__init__.py`): `NAME`, `ROLES`, `activate`.
 """
 
+import re
 from pathlib import Path
 
 from domain.datasets.source import LocalMarkdownSource
@@ -40,6 +41,18 @@ NAME = "finance_argentina"
 # data tools return the `format_rows_as_table` table, so their returns are
 # citable evidence (ensure_citation).
 ROLES = ToolRoles(evidence=DATA_TOOL_NAMES, verbatim=frozenset({"estimar_alternativas"}))
+
+
+# The shapes of an advisory question, per language: a money amount or a time horizon.
+# `scope.advisory_intent` needs one of them together with an expression of the
+# advisory list (`intent.es.toml`), and matches them on the normalized question
+# (lowercase, no accents).
+ADVISORY_SHAPES: dict[str, tuple[re.Pattern, ...]] = {
+    "es": (
+        re.compile(r"\$\s*\d|\b\d[\d.,]*\s*(?:mil|millon|millones|palos?|lucas?|pesos?|dolares?|usd)\b"),
+        re.compile(r"\b\d+\s*(?:dia|dias|mes|meses|ano|anos|semana|semanas|trimestre|trimestres)\b"),
+    ),
+}
 
 
 # The trace node of each tool (docs/query_nodes.md, the K nodes).

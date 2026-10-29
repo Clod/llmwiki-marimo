@@ -1,0 +1,11 @@
+# Base list of the advisory expressions of the finance domain, in Spanish: a question
+# that contains one AND a money amount or a time horizon (ADVISORY_SHAPES in
+# __init__.py) asks for an investment calculation (node Q5, `advisory_intent`). A wiki
+# takes this list while its wiki_config.toml has no `[intent] advisory` and the domain
+# is active. Several expressions are cut on purpose ("alternativ", "invert"): an
+# expression matches at the start of a word, so the cut covers every ending.
+advisory = [
+    "alternativ", "invert", "invier", "conviene", "recomend", "rendimiento",
+    "cuanto gan", "cuanto rind", "cuanto me da", "donde pong", "que hago con",
+    "colocar", "en que pongo",
+]

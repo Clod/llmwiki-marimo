@@ -1522,6 +1522,62 @@ msgstr "Volver a aceptar"
 msgid "No alias has been rejected."
 msgstr "No hay alias descartados."
 
+#: web/templates/_vocabulary_body.html
+msgid "Questions about the whole wiki"
+msgstr "Preguntas sobre toda la wiki"
+
+#: web/templates/_vocabulary_body.html
+msgid "Calculation requests"
+msgstr "Pedidos de cálculo"
+
+#: web/templates/_vocabulary_body.html
+msgid ""
+"Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node Q9). An "
+"expression matches at the start of a word, without case nor accents"
+msgstr "Expresiones de una pregunta sobre la wiki entera: esa pregunta recibe el resumen general y el índice (nodo Q9). Una expresión coincide al comienzo de una palabra, sin mayúsculas ni tildes"
+
+#: web/templates/_vocabulary_body.html
+msgid ""
+"Expressions of a request for an investment calculation: with a money amount or a time horizon, the question goes to "
+"the data tools (node Q5). An expression matches at the start of a word, without case nor accents"
+msgstr "Expresiones de un pedido de cálculo de inversión: con un monto o un plazo, la pregunta va a las herramientas de datos (nodo Q5). Una expresión coincide al comienzo de una palabra, sin mayúsculas ni tildes"
+
+#: web/templates/_vocabulary_body.html
+msgid "The list of this wiki, in wiki_config.toml."
+msgstr "La lista de esta wiki, en wiki_config.toml."
+
+#: web/templates/_vocabulary_body.html
+msgid "The base list of the language of the wiki. The first change writes it into wiki_config.toml."
+msgstr "La lista base del idioma de la wiki. El primer cambio la escribe en wiki_config.toml."
+
+#: web/templates/_vocabulary_body.html
+msgid "The base list of the active domains. The first change writes it into wiki_config.toml."
+msgstr "La lista base de los dominios activos. El primer cambio la escribe en wiki_config.toml."
+
+#: web/templates/_vocabulary_body.html
+msgid "Expression"
+msgstr "Expresión"
+
+#: web/templates/_vocabulary_body.html
+msgid "New expression"
+msgstr "Expresión nueva"
+
+#: web/templates/_vocabulary_body.html
+msgid "An expression a question may contain"
+msgstr "Una expresión que puede contener una pregunta"
+
+#: web/templates/_vocabulary_body.html
+msgid "Add the expression to the list"
+msgstr "Agregar la expresión a la lista"
+
+#: web/templates/_vocabulary_body.html
+msgid "Remove the expression from the list"
+msgstr "Quitar la expresión de la lista"
+
+#: web/templates/_vocabulary_body.html
+msgid "The list is empty."
+msgstr "La lista está vacía."
+
 #: web/templates/audit.html
 msgid "Sections of this page"
 msgstr "Secciones de esta página"

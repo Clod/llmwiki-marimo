@@ -10,7 +10,8 @@ The state of the graph is the `PreRetrievalTurn` of the turn. Each step returns
 the same object, so that each decision reads the field that its condition names.
 The steps call through the module `preretrieval` the functions that it defines,
 and `collection_intent`, so that a patch of a name of that module
-(`mock.patch.object(preretrieval, "collection_intent", ...)`, in the workshop)
+(`mock.patch.object(preretrieval, "collection_intent", ...)`, in the workshop, with a
+function of the question, the collection list and the language)
 reaches the step. `stem_text` and `off_limits_term` come from their own modules.
 
 The graph is built with `auto_instrument=False`: the steps record the same
@@ -196,7 +197,9 @@ async def collection_pages(ctx: Ctx) -> PreRetrievalTurn:
     turn = ctx.state
     turn.collection_hits = (
         preretrieval.retrieve_collection_pages(turn.workspace)
-        if preretrieval.collection_intent(turn.search) else []
+        if preretrieval.collection_intent(
+            turn.search, preretrieval.intent_lists(turn).collection, preretrieval.intent_lists(turn).language,
+        ) else []
     )
     return turn
 

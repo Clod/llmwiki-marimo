@@ -181,19 +181,24 @@ the overview rather than the tools. It cannot fire without something to inject:
 first `is_off_limits(q)`, by whole normalized word (the blacklist is never
 stemmed); for a question that passes it,
 `has_data = mentions_known_data(q, categories, aliases, language=…, exact=keys)
-or advisory_intent(q)` — the second disjunct routes a generic advisory question
-(an amount + horizon, no named instrument) to the tools instead of refusing.
+or advisory_intent(q, intent.advisory, intent.advisory_shapes)` — the second
+disjunct routes a generic advisory question (an amount + horizon, no named
+instrument) to the tools instead of refusing. `intent` is
+`preretrieval.intent_lists(turn)`: the `[intent]` section of the config, the base
+lists for the keys it lacks (`domain/chat/intent.py`), resolved once per turn. A
+wiki without an active advisory domain has no shapes, and `advisory_intent` is
+False.
 `in_roster = mentions_known_data(q, categories ∪ concept page names, aliases,
 language=…, exact=keys)`. Categories, concept-page titles and aliases compare by
 Snowball stem in the wiki's language (`domain/text/stemming.py`); the dataset
 keys compare by whole normalized word. The wiki search runs only when
 `in_roster` is true, and the source search only when it also found no page;
-`collection_hits = retrieve_collection_pages(workspace) if collection_intent(q)
-else []` — read off disk, since `overview.md` and `index.md` have no `documents`
+`collection_hits = retrieve_collection_pages(workspace) if collection_intent(q,
+intent.collection, intent.language) else []` — read off disk, since `overview.md` and `index.md` have no `documents`
 row and are invisible to FTS.
 
 Tests: `test_chat_retrieval_plan.py`, `test_chat_pre_retrieval_answer.py`,
-`test_chat_scope.py`.
+`test_chat_scope.py`, `test_chat_collection_intent.py`, `test_chat_intent.py`.
 
 ## 3b. Tier 1 from wiki pages also carries the dataset the question names
 

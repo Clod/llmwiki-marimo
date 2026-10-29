@@ -8,6 +8,9 @@ instead of) invoking the model:
   - `mentions_known_data`: does the question mention data we actually have
     (a dataset category or key, or a whitelisted alias like "billete verde")?
     This is the "chequeo contra la lista de datos".
+  - `advisory_intent`, `collection_intent`: is the question an investment
+    calculation, or about the wiki as a whole? Their expressions come from the
+    `[intent]` section of the wiki or from the base lists (`intent.py`).
   - `drop_false_synonyms`: filter a model's proposed synonyms against known
     FALSE synonyms (e.g. CEDEAR ≠ acción). NOT WIRED — see its own docstring.
 
@@ -103,52 +106,54 @@ def mentions_known_data(
     return bool(matched_terms(question, vocabulary, aliases, language=language, exact=exact))
 
 
-_ADVISORY_CUES = (
-    "alternativ", "invert", "invier", "conviene", "recomend", "rendimiento",
-    "cuanto gan", "cuanto rind", "cuanto me da", "donde pong", "que hago con",
-    "colocar", "en que pongo",
-)
-_MONEY_RE = re.compile(
-    r"\$\s*\d|\b\d[\d.,]*\s*(?:mil|millon|millones|palos?|lucas?|pesos?|dolares?|usd)\b"
-)
-_HORIZON_RE = re.compile(
-    r"\b\d+\s*(?:dia|dias|mes|meses|ano|anos|semana|semanas|trimestre|trimestres)\b"
-)
+def cue_matches(question_norm: str, cue: str) -> bool:
+    """True if `cue` appears at the start of a word of the normalized question.
+
+    Nothing is required after the cue, so a cut word covers every ending
+    ("alternativ" matches "alternativas"), and a cue never matches inside a
+    word ("el wiki" does not match "del wiki")."""
+    normalized_cue = _normalize(cue)
+    if not normalized_cue:
+        return False
+    return re.search(rf"\b{re.escape(normalized_cue)}", question_norm) is not None
 
 
-def advisory_intent(question: str) -> bool:
+def advisory_intent(question: str, cues: Iterable[str], shapes: Iterable[re.Pattern]) -> bool:
     """True if the question is an investment-advisory request even without naming
     a specific instrument (e.g. "tengo $1M por 3 meses, ¿qué alternativas tengo?").
 
     The gate routes a data question to the tools by NAMED data term
     (`mentions_known_data`); a generic advisory question names none, so it would
-    otherwise refuse. We recognise it by an advisory cue (alternativas / invertir
-    / cuánto ganaría / …) TOGETHER WITH a money amount or a time horizon — kept
-    conservative so an ordinary question that merely contains a number doesn't
-    route to the (amount-hungry) advisory tool.
+    otherwise refuse. It is recognised by an advisory cue (`cues`: the
+    `[intent] advisory` list of the wiki, or the base list of its active domains)
+    TOGETHER WITH one of the `shapes` (a money amount or a time horizon, from the
+    same domains) — kept conservative so an ordinary question that merely
+    contains a number doesn't route to the (amount-hungry) advisory tool. With no
+    cue or no shape, the answer is False: a wiki without an advisory domain never
+    routes a question to a tool it lacks.
     """
     q = _normalize(question)
-    if not any(cue in q for cue in _ADVISORY_CUES):
+    if not any(cue_matches(q, cue) for cue in cues):
         return False
-    return bool(_MONEY_RE.search(q) or _HORIZON_RE.search(q))
+    return any(shape.search(q) for shape in shapes)
 
 
-_COLLECTION_CUES = (
-    # English — the question is about the corpus as a whole, not one subject.
-    "this wiki", "the wiki", "each ", "all the ", "every ",
-    "what is in", "what's in", "how many", "in common", "list the",
-    # Spanish — same shape, same conservatism.
-    "este wiki", "esta wiki", "el wiki", "cada ", "todos los", "todas las",
-    "que hay en", "cuantos", "en comun", "comparten",
-)
-_SHARE_RE = re.compile(r"\bshares?\b")
-_SUMMARIZE_EACH_RE = re.compile(r"\bsummari[sz]e?\b.*\b(each|all)\b")
-_COMPARE_COLLECTIVE_RE = re.compile(
-    r"\bcompar\w*\b.*\b(each|all|both|tales?|stories|todos|todas|cuentos|historias)\b"
-)
+# The shapes of a collection question, per language of the wiki. The words that
+# can change from one wiki to another are in the `[intent] collection` list; these
+# patterns stay in the code. They name no word of a particular corpus.
+_COLLECTION_PATTERNS: dict[str, tuple[re.Pattern, ...]] = {
+    "en": (
+        re.compile(r"\bshares?\b"),
+        re.compile(r"\bsummari[sz]e?\b.*\b(each|all)\b"),
+        re.compile(r"\bcompar\w*\b.*\b(each|all|both)\b"),
+    ),
+    "es": (
+        re.compile(r"\bcompar\w*\b.*\b(todos|todas)\b"),
+    ),
+}
 
 
-def collection_intent(question: str) -> bool:
+def collection_intent(question: str, cues: Iterable[str], language: str) -> bool:
     """True if the question is about the WIKI AS A WHOLE rather than about any
     one subject — "what tales are in this wiki?", "compare how each story
     ends" — as opposed to a question that names a subject the roster can cover
@@ -162,19 +167,18 @@ def collection_intent(question: str) -> bool:
     overview/index page that answers it. This function is the second, narrower
     door for exactly that shape of question.
 
-    Kept as conservative as `advisory_intent`: a cue must name the collective
-    ("each", "all the", "this/the wiki", "share"/"comparten", "in common", …),
-    not just contain a number or a plural. It is better to miss a borderline
-    collection question and fall back to today's refusal than to fire on an
-    ordinary single-subject question and inject the overview where a concept
-    page was wanted.
+    `cues` is the `[intent] collection` list of the wiki, or the base list of its
+    language (`domain/chat/intent.py`); the patterns are those of `language`.
+    Kept conservative: a cue must name the collective ("each", "all the",
+    "this/the wiki", "comparten", "in common", …), not just contain a number or a
+    plural. It is better to miss a borderline collection question and fall back
+    to the refusal than to fire on an ordinary single-subject question and inject
+    the overview where a concept page was wanted.
     """
     q = _normalize(question)
-    if any(cue in q for cue in _COLLECTION_CUES):
+    if any(cue_matches(q, cue) for cue in cues):
         return True
-    return bool(
-        _SHARE_RE.search(q) or _SUMMARIZE_EACH_RE.search(q) or _COMPARE_COLLECTIVE_RE.search(q)
-    )
+    return any(pattern.search(q) for pattern in _COLLECTION_PATTERNS.get(language, ()))
 
 
 def drop_false_synonyms(

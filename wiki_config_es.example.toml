@@ -137,7 +137,7 @@ suggested_prompts = [
 # [pre_retrieval]
 # enabled = true
 
-# Las tres listas de abajo solo importan con pre_retrieval encendido.
+# Las listas de abajo solo importan con pre_retrieval encendido.
 
 # Lista NEGRA — temas que sabés que este wiki NO cubre. Se chequea primero, así
 # que una coincidencia se abstiene de inmediato, antes de leer ningún documento.
@@ -153,6 +153,18 @@ suggested_prompts = [
 # expandir los términos de una pregunta.
 # [falsos_sinonimos]
 # cedear = ["accion", "acciones"]
+
+# INTENCIÓN — expresiones de dos tipos de pregunta. `collection`: una pregunta
+# sobre la wiki entera, que recibe el resumen general y el índice. `advisory`: un
+# pedido de cálculo de inversión, que va a las herramientas de datos cuando
+# también trae un monto o un plazo. Una expresión coincide al comienzo de una
+# palabra, sin mayúsculas ni tildes. Mientras falta una clave, la wiki usa la
+# lista base (base/domain/chat/intent.<idioma>.toml para `collection`, los
+# dominios activos para `advisory`); una clave escrita reemplaza toda su lista
+# base. Editá las listas desde la pestaña «Vocabulario»: su primer cambio escribe
+# acá la lista base completa.
+# [intent]
+# collection = ["esta wiki", "cada", "todos los", "que hay en", "cuantos", "comparten"]
 
 # Verificación de oraciones (interfaz web, instalación opcional: ver quickstart.py).
 # Una oración de la respuesta tiene respaldo cuando una página que leyó el modelo

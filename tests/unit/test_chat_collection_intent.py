@@ -9,53 +9,59 @@ fairy-tales demo's own `suggested_prompts` (English and Spanish), plus ordinary
 single-subject questions that must NOT trigger it.
 """
 
-from domain.chat.scope import collection_intent
+from domain.chat.intent import base_collection
+from domain.chat.scope import collection_intent as _collection_intent
+
+
+def collection_intent(question: str, language: str) -> bool:
+    """The predicate with the base list and the patterns of `language`."""
+    return _collection_intent(question, base_collection(language), language)
 
 # ── True: the fairy-tales demo's own suggested prompts (both languages) ──────
 
 
 def test_true_what_tales_are_in_this_wiki():
-    assert collection_intent("What tales are in this wiki?") is True
+    assert collection_intent("What tales are in this wiki?", "en") is True
 
 
 def test_true_summarize_the_plot_of_each_tale():
-    assert collection_intent("Summarize the plot of each tale") is True
+    assert collection_intent("Summarize the plot of each tale", "en") is True
 
 
 def test_true_what_characters_and_themes_do_the_tales_share():
-    assert collection_intent("What characters and themes do the tales share?") is True
+    assert collection_intent("What characters and themes do the tales share?", "en") is True
 
 
 def test_true_compare_how_each_story_ends():
-    assert collection_intent("Compare how each story ends") is True
+    assert collection_intent("Compare how each story ends", "en") is True
 
 
 def test_true_que_cuentos_hay_en_este_wiki():
-    assert collection_intent("¿Qué cuentos hay en este wiki?") is True
+    assert collection_intent("¿Qué cuentos hay en este wiki?", "es") is True
 
 
 def test_true_resume_la_trama_de_cada_cuento():
-    assert collection_intent("Resume la trama de cada cuento") is True
+    assert collection_intent("Resume la trama de cada cuento", "es") is True
 
 
 def test_true_que_personajes_y_temas_comparten_los_cuentos():
-    assert collection_intent("¿Qué personajes y temas comparten los cuentos?") is True
+    assert collection_intent("¿Qué personajes y temas comparten los cuentos?", "es") is True
 
 
 def test_true_compara_como_termina_cada_historia():
-    assert collection_intent("Compara cómo termina cada historia") is True
+    assert collection_intent("Compara cómo termina cada historia", "es") is True
 
 
 # ── False: ordinary single-subject questions (the anti-fire-on-everything guard)
 
 
 def test_false_ordinary_concept_question_en():
-    assert collection_intent("What is a glass slipper?") is False
+    assert collection_intent("What is a glass slipper?", "en") is False
 
 
 def test_false_ordinary_data_question_es():
-    assert collection_intent("¿A cuánto está el dólar MEP?") is False
+    assert collection_intent("¿A cuánto está el dólar MEP?", "es") is False
 
 
 def test_false_ordinary_who_question_en():
-    assert collection_intent("Who is the fairy godmother?") is False
+    assert collection_intent("Who is the fairy godmother?", "en") is False
