@@ -13,6 +13,26 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **The intent expressions in `wiki_config.toml`, editable from the Vocabulary
+  tab.** The expressions of a question about the whole wiki (node `Q9`) and of
+  an investment-calculation request (node `Q5`) were written in
+  `base/domain/chat/scope.py`. They now live in the `[intent]` section of each
+  wiki, keys `collection` and `advisory`. While a key is absent, the wiki uses a
+  base list: `base/domain/chat/intent.<language>.toml` for `collection`, the
+  `intent.<language>.toml` of each active domain for `advisory` (only
+  `finance_argentina` has one). The Vocabulary tab shows the two lists, says
+  which one is the base list, and adds or removes an expression; its first
+  change writes the whole base list into `wiki_config.toml`. An expression
+  matches at the start of a word of the question, without case nor accents. The
+  regular expressions stay in the code, one set per language; the money and
+  horizon shapes moved to `finance_argentina`. Behaviour changes, measured on
+  the examples: the lists follow the wiki's language, so "What is in this
+  wiki?" in the Spanish finance wiki is refused (`R2a`); "compare the tales" and
+  "compará los cuentos" are no longer collection questions, because the corpus
+  words "tales", "stories", "cuentos" and "historias" left the common pattern; a
+  wiki without an advisory domain refuses "¿cuánto ganaría con 100 pesos en un
+  mes?" without calling the model (`R2a`), where before it called the model and
+  refused with `R4`.
 - **A Home screen for each wiki, and a favicon.** A wiki now opens on its Home
   screen (`/w/<wiki>/home`), which shows the logo and the name of the wiki
   beside the chat. No page is open there, so a question asked from Home is

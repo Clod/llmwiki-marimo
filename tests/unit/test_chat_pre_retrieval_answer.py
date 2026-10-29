@@ -51,7 +51,7 @@ def _run(coro):
 
 
 def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(),
-            concepts=(), collection=(), monkeypatch):
+            concepts=(), collection=(), monkeypatch, language="es"):
     monkeypatch.setattr(preretrieval, "build_vocabulary", lambda src: set(vocab))
     monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda db, q, **k: list(wiki))
     monkeypatch.setattr(preretrieval, "retrieve_source_chunks", lambda db, q, **k: list(docs))
@@ -63,7 +63,7 @@ def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(),
     monkeypatch.setattr(preretrieval, "search_suggestions", lambda *a, **k: [])
     return _run(pre_retrieval_answer(
         question, config=CFG, db_path="db", workspace=Path("/tmp/wp"),
-        history=[], language="es", run_agent=run_agent,
+        history=[], language=language, run_agent=run_agent,
     ))
 
 
@@ -155,7 +155,7 @@ def test_collection_question_injects_overview_context(monkeypatch):
     out = _answer(
         "What tales are in this wiki?", agent, wiki=[], docs=[], vocab=frozenset(),
         collection=["[wiki/overview.md]\nCinderella, Snow White, Little Red Riding Hood."],
-        monkeypatch=monkeypatch,
+        monkeypatch=monkeypatch, language="en",   # the collection list follows the wiki's language
     )
     assert "Cinderella" in out
     assert "wiki/overview.md" in agent.calls[0]  # context was injected
@@ -199,6 +199,15 @@ def test_advisory_intent_without_named_data_invokes_tools(monkeypatch):
                        content="| Credicoop 90d | $90.000 |", tool_call_id="c1")
     ])]
     agent = _fake_agent("La mejor alternativa rinde $90.000.", messages=grounded)
+    # The advisory list and its shapes come from the finance domain, which is not
+    # active in this test's workspace: the test gives the turn the domain's lists.
+    from domain.chat.intent import IntentLists
+    from domain.extensions import advisory_base, finance_argentina
+    cues = tuple(__import__("tomllib").loads(
+        (Path(finance_argentina.__file__).parent / "intent.es.toml").read_text(encoding="utf-8"))["advisory"])
+    monkeypatch.setattr(preretrieval, "load_intent", lambda ws, language, section: IntentLists(
+        language="es", advisory=cues, advisory_shapes=finance_argentina.ADVISORY_SHAPES["es"]))
+    assert advisory_base(Path("/tmp/wp"), "es") == ((), ())
     out = _answer(
         "Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo y cuánto ganaría?",
         agent, wiki=[], docs=[], vocab=frozenset(), monkeypatch=monkeypatch,

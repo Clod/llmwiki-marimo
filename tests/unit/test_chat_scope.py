@@ -7,8 +7,12 @@ Matching is accent-insensitive, case-insensitive, underscore=space, and by whole
 word (so short keys like "cer"/"mep" don't match inside other words).
 """
 
+import tomllib
+from pathlib import Path
+
+from domain.chat.scope import advisory_intent as _advisory_intent
+from domain.extensions import finance_argentina
 from domain.chat.scope import (
-    advisory_intent,
     drop_false_synonyms,
     is_off_limits,
     mentions_known_data,
@@ -69,6 +73,21 @@ def test_underscore_equals_space():
 
 
 # ── advisory_intent (route a generic advisory question to the tools) ─────────
+
+_FINANCE_CUES = tomllib.loads(
+    (Path(finance_argentina.__file__).parent / "intent.es.toml").read_text(encoding="utf-8")
+)["advisory"]
+
+
+def advisory_intent(question: str) -> bool:
+    """The predicate with the base list and the shapes of the finance domain."""
+    return _advisory_intent(question, _FINANCE_CUES, finance_argentina.ADVISORY_SHAPES["es"])
+
+
+def test_advisory_intent_is_false_without_cues_or_shapes():
+    q = "Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo?"
+    assert _advisory_intent(q, (), finance_argentina.ADVISORY_SHAPES["es"]) is False
+    assert _advisory_intent(q, _FINANCE_CUES, ()) is False
 
 
 def test_advisory_intent_amount_and_horizon_and_cue():

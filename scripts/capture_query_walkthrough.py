@@ -156,6 +156,7 @@ def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
     from domain.chat.preretrieval import (build_vocabulary, plan_retrieval,
                                           retrieve_collection_pages,
                                           retrieve_source_chunks, retrieve_wiki)
+    from domain.chat.intent import load_intent
     from domain.chat.scope import (advisory_intent, collection_intent,
                                    is_off_limits, mentions_known_data)
     from domain.datasets.source import LocalMarkdownSource
@@ -166,6 +167,7 @@ def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
         return []
 
     cfg = load_config(PLAIN_DEMO)
+    intent = load_intent(PLAIN_DEMO, cfg.language, cfg.intent_section)
     vocab = build_vocabulary(LocalMarkdownSource(PLAIN_DEMO / "datasets"))
     coverage = set(vocab) | set(concept_page_names(db_path))
     aliases = [a for names in cfg.data_aliases.values() for a in names]
@@ -177,9 +179,10 @@ def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
         wiki_hits = [] if off else retrieve_wiki(db_path, q, language=cfg.language)
         doc_hits = (retrieve_source_chunks(db_path, q, language=cfg.language)
                     if (not off and not wiki_hits and in_roster) else [])
-        has_data = mentions_known_data(q, vocab, aliases) or advisory_intent(q)
-        collection_hits = ([] if off else
-                           retrieve_collection_pages(PLAIN_DEMO) if collection_intent(q) else [])
+        has_data = (mentions_known_data(q, vocab, aliases)
+                    or advisory_intent(q, intent.advisory, intent.advisory_shapes))
+        collection_hits = ([] if off else retrieve_collection_pages(PLAIN_DEMO)
+                           if collection_intent(q, intent.collection, intent.language) else [])
         plan = plan_retrieval(q, off_limits=cfg.off_limits, wiki_hits=wiki_hits,
                               doc_hits=doc_hits, has_data=has_data, in_roster=in_roster,
                               collection_hits=collection_hits)
@@ -191,13 +194,16 @@ def _gate(case: Case, cfg, db_path: str, vocab, coverage, aliases) -> Decision:
     """The deterministic half — no LLM, identical on every run."""
     from domain.chat.preretrieval import (plan_retrieval, retrieve_collection_pages,
                                           retrieve_source_chunks, retrieve_wiki)
+    from domain.chat.intent import load_intent
     from domain.chat.scope import (advisory_intent, collection_intent,
                                    is_off_limits, mentions_known_data)
 
     q = case.question
+    intent = load_intent(DEMO, cfg.language, cfg.intent_section)
     d = Decision(case=case)
     d.off_limits = is_off_limits(q, cfg.off_limits)
-    d.has_data = mentions_known_data(q, vocab, aliases) or advisory_intent(q)
+    d.has_data = (mentions_known_data(q, vocab, aliases)
+                  or advisory_intent(q, intent.advisory, intent.advisory_shapes))
     d.in_roster = mentions_known_data(q, coverage, aliases)
 
     wiki_hits = [] if d.off_limits else retrieve_wiki(db_path, q, language=cfg.language)
@@ -207,8 +213,8 @@ def _gate(case: Case, cfg, db_path: str, vocab, coverage, aliases) -> Decision:
     )
     d.wiki_hits, d.doc_hits = len(wiki_hits), len(doc_hits)
 
-    collection_hits = ([] if d.off_limits else
-                       retrieve_collection_pages(DEMO) if collection_intent(q) else [])
+    collection_hits = ([] if d.off_limits else retrieve_collection_pages(DEMO)
+                       if collection_intent(q, intent.collection, intent.language) else [])
     plan = plan_retrieval(q, off_limits=cfg.off_limits, wiki_hits=wiki_hits,
                           doc_hits=doc_hits, has_data=d.has_data, in_roster=d.in_roster,
                           collection_hits=collection_hits)

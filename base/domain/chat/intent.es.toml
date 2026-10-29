@@ -1,0 +1,9 @@
+# Base list of the collection expressions in Spanish: a question that contains one is
+# about the wiki as a whole (node Q9). A wiki takes this list while its
+# wiki_config.toml has no `[intent] collection`; the first edit from the Vocabulary
+# tab writes the whole list into the wiki. An expression matches at the start of a
+# word of the question, without case or accents.
+collection = [
+    "este wiki", "esta wiki", "el wiki", "cada", "todos los", "todas las",
+    "que hay en", "cuantos", "en comun", "comparten",
+]

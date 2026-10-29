@@ -12,6 +12,7 @@ against. Everything here is derived from a `DatasetSource`; no LLM.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
@@ -24,6 +25,7 @@ from domain.chat.refusal import (
     roster_suggestions,
     search_suggestions,
 )
+from domain.chat.intent import IntentLists, base_collection, load_intent
 from domain.chat.scope import (
     _mentions,
     _normalize,
@@ -575,6 +577,7 @@ class PreRetrievalTurn:
     doc_hits: list[str] = field(default_factory=list)
     collection_hits: list[str] = field(default_factory=list)
     plan: RetrievalPlan | None = None
+    intent: IntentLists | None = None   # resolved by `intent_lists`, once per turn
     injection: DatasetInjection = field(default_factory=lambda: DatasetInjection([], [], []))
 
     def __post_init__(self) -> None:
@@ -605,6 +608,22 @@ def blacklist(turn: PreRetrievalTurn, text: str) -> bool:
     return turn.off_limits
 
 
+def intent_lists(turn: PreRetrievalTurn) -> IntentLists:
+    """The expression lists of the intent predicates for this turn: the `[intent]`
+    section of the config, and the base lists for the keys it lacks. Resolved once
+    per turn: the advisory base runs the activation of each domain."""
+    if turn.intent is None:
+        section = getattr(turn.config, "intent_section", {}) or {}
+        language = getattr(turn.config, "language", None) or turn.language or "en"
+        if turn.workspace is None:
+            turn.intent = IntentLists(
+                language=language, collection=tuple(section.get("collection", base_collection(language))),
+            )
+        else:
+            turn.intent = load_intent(Path(turn.workspace), language, section)
+    return turn.intent
+
+
 def match_roster(turn: PreRetrievalTurn, text: str) -> None:
     """Node Q5 on `text`: the data detection (`has_data`) and the roster match
     (`matched`, `in_roster`). `build_roster` runs first."""
@@ -612,9 +631,10 @@ def match_roster(turn: PreRetrievalTurn, text: str) -> None:
     # intent ("$1M, 3 meses, ¿qué alternativas?") — the latter names no
     # instrument but still belongs on the query_dataset/estimar_alternativas
     # path, not a refusal.
+    intent = intent_lists(turn)
     turn.has_data = mentions_known_data(
         text, turn.categories, turn.aliases, language=turn.stem_language, exact=turn.keys,
-    ) or advisory_intent(text)
+    ) or advisory_intent(text, intent.advisory, intent.advisory_shapes)
     turn.matched = matched_terms(
         text, sorted(turn.roster_terms), turn.aliases, language=turn.stem_language,
         exact=sorted(turn.keys),

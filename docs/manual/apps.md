@@ -196,8 +196,10 @@ it.
 
 Routes: `web/routes/vocabulary.py`, `base/services/vocabulary.py`. `GET /w/{wiki_id}/vocabulary`
 shows the vocabulary the pre-retrieval gate uses. The screen takes the height of the
-window: the findings of `vocabulary_check` on top, then three columns, each list in its
-own panel that scrolls.
+window: the findings of `vocabulary_check` on top, then four columns, each list in its
+own panel that scrolls. An expression of an intent list matches at the start of a word
+of the question, without case nor accents: "alternativ" matches "alternativas". Edit
+`wiki_config.toml` from this screen: a key written by hand replaces its whole base list.
 
 | Panel | Content | Changes |
 | --- | --- | --- |
@@ -205,6 +207,8 @@ own panel that scrolls.
 | **Aliases** | The effective map of `load_config` (generated ⊕ hand-written − rejected), each alias marked **generated** or **hand-written** | **Add** a hand-written alias of a roster name; **Remove** a hand-written alias; **Reject** a generated alias |
 | **Blacklist** | `[fuera_de_alcance] terminos` | **Add** a term the roster does not hold; **Remove** a term |
 | **Rejected aliases** | `[falsos_sinonimos]`: the aliases a name must never have | **Accept again** |
+| **Questions about the whole wiki** | `[intent] collection`: the expressions of node `Q9`, or the base list of the wiki's language (`base/domain/chat/intent.<language>.toml`) while the key is absent. The panel says which one it shows | **Add** an expression; **Remove** an expression. The first change writes the whole base list into `wiki_config.toml`, with the change applied |
+| **Calculation requests** | `[intent] advisory`: the expressions of an advisory request (node `Q5`), or the base list of the active domains. Shown only when an active domain has an advisory list or the wiki has its own | As **Questions about the whole wiki** |
 
 `POST /w/{wiki_id}/vocabulary/{op}` applies one change under the wiki's lock and returns
 the body of the screen. `domain.chat.config_writer` rewrites only what changes in

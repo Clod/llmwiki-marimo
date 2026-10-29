@@ -1,19 +1,20 @@
 /* The Vocabulario screen takes the height of the window, as Leer and Ingestar do:
-   the findings on top, then three columns (roster, aliases, blacklist over rejected
-   aliases), each list in its own panel that scrolls inside. */
+   the findings on top, then four columns (roster, aliases, blacklist over rejected
+   aliases, the intent lists), each list in its own panel that scrolls inside. */
 .vocab-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-2); }
 .vocab-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .vocab-findings { flex: none; max-height: 30vh; overflow: auto; }
 .vocab-findings h2 { font: var(--weight-semibold) var(--text-sm)/var(--leading-tight) var(--font-sans); margin-bottom: var(--space-1); }
 .vocab-findings ul { margin: 0; padding-left: var(--space-4); }
-.vocab-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.9fr);
+.vocab-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
                  grid-template-rows: minmax(0, 1fr); gap: var(--space-2); }
-.vocab-stack { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); }
+.vocab-stack { min-height: 0; display: grid; grid-auto-rows: minmax(0, 1fr); gap: var(--space-2); }
 .vocab-panel { min-height: 0; display: flex; flex-direction: column; }
 .vocab-panel > .panel-head { flex: none; padding: 0 var(--space-3); }
 .vocab-filter, .vocab-add { flex: none; display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: var(--border); }
 .vocab-filter .field, .vocab-add .field { flex: 1; min-width: 0; height: var(--control-h-sm); font-size: var(--text-xs); }
 .vocab-add .btn { height: var(--control-h-sm); padding: 0 var(--space-3); }
+.vocab-origin { flex: none; margin: var(--space-2) var(--space-3) 0; font-size: var(--text-2xs); }
 .vocab-message { flex: none; margin: var(--space-2) var(--space-3) 0; }
 .vocab-list { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: var(--space-1) 0; list-style: none; }
 .vocab-list li { display: flex; align-items: center; gap: var(--space-2); padding: 3px var(--space-3); }

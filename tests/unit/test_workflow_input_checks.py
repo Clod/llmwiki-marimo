@@ -134,7 +134,7 @@ def test_collection_intent_is_read_through_preretrieval(patched):
     question = "¿va a llover mañana en Rosario?"
     out, path = _run(_turn(question))
     assert isinstance(out, Refused) and path[-1] == "R2a"
-    with mock.patch.object(preretrieval, "collection_intent", lambda q: True):
+    with mock.patch.object(preretrieval, "collection_intent", lambda q, cues, language: True):
         out, path = _run(_turn(question))
     assert out == AgentCall("Q14")
     assert path[-1] == "Q9"
@@ -167,10 +167,10 @@ def test_workshop_patch_of_collection_intent_changes_the_path(patched):
         return asyncio.run(go())
 
     _, before = answer()
-    with mock.patch.object(preretrieval, "collection_intent", lambda q: False):
+    with mock.patch.object(preretrieval, "collection_intent", lambda q, cues, language: False):
         _, kept = answer()
     assert before == kept and before[-1] == "R2a" and calls == []
-    with mock.patch.object(preretrieval, "collection_intent", lambda q: True):
+    with mock.patch.object(preretrieval, "collection_intent", lambda q, cues, language: True):
         out, after = answer()
     assert len(calls) == 1
     assert after == ["Q1", "Q2", "Q3", "Q4", "Q5", "Q5a", "Q9", "Q14", "Q20", "Q21"]

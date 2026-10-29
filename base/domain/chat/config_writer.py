@@ -1,12 +1,16 @@
 """Edits of the vocabulary lists of `wiki_config.toml`, keeping the file as written.
 
-The three lists the pre-retrieval gate reads by hand (`load_config`):
+The lists the pre-retrieval gate reads by hand (`load_config`):
 
   - `[fuera_de_alcance] terminos` — the blacklist;
   - `[alias_datos]` — the hand-written aliases, `canonical = [alias, …]`;
   - `[falsos_sinonimos]` — the rejected aliases, `canonical = [alias, …]`: the
     aliases a canonical must never have. `merge_aliases` removes them from the
-    effective map, and ingestion does not write them into the generated artifact.
+    effective map, and ingestion does not write them into the generated artifact;
+  - `[intent] collection` and `[intent] advisory` — the expressions of the intent
+    predicates (`domain/chat/intent.py`). While a key is absent the wiki uses the
+    base list; the first edit of a key writes the whole base list, with the edit
+    applied.
 
 `tomlkit` rewrites only what changes: the comments, the order of the sections and
 the spelling of the other entries stay byte-identical. Terms are compared with
@@ -29,6 +33,7 @@ CONFIG_FILE = "wiki_config.toml"
 BLACKLIST_SECTION, BLACKLIST_KEY = "fuera_de_alcance", "terminos"
 ALIASES_SECTION = "alias_datos"
 REJECTED_SECTION = "falsos_sinonimos"
+INTENT_SECTION = "intent"
 
 
 class VocabularyEditError(Exception):
@@ -160,3 +165,32 @@ def reject_alias(wiki_path: Path, canonical: str, alias: str) -> None:
 def unreject_alias(wiki_path: Path, canonical: str, alias: str) -> None:
     """Remove a rejected alias: the next ingestion may propose it again."""
     _remove_pair(wiki_path, REJECTED_SECTION, canonical, alias)
+
+
+def _intent_list(table: Table, key: str, base: tuple[str, ...]) -> None:
+    """Write `base` as the list of `key` when the section does not have the key."""
+    if key not in table:
+        table[key] = tomlkit.array(list(base))
+
+
+def add_intent_cue(wiki_path: Path, key: str, cue: str, base: tuple[str, ...]) -> str:
+    """Add `cue` to `[intent] <key>`; return the cue as written. `base` is the list the
+    wiki uses while the key is absent: the first edit writes it before the cue."""
+    cue = _clean(cue)
+    doc = _load(wiki_path)
+    table = _table(doc, INTENT_SECTION)
+    _intent_list(table, key, base)
+    _add_to_list(table, key, cue)
+    _save(wiki_path, doc)
+    return cue
+
+
+def remove_intent_cue(wiki_path: Path, key: str, cue: str, base: tuple[str, ...]) -> None:
+    """Remove `cue` from `[intent] <key>`. The key stays, also empty: an empty list
+    is a decision of the owner, and an absent key would bring the base list back."""
+    cue = _clean(cue)
+    doc = _load(wiki_path)
+    table = _table(doc, INTENT_SECTION)
+    _intent_list(table, key, base)
+    _remove_from_list(table, key, cue, drop_empty=False)
+    _save(wiki_path, doc)

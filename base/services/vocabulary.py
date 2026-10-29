@@ -24,6 +24,9 @@ from pathlib import Path
 from domain.chat import config_writer
 from domain.chat.config import load_config
 from domain.chat.config_writer import VocabularyEditError
+from domain.chat.intent import KEYS as INTENT_KEYS
+from domain.chat.intent import SECTION as INTENT_SECTION
+from domain.chat.intent import base_lists
 from domain.chat.vocabulary import normalize
 from domain.datasets.source import LocalMarkdownSource
 from domain.lint.checks import vocabulary_check
@@ -62,12 +65,22 @@ class Finding:
 
 
 @dataclass(frozen=True)
+class IntentList:
+    key: str             # "collection" | "advisory"
+    cues: tuple[str, ...]
+    written: bool        # True: the wiki's own list; False: the base list
+
+
+@dataclass(frozen=True)
 class Vocabulary:
     roster: tuple[RosterEntry, ...]
     aliases: tuple[CanonicalAliases, ...]
     rejected: tuple[tuple[str, str], ...]     # (canonical, alias)
     blacklist: tuple[str, ...]
     findings: tuple[Finding, ...]
+    # The lists of the intent predicates. `advisory` is listed only when an active
+    # domain gives it a base list or the wiki has its own.
+    intent: tuple[IntentList, ...] = ()
 
 
 # ── reading ───────────────────────────────────────────────────────────────────
@@ -113,6 +126,20 @@ def _aliases(wiki: Wiki, sections: dict) -> tuple[CanonicalAliases, ...]:
     return tuple(result)
 
 
+def intent_lists(wiki: Wiki, sections: dict | None = None) -> tuple[IntentList, ...]:
+    """The two intent lists as the chat uses them: the wiki's own, or the base list."""
+    sections = _sections(wiki) if sections is None else sections
+    own = sections.get(INTENT_SECTION, {})
+    base = base_lists(wiki.path, load_config(wiki.path).language)
+    result = []
+    for key in INTENT_KEYS:
+        if key in own:
+            result.append(IntentList(key, tuple(str(c) for c in own[key]), True))
+        elif key == "collection" or base[key]:
+            result.append(IntentList(key, base[key], False))
+    return tuple(result)
+
+
 def read_vocabulary(wiki: Wiki) -> Vocabulary:
     sections = _sections(wiki)
     rejected = tuple(
@@ -121,7 +148,8 @@ def read_vocabulary(wiki: Wiki) -> Vocabulary:
         for alias in aliases if isinstance(alias, str))
     findings = tuple(Finding(i.check, i.severity, i.terms) for i in vocabulary_check(wiki.db_path, wiki.path))
     return Vocabulary(roster=roster(wiki), aliases=_aliases(wiki, sections), rejected=rejected,
-                      blacklist=tuple(load_config(wiki.path).off_limits), findings=findings)
+                      blacklist=tuple(load_config(wiki.path).off_limits), findings=findings,
+                      intent=intent_lists(wiki, sections))
 
 
 # ── changes ───────────────────────────────────────────────────────────────────
@@ -149,6 +177,25 @@ def add_blacklist_term(wiki: Wiki, term: str) -> str:
 def remove_blacklist_term(wiki: Wiki, term: str) -> None:
     config_writer.remove_blacklist_term(wiki.path, term)
     _commit(wiki, f'vocabulary: remove "{term.strip()}" from the blacklist')
+
+
+def _intent_base(wiki: Wiki, key: str) -> tuple[str, ...]:
+    if key not in INTENT_KEYS:
+        raise VocabularyEditError("missing", key)
+    return base_lists(wiki.path, load_config(wiki.path).language)[key]
+
+
+def add_intent_cue(wiki: Wiki, key: str, cue: str) -> str:
+    """Add an expression to an intent list; the first edit writes the base list."""
+    written = config_writer.add_intent_cue(wiki.path, key, cue, _intent_base(wiki, key))
+    _commit(wiki, f'vocabulary: intent {key} "{written}"')
+    return written
+
+
+def remove_intent_cue(wiki: Wiki, key: str, cue: str) -> None:
+    """Remove an expression from an intent list; the first edit writes the base list."""
+    config_writer.remove_intent_cue(wiki.path, key, cue, _intent_base(wiki, key))
+    _commit(wiki, f'vocabulary: intent {key} remove "{cue.strip()}"')
 
 
 def add_alias(wiki: Wiki, canonical: str, alias: str) -> None:

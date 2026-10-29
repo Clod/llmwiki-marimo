@@ -7,6 +7,8 @@ import subprocess
 import pytest
 
 from domain.chat.config import load_config
+from domain.chat.intent import base_collection
+from domain.chat.scope import collection_intent
 from domain.chat.vocabulary import write_generated_aliases
 from tests.web.conftest import WIKI_ID
 
@@ -108,3 +110,36 @@ def test_a_dataset_name_opens_the_dataset_dialog(client, vocab_wiki):
     assert '<h2 id="dataset-title" class="mono">datasets/zapatos.md</h2>' in dialog
     assert '<tr class="marked" aria-current="true"><th scope="row">Cristal</th>' in dialog
     assert client.get(f"{URL}/dataset", params={"key": "Madera"}).status_code == 404
+
+
+# ── the intent lists ──────────────────────────────────────────────────────────
+
+def test_the_collection_panel_shows_the_base_list_until_the_first_change(client, vocab_wiki):
+    language = load_config(vocab_wiki.path).language
+    base = base_collection(language)
+    html = client.get(URL).text
+    assert f"Preguntas sobre toda la wiki · {len(base)}" in html
+    assert "La lista base del idioma de la wiki." in html
+    # The tales wiki has no finance data: no advisory domain is active.
+    assert "Pedidos de cálculo" not in html
+
+
+def test_the_first_change_writes_the_base_list_and_the_next_question_uses_it(client, vocab_wiki):
+    language = load_config(vocab_wiki.path).language
+    base = base_collection(language)
+    html = post(client, "intent-add", key="collection", term="compare the").text
+    assert f"Preguntas sobre toda la wiki · {len(base) + 1}" in html and "La lista de esta wiki" in html
+    assert load_config(vocab_wiki.path).intent_section["collection"] == [*base, "compare the"]
+    assert "# Hand-written comment that must survive." in (vocab_wiki.path / "wiki_config.toml").read_text()
+    assert last_commit(vocab_wiki) == 'vocabulary: intent collection "compare the"'
+    section = load_config(vocab_wiki.path).intent_section
+    assert collection_intent("compare the tales", section["collection"], language) is True
+
+
+def test_removing_an_expression_keeps_the_rest_of_the_base_list(client, vocab_wiki):
+    language = load_config(vocab_wiki.path).language
+    base = base_collection(language)
+    post(client, "intent-remove", key="collection", term=base[0])
+    assert load_config(vocab_wiki.path).intent_section["collection"] == list(base[1:])
+    html = post(client, "intent-add", key="collection", term=base[1].upper()).text
+    assert "ya está en la lista." in html

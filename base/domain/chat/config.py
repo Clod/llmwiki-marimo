@@ -99,6 +99,10 @@ class WikiAssistantConfig:
     # Page verification: passages of the context kept for each sentence by
     # full-text ranking before the verifier runs (`[verify] candidates`).
     verify_candidates: int = DEFAULT_VERIFY_CANDIDATES
+    # The `[intent]` table of the file, as written: the expression lists of the
+    # intent predicates. The base lists for the keys it lacks are resolved per turn
+    # (`preretrieval.intent_lists`), because they depend on the active domains.
+    intent_section: dict[str, list[str]] = field(default_factory=dict)
 
 
 # ── CONFIG LOADER ─────────────────────────────────────────────────────────────
@@ -196,4 +200,5 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
         condense_question=condense_question,
         verify_threshold=verify_threshold,
         verify_candidates=verify_candidates,
+        intent_section={k: list(v) for k, v in data.get("intent", {}).items()},
     )
