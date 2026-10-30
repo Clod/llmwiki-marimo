@@ -6,6 +6,7 @@ Sync port of mcp/tools/references.py + mcp/vaultfs/sqlite.py reference methods.
 import logging
 import re
 
+from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
 from domain.i18n import SUPPORTED_LANGUAGES, get_locale
 from domain.tools.db import get_connection
 
@@ -35,6 +36,30 @@ def _sources_section_pattern() -> re.Pattern[str]:
 _SOURCES_SECTION_RE = _sources_section_pattern()
 _SOURCE_BULLET_RE = re.compile(r"^\s*[-*]\s+(.+?)\s*$", re.MULTILINE)
 _FOOTNOTE_PREFIX_RE = re.compile(r"^\[\^\w+\]:\s*")
+
+
+def _header_sources(content: str) -> list[str]:
+    """The file names in the `sources` field of the page header.
+
+    The code writes that field (`wiki_fs.create_page`): the documents a page was
+    built from, accumulated over ingestions. Read here so a page cites its
+    documents even when the model left them out of the sources section. An entry
+    is `{"resource": "sources/<file>"}` or a bare file name; "chat" names no
+    document and is skipped.
+    """
+    fm_block, _ = split_frontmatter(content)
+    if fm_block is None:
+        return []
+    try:
+        raw = parse_frontmatter(fm_block).get("sources")
+    except ValueError:
+        return []
+    names: list[str] = []
+    for entry in raw if isinstance(raw, list) else []:
+        resource = entry.get("resource") if isinstance(entry, dict) else entry
+        if isinstance(resource, str) and resource and resource != "chat":
+            names.append(resource.removeprefix("sources/"))
+    return names
 
 
 def _parse_citation_filename(raw: str) -> tuple[str, int | None]:
@@ -118,17 +143,21 @@ def update_references(
 
         edges: list[tuple[str, str, int | None]] = []
 
-        # Citation candidates come from two on-page formats:
+        # Citation candidates come from three places in the page:
         #  1. "[^N]: file.pdf, p.3" footnote markers anywhere (summary pages)
         #  2. plain "- file.pdf" bullets under the localized sources heading (concept/chat pages)
+        #  3. the `sources` field of the page header, written by the code
         citation_raws: list[str] = [m.group(1) for m in _CITATION_RE.finditer(content)]
         for section in _SOURCES_SECTION_RE.finditer(content):
             for bullet in _SOURCE_BULLET_RE.finditer(section.group(1)):
                 # Tolerate legacy "- [^1]: file.pdf" bullets by stripping the marker.
                 citation_raws.append(_FOOTNOTE_PREFIX_RE.sub("", bullet.group(1)))
+        candidates = [_parse_citation_filename(raw) for raw in citation_raws]
+        # A header entry is an exact file name: it skips the citation parser,
+        # which would cut a name at " - ".
+        candidates += [(name, None) for name in _header_sources(content)]
 
-        for raw in citation_raws:
-            filename, page = _parse_citation_filename(raw)
+        for filename, page in candidates:
             fn_lower = filename.lower()
             target = filename_to_doc.get(fn_lower)
             if not target:

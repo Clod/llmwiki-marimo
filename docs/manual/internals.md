@@ -60,7 +60,7 @@ two kinds:
 
 | `reference_type` | Meaning | Parsed from | Example |
 | ---------------- | ------- | ----------- | ------- |
-| **`cites`**      | "this page was built from / draws on that source" | the `## Sources` section of a page | `cinderella.md` **cites** `Cenicienta.pdf` |
+| **`cites`**      | "this page was built from / draws on that source" | the `[^N]:` footnotes, the `## Sources` section, and the `sources` field of the page header | `cinderella.md` **cites** `Cenicienta.pdf` |
 | **`links_to`**   | "this page hyperlinks to that page" | inline `[text](path)` wiki links (e.g. *See also* links) | `cinderella.md` **links_to** `little-red-riding-hood.md` |
 
 So a **"cites edge"** is one row in `document_references` with `reference_type='cites'`.
@@ -174,7 +174,7 @@ These functions are the CRUD primitives every other layer depends on. They know
 | `tools/db.py`         | `open_db(path)`, `get_connection(path)`                                                                                   | Opens the SQLite DB (applies `sqlite_schema.sql`, idempotent); provides a context-manager connection |
 | `tools/wiki_fs.py`    | `create_page`, `read_page`, `write_page_content`, `append_to_page`, `delete_page`                                         | Disk + DB simultaneously (single source of truth — never bypass). A write deletes the page's verification in the same transaction |
 | `tools/search.py`     | `search_chunks(db, query, limit, scope)`                                                                                  | FTS5 search; `scope ∈ {"all", "wiki", "sources"}`                                           |
-| `tools/references.py` | `update_references`, `get_backlinks`, `get_forward_refs`, `find_orphan_pages`, `find_uncited_sources`, `find_stale_pages` | Parses `[[wikilinks]]` plus citations in both `[^N]: file.pdf, p.3` footnote and `- file.pdf` Sources-bullet form; maintains `document_references` |
+| `tools/references.py` | `update_references`, `get_backlinks`, `get_forward_refs`, `find_orphan_pages`, `find_uncited_sources`, `find_stale_pages` | Parses `[[wikilinks]]` plus citations in the `[^N]: file.pdf, p.3` footnote form, the `- file.pdf` Sources-bullet form and the `sources` field of the page header; maintains `document_references` |
 | `tools/reindex.py`    | `reindex_from_disk`                                                                                                       | Writes a fresh index from `sources/` and `wiki/` with no model call and keeps the old one as `index.db.bak` |
 | `tools/git_ops.py`    | `init_wiki_repo`, `auto_commit`, `autocommit_enabled`, `head_sha`                                                         | Idempotent git init + silent commits of `wiki/` in the workspace repo; both no-op when `WIKI_AUTOCOMMIT` is falsy. **git is optional** — a missing/failing `git` is caught (one-time warning) and skipped, never failing an ingest |
 

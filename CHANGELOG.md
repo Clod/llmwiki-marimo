@@ -113,6 +113,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A concept page cites its documents even when the model leaves them out.** The
+  `cites` rows of `document_references` came only from the page text: the `[^N]:`
+  footnotes and the bullets of the sources section. In a concept page the model
+  writes that section, so a document the model left out had no row, although the
+  code had written it in the `sources` field of the page header.
+  `update_references` now reads that field too, and the ingestion passes it the page
+  as written, with its header. The pages of the three example wikis already cited
+  all their header sources (57 of 57), so their rows do not change.
 - **The pages a refusal suggests are links, in a list.** A refusal named its
   related pages by title only, and the opening, the header and the items
   reached the chat as one line: the text had no blank line before the list. Each
