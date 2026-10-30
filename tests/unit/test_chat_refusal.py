@@ -62,10 +62,18 @@ def test_blacklist_refusal_carries_no_suggestions():
     assert "Plazo fijo" not in text and "índice" not in text
 
 
-def test_suggestions_are_titles_without_links():
+def test_suggestions_are_titles_linked_to_their_pages():
     text = render(Refusal(RefusalCause.NOTHING_FOUND, suggestions=PAGES), "es")
-    assert "- Plazo fijo tradicional\n- Plazo fijo UVA" in text
-    assert ".md" not in text and "](" not in text
+    assert f"- [Plazo fijo tradicional]({PAGES[0][1]})\n- [Plazo fijo UVA]({PAGES[1][1]})" in text
+
+
+def test_suggestions_are_a_list_between_paragraphs():
+    """Without the blank lines, markdown joins the opening, the header and the
+    items in one paragraph."""
+    text = render(Refusal(RefusalCause.NOT_IN_ROSTER, suggestions=PAGES), "es")
+    assert "pregunta.\n\nEstas páginas" in text
+    assert "título:\n\n- [Plazo fijo tradicional](" in text
+    assert "plazo-fijo-uva.md)\n\nPodés ver" in text
 
 
 def test_not_in_roster_asks_to_reword_with_a_title():
@@ -94,7 +102,7 @@ def test_model_refusal_keeps_the_model_text_and_adds_the_cause():
     model = f"{fixed_sentence('es')} Busqué en las páginas del plazo fijo."
     text = render(Refusal(RefusalCause.MODEL, model_text=model, suggestions=PAGES[:1]), "es")
     assert text.startswith(model)
-    assert "El modelo no encontró la respuesta" in text and "- Plazo fijo tradicional" in text
+    assert "El modelo no encontró la respuesta" in text and "- [Plazo fijo tradicional](" in text
 
 
 # ── 2. Suggestions ───────────────────────────────────────────────────────────
@@ -186,7 +194,7 @@ def test_model_fixed_sentence_is_cause_5(demo_db):
     out = _turn("¿Cuánto rinden los plazos fijos?", raw, demo_db)
     assert out.startswith(raw)
     assert "El modelo no encontró la respuesta" in out
-    assert "- Plazo fijo" in out                          # suggestions from the roster
+    assert "- [Plazo fijo" in out                          # suggestions from the roster
 
 
 def test_answer_not_opening_with_the_sentence_is_left_alone(demo_db):
