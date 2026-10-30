@@ -345,8 +345,12 @@ def _ingest_file(
                         "dir_path": "/wiki/concepts/", "slug": slug,
                         "category": "concepts", "prior": prior,
                     })
+                    # The page as written, with the header `create_page` added: its
+                    # `sources` field cites the document even when the model left it
+                    # out of the sources section.
+                    written = read_page(db_path, workspace, "/wiki/concepts/", slug) or concept_md
                     update_references(
-                        db_path, concept_result["id"], concept_md, "/wiki/concepts/",
+                        db_path, concept_result["id"], written, "/wiki/concepts/",
                     )
                     i6.payload(f"concept.{slug}", concept_md, channel="markdown", ext="md")
                     one_liner = concept.insight[:80] if concept.insight else concept.name

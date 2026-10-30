@@ -166,6 +166,40 @@ def test_update_references_ignores_bullets_outside_sources(
     assert edge is None  # Cinderella.pdf appeared only outside Sources → no cites edge
 
 
+def _cites(db_path: str, page_id: str) -> list[str]:
+    with get_connection(db_path) as conn:
+        return [r["target_document_id"] for r in conn.execute(
+            "SELECT target_document_id FROM document_references "
+            "WHERE source_document_id=? AND reference_type='cites'", (page_id,))]
+
+
+def test_update_references_cites_the_header_sources_without_a_sources_section(
+    tmp_workspace: WorkspaceFixture,
+) -> None:
+    """The model may leave a document out of the sources section; the header that
+    the code writes still cites it."""
+    source_id = _insert_source(tmp_workspace.db_path, "01 Acciones - Locales.docx", "Acciones")
+    result = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "acciones", "Acciones", _WIKI_CONTENT, [],
+        sources=["01 Acciones - Locales.docx"],
+    )
+    written = (tmp_workspace.workspace / "wiki" / "concepts" / "acciones.md").read_text()
+    update_references(tmp_workspace.db_path, result["id"], written, "/wiki/concepts/")
+    assert _cites(tmp_workspace.db_path, result["id"]) == [source_id]
+
+
+def test_update_references_skips_the_chat_header_source(tmp_workspace: WorkspaceFixture) -> None:
+    result = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "chat-page", "Chat page", _WIKI_CONTENT, [],
+        sources=["chat"],
+    )
+    written = (tmp_workspace.workspace / "wiki" / "concepts" / "chat-page.md").read_text()
+    update_references(tmp_workspace.db_path, result["id"], written, "/wiki/concepts/")
+    assert _cites(tmp_workspace.db_path, result["id"]) == []
+
+
 def test_update_references_creates_links_to_edge(tmp_workspace: WorkspaceFixture) -> None:
     page_b = create_page(
         tmp_workspace.db_path, tmp_workspace.workspace,

@@ -175,8 +175,9 @@ def test_a_missing_file_raises(wiki):
 def test_a_concept_page_whose_edges_were_not_rebuilt_uses_the_sources_of_its_front_matter(wiki):
     add_source(wiki[0], "a.pdf", [SOURCE_A])
     info = add_page(wiki, "concepts", "uva", "# UVA\n\nEl plazo fijo UVA ajusta el capital.\n", sources=["a.pdf"])
-    # No `## Fuentes` section, so update_references recorded no citation.
-    with get_connection(wiki[0]) as conn:
-        assert conn.execute("SELECT COUNT(*) FROM document_references WHERE reference_type='cites'").fetchone()[0] == 0
+    # update_references cites the header sources too; a page whose edges were not
+    # rebuilt (an older index) has none, so they are removed here.
+    with get_connection(wiki[0]) as conn, conn:
+        conn.execute("DELETE FROM document_references WHERE reference_type='cites'")
     ctx = context(wiki, info)
     assert ctx.kind == CONCEPT and [p.page for p in ctx.passages] == ["sources/a.pdf"]
