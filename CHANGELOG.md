@@ -113,6 +113,12 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The pages a refusal suggests are links, in a list.** A refusal named its
+  related pages by title only, and the opening, the header and the items
+  reached the chat as one line: the text had no blank line before the list. Each
+  suggestion is now a link to its page, and the message is separate paragraphs
+  around a list. The text of each link is still the page title, which the
+  message asks to use when rewording the question.
 - **The Vocabulary tab shows every entry in one column.** Below 1100 px each
   panel had a fixed height of 320 px, and its list scrolled inside the panel
   with no visible scroll bar: the intent list of the workshop wiki showed only

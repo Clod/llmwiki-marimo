@@ -1,7 +1,8 @@
 """Refusals that say why (design_refusal_messages.md).
 
 Every refusal states its cause, and every refusal except the blacklist's lists
-suggestions: the titles of wiki pages related to the question, without links.
+suggestions: the titles of wiki pages related to the question, each a link to
+its page.
 With no page to suggest, the message points to the wiki's index. The code builds
 every text, so the text of a cause is the same on every refusal of that cause,
 and a refusal is recognised by the fixed opening of its cause (decision 14).
@@ -63,7 +64,7 @@ class Refusal:
     document:    the source document the answer came from (UNSUPPORTED).
     model_text:  the model's own text (MODEL), kept as the start of the message.
     suggestions: (title, relative_path) of related wiki pages; the message shows
-                 only the title.
+                 the title as a link to the page.
     """
 
     cause: RefusalCause
@@ -149,18 +150,20 @@ def render(refusal: Refusal, language: str | None) -> str:
     opening = _OPENING[lang][refusal.cause].format(
         term=refusal.term or "", document=refusal.document or "",
     )
-    lines = [opening]
+    # Each block is a markdown paragraph, and the suggestions a list: without the
+    # blank lines, markdown joins the opening, the header and the items in one line.
+    blocks = [opening]
     if refusal.cause is not RefusalCause.BLACKLIST:
         if refusal.suggestions:
             header = (_SUGGEST_REWORD if refusal.cause is RefusalCause.NOT_IN_ROSTER
                       else _SUGGEST)[lang]
-            lines.append(header)
-            lines.extend(f"- {title}" for title, _ in refusal.suggestions)
+            blocks.append(header)
+            blocks.append("\n".join(f"- [{title}]({path})" for title, path in refusal.suggestions))
             if refusal.cause is RefusalCause.NOT_IN_ROSTER:
-                lines.append(_INDEX[lang])      # the user checks the topics in the index
+                blocks.append(_INDEX[lang])     # the user checks the topics in the index
         else:
-            lines.append(_INDEX[lang])
-    body = "\n".join(lines)
+            blocks.append(_INDEX[lang])
+    body = "\n\n".join(blocks)
     if refusal.cause is RefusalCause.MODEL and refusal.model_text:
         return f"{refusal.model_text.rstrip()}\n\n{body}"
     return body
