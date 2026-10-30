@@ -31,7 +31,10 @@
 @media (max-width: 1100px) {
   .vocab-screen { overflow-y: auto; }
   .vocab-columns { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
-  .vocab-panel, .vocab-stack { min-height: 320px; }
+  /* In one column the screen scrolls, so each list shows all its entries. */
+  .vocab-body, .vocab-columns { flex: none; }
+  .vocab-stack { grid-auto-rows: auto; }
+  .vocab-list { flex: none; overflow: visible; }
 }
 
 /* A dataset name of the roster is a button that opens the dataset. */

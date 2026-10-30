@@ -113,6 +113,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The Vocabulary tab shows every entry in one column.** Below 1100 px each
+  panel had a fixed height of 320 px, and its list scrolled inside the panel
+  with no visible scroll bar: the intent list of the workshop wiki showed only
+  its first entries. In one column each panel now takes the height of its list,
+  and the screen scrolls.
 - **The columns of the audit page can be resized.** The two columns had fixed
   equal widths, and a wide diagram did not fit. A separator between the turns and
   the diagrams changes the width of the diagrams, by drag or with the arrow keys;
