@@ -22,6 +22,7 @@ from pathlib import Path
 from domain.datasets.frontmatter import render_frontmatter, split_frontmatter
 from domain.i18n import get_locale, with_content_directive
 from domain.prompts import load_prompt
+from domain.tools.references import base_name, cited_in_text, header_sources
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +242,35 @@ def build_concept_page(
         ],
         temperature=0.3,
     )
-    return _strip_wrapping_fence(response.choices[0].message.content)
+    page = _strip_wrapping_fence(response.choices[0].message.content)
+    if not page:
+        return page   # no page to complete: an empty answer stays empty
+    # The prompt asks the model to list the sources; the code makes sure the list
+    # has every document the page was built from, as the summary page does.
+    sources = header_sources(existing_content or "") + [filename]
+    return ensure_sources_section(page, sources, loc.h_sources)
+
+
+def ensure_sources_section(page: str, sources: list[str], heading: str) -> str:
+    """`page` with a bullet in its `## <heading>` section for each of `sources` the
+    text does not cite yet. The section is added at the end when it is missing."""
+    cited = cited_in_text(page)
+    missing: list[str] = []
+    for name in sources:
+        base = base_name(name)
+        if base not in cited and name not in missing:
+            missing.append(name)
+            cited.add(base)
+    if not missing:
+        return page
+    bullets = "\n".join(f"- {name}" for name in missing)
+    match = re.search(rf"^##\s+{re.escape(heading)}\s*$", page, re.MULTILINE)
+    if not match:
+        return f"{page.rstrip()}\n\n## {heading}\n\n{bullets}\n"
+    nxt = page.find("\n## ", match.end())
+    end = len(page) if nxt == -1 else nxt
+    section = page[match.end():end].rstrip("\n")
+    return f"{page[:match.end()]}{section}\n{bullets}\n{page[end:]}"
 
 
 def _strip_wrapping_fence(text: str | None) -> str:

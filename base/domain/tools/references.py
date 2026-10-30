@@ -38,7 +38,7 @@ _SOURCE_BULLET_RE = re.compile(r"^\s*[-*]\s+(.+?)\s*$", re.MULTILINE)
 _FOOTNOTE_PREFIX_RE = re.compile(r"^\[\^\w+\]:\s*")
 
 
-def _header_sources(content: str) -> list[str]:
+def header_sources(content: str) -> list[str]:
     """The file names in the `sources` field of the page header.
 
     The code writes that field (`wiki_fs.create_page`): the documents a page was
@@ -74,6 +74,22 @@ def _parse_citation_filename(raw: str) -> tuple[str, int | None]:
     filename = parts.group(1).strip()
     page = int(parts.group(2)) if parts.group(2) else None
     return filename, page
+
+
+def base_name(filename: str) -> str:
+    """A file name compared without case, `sources/` prefix nor extension."""
+    name = filename.strip().lower().removeprefix("sources/")
+    return re.sub(r"\.(pdf|docx?|pptx?|xlsx?|csv|html?|md|txt)$", "", name)
+
+
+def cited_in_text(content: str) -> set[str]:
+    """The documents the page text cites (footnotes and bullets of the sources
+    section), as `base_name` values. "01 X.docx, p. 3" and "01 X" are one document."""
+    raws = [m.group(1) for m in _CITATION_RE.finditer(content)]
+    for section in _SOURCES_SECTION_RE.finditer(content):
+        for bullet in _SOURCE_BULLET_RE.finditer(section.group(1)):
+            raws.append(_FOOTNOTE_PREFIX_RE.sub("", bullet.group(1)))
+    return {base_name(_parse_citation_filename(raw)[0]) for raw in raws}
 
 
 def _parse_wiki_links(content: str, current_dir: str) -> list[str]:
@@ -155,7 +171,7 @@ def update_references(
         candidates = [_parse_citation_filename(raw) for raw in citation_raws]
         # A header entry is an exact file name: it skips the citation parser,
         # which would cut a name at " - ".
-        candidates += [(name, None) for name in _header_sources(content)]
+        candidates += [(name, None) for name in header_sources(content)]
 
         for filename, page in candidates:
             fn_lower = filename.lower()

@@ -113,6 +113,12 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The sources section of a concept page lists every document of the page.** The
+  model writes a concept page, sources section included, because the prompt asks for
+  it. After the model answers, the ingestion adds a bullet for each document of the
+  page header that the text does not cite yet ("01 A.docx, p. 3" and "01 A" count as
+  citing "01 A.docx"), and adds the section when it is missing. The reader now sees
+  the same documents the `cites` rows record. An empty model answer stays empty.
 - **A concept page cites its documents even when the model leaves them out.** The
   `cites` rows of `document_references` came only from the page text: the `[^N]:`
   footnotes and the bullets of the sources section. In a concept page the model
