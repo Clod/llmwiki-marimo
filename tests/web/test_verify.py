@@ -64,7 +64,7 @@ def test_the_verification_reads_the_pages_the_model_read(client, verifier):
 def test_the_conversation_keeps_the_answer_without_marks(client, app):
     stream(client, ask_verified(client))
     messages = app.state.web.conversations[(WIKI_ID, "c1")]
-    assert messages[-1].content.startswith(f"{ANSWER}\n\nReference: apparently used:")
+    assert messages[-1].content.startswith(f"{ANSWER}\n\nReference according to the sentence verifier:")
     assert "<mark" not in messages[-1].content
 
 
@@ -73,8 +73,19 @@ def test_the_verification_splits_the_injected_pages_into_used_and_not_used(clien
     first, verification = events[0][1], events[1][1]
     assert "Reference: undetermined." in first
     assert "Reference: undetermined." not in verification
-    assert "Reference: apparently used:" in verification
+    assert "Reference according to the sentence verifier: apparently used:" in verification
     assert "Apparently not used:" in verification
+
+
+def test_the_reference_line_of_the_model_is_labelled_and_the_split_follows(settings, verifier):
+    agents = fake_agents(f"{ANSWER}\n\nReference: cinderella.md")
+    client = TestClient(create_app(settings, agents_factory=lambda wiki: agents, verifier=verifier), cookies=SPANISH)
+    events = stream(client, ask_verified(client))
+    first, verification = events[0][1], events[1][1]
+    assert "Reference according to the model" not in first
+    assert "Reference according to the model:" in verification
+    assert "Reference according to the sentence verifier: apparently used:" in verification
+    assert f'<mark class="unsupported" title="{UNSUPPORTED_TIP}">{INVENTED}</mark>' in verification
 
 
 def test_the_strict_mode_is_verified_against_its_tool_returns(client, agents, verifier):

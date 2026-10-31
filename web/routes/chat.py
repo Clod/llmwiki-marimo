@@ -163,13 +163,17 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 report = await asyncio.to_thread(
                     verify_answer, full, list(result.context), state.get_verifier(),
                     threshold=threshold, generated=result.generated)
-                # The undetermined reference to the injected pages becomes the split
-                # into apparently used and apparently not used pages.
+                # The injected pages are split into apparently used and apparently not
+                # used: the split replaces the undetermined reference, or goes below the
+                # reference line the model wrote, which is labelled as the model's.
                 injected = injected_pages(result.context)
                 used = {s.page.rsplit("/", 1)[-1] for s in report.sentences if s.supported and s.page}
-                text, at, delta = resolve_injected(full, injected, used, entry.wiki.language)
-                spans = [(s.start + delta, s.end + delta) if 0 <= at <= s.start else (s.start, s.end)
-                         for s in report.unsupported_sentences()]
+                text, edits = resolve_injected(full, injected, used, entry.wiki.language)
+
+                def shifted(offset: int) -> int:
+                    return offset + sum(change for at, change in edits if at <= offset)
+
+                spans = [(shifted(s.start), shifted(s.end)) for s in report.unsupported_sentences()]
                 if text != full:
                     conversation[-1] = replace(answer, content=text)
                 marked = render_verified(wiki_id, text, spans, pages, sources)
