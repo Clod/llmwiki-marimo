@@ -15,9 +15,11 @@ from domain.chat import refusal
 from domain.chat.guardrail import LEGACY_REFUSALS, REFUSAL_EN, REFUSAL_ES
 from domain.verify.models import Sentence
 
-# `Referencia: x`, `**Fuente:** y`, `- Fuentes: z`, in Spanish and English.
+# `Referencia: x`, `**Fuente:** y`, `- Fuentes: z`, in Spanish and English, also with
+# its author: `Referencia según el modelo: x`.
 _CITATION_LINE = re.compile(
-    r"^[\s>*_\-]*(referencias?|fuentes?|sources?|references?)\s*[*_]*\s*:", re.IGNORECASE,
+    r"^[\s>*_\-]*(referencias?|fuentes?|sources?|references?)"
+    r"(\s+(según|according to)\b[^:\n]*)?\s*[*_]*\s*:", re.IGNORECASE,
 )
 # The line `offer_available_keys` appends: "Datos disponibles en `x` (y): ...".
 _KEY_OFFER = re.compile(r"^(datos disponibles en|data available in)\s+`", re.IGNORECASE)

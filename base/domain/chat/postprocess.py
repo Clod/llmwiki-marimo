@@ -246,8 +246,10 @@ def mark_uncited(answer: str, messages: list[ModelMessage], language: str | None
 # injected into its prompt. The code knows which pages the model received; it does
 # not know which ones the answer used. The first note says so. The sentence
 # verifier, when it runs, replaces it with the second note, which splits the pages
-# by whether they support at least one sentence of the answer. Both notes open like
-# a citation line, for the reason `_UNCITED_NOTE` gives.
+# by whether they support at least one sentence of the answer. When the model wrote
+# its own reference line, the verifier keeps that line, labels it as the model's,
+# and adds the second note below it. Both notes open like a citation line, for the
+# reason `_UNCITED_NOTE` gives.
 _INJECTED_NOTE = {
     "es": ("Referencia: indeterminada. El modelo recibió esta página de la wiki: {names}. "
            "No se puede determinar si la respuesta la usó.",
@@ -259,13 +261,18 @@ _INJECTED_NOTE = {
            "Which of them the answer used cannot be determined."),
 }
 _VERIFIED_NOTE = {
-    "es": ("Referencia: aparentemente usadas: {used}. Aparentemente no usadas: {unused}. "
-           "Según el verificador de oraciones, una página usada respalda al menos una "
+    "es": ("Referencia según el verificador de oraciones: aparentemente usadas: {used}. "
+           "Aparentemente no usadas: {unused}. Una página usada respalda al menos una "
            "oración de la respuesta.", "ninguna"),
-    "en": ("Reference: apparently used: {used}. Apparently not used: {unused}. "
-           "According to the sentence verifier, a used page supports at least one "
-           "sentence of the answer.", "none"),
+    "en": ("Reference according to the sentence verifier: apparently used: {used}. "
+           "Apparently not used: {unused}. A used page supports at least one sentence "
+           "of the answer.", "none"),
 }
+# The reference line the model wrote, and the label that names its author.
+_MODEL_REFERENCE = re.compile(
+    r"^[\s>*_\-]*(referencias?|references?)(?=\s*[*_]*\s*:)", re.IGNORECASE | re.MULTILINE,
+)
+_MODEL_LABEL = {"es": " según el modelo", "en": " according to the model"}
 
 
 def _lang(language: str | None) -> str:
@@ -291,26 +298,38 @@ def mark_injected(answer: str, pages: list[str], language: str | None) -> str:
 
 def resolve_injected(
     answer: str, pages: list[str], used: Collection[str], language: str | None,
-) -> tuple[str, int, int]:
-    """`answer` with the undetermined-reference note of `pages` replaced by the note
-    that splits them into apparently used (in `used`) and apparently not used.
+) -> tuple[str, list[tuple[int, int]]]:
+    """`answer` with the note that splits the injected `pages` into apparently used
+    (in `used`) and apparently not used.
 
-    Returns the new answer, the offset where the note starts, and the change of
-    length, so the offsets of the text after the note can be shifted. An answer
-    without the note is returned as it is, with offset -1 and change 0."""
-    for variants in _INJECTED_NOTE.values():
-        old = variants[len(pages) > 1].format(names=", ".join(pages))
-        at = answer.find(old) if pages else -1
-        if at >= 0:
-            break
-    else:
-        return answer, -1, 0
-    template, none = _VERIFIED_NOTE[_lang(language)]
-    new = template.format(
+    The note replaces the undetermined-reference note of `pages`. With no such note,
+    the first reference line the model wrote is labelled as the model's, and the
+    note goes below it. With neither, or with no `pages`, `answer` stays as it is.
+
+    Returns the new answer and its edits, as `(offset in answer, change of length)`
+    in order, so the offsets of the text after each edit can be shifted."""
+    if not pages:
+        return answer, []
+    lang = _lang(language)
+    template, none = _VERIFIED_NOTE[lang]
+    note = template.format(
         used=", ".join(p for p in pages if p in used) or none,
         unused=", ".join(p for p in pages if p not in used) or none,
     )
-    return answer[:at] + new + answer[at + len(old):], at, len(new) - len(old)
+    for variants in _INJECTED_NOTE.values():
+        old = variants[len(pages) > 1].format(names=", ".join(pages))
+        at = answer.find(old)
+        if at >= 0:
+            return answer[:at] + note + answer[at + len(old):], [(at, len(note) - len(old))]
+    match = _MODEL_REFERENCE.search(answer)
+    if not match:
+        return answer, []
+    label_at = match.end(1)
+    line_end = answer.find("\n", label_at)
+    line_end = len(answer) if line_end < 0 else line_end
+    label, below = _MODEL_LABEL[lang], f"\n\n{note}"
+    text = answer[:label_at] + label + answer[label_at:line_end] + below + answer[line_end:]
+    return text, [(label_at, len(label)), (line_end, len(below))]
 
 
 _CITATION_MARKERS = (".md", ".docx", ".doc", ".pdf", ".txt", ".csv")

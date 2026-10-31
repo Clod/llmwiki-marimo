@@ -119,9 +119,12 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   reached the user with no reference. Now `mark_injected` adds the line
   "Referencia: indeterminada", which lists the pages the model received and
   says that which ones the answer used cannot be determined. When the sentence
-  verifier runs, the web interface replaces that line with the pages split into
-  apparently used (they support at least one sentence of the answer) and
-  apparently not used; the conversation keeps the replaced line. The sentence
+  verifier runs, the web interface writes the line "Referencia según el
+  verificador de oraciones", with the pages split into apparently used (they
+  support at least one sentence of the answer) and apparently not used. That
+  line replaces "Referencia: indeterminada"; when the model wrote its own
+  reference line, the line goes below it, and the model's line becomes
+  "Referencia según el modelo". The conversation keeps the changed lines. The sentence
   verifier now skips every sentence of a citation line, not only the first one.
 
 - **A strict-mode answer that cites nothing says so.** In the strict mode the model

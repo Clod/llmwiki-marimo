@@ -269,25 +269,43 @@ def test_an_answer_that_names_an_injected_page_or_has_none_gets_no_note():
 def test_the_verification_splits_the_injected_pages_and_reports_the_shift():
     from domain.chat.postprocess import mark_injected, resolve_injected
     before = mark_injected("Una caución es un préstamo.", PAGES, "es")
-    after, at, delta = resolve_injected(before, PAGES, {"byma.md"}, "es")
+    after, edits = resolve_injected(before, PAGES, {"byma.md"}, "es")
     assert after == (
-        "Una caución es un préstamo.\n\nReferencia: aparentemente usadas: byma.md. "
-        "Aparentemente no usadas: caucion-bursatil.md. Según el verificador de oraciones, "
-        "una página usada respalda al menos una oración de la respuesta."
+        "Una caución es un préstamo.\n\nReferencia según el verificador de oraciones: "
+        "aparentemente usadas: byma.md. Aparentemente no usadas: caucion-bursatil.md. "
+        "Una página usada respalda al menos una oración de la respuesta."
     )
-    assert at == before.index("Referencia:") and delta == len(after) - len(before)
+    assert edits == [(before.index("Referencia:"), len(after) - len(before))]
 
 
 def test_no_used_page_is_written_as_none():
     from domain.chat.postprocess import mark_injected, resolve_injected
-    after, _, _ = resolve_injected(mark_injected("It is a loan.", PAGES, "en"), PAGES, set(), "en")
+    after, _ = resolve_injected(mark_injected("It is a loan.", PAGES, "en"), PAGES, set(), "en")
     assert "apparently used: none. Apparently not used: caucion-bursatil.md, byma.md." in after
 
 
-def test_an_answer_without_the_note_is_not_changed_by_the_verification():
+def test_the_reference_line_of_the_model_is_labelled_and_the_split_goes_below_it():
+    from domain.chat.postprocess import resolve_injected
+    answer = "Es un préstamo.\n\n**Referencia:** byma.md, caucion-bursatil.md\nOtra línea."
+    after, edits = resolve_injected(answer, PAGES, {"caucion-bursatil.md"}, "es")
+    assert after == (
+        "Es un préstamo.\n\n**Referencia según el modelo:** byma.md, caucion-bursatil.md"
+        "\n\nReferencia según el verificador de oraciones: aparentemente usadas: "
+        "caucion-bursatil.md. Aparentemente no usadas: byma.md. Una página usada respalda "
+        "al menos una oración de la respuesta.\nOtra línea."
+    )
+    label_at = answer.index(":**")
+    line_end = answer.index("\nOtra")
+    assert edits == [(label_at, len(" según el modelo")), (line_end, len(after) - len(answer) - len(" según el modelo"))]
+    # The text after the two edits keeps its place once shifted.
+    shift = sum(change for _, change in edits)
+    assert after[answer.index("Otra") + shift:] == "Otra línea."
+
+
+def test_an_answer_with_no_note_and_no_reference_line_is_not_changed():
     from domain.chat.postprocess import resolve_injected
     assert resolve_injected("Una caución es un préstamo.", PAGES, set(), "es") == (
-        "Una caución es un préstamo.", -1, 0)
+        "Una caución es un préstamo.", [])
 
 
 def test_no_sentence_of_either_note_is_verified():
@@ -295,7 +313,10 @@ def test_no_sentence_of_either_note_is_verified():
     from domain.verify.checkable import is_checkable
     from domain.verify.sentences import split_sentences
     first = mark_injected("Una caución es un préstamo de corto plazo.", PAGES, "es")
-    second, _, _ = resolve_injected(first, PAGES, {"byma.md"}, "es")
-    for answer in (first, second):
+    second, _ = resolve_injected(first, PAGES, {"byma.md"}, "es")
+    third, _ = resolve_injected(
+        "Una caución es un préstamo de corto plazo.\n\nReferencia: byma.md. Es un resumen.",
+        PAGES, {"byma.md"}, "es")
+    for answer in (first, second, third):
         checked = [s.text for s in split_sentences(answer) if is_checkable(s, answer, [])]
         assert checked == ["Una caución es un préstamo de corto plazo."]
