@@ -61,10 +61,20 @@ def test_the_verification_reads_the_pages_the_model_read(client, verifier):
     assert "glass slipper" in passages
 
 
-def test_the_conversation_keeps_the_answer_unchanged(client, app):
+def test_the_conversation_keeps_the_answer_without_marks(client, app):
     stream(client, ask_verified(client))
     messages = app.state.web.conversations[(WIKI_ID, "c1")]
-    assert messages[-1].content == ANSWER
+    assert messages[-1].content.startswith(f"{ANSWER}\n\nReference: apparently used:")
+    assert "<mark" not in messages[-1].content
+
+
+def test_the_verification_splits_the_injected_pages_into_used_and_not_used(client):
+    events = stream(client, ask_verified(client))
+    first, verification = events[0][1], events[1][1]
+    assert "Reference: undetermined." in first
+    assert "Reference: undetermined." not in verification
+    assert "Reference: apparently used:" in verification
+    assert "Apparently not used:" in verification
 
 
 def test_the_strict_mode_is_verified_against_its_tool_returns(client, agents, verifier):

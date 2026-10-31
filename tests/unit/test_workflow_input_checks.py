@@ -174,4 +174,4 @@ def test_workshop_patch_of_collection_intent_changes_the_path(patched):
         out, after = answer()
     assert len(calls) == 1
     assert after == ["Q1", "Q2", "Q3", "Q4", "Q5", "Q5a", "Q9", "Q14", "Q20", "Q21"]
-    assert out == "Esta wiki trata de finanzas."
+    assert out.startswith("Esta wiki trata de finanzas.")

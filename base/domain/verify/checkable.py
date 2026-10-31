@@ -68,6 +68,11 @@ def is_checkable(sentence: Sentence, answer: str, spans: list[tuple[int, int]]) 
         return False
     if _CITATION_LINE.match(text) or _KEY_OFFER.match(text) or _TIER2_WARNING.match(text):
         return False
+    # A citation line the code wrote can hold several sentences (the note of the
+    # injected pages, `postprocess.mark_injected`): each one is skipped.
+    line_start = answer.rfind("\n", 0, sentence.start) + 1
+    if _CITATION_LINE.match(answer[line_start:sentence.start]):
+        return False
     plain = plain_text(text)
     if plain.lower().rstrip(".") in {f.rstrip(".") for f in _FIXED} or refusal.is_refusal(plain):
         return False

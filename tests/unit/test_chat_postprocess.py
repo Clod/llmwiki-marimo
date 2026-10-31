@@ -224,3 +224,78 @@ def test_the_uncited_note_is_not_verified_as_a_sentence():
     note = answer.split("\n\n")[-1]
     start = answer.index(note)
     assert not is_checkable(Sentence(start, start + len(note), note), answer, [])
+
+
+# ── The note of the pages injected into the prompt (pre-retrieval) ───────────
+
+PAGES = ["caucion-bursatil.md", "byma.md"]
+
+
+def test_injected_pages_are_the_wiki_pages_with_no_tool():
+    from domain.chat.postprocess import injected_pages
+    from domain.verify.models import ContextPassage
+    passages = [
+        ContextPassage("/wiki/concepts/caucion-bursatil.md", "a"),
+        ContextPassage("/wiki/concepts/caucion-bursatil.md", "b"),
+        ContextPassage("datasets/caucion.md", "c"),
+        ContextPassage("/wiki/concepts/byma.md", "d"),
+        ContextPassage("/wiki/concepts/read.md", "e", tool="read_wiki_page"),
+    ]
+    assert injected_pages(passages) == PAGES
+
+
+def test_an_answer_that_names_no_injected_page_says_it_cannot_tell_which_one_it_used():
+    from domain.chat.postprocess import mark_injected
+    answer = mark_injected("Una caución es un préstamo.", PAGES, "es")
+    assert answer == (
+        "Una caución es un préstamo.\n\nReferencia: indeterminada. El modelo recibió estas "
+        "páginas de la wiki: caucion-bursatil.md, byma.md. No se puede determinar cuáles usó "
+        "la respuesta."
+    )
+
+
+def test_one_injected_page_is_named_in_the_singular():
+    from domain.chat.postprocess import mark_injected
+    assert mark_injected("It is a loan.", ["byma.md"], "en").endswith(
+        "The model received this wiki page: byma.md. Whether the answer used it cannot be determined.")
+
+
+def test_an_answer_that_names_an_injected_page_or_has_none_gets_no_note():
+    from domain.chat.postprocess import mark_injected
+    assert mark_injected("Según byma.md, opera BYMA.", PAGES, "es") == "Según byma.md, opera BYMA."
+    assert mark_injected("Una caución es un préstamo.", [], "es") == "Una caución es un préstamo."
+
+
+def test_the_verification_splits_the_injected_pages_and_reports_the_shift():
+    from domain.chat.postprocess import mark_injected, resolve_injected
+    before = mark_injected("Una caución es un préstamo.", PAGES, "es")
+    after, at, delta = resolve_injected(before, PAGES, {"byma.md"}, "es")
+    assert after == (
+        "Una caución es un préstamo.\n\nReferencia: aparentemente usadas: byma.md. "
+        "Aparentemente no usadas: caucion-bursatil.md. Según el verificador de oraciones, "
+        "una página usada respalda al menos una oración de la respuesta."
+    )
+    assert at == before.index("Referencia:") and delta == len(after) - len(before)
+
+
+def test_no_used_page_is_written_as_none():
+    from domain.chat.postprocess import mark_injected, resolve_injected
+    after, _, _ = resolve_injected(mark_injected("It is a loan.", PAGES, "en"), PAGES, set(), "en")
+    assert "apparently used: none. Apparently not used: caucion-bursatil.md, byma.md." in after
+
+
+def test_an_answer_without_the_note_is_not_changed_by_the_verification():
+    from domain.chat.postprocess import resolve_injected
+    assert resolve_injected("Una caución es un préstamo.", PAGES, set(), "es") == (
+        "Una caución es un préstamo.", -1, 0)
+
+
+def test_no_sentence_of_either_note_is_verified():
+    from domain.chat.postprocess import mark_injected, resolve_injected
+    from domain.verify.checkable import is_checkable
+    from domain.verify.sentences import split_sentences
+    first = mark_injected("Una caución es un préstamo de corto plazo.", PAGES, "es")
+    second, _, _ = resolve_injected(first, PAGES, {"byma.md"}, "es")
+    for answer in (first, second):
+        checked = [s.text for s in split_sentences(answer) if is_checkable(s, answer, [])]
+        assert checked == ["Una caución es un préstamo de corto plazo."]

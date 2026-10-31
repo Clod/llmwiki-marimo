@@ -33,7 +33,9 @@ from domain import tracing
 from domain.chat import preretrieval
 from domain.chat.guardrail import enforce_grounding, has_grounding, refusal_for
 from domain.chat.overlap import coverage
-from domain.chat.postprocess import answer_with_table, ensure_citation, mark_uncited
+from domain.chat.postprocess import (
+    answer_with_table, ensure_citation, injected_pages, mark_injected, mark_uncited,
+)
 from domain.chat.preretrieval import PreRetrievalTurn
 from domain.chat.refusal import Refusal, RefusalCause, fixed_sentence, is_refusal
 from domain.i18n import get_locale
@@ -190,6 +192,10 @@ async def citation(ctx: Ctx) -> AnswerChecks:
         checks.tabled, checks.messages,
         extra_references=injection.references, extra_fuentes=injection.fuentes,
     )
+    # The wiki pages injected into the prompt are not tool returns, so
+    # `ensure_citation` cannot cite them: the answer says it received them.
+    pages = injected_pages(preretrieval.context_passage(b) for b in ctx.state.turn.plan.blocks)
+    checks.answer = mark_injected(checks.answer, pages, checks.language)
     checks.citation_added = checks.answer != checks.tabled
     return checks
 
