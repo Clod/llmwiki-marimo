@@ -213,6 +213,31 @@ def ensure_citation(
     return f"{answer.rstrip()}\n\n" + "\n".join(lines)
 
 
+# The note of an answer that cites nothing (strict mode, node T4). The model may
+# answer from a search result (`search_wiki_fts`, `search_source_chunks`), which
+# `deliberate_sources` does not cite: a search candidate is not a page used. The
+# answer is delivered, marked, rather than refused.
+# The note is one line that opens like a citation line, so the sentence verifier
+# skips it as a text the code wrote (`domain/verify/checkable.py`, `_CITATION_LINE`).
+_UNCITED_NOTE = {
+    "es": "Referencia: ninguna (la respuesta no se apoya en ninguna página leída ni en ningún dato consultado)",
+    "en": "Reference: none (the answer rests on no page read and no data queried)",
+}
+
+
+def mark_uncited(answer: str, messages: list[ModelMessage], language: str | None) -> str:
+    """`answer` with a closing note when it cites nothing: no page was read, no data
+    was queried, and the answer names no source itself. Otherwise `answer` as it is.
+
+    Run after `ensure_citation`, on an answer that is not a refusal."""
+    references, fuentes = deliberate_sources(messages)
+    low = (answer or "").lower()
+    if references or fuentes or "referencia" in low or "fuente" in low or looks_cited(answer):
+        return answer
+    note = _UNCITED_NOTE["es" if (language or "en").lower().startswith("es") else "en"]
+    return f"{answer.rstrip()}\n\n{note}"
+
+
 _CITATION_MARKERS = (".md", ".docx", ".doc", ".pdf", ".txt", ".csv")
 
 

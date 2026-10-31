@@ -130,3 +130,37 @@ def test_render_names_the_nodes():
     diagram = output_checks.graph.render()
     for node in ("Q17", "Q18", "Q19", "Q20", "Q21", "R3", "R4", "R5", "T2", "T3", "T4", "T5"):
         assert node in diagram
+
+
+def _returns(tool_name, content):
+    call = ToolCallPart(tool_name=tool_name, args={}, tool_call_id="s")
+    ret = ToolReturnPart(tool_name=tool_name, tool_call_id="s", content=content)
+    return [ModelResponse(parts=[call]), ModelRequest(parts=[ret])]
+
+
+SEARCH = "[wiki/concepts/cauciones-bursatiles.md] Cauciones\nUna caución es un préstamo."
+READ = "[wiki page: wiki/concepts/cauciones-bursatiles.md]\n\n# Cauciones\nUna caución es un préstamo."
+
+
+def test_strict_answer_from_a_search_only_is_marked_uncited():
+    """A search result counts as evidence (T2) but is not cited (buscar ≠ usar):
+    the answer is delivered with the note, not refused."""
+    checks = AnswerChecks("Una caución es un préstamo.", _returns("search_wiki_fts", SEARCH), "es")
+    out, path = _run(checks)
+    assert path == ["T2", "T4", "T5"]
+    assert out.startswith("Una caución es un préstamo.")
+    assert out.endswith("Referencia: ninguna (la respuesta no se apoya en ninguna página "
+                        "leída ni en ningún dato consultado)")
+
+
+def test_strict_answer_from_a_read_page_is_cited_not_marked():
+    checks = AnswerChecks("Una caución es un préstamo.", _returns("read_wiki_page", READ), "es")
+    out, _ = _run(checks)
+    assert out.endswith("Referencia: cauciones-bursatiles.md")
+    assert "Referencia: ninguna" not in out
+
+
+def test_strict_refusal_is_not_marked():
+    checks = AnswerChecks("Inventado.", [], "es")
+    out, _ = _run(checks)
+    assert out == REFUSAL_ES
