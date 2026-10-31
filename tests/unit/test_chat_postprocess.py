@@ -203,3 +203,24 @@ def test_looks_cited_recognizes_wiki_page_and_source_document():
     assert looks_cited("El plazo fijo tradicional… Referencia: 10 Plazos Fijos.docx")
     assert not looks_cited("Eso no está en mi base de conocimiento.")
     assert not looks_cited("")
+
+
+def test_mark_uncited_leaves_an_answer_that_names_its_source():
+    from domain.chat.postprocess import mark_uncited
+    assert mark_uncited("Según cauciones.md, es un préstamo.", [], "es") == "Según cauciones.md, es un préstamo."
+
+
+def test_mark_uncited_uses_the_wiki_language():
+    from domain.chat.postprocess import mark_uncited
+    assert mark_uncited("It is a loan.", [], "en").endswith(
+        "Reference: none (the answer rests on no page read and no data queried)")
+
+
+def test_the_uncited_note_is_not_verified_as_a_sentence():
+    from domain.chat.postprocess import mark_uncited
+    from domain.verify.checkable import is_checkable
+    from domain.verify.models import Sentence
+    answer = mark_uncited("Una caución es un préstamo de corto plazo.", [], "es")
+    note = answer.split("\n\n")[-1]
+    start = answer.index(note)
+    assert not is_checkable(Sentence(start, start + len(note), note), answer, [])

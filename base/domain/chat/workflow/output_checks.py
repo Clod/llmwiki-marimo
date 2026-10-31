@@ -33,9 +33,9 @@ from domain import tracing
 from domain.chat import preretrieval
 from domain.chat.guardrail import enforce_grounding, has_grounding, refusal_for
 from domain.chat.overlap import coverage
-from domain.chat.postprocess import answer_with_table, ensure_citation
+from domain.chat.postprocess import answer_with_table, ensure_citation, mark_uncited
 from domain.chat.preretrieval import PreRetrievalTurn
-from domain.chat.refusal import Refusal, RefusalCause, fixed_sentence
+from domain.chat.refusal import Refusal, RefusalCause, fixed_sentence, is_refusal
 from domain.i18n import get_locale
 
 R = tracing.READING
@@ -242,8 +242,13 @@ async def additions(ctx: Ctx) -> AnswerChecks:
     checks = ctx.state
     tabled = answer_with_table(checks.answer, checks.messages)
     cited = ensure_citation(tabled, checks.messages)
-    tracing.mark("T4", R, table_added=tabled != checks.answer, citation_added=cited != tabled)
-    checks.answer = cited
+    # An answer that still cites nothing is delivered with a note, not refused. A
+    # refusal, of T3 or of the model, is left as it is.
+    refused = checks.refusal_substituted or is_refusal(cited)
+    marked = cited if refused else mark_uncited(cited, checks.messages, checks.language)
+    tracing.mark("T4", R, table_added=tabled != checks.answer, citation_added=cited != tabled,
+                 uncited_marked=marked != cited)
+    checks.answer = marked
     return checks
 
 

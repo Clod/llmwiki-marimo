@@ -250,7 +250,7 @@ flowchart TD
     T1["T1 · the model runs with the wiki tools and the data tools<br/>the tools of section 5"]
     T2{"T2 · did a tool return evidence?<br/>has_grounding"}
     T3["T3 · the answer is replaced by the guardrail refusal<br/>«No pude respaldar esta respuesta con una consulta a la wiki en este turno.»"]
-    T4["T4 · the advisory table and the citation are added<br/>answer_with_table, ensure_citation"]
+    T4["T4 · the advisory table and the citation are added<br/>answer_with_table, ensure_citation, mark_uncited"]
     T5["T5 · the answer is shown"]
     T1 --> T2
     T2 -->|yes| T4 --> T5
@@ -262,7 +262,7 @@ flowchart TD
 | T1 | The model runs with the question, the history and the tools, and writes the answer | `base/services/chat.py`, `chat_turn_with_context`; `base/domain/chat/agent.py`, `create_agent` | `tools_called`, `raw_output` | code |
 | T2 | Asks whether a tool return of the run carries evidence: a return that is not empty and is not one of the "nothing found" sentences of the tools | `base/domain/chat/guardrail.py`, `has_grounding`, `_is_substantive`; `base/domain/chat/workflow/output_checks.py`, `evidence` | `answer` | code |
 | T3 | Replaces the answer by the guardrail refusal of the wiki's language | `base/domain/chat/guardrail.py`, `enforce_grounding`, `refusal_for`; `base/domain/chat/workflow/output_checks.py`, `guardrail` | `final_answer` | code |
-| T4 | Appends the advisory table, and adds the citation of the tools that the model used | `base/domain/chat/postprocess.py`, `answer_with_table`, `ensure_citation`; `base/domain/chat/workflow/output_checks.py`, `additions` | `table_added`, `citation_added` | code |
+| T4 | Appends the advisory table, and adds the citation of the tools that the model used. An answer that still cites nothing (no page read, no data queried, no source named) gets the line `Referencia: ninguna (…)` | `base/domain/chat/postprocess.py`, `answer_with_table`, `ensure_citation`, `mark_uncited`; `base/domain/chat/workflow/output_checks.py`, `additions` | `table_added`, `citation_added`, `uncited_marked` | code |
 | T5 | Shows the answer | `base/services/chat.py`, `chat_turn_with_context`; `base/domain/chat/workflow/output_checks.py`, `strict_answer` | `final_answer`, `refusal_substituted` | code |
 
 ## 4. Streaming

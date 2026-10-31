@@ -113,6 +113,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A strict-mode answer that cites nothing says so.** In the strict mode the model
+  can answer from a search result (`search_wiki_fts`, `search_source_chunks`). Node
+  `T2` counts that result as evidence, so the answer was delivered, but
+  `ensure_citation` cites only pages read and data queried, so the answer had no
+  citation. Node `T4` now appends `Referencia: ninguna (la respuesta no se apoya en
+  ninguna página leída ni en ningún dato consultado)` (English: `Reference: none
+  (…)`) to such an answer, instead of refusing it. Refusals are left as they are. The
+  line opens like a citation line, so the sentence verifier skips it. The
+  pre-retrieval mode does not change.
 - **The sources section of a concept page lists every document of the page.** The
   model writes a concept page, sources section included, because the prompt asks for
   it. After the model answers, the ingestion adds a bullet for each document of the
