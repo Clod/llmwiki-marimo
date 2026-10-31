@@ -130,7 +130,7 @@ def test_tier1_prompt_carries_key_names_for_an_unknown_bank(monkeypatch):
         "Banco Comafi no figura en los datos.", monkeypatch,
     )
     assert "Brubank" in prompts[0]                       # the key names (Q7d)
-    assert "Referencia" not in answer                    # no rows were injected
+    assert "Referencia: plazo_fijo.md" not in answer     # no rows were injected
 
 
 # ── offer_available_keys: the answer names the keys that have data ──────────

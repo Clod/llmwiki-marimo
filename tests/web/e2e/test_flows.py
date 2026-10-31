@@ -140,9 +140,9 @@ def test_the_streaming_mode_shows_the_text_in_pieces_then_the_formatted_answer(p
 def test_a_follow_up_question_keeps_the_conversation(page, live):
     goto(page, live, "pages/overview")
     ask(page, "¿Qué es una caución bursátil?")
-    expect(page.locator("#messages .a").first).to_have_text("Una caución bursátil es un préstamo garantizado con títulos.")
+    expect(page.locator("#messages .a").first).to_contain_text("Una caución bursátil es un préstamo garantizado con títulos.")
     ask(page, "¿Y cuánto rinde?")
-    expect(page.locator("#messages .a").nth(1)).to_have_text("Rinde según la tasa vigente.")
+    expect(page.locator("#messages .a").nth(1)).to_contain_text("Rinde según la tasa vigente.")
     assert len(live.agents.agent_pre_retrieval.prompts) == 2
     # The server holds both exchanges of the one conversation.
     (messages,) = live.app.state.web.conversations.values()
@@ -158,7 +158,7 @@ def test_the_thread_follows_the_answers_until_the_user_scrolls_up(page, live):
     thread = page.locator("#messages")
     for n in range(1, 6):
         ask(page, "¿Qué es una caución bursátil?")
-        expect(page.locator("#messages .a").nth(n - 1)).to_have_text("Una caución bursátil es un préstamo garantizado con títulos.")
+        expect(page.locator("#messages .a").nth(n - 1)).to_contain_text("Una caución bursátil es un préstamo garantizado con títulos.")
     assert thread.evaluate("t => t.scrollHeight > t.clientHeight"), "five answers overflow the thread at 600 px"
     page.wait_for_function(f"({AT_END})(document.getElementById('messages'))")
     expect(page.locator("#messages .a").last).to_be_in_viewport()

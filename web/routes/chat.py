@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import html
 import re
+from dataclasses import replace
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
@@ -12,6 +13,7 @@ from fastapi.templating import Jinja2Templates
 from sse_starlette.sse import EventSourceResponse
 
 from domain.chat.config import DEFAULT_VERIFY_THRESHOLD, load_config
+from domain.chat.postprocess import injected_pages, resolve_injected
 from domain.datasets.frontmatter import split_frontmatter
 from domain.verify import verify_answer
 from services import chat as chat_service
@@ -161,8 +163,16 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 report = await asyncio.to_thread(
                     verify_answer, full, list(result.context), state.get_verifier(),
                     threshold=threshold, generated=result.generated)
-                marked = render_verified(
-                    wiki_id, full, [(s.start, s.end) for s in report.unsupported_sentences()], pages, sources)
+                # The undetermined reference to the injected pages becomes the split
+                # into apparently used and apparently not used pages.
+                injected = injected_pages(result.context)
+                used = {s.page.rsplit("/", 1)[-1] for s in report.sentences if s.supported and s.page}
+                text, at, delta = resolve_injected(full, injected, used, entry.wiki.language)
+                spans = [(s.start + delta, s.end + delta) if 0 <= at <= s.start else (s.start, s.end)
+                         for s in report.unsupported_sentences()]
+                if text != full:
+                    conversation[-1] = replace(answer, content=text)
+                marked = render_verified(wiki_id, text, spans, pages, sources)
                 body = marked + _summary(report.unsupported, report.checked)
             except Exception:  # noqa: BLE001 — the answer stays as it is
                 body = rendered + _verify_note(_("Could not verify"), failed=True)

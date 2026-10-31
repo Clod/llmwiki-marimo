@@ -26,12 +26,16 @@ observe over-citing, add a lenient lexical-overlap second filter.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
+from collections.abc import Collection, Iterable
 
 from pydantic_ai.messages import ModelMessage
 
 from domain.chat.guardrail import is_tool_result
 from domain.extensions import roles
+
+if TYPE_CHECKING:
+    from domain.verify.models import ContextPassage
 
 # Tools whose returns represent a DELIBERATE use of a source (not a search
 # candidate): the page the model opened (READ_TOOL), and the dataset values it
@@ -236,6 +240,77 @@ def mark_uncited(answer: str, messages: list[ModelMessage], language: str | None
         return answer
     note = _UNCITED_NOTE["es" if (language or "en").lower().startswith("es") else "en"]
     return f"{answer.rstrip()}\n\n{note}"
+
+
+# The notes of a pre-retrieval answer that names none of the wiki pages the code
+# injected into its prompt. The code knows which pages the model received; it does
+# not know which ones the answer used. The first note says so. The sentence
+# verifier, when it runs, replaces it with the second note, which splits the pages
+# by whether they support at least one sentence of the answer. Both notes open like
+# a citation line, for the reason `_UNCITED_NOTE` gives.
+_INJECTED_NOTE = {
+    "es": ("Referencia: indeterminada. El modelo recibió esta página de la wiki: {names}. "
+           "No se puede determinar si la respuesta la usó.",
+           "Referencia: indeterminada. El modelo recibió estas páginas de la wiki: {names}. "
+           "No se puede determinar cuáles usó la respuesta."),
+    "en": ("Reference: undetermined. The model received this wiki page: {names}. "
+           "Whether the answer used it cannot be determined.",
+           "Reference: undetermined. The model received these wiki pages: {names}. "
+           "Which of them the answer used cannot be determined."),
+}
+_VERIFIED_NOTE = {
+    "es": ("Referencia: aparentemente usadas: {used}. Aparentemente no usadas: {unused}. "
+           "Según el verificador de oraciones, una página usada respalda al menos una "
+           "oración de la respuesta.", "ninguna"),
+    "en": ("Reference: apparently used: {used}. Apparently not used: {unused}. "
+           "According to the sentence verifier, a used page supports at least one "
+           "sentence of the answer.", "none"),
+}
+
+
+def _lang(language: str | None) -> str:
+    return "es" if (language or "en").lower().startswith("es") else "en"
+
+
+def injected_pages(passages: Iterable[ContextPassage]) -> list[str]:
+    """The file names of the wiki pages the code injected into the prompt, in order,
+    de-duplicated: the passages with no tool whose page is under `/wiki/`."""
+    return _dedupe([p.page.rsplit("/", 1)[-1] for p in passages
+                    if p.tool is None and p.page.lstrip("/").startswith("wiki/")])
+
+
+def mark_injected(answer: str, pages: list[str], language: str | None) -> str:
+    """`answer` with the undetermined-reference note when the code injected wiki
+    `pages` (file names) and the answer names none of them. Otherwise `answer` as
+    it is."""
+    if not pages or any(page in answer for page in pages):
+        return answer
+    note = _INJECTED_NOTE[_lang(language)][len(pages) > 1].format(names=", ".join(pages))
+    return f"{answer.rstrip()}\n\n{note}"
+
+
+def resolve_injected(
+    answer: str, pages: list[str], used: Collection[str], language: str | None,
+) -> tuple[str, int, int]:
+    """`answer` with the undetermined-reference note of `pages` replaced by the note
+    that splits them into apparently used (in `used`) and apparently not used.
+
+    Returns the new answer, the offset where the note starts, and the change of
+    length, so the offsets of the text after the note can be shifted. An answer
+    without the note is returned as it is, with offset -1 and change 0."""
+    for variants in _INJECTED_NOTE.values():
+        old = variants[len(pages) > 1].format(names=", ".join(pages))
+        at = answer.find(old) if pages else -1
+        if at >= 0:
+            break
+    else:
+        return answer, -1, 0
+    template, none = _VERIFIED_NOTE[_lang(language)]
+    new = template.format(
+        used=", ".join(p for p in pages if p in used) or none,
+        unused=", ".join(p for p in pages if p not in used) or none,
+    )
+    return answer[:at] + new + answer[at + len(old):], at, len(new) - len(old)
 
 
 _CITATION_MARKERS = (".md", ".docx", ".doc", ".pdf", ".txt", ".csv")
