@@ -117,8 +117,7 @@ def answer_with_table(answer: str, messages: list[ModelMessage]) -> str:
     (`_without_copy`). The prose around the table stays, so a comparison or the
     prose of a single instrument is preserved. A table the model copied is not
     checked against the tool's, so the copy goes and the figures the user sees
-    always come from the tool; the prompt still asks for the copy, which is the
-    only table the streaming mode shows."""
+    always come from the tool. The prompt asks the model not to copy the table."""
     table = advisory_table(messages)
     if not table:
         return answer

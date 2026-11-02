@@ -113,6 +113,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The finance demo prompt no longer asks the model to copy the advisory
+  table.** Step 2 of the system prompt in
+  `examples/finanzas-argentinas/wiki_config.toml` asked for the table of
+  `estimar_alternativas` copied literally, and `FINANCE_PROMPT_ADDENDUM` asked
+  the model not to copy it. Step 2 now asks for one or two sentences about the
+  options, without their figures: the code appends the tool's table below the
+  answer (`answer_with_table`).
+
 - **A pre-retrieval answer says which wiki pages the model received.** The code
   injects wiki pages into the prompt, and those pages are not tool returns, so
   `ensure_citation` could not cite them: an answer that named none of them
