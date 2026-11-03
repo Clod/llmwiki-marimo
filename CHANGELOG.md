@@ -13,6 +13,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **With the sentence verifier on, a Tier-2 answer skips the containment check.**
+  When the user ticks «Verificar las oraciones» and the verifier is installed,
+  a Tier-2 answer of the pre-retrieval mode no longer goes through node `Q17`:
+  it is shown with the Tier-2 warning, and the sentence verifier marks its
+  unsupported sentences. A supported paraphrase, which `Q17` refused, now
+  reaches the user. Without the checkbox, or without the verifier, `Q17` runs
+  as before. If the verification of such an answer fails, the note says that
+  the answer was not compared with the fragments of the original documents.
+  `chat_turn_with_context` takes `sentence_verifier`, False by default.
 - **A note above the advisory table that names who wrote each figure.**
   `answer_with_table` (`base/domain/chat/postprocess.py`) now puts a line
   between the model's prose and the table: the figures of the table were

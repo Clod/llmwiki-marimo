@@ -4,6 +4,7 @@ marks on the answer. The agents and the verifier are simulated; no model runs.""
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -265,3 +266,42 @@ def test_the_lint_confirmation_offers_the_checkbox_and_passes_it(client, monkeyp
         import time
         time.sleep(0.05)
     assert seen.get("verifier") is not None
+
+
+def test_the_checkbox_tells_the_chat_that_the_sentence_verifier_checks_the_answer(client, monkeypatch):
+    from services import chat as chat_service
+
+    seen = []
+    real = chat_service.chat_turn_with_context
+
+    async def spy(*args, **kwargs):
+        seen.append(kwargs.get("sentence_verifier"))
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(chat_service, "chat_turn_with_context", spy)
+    stream(client, ask_verified(client))
+    stream(client, ask_verified(client, verify=""))
+    assert seen == [True, False]
+
+
+def test_a_failed_verification_of_a_tier2_answer_says_it_was_compared_with_nothing(
+        settings, agents, monkeypatch):
+    from services import chat as chat_service
+
+    class Broken(FakeVerifier):
+        def entailment(self, pairs):
+            raise RuntimeError("model not loaded")
+
+    real = chat_service.chat_turn_with_context
+
+    async def tier2(*args, **kwargs):
+        result = await real(*args, **kwargs)
+        # The path of a Tier-2 answer that skipped Q17: the warning Q18, no Q17.
+        return replace(result, path=({"node": "Q20"}, {"node": "Q18"}))
+
+    monkeypatch.setattr(chat_service, "chat_turn_with_context", tier2)
+    app = create_app(settings, agents_factory=lambda wiki: agents, verifier=Broken())
+    client = TestClient(app, cookies=SPANISH)
+    events = stream(client, ask_verified(client))
+    assert ("No se pudo verificar. La respuesta no se comparó con los fragmentos de los "
+            "documentos originales.") in events[1][1]

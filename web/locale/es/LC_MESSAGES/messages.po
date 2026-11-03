@@ -376,6 +376,10 @@ msgid "Verifying the sentences…"
 msgstr "Verificando las oraciones…"
 
 #: web/routes/chat.py
+msgid "Could not verify. The answer was not compared with the fragments of the original documents."
+msgstr "No se pudo verificar. La respuesta no se comparó con los fragmentos de los documentos originales."
+
+#: web/routes/chat.py
 msgid "Could not verify"
 msgstr "No se pudo verificar"
 
@@ -1534,13 +1538,17 @@ msgstr "Pedidos de cálculo"
 msgid ""
 "Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node Q9). An "
 "expression matches at the start of a word, without case nor accents"
-msgstr "Expresiones de una pregunta sobre la wiki entera: esa pregunta recibe el resumen general y el índice (nodo Q9). Una expresión coincide al comienzo de una palabra, sin mayúsculas ni tildes"
+msgstr ""
+"Expresiones de una pregunta sobre la wiki entera: esa pregunta recibe el resumen general y el índice (nodo Q9). Una "
+"expresión coincide al comienzo de una palabra, sin mayúsculas ni tildes"
 
 #: web/templates/_vocabulary_body.html
 msgid ""
 "Expressions of a request for an investment calculation: with a money amount or a time horizon, the question goes to "
 "the data tools (node Q5). An expression matches at the start of a word, without case nor accents"
-msgstr "Expresiones de un pedido de cálculo de inversión: con un monto o un plazo, la pregunta va a las herramientas de datos (nodo Q5). Una expresión coincide al comienzo de una palabra, sin mayúsculas ni tildes"
+msgstr ""
+"Expresiones de un pedido de cálculo de inversión: con un monto o un plazo, la pregunta va a las herramientas de datos"
+" (nodo Q5). Una expresión coincide al comienzo de una palabra, sin mayúsculas ni tildes"
 
 #: web/templates/_vocabulary_body.html
 msgid "The list of this wiki, in wiki_config.toml."
