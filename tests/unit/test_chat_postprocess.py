@@ -87,19 +87,34 @@ def test_advisory_table_takes_last_call():
 
 # ── answer_with_table ────────────────────────────────────────────────────────
 
-def test_answer_with_table_appends_below_prose():
+UNCHECKED = "Las cifras del texto anterior las escribió el modelo, y el código no las verificó."
+COMPUTED = "Las cifras de la tabla siguiente las calculó el código con los datos de su columna «fuente»."
+
+
+def test_answer_with_table_appends_below_prose_with_the_note():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
     prose = "Para invertir $1.000.000, aquí van algunas alternativas: 1. Plazo fijo..."
-    out = answer_with_table(prose, messages)
-    assert out.startswith(prose)
-    assert TABLE in out
-    assert out == f"{prose}\n\n{TABLE}"
+    out = answer_with_table(prose, messages, "es")
+    assert out == f"{prose}\n\n{UNCHECKED} {COMPUTED}\n\n{TABLE}"
+
+
+def test_answer_with_table_note_of_a_prose_without_figures_names_only_the_table():
+    messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
+    prose = "El plazo fijo rinde más que el fondo money market."
+    assert answer_with_table(prose, messages, "es") == f"{prose}\n\n{COMPUTED}\n\n{TABLE}"
+
+
+def test_answer_with_table_note_in_english():
+    messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
+    out = answer_with_table("It yields 40%.", messages, "en")
+    assert "The figures in the text above were written by the model" in out
+    assert "The figures in the table below were computed by the code" in out
 
 
 def test_answer_with_table_noop_without_advisory():
     messages = [_user("¿Qué es una caución?"), _tool_return("read_wiki_page", WIKI_READ)]
     prose = "Una caución es una operación de corto plazo..."
-    assert answer_with_table(prose, messages) == prose
+    assert answer_with_table(prose, messages, "es") == prose
 
 
 def test_answer_with_table_replaces_the_copy_the_model_pasted():
@@ -108,18 +123,22 @@ def test_answer_with_table_replaces_the_copy_the_model_pasted():
     # the prose stays, and the user sees the tool's table once, with its figures.
     pasted = TABLE.replace("$90,000", "$95,000")
     answer = f"Aquí van:\n\n{pasted}\n\nEl plazo fijo rinde más."
-    assert answer_with_table(answer, messages) == f"Aquí van:\n\nEl plazo fijo rinde más.\n\n{TABLE}"
+    assert answer_with_table(answer, messages, "es") == (
+        f"Aquí van:\n\nEl plazo fijo rinde más.\n\n{COMPUTED}\n\n{TABLE}"
+    )
 
 
 def test_answer_with_table_keeps_a_table_whose_header_the_model_changed():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
     changed = "| instrumento | ganancia |\n|---|---|\n| plazo fijo | $90,000 |"
-    assert answer_with_table(changed, messages) == f"{changed}\n\n{TABLE}"
+    assert answer_with_table(changed, messages, "es") == (
+        f"{changed}\n\n{UNCHECKED} {COMPUTED}\n\n{TABLE}"
+    )
 
 
 def test_answer_with_table_of_an_answer_that_is_only_the_copy():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
-    assert answer_with_table(TABLE, messages) == TABLE
+    assert answer_with_table(TABLE, messages, "es") == f"{COMPUTED}\n\n{TABLE}"
 
 
 # ── ensure_citation ──────────────────────────────────────────────────────────

@@ -112,9 +112,24 @@ def _without_copy(answer: str, table: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip()
 
 
-def answer_with_table(answer: str, messages: list[ModelMessage]) -> str:
+# The note between the prose and the advisory table. The code does not read the
+# figures of the prose, so the note cannot say which of them are wrong: it says who
+# wrote each part. The first sentence goes only when the prose has a digit.
+TABLE_NOTE = {
+    "es": ("Las cifras del texto anterior las escribió el modelo, y el código no las verificó.",
+           "Las cifras de la tabla siguiente las calculó el código con los datos de su "
+           "columna «fuente»."),
+    "en": ("The figures in the text above were written by the model, and the code did "
+           "not check them.",
+           "The figures in the table below were computed by the code from the data of "
+           "its «fuente» column."),
+}
+
+
+def answer_with_table(answer: str, messages: list[ModelMessage], language: str | None = None) -> str:
     """Put the advisory table below the model's answer, in place of any copy of it
-    (`_without_copy`). The prose around the table stays, so a comparison or the
+    (`_without_copy`), with a note that names the author of each part
+    (`TABLE_NOTE`). The prose around the table stays, so a comparison or the
     prose of a single instrument is preserved. A table the model copied is not
     checked against the tool's, so the copy goes and the figures the user sees
     always come from the tool. The prompt asks the model not to copy the table."""
@@ -122,7 +137,9 @@ def answer_with_table(answer: str, messages: list[ModelMessage]) -> str:
     if not table:
         return answer
     prose = _without_copy(answer, table)
-    return f"{prose}\n\n{table}" if prose else table
+    unchecked, computed = TABLE_NOTE[_lang(language)]
+    note = f"{unchecked} {computed}" if re.search(r"\d", prose) else computed
+    return f"{prose}\n\n{note}\n\n{table}" if prose else f"{note}\n\n{table}"
 
 
 # ── citation ─────────────────────────────────────────────────────────────────
