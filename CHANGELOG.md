@@ -13,6 +13,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **A note above the advisory table that names who wrote each figure.**
+  `answer_with_table` (`base/domain/chat/postprocess.py`) now puts a line
+  between the model's prose and the table: the figures of the table were
+  computed by the code from the data of its «fuente» column. When the prose
+  holds a digit, the line first says that the model wrote the figures of the
+  text and that the code did not check them. The note does not say which figure
+  of the text is wrong. The sentence verifier skips the note.
+
 - **The intent expressions in `wiki_config.toml`, editable from the Vocabulary
   tab.** The expressions of a question about the whole wiki (node `Q9`) and of
   an investment-calculation request (node `Q5`) were written in

@@ -172,7 +172,7 @@ async def refuse_model(ctx: Ctx) -> str:
 @g.step(node_id="table")
 async def table(ctx: Ctx) -> AnswerChecks:
     checks = ctx.state
-    checks.with_table = answer_with_table(checks.raw, checks.messages)
+    checks.with_table = answer_with_table(checks.raw, checks.messages, checks.language)
     return checks
 
 
@@ -246,7 +246,7 @@ async def additions(ctx: Ctx) -> AnswerChecks:
     advisory table and a source citation regardless of whether the model
     reproduced them under history priming. Both no-op on a refusal."""
     checks = ctx.state
-    tabled = answer_with_table(checks.answer, checks.messages)
+    tabled = answer_with_table(checks.answer, checks.messages, checks.language)
     cited = ensure_citation(tabled, checks.messages)
     # An answer that still cites nothing is delivered with a note, not refused. A
     # refusal, of T3 or of the model, is left as it is.

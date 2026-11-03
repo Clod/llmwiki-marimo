@@ -12,6 +12,7 @@ import re
 from collections.abc import Iterable
 
 from domain.chat import refusal
+from domain.chat.postprocess import TABLE_NOTE
 from domain.chat.guardrail import LEGACY_REFUSALS, REFUSAL_EN, REFUSAL_ES
 from domain.verify.models import Sentence
 
@@ -24,6 +25,8 @@ _CITATION_LINE = re.compile(
 # The line `offer_available_keys` appends: "Datos disponibles en `x` (y): ...".
 _KEY_OFFER = re.compile(r"^(datos disponibles en|data available in)\s+`", re.IGNORECASE)
 _TIER2_WARNING = re.compile(r"^>?\s*⚠️?\s*esta respuesta proviene de un documento fuente", re.IGNORECASE)
+# The sentences of the note `answer_with_table` puts above the advisory table.
+_TABLE_NOTE = frozenset(s.lower() for pair in TABLE_NOTE.values() for s in pair)
 _FIXED = tuple(s.lower() for s in (*refusal.FIXED_SENTENCE.values(), REFUSAL_ES, REFUSAL_EN, *LEGACY_REFUSALS))
 _MARKUP = re.compile(r"[*_`#>|~\[\]()]|https?://\S+")
 _WORD = re.compile(r"[^\W\d_]{2,}", re.UNICODE)
@@ -77,6 +80,8 @@ def is_checkable(sentence: Sentence, answer: str, spans: list[tuple[int, int]]) 
         return False
     plain = plain_text(text)
     if plain.lower().rstrip(".") in {f.rstrip(".") for f in _FIXED} or refusal.is_refusal(plain):
+        return False
+    if plain.lower() in _TABLE_NOTE:
         return False
     if plain.endswith("?"):
         return False
