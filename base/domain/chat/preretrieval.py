@@ -445,6 +445,7 @@ async def pre_retrieval_answer(
     open_page: str | None = None,
     on_context=None,
     condense=None,
+    sentence_verifier: bool = False,
 ) -> str:
     """Run one turn through the hybrid pre-retrieval flow and return the answer.
 
@@ -471,6 +472,10 @@ async def pre_retrieval_answer(
     It runs only when the question alone passes neither the coverage gate nor the
     data check and no page is open; the gate and the search then use the rewrite,
     and the model still answers the original question (node Q5b).
+
+    `sentence_verifier` is True when the sentence verifier will check the answer
+    after it is shown. A Tier-2 answer then skips the containment check (node
+    Q17): the sentence verifier is its only comparison against the fragments.
     """
     with tracing.root(
         "turn", workspace, mode="pre-retrieval", question=question, language=language,
@@ -479,6 +484,7 @@ async def pre_retrieval_answer(
             question, config=config, db_path=db_path, workspace=workspace,
             history=history, language=language, run_agent=run_agent, on_trace=on_trace,
             open_page=open_page, on_context=on_context, condense=condense,
+            sentence_verifier=sentence_verifier,
         )
 
 
@@ -560,6 +566,9 @@ class PreRetrievalTurn:
     open_page: str | None = None
     condense: Any = None
     on_trace: Any = None
+    # The sentence verifier checks the answer after it is shown: a Tier-2 answer
+    # skips the containment check (node Q17).
+    sentence_verifier: bool = False
     # What the gate and the search examine: the question, or its rewrite (Q5b).
     search: str = ""
     off_limits: bool = False
@@ -669,7 +678,7 @@ def refuse(node_id: str, turn: PreRetrievalTurn, refusal: Refusal, *, raw: str =
 
 async def _pre_retrieval_turn(
     question: str, *, config, db_path, workspace, history, language, run_agent, on_trace,
-    open_page: str | None = None, on_context=None, condense=None,
+    open_page: str | None = None, on_context=None, condense=None, sentence_verifier: bool = False,
 ) -> str:
     """The body of `pre_retrieval_answer`, inside the turn's root span.
 
@@ -685,6 +694,7 @@ async def _pre_retrieval_turn(
         stem_language=language or language_for_db(db_path),
         source=LocalMarkdownSource(workspace / "datasets"),
         open_page=open_page, condense=condense, on_trace=on_trace,
+        sentence_verifier=sentence_verifier,
     )
     outcome = await input_checks.graph.run(state=turn, inputs=turn)
     if isinstance(outcome, input_checks.Refused):

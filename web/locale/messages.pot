@@ -377,6 +377,10 @@ msgid "Verifying the sentences…"
 msgstr ""
 
 #: web/routes/chat.py
+msgid "Could not verify. The answer was not compared with the fragments of the original documents."
+msgstr ""
+
+#: web/routes/chat.py
 msgid "Could not verify"
 msgstr ""
 

@@ -145,7 +145,8 @@ flowchart TD
         M4 --> FS
         M2 --> GR
         GR -->|yes| FS
-        M3 --> V2
+        M3 -->|sentence verifier off| V2
+        M3 -->|sentence verifier on| WARN
         V2 -->|yes| WARN --> FS
         FS -->|no| OK
     end
@@ -221,7 +222,7 @@ of the agent and that `PreRetrievalTurn`.
 | Q14 | Injects `overview.md` and `index.md`; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q15 | Injects nothing; the model calls the data tools of section 5 | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q16 | Injects the source fragments; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
-| Q17 | Checks that the answer is grounded in the fragments, with the stop words of the wiki's language, stemming and the configured threshold | `base/domain/chat/overlap.py`, `coverage`; `base/domain/chat/workflow/output_checks.py`, `fragment_coverage` | `answer`, `coverage`, `min_coverage` | code |
+| Q17 | Checks that the answer is grounded in the fragments, with the stop words of the wiki's language, stemming and the configured threshold. Skipped when the sentence verifier checks the answer (the checkbox «Verificar las oraciones» of the web interface, with the verifier installed): the verifier is then the only comparison of the answer against the fragments | `base/domain/chat/overlap.py`, `coverage`; `base/domain/chat/workflow/output_checks.py`, `fragment_coverage` | `answer`, `coverage`, `min_coverage` | code |
 | Q18 | Appends the fixed Tier-2 warning to the answer | `base/domain/i18n.py`, `get_locale`; `base/domain/chat/workflow/output_checks.py`, `tier2_warning` | no attributes | code |
 | Q19 | Asks whether a data tool returned evidence | `base/domain/chat/guardrail.py`, `has_grounding`; `base/domain/chat/workflow/output_checks.py`, `tool_evidence` | `answer` | code |
 | Q20 | Asks whether the answer opens with the fixed refusal sentence of the model | `base/domain/chat/refusal.py`, `fixed_sentence`; `base/domain/chat/workflow/output_checks.py`, `model_refusal` | `answer` | code |

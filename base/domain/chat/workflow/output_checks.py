@@ -90,8 +90,15 @@ def _strict(checks: AnswerChecks) -> bool:
 
 
 def _verifies(checks: AnswerChecks) -> bool:
-    """A Tier-2 answer (raw source fragments) is verified against the fragments."""
-    return checks.turn.plan.verify
+    """A Tier-2 answer (raw source fragments) is verified against the fragments
+    with the containment coefficient (Q17), unless the sentence verifier checks it."""
+    return checks.turn.plan.verify and not checks.turn.sentence_verifier
+
+
+def _verified_by_sentences(checks: AnswerChecks) -> bool:
+    """A Tier-2 answer that the sentence verifier checks after it is shown: it
+    skips Q17, and the verifier is its only comparison against the fragments."""
+    return checks.turn.plan.verify and checks.turn.sentence_verifier
 
 
 def _no_context(checks: AnswerChecks) -> bool:
@@ -272,6 +279,8 @@ g.add(
         g.decision(node_id="mode")
         .branch(g.match(AnswerChecks, matches=_strict).label("strict").to(evidence))
         .branch(g.match(AnswerChecks, matches=_verifies).label("Tier 2").to(fragment_coverage))
+        .branch(g.match(AnswerChecks, matches=_verified_by_sentences)
+                .label("Tier 2, sentence verifier").to(model_refusal))
         .branch(g.match(AnswerChecks, matches=_no_context).label("no context").to(tool_evidence))
         .branch(g.match(AnswerChecks).to(model_refusal))
     ),

@@ -63,6 +63,13 @@ def audit_buttons(templates: Jinja2Templates, wiki_id: str, conversation_id: str
 VERIFIABLE_MODES = (chat_service.PRE_RETRIEVAL, chat_service.STRICT)
 
 
+def _skipped_containment(path) -> bool:
+    """True for a Tier-2 answer (it carries the warning, node Q18) that skipped the
+    containment check (node Q17) because the sentence verifier was to check it."""
+    nodes = {step.get("node") for step in path or ()}
+    return "Q18" in nodes and "Q17" not in nodes
+
+
 def _verify_note(text: str, failed: bool = False) -> str:
     return f'<p class="verify-note{" failed" if failed else ""}" role="status">{html.escape(text)}</p>'
 
@@ -132,9 +139,12 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 # The context is kept for every answer: a page drafted from the
                 # conversation is verified against it. The answer itself is
                 # verified only when the checkbox asks for it.
+                # With the checkbox on, a Tier-2 answer skips the containment check
+                # (Q17): the sentence verifier below is its only comparison.
                 answered = await chat_service.chat_turn_with_context(
                     entry.wiki, agents, conversation, mode=turn.mode,
-                    conversation_id=turn.conversation_id, open_page=turn.open_page)
+                    conversation_id=turn.conversation_id, open_page=turn.open_page,
+                    sentence_verifier=turn.verify)
                 full, context = answered.answer, answered.context
                 raw_answer, path = answered.raw_answer, answered.path
                 input_tokens, output_tokens = answered.input_tokens, answered.output_tokens
@@ -179,7 +189,11 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 marked = render_verified(wiki_id, text, spans, pages, sources)
                 body = marked + _summary(report.unsupported, report.checked)
             except Exception:  # noqa: BLE001 — the answer stays as it is
-                body = rendered + _verify_note(_("Could not verify"), failed=True)
+                # A Tier-2 answer that skipped Q17 was compared with nothing.
+                note = (_("Could not verify. The answer was not compared with the fragments "
+                          "of the original documents.") if _skipped_containment(path)
+                        else _("Could not verify"))
+                body = rendered + _verify_note(note, failed=True)
             yield {"event": "verification",
                    "data": f'<div id="answer-{turn_id}" hx-swap-oob="innerHTML">{body}</div>'}
         yield {"event": "done", "data": ""}

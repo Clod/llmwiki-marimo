@@ -227,11 +227,14 @@ def _condenser(agents: ChatAgents, language: str | None, tokens: _Tokens | None 
 async def chat_turn_with_context(
     wiki: Wiki, agents: ChatAgents, messages: Sequence[Any], *,
     mode: str, conversation_id: str | None = None, open_page: str | None = None,
+    sentence_verifier: bool = False,
 ) -> ChatResult:
     """Answer the last message of `messages` in the pre-retrieval or strict mode.
 
     `open_page` is the id of the page the user is reading, or None. The context
-    does not depend on `WIKI_TRACE`.
+    does not depend on `WIKI_TRACE`. `sentence_verifier` is True when the caller
+    checks the answer with the sentence verifier after it is shown: in the
+    pre-retrieval mode, a Tier-2 answer then skips the containment check (Q17).
     """
     history = model_history(messages[:-1], agents.config.language)
     question = messages[-1].content
@@ -262,6 +265,7 @@ async def chat_turn_with_context(
                 question, config=agents.config, db_path=wiki.db_path, workspace=wiki.path,
                 history=history, language=language, run_agent=run_agent, open_page=open_page,
                 on_context=injected.extend, condense=_condenser(agents, language, tokens),
+                sentence_verifier=sentence_verifier,
             )
         run_messages = ran[-1] if ran else []
         table = advisory_table(run_messages)

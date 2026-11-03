@@ -91,6 +91,23 @@ def test_tier2_supported_gets_the_warning():
     assert path == ["Q17", "Q20", "Q18", "Q21"]
 
 
+def test_tier2_checked_by_the_sentence_verifier_skips_q17():
+    # The answer that Q17 refuses (test_tier2_unsupported_ends_in_r3) is shown, with
+    # the warning: the sentence verifier checks it after it is shown.
+    turn = _turn(TIER2, doc_hits=[FRAGMENT])
+    turn.sentence_verifier = True
+    out, path = _run(AnswerChecks("Los CEDEARs permiten invertir en Apple.", [], "es", turn=turn))
+    assert out.startswith("Los CEDEARs permiten invertir en Apple.")
+    assert "documento fuente" in out.lower()
+    assert path == ["Q20", "Q18", "Q21"]
+
+
+def test_the_sentence_verifier_changes_no_path_outside_tier2():
+    turn = _turn(TIER1)
+    turn.sentence_verifier = True
+    assert _run(AnswerChecks("Respuesta.", [], "es", turn=turn))[1] == ["Q20", "Q21"]
+
+
 def test_data_answer_without_evidence_ends_in_r4():
     out, path = _run(AnswerChecks("El dólar está a 1200.", [], "es", turn=_turn(DATA)))
     assert path == ["Q19", "R4"]
