@@ -11,6 +11,27 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A question about what the wiki holds reaches the index.** «¿Qué cuentos
+  tenés?» names no title of the wiki and no expression of the collection list,
+  so the code refused it without calling the model, although the index lists
+  the three tales. The Spanish base list (`base/domain/chat/intent.es.toml`)
+  gains "tenes", "temas" and "contiene". A wiki whose `wiki_config.toml` already
+  holds its own `[intent] collection` keeps its list.
+- **The source search tool returns the whole fragment.** `search_source_chunks`
+  (`base/domain/chat/tools.py`) gave the model the first 400 characters of each
+  fragment, and the fragments of the demos are about 1,250 characters long. In
+  the fairy-tale demo, the warning of midnight in «La Cenicienta.pdf» came after
+  the cut, and the model answered that the text did not say it. The model has no
+  tool that reads a source document, so the fragment is now returned whole.
+- **A question that names a page alias reaches the page.** «¿Quién es
+  Culocenizón?» ended in a refusal: "Culocenizón" is an alias of "Cenicienta"
+  (`aliases.generated.toml`), and no page of the wiki holds the word, so the wiki
+  search found nothing. The topic search of node Q6 now looks up an alias by the
+  name it stands for (`preretrieval.alias_titles`), and the model receives
+  `concepts/cenicienta.md`.
+
 ## [0.6.0] - 2026-11-04
 
 ### Added

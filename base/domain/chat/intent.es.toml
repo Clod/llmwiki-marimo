@@ -6,4 +6,6 @@
 collection = [
     "este wiki", "esta wiki", "el wiki", "cada", "todos los", "todas las",
     "que hay en", "cuantos", "en comun", "comparten",
+    # A question about what the wiki holds: "¿qué cuentos tenés?", "¿qué temas trata?".
+    "tenes", "temas", "contiene",
 ]
