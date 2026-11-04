@@ -59,6 +59,12 @@ def test_the_tier_2_warning_and_the_key_offer_line_are_skipped():
     assert verify_answer(answer, [PAGE], FakeVerifier()).checked == 1
 
 
+def test_the_english_tier_2_warning_is_skipped():
+    answer = ("The minimum term is 180 days.\n\n"
+              "> ⚠️ This answer comes from a source document with no curated wiki page; please verify it.")
+    assert verify_answer(answer, [PAGE], FakeVerifier()).checked == 1
+
+
 def test_an_empty_context_leaves_every_sentence_unsupported():
     report = verify_answer(ANSWER, [], FakeVerifier())
     assert report.checked == 3 and report.unsupported == 3

@@ -134,6 +134,20 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The refusal of cause 5 no longer states its cause twice.** The model's text
+  opens with «No encontré la respuesta en el texto que recibí de la wiki.», and
+  the code added «El modelo no encontró la respuesta en el texto que recibió de
+  la wiki.» below it. The refusal now keeps the model's text and adds the
+  suggestions (`base/domain/chat/refusal.py`, `render`).
+- **The citation no longer names the index or the overview of the wiki.** The
+  strict prompt of a wiki asks the model to read `index.md` first, and every page
+  read counted as a source, so an answer could end in `Referencia: index.md`.
+  `deliberate_sources` (`base/domain/chat/postprocess.py`) skips `wiki/index.md`
+  and `wiki/overview.md`.
+- **The English Tier-2 warning is no longer checked as a sentence.** The sentence
+  verifier skipped the Spanish warning only, so in an English wiki it could mark
+  the warning as unsupported (`base/domain/verify/checkable.py`).
+
 - **The finance demo prompt no longer asks the model to copy the advisory
   table.** Step 2 of the system prompt in
   `examples/finanzas-argentinas/wiki_config.toml` asked for the table of

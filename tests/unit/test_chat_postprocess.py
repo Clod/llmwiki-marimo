@@ -152,6 +152,17 @@ def test_wiki_page_is_a_referencia_not_a_fuente():
     assert "Fuente:" not in out
 
 
+def test_the_index_and_the_overview_are_read_but_not_cited():
+    # The strict prompt asks the model to read the index first; the index found the page,
+    # and the page is the source of the answer.
+    messages = [_user("¿qué es una caución?"),
+                _tool_return("read_wiki_page", "[wiki page: wiki/index.md]\n\n# Índice\n- Cauciones"),
+                _tool_return("read_wiki_page", "[wiki page: wiki/overview.md]\n\n# Resumen\nLa wiki trata..."),
+                _tool_return("read_wiki_page", WIKI_READ)]
+    out = ensure_citation("Una caución es una operación de corto plazo...", messages)
+    assert out.endswith("Referencia: cauciones-bursatiles.md")
+
+
 def test_dataset_yields_both_fuente_origin_and_referencia_file():
     # A dataset value has BOTH: an external origin (ambito.com -> Fuente) and the
     # dataset file it came from (dolar.md -> Referencia).

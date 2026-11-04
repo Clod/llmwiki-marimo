@@ -98,11 +98,18 @@ def test_no_page_points_to_the_wiki_index():
         "You can see every topic in the wiki's index, in the Read tab.")
 
 
-def test_model_refusal_keeps_the_model_text_and_adds_the_cause():
+def test_model_refusal_keeps_the_model_text_and_adds_the_suggestions():
     model = f"{fixed_sentence('es')} Busqué en las páginas del plazo fijo."
     text = render(Refusal(RefusalCause.MODEL, model_text=model, suggestions=PAGES[:1]), "es")
     assert text.startswith(model)
-    assert "El modelo no encontró la respuesta" in text and "- [Plazo fijo tradicional](" in text
+    assert "- [Plazo fijo tradicional](" in text
+
+
+def test_model_refusal_does_not_repeat_the_cause_in_other_words():
+    # The model's fixed sentence states the cause; the opening of the code said it again.
+    text = render(Refusal(RefusalCause.MODEL, model_text=fixed_sentence("es")), "es")
+    assert "El modelo no encontró la respuesta" not in text
+    assert text.count("No encontré la respuesta") == 1
 
 
 # ── 2. Suggestions ───────────────────────────────────────────────────────────
@@ -193,7 +200,7 @@ def test_model_fixed_sentence_is_cause_5(demo_db):
     raw = f"{fixed_sentence('es')} Las páginas no dan la tasa."
     out = _turn("¿Cuánto rinden los plazos fijos?", raw, demo_db)
     assert out.startswith(raw)
-    assert "El modelo no encontró la respuesta" in out
+    assert "El modelo no encontró la respuesta" not in out   # the model's sentence states the cause
     assert "- [Plazo fijo" in out                          # suggestions from the roster
 
 
@@ -207,6 +214,6 @@ def test_the_model_refusal_says_what_the_model_received_not_what_the_wiki_holds(
     no encontró la respuesta en las páginas ni en los documentos de esta wiki." stated that
     the wiki lacks an answer the context held. Both now describe what the model received."""
     assert fixed_sentence("es") == "No encontré la respuesta en el texto que recibí de la wiki."
-    text = render(Refusal(RefusalCause.MODEL, model_text=fixed_sentence("es")), "es")
+    text = render(Refusal(RefusalCause.MODEL), "es")
     assert "El modelo no encontró la respuesta en el texto que recibió de la wiki." in text
     assert "documentos de esta wiki" not in text
