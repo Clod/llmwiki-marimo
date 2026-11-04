@@ -152,7 +152,10 @@ def render(refusal: Refusal, language: str | None) -> str:
     )
     # Each block is a markdown paragraph, and the suggestions a list: without the
     # blank lines, markdown joins the opening, the header and the items in one line.
-    blocks = [opening]
+    # In cause 5 the model's text, which opens with the fixed sentence, already states
+    # the cause: the opening of the code would repeat it in other words.
+    model_text = refusal.model_text.rstrip() if refusal.cause is RefusalCause.MODEL and refusal.model_text else ""
+    blocks = [model_text or opening]
     if refusal.cause is not RefusalCause.BLACKLIST:
         if refusal.suggestions:
             header = (_SUGGEST_REWORD if refusal.cause is RefusalCause.NOT_IN_ROSTER
@@ -163,10 +166,7 @@ def render(refusal: Refusal, language: str | None) -> str:
                 blocks.append(_INDEX[lang])     # the user checks the topics in the index
         else:
             blocks.append(_INDEX[lang])
-    body = "\n\n".join(blocks)
-    if refusal.cause is RefusalCause.MODEL and refusal.model_text:
-        return f"{refusal.model_text.rstrip()}\n\n{body}"
-    return body
+    return "\n\n".join(blocks)
 
 
 # ── Recognising a refusal (decision 14) ──────────────────────────────────────

@@ -24,7 +24,10 @@ _CITATION_LINE = re.compile(
 )
 # The line `offer_available_keys` appends: "Datos disponibles en `x` (y): ...".
 _KEY_OFFER = re.compile(r"^(datos disponibles en|data available in)\s+`", re.IGNORECASE)
-_TIER2_WARNING = re.compile(r"^>?\s*⚠️?\s*esta respuesta proviene de un documento fuente", re.IGNORECASE)
+# The Tier-2 warning of `domain.i18n`, in Spanish and in English.
+_TIER2_WARNING = re.compile(
+    r"^>?\s*⚠️?\s*(?:esta respuesta proviene de un documento fuente"
+    r"|this answer comes from a source document)", re.IGNORECASE)
 # The sentences of the note `answer_with_table` puts above the advisory table.
 _TABLE_NOTE = frozenset(s.lower() for pair in TABLE_NOTE.values() for s in pair)
 _FIXED = tuple(s.lower() for s in (*refusal.FIXED_SENTENCE.values(), REFUSAL_ES, REFUSAL_EN, *LEGACY_REFUSALS))

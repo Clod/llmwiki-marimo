@@ -46,6 +46,10 @@ if TYPE_CHECKING:
 READ_TOOL = "read_wiki_page"
 
 _WIKI_PAGE_RE = re.compile(r"\[wiki page:\s*([^\]]+)\]")
+# The index and the overview list the pages of the wiki. The model reads the index to
+# find the page that answers (the strict prompt of a wiki asks it to); neither one is
+# the source of the answer, so neither one is cited.
+_NAVIGATION_PAGES = frozenset({"wiki/index.md", "wiki/overview.md"})
 # query_dataset returns start with: **N dataset row(s)** for categoria='dolar':
 _DATASET_CAT_RE = re.compile(r"categoria='([^']+)'")
 
@@ -176,7 +180,8 @@ def deliberate_sources(messages: list[ModelMessage]) -> tuple[list[str], list[st
       - fuentes: external origins of dataset values (the `fuente` column of a
         dataset tool, e.g. ambito.com, bcra.gob.ar).
     A dataset value therefore yields BOTH a fuente (origin) and a referencia
-    (file). Search candidates are excluded (buscar ≠ usar)."""
+    (file). Search candidates are excluded (buscar ≠ usar), and so are the index
+    and the overview of the wiki (`_NAVIGATION_PAGES`)."""
     references: list[str] = []
     fuentes: list[str] = []
     dataset_tools = roles().evidence - {READ_TOOL}
@@ -186,7 +191,7 @@ def deliberate_sources(messages: list[ModelMessage]) -> tuple[list[str], list[st
             continue
         if part.tool_name == READ_TOOL:
             match = _WIKI_PAGE_RE.search(content)
-            if match:
+            if match and match.group(1).strip() not in _NAVIGATION_PAGES:
                 references.append(match.group(1).strip().rsplit("/", 1)[-1])  # basename
         elif part.tool_name in dataset_tools:
             fuentes.extend(_dataset_fuentes(content))
