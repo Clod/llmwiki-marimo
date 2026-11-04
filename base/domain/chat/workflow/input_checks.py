@@ -166,7 +166,9 @@ async def wiki_search(ctx: Ctx) -> PreRetrievalTurn:
     turn = ctx.state
     with tracing.node("Q6", R, fts_query=preretrieval._fts_query(turn.search, turn.language)) as q6:
         # Dataset keys (MEP, YPFD, a bank) name rows of a data file, not pages.
-        topics = [term for term in turn.matched if term not in turn.keys]
+        # An alias is searched by the name it stands for (`alias_titles`).
+        topics = preretrieval.alias_titles(
+            [term for term in turn.matched if term not in turn.keys], turn.config.data_aliases)
         turn.wiki_hits = preretrieval.retrieve_wiki(turn.db_path, turn.search, language=turn.stem_language,
                                                     topics=topics)
         if turn.open_block is not None:

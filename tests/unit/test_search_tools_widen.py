@@ -88,3 +88,21 @@ def test_the_k_record_says_whether_the_query_was_widened(tmp_path, monkeypatch):
     rec = _k_records(workspace)
     assert rec["K2"]["widened"] is True and rec["K2"]["substantive"] is True
     assert rec["K3"]["widened"] is False
+
+
+def test_the_source_tool_returns_the_whole_fragment(tmp_path):
+    # A 400-character preview cut the warning of midnight in "La Cenicienta.pdf", p. 4:
+    # the sentence that answers was at the end of the fragment.
+    workspace, ctx = _wiki(tmp_path)
+    long = "El hada tocó la calabaza con su varita. " * 20 + "Antes de medianoche tenés que volver."
+    conn = open_db(ctx.deps)
+    with conn:
+        conn.execute(
+            "INSERT INTO document_chunks (id, document_id, chunk_index, content, "
+            "content_stemmed, token_count) VALUES ('c2', 's1', 1, ?, ?, 200)",
+            (long, stem_text(long, "es")),
+        )
+    conn.close()
+    out = asyncio.run(search_source_chunks(ctx, "calabaza varita"))
+    assert len(long) > 400
+    assert "Antes de medianoche tenés que volver." in out

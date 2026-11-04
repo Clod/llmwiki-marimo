@@ -161,6 +161,16 @@ def retrieve_wiki(
     return hits[:limit - len(added)] + added if added else hits
 
 
+def alias_titles(topics: Iterable[str], data_aliases: dict[str, list[str]]) -> list[str]:
+    """`topics` with each alias replaced by the name it stands for, without repeats.
+
+    A page alias is not in the text of its page: "Culocenizón" is an alias of
+    "Cenicienta" (`aliases.generated.toml`), and no page of the wiki holds the word.
+    The topic search of `retrieve_wiki` finds the page by its title."""
+    names = {_normalize(alias): name for name, aliases in data_aliases.items() for alias in aliases}
+    return list(dict.fromkeys(names.get(_normalize(topic), topic) for topic in topics))
+
+
 def retrieve_source_chunks(
     db_path: str, query: str, *, limit: int = 4, language: str | None = None
 ) -> list[str]:

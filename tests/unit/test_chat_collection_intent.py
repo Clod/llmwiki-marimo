@@ -9,6 +9,8 @@ fairy-tales demo's own `suggested_prompts` (English and Spanish), plus ordinary
 single-subject questions that must NOT trigger it.
 """
 
+import pytest
+
 from domain.chat.intent import base_collection
 from domain.chat.scope import collection_intent as _collection_intent
 
@@ -52,6 +54,15 @@ def test_true_compara_como_termina_cada_historia():
     assert collection_intent("Compara cómo termina cada historia", "es") is True
 
 
+# ── True: a question about what the wiki holds, with no title (battery `cue-12`) ──
+
+
+@pytest.mark.parametrize("question", [
+    "¿Y qué cuentos tenés?", "¿Qué temas trata?", "¿Qué contiene la wiki?"])
+def test_true_a_catalog_question_names_no_title(question):
+    assert collection_intent(question, "es") is True
+
+
 # ── False: ordinary single-subject questions (the anti-fire-on-everything guard)
 
 
@@ -65,3 +76,13 @@ def test_false_ordinary_data_question_es():
 
 def test_false_ordinary_who_question_en():
     assert collection_intent("Who is the fairy godmother?", "en") is False
+
+
+@pytest.mark.parametrize("question", [
+    "compará los bonos",                     # L1 ex. 3 of the workshop: refused until the owner adds it
+    "¿Qué es el plazo fijo?",
+    "¿De qué trata La Bella Durmiente?",     # a tale the wiki lacks: the refusal stays
+    "¿Qué tasas tienen los bancos?",         # a data question: "tienen" is not in the list
+    "¿Cuál es la capital de Francia?"])
+def test_false_the_catalog_expressions_do_not_reach_other_questions(question):
+    assert collection_intent(question, "es") is False

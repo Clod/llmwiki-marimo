@@ -36,7 +36,7 @@ async def search_source_chunks(ctx: RunContext[str], query: str, limit: int = 10
 
     Returns:
         Formatted markdown results containing document names, page numbers,
-        hierarchical section breadcrumbs, and matching text snippets.
+        hierarchical section breadcrumbs, and the whole text of each matching fragment.
     """
     text, widened = await _search_source_chunks(ctx, query, limit)
     tracing.mark("K3", tracing.READING, query=query, limit=limit, widened=widened,
@@ -110,14 +110,11 @@ async def _search_source_chunks(ctx: RunContext[str], query: str, limit: int = 1
         # Format the section breadcrumb path if available (e.g. " › Introduction › Definition")
         crumb_str = f" › {breadcrumb}" if breadcrumb else ""
 
-        # Extract a short, digestible preview snippet (first 400 characters)
-        snippet = content[:400].strip()
-        if len(content) > 400:
-            snippet += "..."
-
-        # Append the formatted result header and code-blocked preview to our output lines
+        # The whole fragment: the model has no tool that reads a source document, so a
+        # cut fragment hides the sentence that answers (a 400-character preview cut the
+        # warning of midnight in "La Cenicienta.pdf", p. 4).
         lines.append(f"**{filename}**{page_str}{crumb_str}")
-        lines.append(f"```\n{snippet}\n```\n")
+        lines.append(f"```\n{content.strip()}\n```\n")
 
     # 7. Join lines with newlines and return the completed report
     return "\n".join(lines), widened
