@@ -11,6 +11,8 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-04
+
 ### Added
 
 - **With the sentence verifier on, a Tier-2 answer skips the containment check.**
@@ -1152,7 +1154,8 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.5.0...master
+[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.0...master
+[0.6.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.3...v0.3.0
