@@ -485,7 +485,7 @@ def drive_long(d: Demo, source: Path) -> None:
     page.wait_for_timeout(600)
     for value, caption in (
             ("pre-retrieval", "Recuperación previa: el código busca en la wiki y le pasa las páginas al modelo."),
-            ("strict", "Estricto: el modelo consulta la wiki con herramientas. Sin consulta, la respuesta se rechaza."),
+            ("strict", "Agente con comprobación de evidencia: el modelo consulta la wiki con herramientas. Sin consulta, la respuesta se rechaza."),
             ("streaming", "Sin verificación: la respuesta aparece mientras se genera y nada la comprueba.")):
         d.clear()
         d.mode(value)

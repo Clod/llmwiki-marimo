@@ -320,7 +320,7 @@ def test_the_mode_is_a_select_with_the_three_modes(client):
     select = select[:select.index("</select>")]
     assert 'name="mode"' in select
     assert re.findall(r'<option value="([\w-]+)"[^>]*>([^<]+)</option>', select) == [
-        ("pre-retrieval", "Recuperación previa"), ("strict", "Estricto"), ("streaming", "Sin verificación")]
+        ("pre-retrieval", "Recuperación previa"), ("strict", "Agente con comprobación de evidencia"), ("streaming", "Sin verificación")]
 
 
 def test_a_missing_page_says_it_does_not_exist(client):

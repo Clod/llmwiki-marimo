@@ -248,8 +248,8 @@ msgid "The code searches the wiki before calling the model and passes it the pag
 msgstr "El código busca en la wiki antes de llamar al modelo y le pasa las páginas encontradas"
 
 #: web/deps.py
-msgid "Strict"
-msgstr "Estricto"
+msgid "Agent with evidence check"
+msgstr "Agente con comprobación de evidencia"
 
 #: web/deps.py
 msgid "The model queries the wiki with tools; if it did not, the answer is replaced by a refusal"
@@ -2489,10 +2489,12 @@ msgstr ""
 "ninguna página respalda. La respuesta no cambia"
 
 #: web/templates/page.html
-msgid "The No verification mode does not check the answer. Choose Pre-retrieval or Strict to verify the sentences"
+msgid ""
+"The No verification mode does not check the answer. Choose Pre-retrieval or Agent with evidence check to verify the "
+"sentences"
 msgstr ""
-"El modo «Sin verificación» no comprueba la respuesta. Elegí «Recuperación previa» o «Estricto» para verificar las "
-"oraciones"
+"El modo «Sin verificación» no comprueba la respuesta. Elegí «Recuperación previa» o «Agente con comprobación "
+"de evidencia» para verificar las oraciones"
 
 #: web/templates/page.html
 msgid "Verify the sentences"
@@ -2893,4 +2895,12 @@ msgstr "Funciones de cálculo"
 
 #~ msgid "What the model wrote, when the code replaced it"
 #~ msgstr "Lo que escribió el modelo, cuando el código lo reemplazó"
+
+#~ msgid "Strict"
+#~ msgstr "Estricto"
+
+#~ msgid "The No verification mode does not check the answer. Choose Pre-retrieval or Strict to verify the sentences"
+#~ msgstr ""
+#~ "El modo «Sin verificación» no comprueba la respuesta. Elegí "
+#~ "«Recuperación previa» o «Estricto» para verificar las oraciones"
 

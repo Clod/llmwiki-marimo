@@ -21,7 +21,7 @@ BUSY = N_("Another operation is running on this wiki.")
 MODES = (
     ("pre-retrieval", N_("Pre-retrieval"),
      N_("The code searches the wiki before calling the model and passes it the pages found")),
-    ("strict", N_("Strict"),
+    ("strict", N_("Agent with evidence check"),
      N_("The model queries the wiki with tools; if it did not, the answer is replaced by a refusal")),
     ("streaming", N_("No verification"),
      N_("The answer appears as the model generates it. The code does not check that the answer comes from the wiki")),

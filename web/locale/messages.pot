@@ -251,7 +251,7 @@ msgid "The code searches the wiki before calling the model and passes it the pag
 msgstr ""
 
 #: web/deps.py
-msgid "Strict"
+msgid "Agent with evidence check"
 msgstr ""
 
 #: web/deps.py
@@ -2409,7 +2409,9 @@ msgid ""
 msgstr ""
 
 #: web/templates/page.html
-msgid "The No verification mode does not check the answer. Choose Pre-retrieval or Strict to verify the sentences"
+msgid ""
+"The No verification mode does not check the answer. Choose Pre-retrieval or Agent with evidence check to verify the "
+"sentences"
 msgstr ""
 
 #: web/templates/page.html

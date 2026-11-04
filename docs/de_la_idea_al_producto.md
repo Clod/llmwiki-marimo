@@ -63,9 +63,9 @@ seguridad con la que te da un dato real.
 de decir "no lo tengo", te tira un número redondo y convincente —sacado de su
 memoria, viejo o directamente inventado— y vos no tenés forma de darte cuenta.
 
-**Cómo lo sella este proyecto.** En el modo que viene puesto de fábrica (el modo
-estricto): después de que el modelo responde, un control automático revisa la
-respuesta. Si el sistema **no encontró nada de nada**, la respuesta no pasa: se
+**Cómo lo sella este proyecto.** En el modo que viene puesto de fábrica (el
+modo «Agente con comprobación de evidencia»): después de que el modelo responde,
+un control automático revisa la respuesta. Si el sistema **no encontró nada de nada**, la respuesta no pasa: se
 reemplaza por una abstención honesta. Queda el caso más tramposo —encontró algo,
 pero ese algo no respalda la respuesta—: ese es el punto que sigue.
 

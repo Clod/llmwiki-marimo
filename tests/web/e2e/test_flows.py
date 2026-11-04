@@ -118,7 +118,7 @@ def test_the_three_modes_answer(page, live):
     ask(page, "¿Qué tasa de plazo fijo ofrece el Banco Galicia?")
     expect(page.locator("#messages .a td", has_text="36.5%")).to_be_visible()
 
-    ask(page, "¿Qué es un plazo fijo UVA?", mode="Estricto")
+    ask(page, "¿Qué es un plazo fijo UVA?", mode="Agente con comprobación de evidencia")
     reference = page.locator("#messages .a a", has_text="wiki/concepts/plazo-fijo-uva.md")
     expect(reference).to_be_visible()
     reference.click()
