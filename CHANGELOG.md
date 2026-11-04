@@ -11,6 +11,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A hand-written alias belongs to the name the user typed.** In the Vocabulary
+  tab, «FCI» added to «FCI Money Market» landed in the group `fci_money_market`:
+  the page and the dataset category of the same name are equal once normalized,
+  and the roster keeps one entry per normalized name, the category first.
+  `add_alias` (`base/services/vocabulary.py`) now looks the typed name up among
+  all the covered names before it falls back to the roster's spelling. The
+  coverage gate and the search behave the same with either name.
+
 ## [0.6.1] - 2026-11-04
 
 ### Fixed
