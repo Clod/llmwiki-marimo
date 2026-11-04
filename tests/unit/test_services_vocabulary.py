@@ -79,6 +79,17 @@ def test_a_hand_alias_needs_a_covered_canonical_and_must_not_name_another_one(wi
     assert "PF UVA" in load_config(wiki.path).data_aliases["Plazo fijo UVA"]
 
 
+def test_a_hand_alias_belongs_to_the_name_the_user_typed(wiki):
+    # The page "FCI Money Market" and the category `fci_money_market` are equal once
+    # normalized; the alias goes to the page, the name the user typed.
+    vocab.add_alias(wiki, "FCI Money Market", "FCI")
+    aliases = load_config(wiki.path).data_aliases
+    assert aliases["FCI Money Market"] == ["FCI"] and "fci_money_market" not in aliases
+    # A name typed with another spelling takes the roster's spelling.
+    vocab.add_alias(wiki, "plazo fijo uva", "PF UVA")
+    assert "PF UVA" in load_config(wiki.path).data_aliases["Plazo fijo UVA"]
+
+
 def test_rejecting_a_generated_alias_removes_it_for_good(wiki):
     vocab.reject_alias(wiki, "Plazo fijo UVA", "UVA")
     v = vocab.read_vocabulary(wiki)

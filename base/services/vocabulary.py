@@ -93,12 +93,13 @@ def _sections(wiki: Wiki) -> dict:
         return tomllib.load(f)
 
 
-def roster(wiki: Wiki) -> tuple[RosterEntry, ...]:
-    """The covered names, one entry per normalized name, sorted without case nor accents."""
-    entries: dict[str, RosterEntry] = {}
+def _covered_names(wiki: Wiki) -> list[RosterEntry]:
+    """Every covered name, in roster order: the dataset categories, the concept-page
+    titles, then the dataset keys. Two names may be equal once normalized, as the page
+    "FCI Money Market" and the category `fci_money_market`."""
+    entries: list[RosterEntry] = []
     source = LocalMarkdownSource(Path(wiki.path) / "datasets")
-    for category in source.categories():
-        entries.setdefault(normalize(category), RosterEntry(category, "category"))
+    entries.extend(RosterEntry(category, "category") for category in source.categories())
     with get_connection(wiki.db_path) as conn:
         rows = conn.execute(
             "SELECT title, relative_path FROM documents "
@@ -106,10 +107,17 @@ def roster(wiki: Wiki) -> tuple[RosterEntry, ...]:
     for row in rows:
         if row["title"]:
             page = row["relative_path"].removeprefix("wiki/").removesuffix(".md")
-            entries.setdefault(normalize(row["title"]), RosterEntry(row["title"], "concept", page))
+            entries.append(RosterEntry(row["title"], "concept", page))
     for category in source.categories():
-        for row in source.query(category):
-            entries.setdefault(normalize(row.clave), RosterEntry(row.clave, "key"))
+        entries.extend(RosterEntry(row.clave, "key") for row in source.query(category))
+    return entries
+
+
+def roster(wiki: Wiki) -> tuple[RosterEntry, ...]:
+    """The covered names, one entry per normalized name, sorted without case nor accents."""
+    entries: dict[str, RosterEntry] = {}
+    for entry in _covered_names(wiki):
+        entries.setdefault(normalize(entry.name), entry)
     return tuple(sorted(entries.values(), key=lambda e: normalize(e.name)))
 
 
@@ -201,12 +209,18 @@ def remove_intent_cue(wiki: Wiki, key: str, cue: str) -> None:
 def add_alias(wiki: Wiki, canonical: str, alias: str) -> None:
     """Add a hand-written alias. The canonical must be in the roster ("unknown_canonical");
     the alias must not be the name of another covered thing ("collision")."""
-    names = {normalize(e.name): e.name for e in roster(wiki)}
+    covered = _covered_names(wiki)
+    names: dict[str, str] = {}
+    for entry in covered:
+        names.setdefault(normalize(entry.name), entry.name)
     if normalize(canonical) not in names:
         raise VocabularyEditError("unknown_canonical", canonical.strip())
     if normalize(alias) in names and normalize(alias) != normalize(canonical):
         raise VocabularyEditError("collision", alias.strip())
-    canonical = names[normalize(canonical)]          # the roster's spelling, not the typed one
+    # The roster's spelling, not the typed one. When two covered names are equal once
+    # normalized, the name the user typed is the one the alias belongs to.
+    typed = canonical.strip()
+    canonical = typed if any(e.name == typed for e in covered) else names[normalize(canonical)]
     config_writer.add_alias(wiki.path, canonical, alias)
     _commit(wiki, f'vocabulary: alias "{alias.strip()}" of "{canonical.strip()}"')
 
