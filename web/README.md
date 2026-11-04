@@ -59,9 +59,9 @@ The `.env` file at the repository root is read as in the marimo apps.
 ## Sentence verification
 
 The checkbox "Verificar las oraciones" sits under the mode selector. It is valid
-in "Recuperación previa" and "Estricto", and its state is kept in `localStorage`
-(`llmwiki.verify`). It is disabled in "Sin verificación" and when the local
-verifier is not installed; each tooltip says why (`static/js/reader.js`).
+in "Recuperación previa" and "Agente con comprobación de evidencia", and its
+state is kept in `localStorage` (`llmwiki.verify`). It is disabled in "Sin
+verificación" and when the local verifier is not installed; each tooltip says why (`static/js/reader.js`).
 
 With the box checked, the answer streams as before. Then
 `routes/chat.py:chat_stream` calls `services.chat.chat_turn_with_context`,

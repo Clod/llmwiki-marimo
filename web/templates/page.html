@@ -126,7 +126,7 @@ try {
       </div>
       <label class="verify-toggle" id="verify-label" data-installed="{{ 'yes' if verifier_available else 'no' }}" data-streaming="streaming"
              data-tip-on="{{ _('After the answer, the code checks each sentence against the pages the model read and marks the ones no page supports. The answer does not change') }}"
-             data-tip-streaming="{{ _('The No verification mode does not check the answer. Choose Pre-retrieval or Strict to verify the sentences') }}"
+             data-tip-streaming="{{ _('The No verification mode does not check the answer. Choose Pre-retrieval or Agent with evidence check to verify the sentences') }}"
              data-tip-missing="{{ _('The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group verify)') }}">
         <input type="checkbox" name="verify" id="verify-box" value="1"{% if not verifier_available %} disabled{% endif %}>
         {{ _("Verify the sentences") }}

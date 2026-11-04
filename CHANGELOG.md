@@ -93,6 +93,10 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The "Strict" mode is labelled "Agent with evidence check".** The old label
+  suggested the mode with the most checks, and the pre-retrieval mode runs more.
+  Only the label changes: the value `strict`, the trace and the node codes keep
+  their names (`web/deps.py`).
 - **New README demos and screenshots, from the web interface.** The README
   links two videos: a one-minute demo in English and a full tour of 4:15 with
   the Spanish interface. The screenshots of the reading screen and of the

@@ -45,7 +45,7 @@ def test_the_line_names_the_mode_used_and_has_no_link_when_nothing_is_cited(clie
     agents.agent.grounded = True
     final = stream(client, ask(client, mode="strict"))[0][1]
     meta = re.search(r'<div id="meta-\w+" hx-swap-oob="innerHTML">(.*?)</div>', final, re.S).group(1)
-    assert meta.strip().startswith("Estricto") and "tokens" in meta
+    assert meta.strip().startswith("Agente con comprobación de evidencia") and "tokens" in meta
     final = stream(client, ask(client, mode="streaming"))[-2][1]
     assert '>Sin verificación · <span class="tokens"' in final
 

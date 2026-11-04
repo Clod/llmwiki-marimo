@@ -581,7 +581,7 @@ moviendo las garantías a **código determinista**. Caso por caso:
   inyecta las páginas de inflación (plazo fijo tradicional/UVA, bonos CER/UVA,
   riesgo de rezago inflacionario, TIR real) antes de responder, de modo que el
   modelo **no pueda saltear** la recuperación. (El UAT automatizado la trata como
-  conceptual —§4.2—; pero en el chat en **modo estricto**, sin recuperación no hay
+  conceptual —§4.2—; pero en el chat en el **modo «Agente con comprobación de evidencia»**, sin recuperación no hay
   fundamento y se rechaza, así que darle las páginas es lo que la habilita a
   contestar bien en vez de inventar.)
 - **E (acciones):** daba la respuesta correcta ("no es estimable") **sin llamar
