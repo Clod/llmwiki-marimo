@@ -43,7 +43,7 @@ TABLE = (
     "**Alternativas con ganancia estimada** (ordenadas por ganancia)\n"
     "| opción | clave | plazo | TEA | ganancia est. | al fecha | fuente |\n"
     "|---|---|---|---|---|---|---|\n"
-    "| plazo_fijo | Banco Credicoop | 90d | 41.84% | $90,000 | 2026-06-25 | bcra.gob.ar |"
+    "| plazo_fijo | Banco Credicoop | 90d | 41,84% | $90.000 | 2026-06-25 | bcra.gob.ar |"
 )
 
 WIKI_READ = "[wiki page: wiki/concepts/cauciones-bursatiles.md]\n\n# Cauciones\nUna caución es..."
@@ -121,7 +121,7 @@ def test_answer_with_table_replaces_the_copy_the_model_pasted():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
     # The model copied the table, its title and a changed figure: the copy goes,
     # the prose stays, and the user sees the tool's table once, with its figures.
-    pasted = TABLE.replace("$90,000", "$95,000")
+    pasted = TABLE.replace("$90.000", "$95.000")
     answer = f"Aquí van:\n\n{pasted}\n\nEl plazo fijo rinde más."
     assert answer_with_table(answer, messages, "es") == (
         f"Aquí van:\n\nEl plazo fijo rinde más.\n\n{COMPUTED}\n\n{TABLE}"
@@ -130,7 +130,7 @@ def test_answer_with_table_replaces_the_copy_the_model_pasted():
 
 def test_answer_with_table_keeps_a_table_whose_header_the_model_changed():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
-    changed = "| instrumento | ganancia |\n|---|---|\n| plazo fijo | $90,000 |"
+    changed = "| instrumento | ganancia |\n|---|---|\n| plazo fijo | $90.000 |"
     assert answer_with_table(changed, messages, "es") == (
         f"{changed}\n\n{UNCHECKED} {COMPUTED}\n\n{TABLE}"
     )

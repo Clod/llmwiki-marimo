@@ -353,7 +353,7 @@ def _ingest_file(
                         db_path, concept_result["id"], written, "/wiki/concepts/",
                     )
                     i6.payload(f"concept.{slug}", concept_md, channel="markdown", ext="md")
-                    one_liner = concept.insight[:80] if concept.insight else concept.name
+                    one_liner = concept.insight or concept.name
                     update_index(workspace, f"concepts/{slug}.md", one_liner, "concepts", language=language)
                 i6.set(pages=[f"wiki/concepts/{s}.md" for s in concept_slugs])
 
@@ -398,7 +398,7 @@ def _ingest_file(
                 update_index(
                     workspace,
                     f"summaries/{wiki_slug}.md",
-                    extraction.document_summary[:80] if extraction.document_summary else file_path.name,
+                    extraction.document_summary or file_path.name,
                     "summaries",
                     language=language,
                 )

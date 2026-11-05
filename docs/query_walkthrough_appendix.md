@@ -248,17 +248,17 @@ Aquí tienes las alternativas de inversión para $1.000.000 a 3 meses, con sus g
 **Alternativas con ganancia estimada** (ordenadas por ganancia)
 | opción | clave | plazo | TEA | ganancia est. | al fecha | fuente |
 |---|---|---|---|---|---|---|
-| plazo_fijo | Banco Credicoop | 90d | 41.84% | $90,000 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Credicoop | 60d | 41.20% | $88,799 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Provincia | 90d | 41.19% | $88,767 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Macro | 90d | 40.54% | $87,534 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Provincia | 60d | 40.54% | $87,531 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Credicoop | 30d | 40.52% | $87,504 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Nación | 90d | 39.89% | $86,301 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Macro | 60d | 39.87% | $86,263 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Provincia | 30d | 39.84% | $86,200 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Galicia | 90d | 39.25% | $85,068 | 2026-06-25 | bcra.gob.ar |
-| plazo_fijo | Banco Nación | 60d | 39.21% | $84,996 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Credicoop | 90d | 41,84% | $90.000 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Credicoop | 60d | 41,20% | $88.799 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Provincia | 90d | 41,19% | $88.767 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Macro | 90d | 40,54% | $87.534 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Provincia | 60d | 40,54% | $87.531 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Credicoop | 30d | 40,52% | $87.504 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Nación | 90d | 39,89% | $86.301 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Macro | 60d | 39,87% | $86.263 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Provincia | 30d | 39,84% | $86.200 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Galicia | 90d | 39,25% | $85.068 | 2026-06-25 | bcra.gob.ar |
+| plazo_fijo | Banco Nación | 60d | 39,21% | $84.996 | 2026-06-25 | bcra.gob.ar |
 | plazo_fijo | Banc
 …[truncated for the appendix]
 ```

@@ -371,7 +371,7 @@ def write_wiki_page(
         logger.warning("reference sync failed for %s", page_path, exc_info=True)
 
     # Update the main table-of-contents index file (index.md)
-    summary = structured.strip().splitlines()[0].lstrip("# ").strip()[:80] if structured.strip() else title
+    summary = structured.strip().splitlines()[0].lstrip("# ").strip() if structured.strip() else title
     update_index(workspace, page_path, summary, category + "s", language=language)
 
     # Post-save validator checks and fixes (lint + repair). page_path already

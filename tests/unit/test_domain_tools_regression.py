@@ -44,11 +44,11 @@ def _rows(categoria: str, *rows: str) -> str:
 
 
 ADVISORY = (
-    "Para $1,000,000 a ~90 días (ARS), si la tasa actual se mantiene:\n\n"
+    "Para $1.000.000 a ~90 días (ARS), si la tasa actual se mantiene:\n\n"
     "**Alternativas con ganancia estimada** (ordenadas por ganancia)\n\n"
     "| opción | clave | plazo | TEA | ganancia est. | al fecha | fuente |\n"
     "|---|---|---|---|---|---|---|\n"
-    "| plazo_fijo | Banco Credicoop | 90d | 41.84% | $90,000 | 2026-06-25 | bcra.gob.ar |\n\n"
+    "| plazo_fijo | Banco Credicoop | 90d | 41,84% | $90.000 | 2026-06-25 | bcra.gob.ar |\n\n"
     "**Renta variable** (no estimable)\n"
     "| opción | depende de |\n"
     "|---|---|\n"
