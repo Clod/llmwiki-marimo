@@ -11,6 +11,21 @@ from domain.i18n import get_locale
 
 _ENTRY_RE = re.compile(r"^- \[([^\]]+)\]\(([^)]+)\)")
 
+# The longest one-line summary of an index entry, in characters.
+SUMMARY_LIMIT = 80
+
+
+def one_line(text: str, limit: int = SUMMARY_LIMIT) -> str:
+    """`text` on one line, at most `limit` characters. A longer text is cut at the
+    last space before the limit, and ends in "…", so no word is cut in half."""
+    flat = " ".join(text.split())
+    if len(flat) <= limit:
+        return flat
+    cut = flat[:limit]
+    if " " in cut:
+        cut = cut[:cut.rindex(" ")]
+    return cut.rstrip(" ,;:.—-") + "…"
+
 
 def update_index(
     workspace: Path,
@@ -40,7 +55,7 @@ def update_index(
     filename = Path(page_path).name
     title = Path(page_path).stem.replace("-", " ").title()
     link = f"({page_path})"
-    new_entry = f"- [{title}]{link} — {one_line_summary}"
+    new_entry = f"- [{title}]{link} — {one_line(one_line_summary)}"
 
     text = _upsert_entry(text, section, filename, new_entry)
     index_file.write_text(text, encoding="utf-8")

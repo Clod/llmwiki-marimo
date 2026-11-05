@@ -29,7 +29,7 @@ BIG_TABLE_ANSWER = (
     "**Alternativas con ganancia estimada** (ordenadas por ganancia)\n"
     "| opción | clave | plazo | TEA | ganancia est. | al fecha | fuente |\n"
     "|---|---|---|---|---|---|---|\n"
-    "| plazo_fijo | Banco Credicoop | 90d | 41.84% | $90,000 | 2026-06-25 | bcra.gob.ar |\n"
+    "| plazo_fijo | Banco Credicoop | 90d | 41,84% | $90.000 | 2026-06-25 | bcra.gob.ar |\n"
     "> ⚠️ Ganancias nominales...\n"
     "**Renta variable** (no estimable)\n"
     "| opción | depende de |\n| acciones | precio_mercado |"

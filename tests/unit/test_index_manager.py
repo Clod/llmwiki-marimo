@@ -3,7 +3,7 @@
 from pathlib import Path
 
 
-from domain.ingestion.index_manager import update_index
+from domain.ingestion.index_manager import one_line, update_index
 from tests.helpers.workspace import WorkspaceFixture
 
 _INITIAL = "# Wiki Index\n\n## Summaries\n\n## Concepts\n"
@@ -64,3 +64,16 @@ def test_creates_index_if_missing(tmp_path: Path) -> None:
     (workspace / "wiki").mkdir(parents=True)
     update_index(workspace, "summaries/doc.md", "A doc", "summaries")
     assert (workspace / "wiki" / "index.md").exists()
+
+
+def test_a_long_summary_is_cut_at_a_space_and_ends_in_an_ellipsis() -> None:
+    text = "Las acciones locales son fracciones del capital social de empresas argentinas que cotizan en BYMA."
+    assert one_line(text) == "Las acciones locales son fracciones del capital social de empresas argentinas…"
+    assert len(one_line(text)) <= 80
+    assert one_line("Una línea\ncorta") == "Una línea corta"
+
+
+def test_the_index_entry_carries_the_cut_summary(tmp_workspace: WorkspaceFixture) -> None:
+    update_index(tmp_workspace.workspace, "concepts/x.md", "palabra " * 20, "concepts")
+    text = (tmp_workspace.workspace / "wiki" / "index.md").read_text()
+    assert "palabra palabra…" in text and "palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra" not in text

@@ -11,6 +11,18 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Amounts and rates in Argentine notation.** The table of
+  `estimar_alternativas` wrote `$90,000` and `41.84%`, the English notation, in a
+  Spanish table. It now writes `$90.000` and `41,84%`
+  (`base/domain/extensions/finance_argentina/advisory.py`).
+- **The index no longer cuts a word in half.** Each entry of `wiki/index.md`
+  carried the first 80 characters of its summary, so it could end in «empresas
+  argentinas qu». `update_index` (`base/domain/ingestion/index_manager.py`) now
+  cuts at the last space before 80 characters and ends in «…». The indexes of
+  the three demos are rewritten the same way.
+
 ## [0.6.2] - 2026-11-04
 
 ### Fixed

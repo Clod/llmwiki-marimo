@@ -246,6 +246,16 @@ def _rate_as_decimal(valor: float, unidad: str) -> float:
     return valor
 
 
+def _pesos(amount: float) -> str:
+    """An amount in the Argentine notation: a point between thousands, no decimals."""
+    return "$" + f"{amount:,.0f}".replace(",", ".")
+
+
+def _percent(rate: float) -> str:
+    """A rate as a percentage in the Argentine notation, with a decimal comma."""
+    return f"{rate * 100:.2f}".replace(".", ",") + "%"
+
+
 def render_markdown(result: AdvisoryResult) -> str:
     """Render an `AdvisoryResult` as the two-section cited markdown comparison.
 
@@ -254,7 +264,7 @@ def render_markdown(result: AdvisoryResult) -> str:
     clave/term/TEA/gain/as_of/fuente or depende_de as appropriate.
     """
     lines = [
-        f"Para ${result.amount:,.0f} a ~{result.horizon_days} días ({result.moneda}), "
+        f"Para {_pesos(result.amount)} a ~{result.horizon_days} días ({result.moneda}), "
         "si la tasa actual se mantiene:",
         "",
     ]
@@ -273,7 +283,7 @@ def render_markdown(result: AdvisoryResult) -> str:
         for opt in result.ranked:
             lines.append(
                 f"| {opt.categoria} | {opt.clave} | {opt.term_label} | "
-                f"{opt.tea * 100:.2f}% | ${opt.gain:,.0f} | {opt.as_of} | {opt.fuente} |"
+                f"{_percent(opt.tea)} | {_pesos(opt.gain)} | {opt.as_of} | {opt.fuente} |"
             )
         lines.append("")
         lines.append(
