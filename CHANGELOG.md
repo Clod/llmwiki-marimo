@@ -11,6 +11,32 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-11-06
+
+### Fixed
+
+Four defects found reviewing the web interface for the workshop (#76).
+
+- **The folder dialog follows the path written in the field.** A path pasted in
+  «Abrir una carpeta» without pressing «Ir» left «Esta carpeta es una wiki.» and
+  «Abrir esta carpeta» on the folder shown before, and the button opened that
+  folder. The field now updates the panel half a second after the last key; a
+  path that is not a folder keeps the typed text, shows the nearest existing
+  folder and offers no button to open or create (`web/routes/picker.py`,
+  `web/templates/_browse_panel.html`).
+- **The token line names the turn and the conversation.** «9.640 / 9.640
+  tokens» was read as input and output. It now reads «turno: 9.640 tokens
+  (entrada 8.976, salida 664) · conversación: 9.640 tokens»
+  (`web/templates/_chat_meta.html`).
+- **The pages a refusal suggests are not shown as cited.** The line under the
+  answer took the first page links of the answer, which were the suggestions of
+  the refusal (`refusal.suggestions_start`, `web/routes/chat.py`).
+- **A refusal suggests only the pages whose title matches the question.**
+  «¿Cuál es la capital de Francia?» suggested three pages whose text says
+  "capital". The search suggestions now keep the concept pages whose title shares
+  a stem with the question, stop words excluded; the index line is a link to
+  `index.md` (`base/domain/chat/refusal.py`).
+
 ## [0.6.4] - 2026-11-06
 
 ### Fixed
@@ -1238,7 +1264,8 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.4...master
+[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.5...master
+[0.6.5]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.1...v0.6.2
