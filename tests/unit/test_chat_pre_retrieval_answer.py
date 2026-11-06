@@ -143,7 +143,9 @@ def test_data_question_invokes_tools_only_no_context(monkeypatch):
     out = _answer("¿a cuánto está el billete verde?", agent, wiki=[], docs=[],
                   vocab={"dolar"}, monkeypatch=monkeypatch)
     assert "1180" in out
-    assert agent.calls[0] == "¿a cuánto está el billete verde?"  # no context prepended
+    # No page is injected; only the line that names the alias goes before the question.
+    assert agent.calls[0] == ("Sinónimos de esta wiki que usa la pregunta: «billete verde» es "
+                              "otro nombre de «dolar».\n\n¿a cuánto está el billete verde?")
 
 
 def test_collection_question_injects_overview_context(monkeypatch):

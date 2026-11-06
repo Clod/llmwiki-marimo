@@ -22,6 +22,9 @@ _CITATION_LINE = re.compile(
     r"^[\s>*_\-]*(referencias?|fuentes?|sources?|references?)"
     r"(\s+(según|according to)\b[^:\n]*)?\s*[*_]*\s*:", re.IGNORECASE,
 )
+# The note of the injected pages when the answer has a reference line
+# (`postprocess._INJECTED_EXTRA`): a line the code wrote, like a citation line.
+_INJECTED_EXTRA = re.compile(r"^(además, el modelo recibió|in addition, the model received)\b", re.IGNORECASE)
 # The line `offer_available_keys` appends: "Datos disponibles en `x` (y): ...".
 _KEY_OFFER = re.compile(r"^(datos disponibles en|data available in)\s+`", re.IGNORECASE)
 # The Tier-2 warning of `domain.i18n`, in Spanish and in English.
@@ -74,12 +77,14 @@ def is_checkable(sentence: Sentence, answer: str, spans: list[tuple[int, int]]) 
     text = sentence.text.strip()
     if _in_spans(sentence, spans):
         return False
-    if _CITATION_LINE.match(text) or _KEY_OFFER.match(text) or _TIER2_WARNING.match(text):
+    if (_CITATION_LINE.match(text) or _INJECTED_EXTRA.match(text) or _KEY_OFFER.match(text)
+            or _TIER2_WARNING.match(text)):
         return False
     # A citation line the code wrote can hold several sentences (the note of the
     # injected pages, `postprocess.mark_injected`): each one is skipped.
     line_start = answer.rfind("\n", 0, sentence.start) + 1
-    if _CITATION_LINE.match(answer[line_start:sentence.start]):
+    line_head = answer[line_start:sentence.start]
+    if _CITATION_LINE.match(line_head) or _INJECTED_EXTRA.match(line_head):
         return False
     plain = plain_text(text)
     if plain.lower().rstrip(".") in {f.rstrip(".") for f in _FIXED} or refusal.is_refusal(plain):

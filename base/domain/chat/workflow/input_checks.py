@@ -195,7 +195,12 @@ async def source_search(ctx: Ctx) -> PreRetrievalTurn:
 async def collection_pages(ctx: Ctx) -> PreRetrievalTurn:
     """A collection-shaped question ("what tales are in this wiki?") reads the
     overview and the index from disk; node Q9 of `plan_retrieval` decides on them.
-    Empty when the wiki has neither page."""
+    Empty when the wiki has neither page.
+
+    A question that names no topic is in the roster only because of the open page
+    (node Q5a), and node Q7 answers it from the wiki pages before node Q9 runs.
+    So the collection pages are added after the open page: with the overview open,
+    "what is in this wiki?" still gets the index."""
     turn = ctx.state
     turn.collection_hits = (
         preretrieval.retrieve_collection_pages(turn.workspace)
@@ -203,6 +208,12 @@ async def collection_pages(ctx: Ctx) -> PreRetrievalTurn:
             turn.search, preretrieval.intent_lists(turn).collection, preretrieval.intent_lists(turn).language,
         ) else []
     )
+    if turn.open_block is not None and not turn.matched and turn.collection_hits:
+        # The open page is labelled `/wiki/overview.md`, a collection page `wiki/overview.md`.
+        labels = {label.lstrip("/") for label in preretrieval._hit_labels(turn.wiki_hits)}
+        turn.wiki_hits = turn.wiki_hits + [
+            h for h in turn.collection_hits if preretrieval._hit_labels([h])[0].lstrip("/") not in labels
+        ]
     return turn
 
 

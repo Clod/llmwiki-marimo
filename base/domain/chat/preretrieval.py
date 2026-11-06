@@ -171,6 +171,27 @@ def alias_titles(topics: Iterable[str], data_aliases: dict[str, list[str]]) -> l
     return list(dict.fromkeys(names.get(_normalize(topic), topic) for topic in topics))
 
 
+# The line that tells the model which aliases of the question the search replaced,
+# per content language. Without it, "¿qué es el billete verde?" gets the pages of the
+# dollar and no text that says "billete verde" is the dollar.
+_SYNONYMS = {
+    "es": ("Sinónimos de esta wiki que usa la pregunta: {pairs}.", "«{alias}» es otro nombre de «{name}»"),
+    "en": ("Synonyms of this wiki that the question uses: {pairs}.", '"{alias}" is another name for "{name}"'),
+}
+
+
+def synonyms_line(matched: Iterable[str], data_aliases: dict[str, list[str]],
+                  language: str | None) -> str:
+    """The line that names each alias in `matched` with the name it stands for, or ""
+    when the question names no alias."""
+    names = {_normalize(alias): (alias, name) for name, aliases in data_aliases.items() for alias in aliases}
+    pairs = [names[_normalize(term)] for term in matched if _normalize(term) in names]
+    if not pairs:
+        return ""
+    line, pair = _SYNONYMS.get((language or "es").lower(), _SYNONYMS["en"])
+    return line.format(pairs="; ".join(pair.format(alias=a, name=n) for a, n in dict.fromkeys(pairs)))
+
+
 def retrieve_source_chunks(
     db_path: str, query: str, *, limit: int = 4, language: str | None = None
 ) -> list[str]:
@@ -712,10 +733,12 @@ async def _pre_retrieval_turn(
 
     plan = turn.plan
     asked = with_open_page(question, open_page if turn.open_block is not None else None, language)
-    prompt = (
-        load_prompt("inject_template", language).format(context=plan.context, question=asked)
-        if plan.context else asked
-    )
+    synonyms = synonyms_line(turn.matched, config.data_aliases, language)
+    if plan.context:
+        context = f"{synonyms}\n\n{plan.context}" if synonyms else plan.context
+        prompt = load_prompt("inject_template", language).format(context=context, question=asked)
+    else:
+        prompt = f"{synonyms}\n\n{asked}" if synonyms else asked
     if on_context is not None:
         on_context([context_passage(block) for block in plan.blocks])
     with tracing.node(
