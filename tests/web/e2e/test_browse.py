@@ -92,6 +92,7 @@ def test_a_pasted_path_opens_without_go(page, live, tmp_path):
     page.goto(f"{live.url}/")
     page.get_by_role("button", name="Abrir otra carpeta…").click()
     dialog = page.locator("dialog.browse")
+    settled(page, "Abrir una carpeta")          # htmx binds the field's trigger once the dialog settles
     field = dialog.get_by_label("Carpeta que se muestra")
     field.fill(str(folder) + "x")                                   # a path that does not exist yet
     settled(page, "No hay una carpeta en esa ruta.")
