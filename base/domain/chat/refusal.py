@@ -138,9 +138,19 @@ _SUGGEST = {
     "es": "Estas páginas tratan temas potencialmente relacionados:",
     "en": "These pages cover potentially related topics:",
 }
+
+
+def suggestions_start(text: str) -> int:
+    """Where the suggested pages or the link to the index begin in `text`, or `len(text)`
+    when there are none. Both are links, and they are not pages the answer cites."""
+    heads = [head.rstrip(":") for head in _SUGGEST.values()] + [line.split("[")[0] for line in _INDEX.values()]
+    starts = [text.find(head) for head in heads]
+    return min((at for at in starts if at >= 0), default=len(text))
+
+
 _INDEX = {
-    "es": "Podés ver todos los temas en el índice de la wiki, en la pestaña de lectura.",
-    "en": "You can see every topic in the wiki's index, in the Read tab.",
+    "es": "Podés ver todos los temas en el [índice de la wiki](/wiki/index.md).",
+    "en": "You can see every topic in the [wiki's index](/wiki/index.md).",
 }
 
 
@@ -227,7 +237,8 @@ def order_suggestions(
 
 
 def search_suggestions(db_path: str, question: str, language: str | None) -> list[tuple[str, str]]:
-    """Suggestions from the index search with the question (causes 2a, 4, 5)."""
+    """Suggestions from the index search with the question (causes 2a, 4, 5): the concept
+    pages found whose title shares a stem with a word of the question."""
     from domain.chat.preretrieval import _fts_query
     from domain.tools.search import search_chunks
 
@@ -236,7 +247,24 @@ def search_suggestions(db_path: str, question: str, language: str | None) -> lis
     )
     pages = [(row.get("title") or "", f"{row.get('path') or ''}{row.get('filename') or ''}")
              for row in rows]
-    return order_suggestions(pages, question, language)
+    # Only a concept page whose title shares a stem with the question: a page found by a
+    # word of its text is not related. "¿Cuál es la capital de Francia?" found the pages
+    # that say "capital"; with no such title, the refusal offers the index.
+    lang = language or "en"
+    question_stems = _content_stems(question, lang)
+    titled = [(title, path) for title, path in pages
+              if "/summaries/" not in path and question_stems & _content_stems(title, lang)]
+    return order_suggestions(titled, question, language)
+
+
+def _content_stems(text: str, language: str) -> set[str]:
+    """The stems of `text` without its stop words: "Coeficiente de Estabilización" and
+    "¿Cuál es la capital de Francia?" share only "de", which is no shared topic."""
+    from domain.text.stemming import stem_text
+    from domain.text.stopwords import stopwords
+
+    skip = stopwords(language)
+    return {stem for stem in stem_text(text, language).split() if stem not in skip}
 
 
 def roster_suggestions(

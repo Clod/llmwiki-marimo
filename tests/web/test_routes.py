@@ -140,11 +140,27 @@ def test_the_browser_says_whether_the_folder_shown_is_a_wiki(client, wiki, tmp_p
     assert "todavía no tiene una wiki" in client.get("/browse/panel", params={"path": str(tmp_path)}).text
 
 
-def test_the_browser_falls_back_to_the_home_with_the_reason(client, settings, tmp_path):
-    for path, reason in [("some/folder", "Escribí una ruta absoluta."),
-                         (str(tmp_path / "missing"), "No hay una carpeta en esa ruta.")]:
+def _field(html):
+    return re.search(r'id="browse-path-field" name="path" value="([^"]*)"', html).group(1)
+
+
+def test_a_bad_path_keeps_the_typed_text_shows_the_reason_and_opens_nothing(client, settings, tmp_path):
+    # The field updates the panel while the user types: a half-written path stays as typed.
+    shown = tmp_path.resolve()
+    for path, reason, folder in [("some/folder", "Escribí una ruta absoluta.", settings.wiki_home.resolve()),
+                                 (str(tmp_path / "miss"), "No hay una carpeta en esa ruta.", shown)]:
         html = client.get("/browse/panel", params={"path": path}).text
-        assert reason in html and f'name="path" value="{settings.wiki_home.resolve()}"' in html
+        assert reason in html and _field(html) == path
+        assert f'<input type="hidden" name="path" value="{folder}">' in html     # the list shows the nearest folder
+        assert ">Abrir esta carpeta<" not in html and "Crear una wiki aquí…" not in html
+        assert "Esta carpeta es una wiki." not in html and "todavía no tiene una wiki" not in html
+
+
+def test_the_field_updates_the_panel_while_the_user_types(client, wiki):
+    html = client.get("/browse/panel", params={"path": str(wiki.path)}).text
+    field = html[html.index('id="browse-path-field"'):].split(">")[0]
+    assert 'hx-get="/browse/panel"' in field and 'hx-trigger="input changed delay:500ms"' in field
+    assert _field(html) == str(wiki.path) and ">Abrir esta carpeta<" in html
 
 
 def test_the_browser_creates_a_folder_and_shows_it(client, tmp_path):

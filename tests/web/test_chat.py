@@ -358,18 +358,18 @@ def test_the_meta_line_ends_with_the_tokens_of_the_turn_and_of_the_conversation(
     agents.agent_pre_retrieval.output = "Cinderella lost a glass slipper (Referencia: wiki/concepts/cinderella.md)."
     agents.agent_pre_retrieval.tokens = (3877, 40)
     first = meta_of(stream(client, ask(client)))
-    assert first.endswith('· <span class="tokens" title="entrada 3.877 · salida 40">3.917 / 3.917 tokens</span>')
+    assert first.endswith('turno: 3.917 tokens (entrada 3.877, salida 40) · conversación: 3.917 tokens</span>')
     agents.agent_pre_retrieval.tokens = (8500, 63)
     second = meta_of(stream(client, ask(client, "And the prince?")))
-    assert second.endswith('title="entrada 8.500 · salida 63">8.563 / 12.480 tokens</span>')
+    assert second.endswith('turno: 8.563 tokens (entrada 8.500, salida 63) · conversación: 12.480 tokens</span>')
     thread = client.get(f"/w/{WIKI_ID}/chat/c1/thread").text
-    assert "3.917 / 3.917 tokens" in thread and "8.563 / 12.480 tokens" in thread
+    assert "conversación: 3.917 tokens" in thread and "conversación: 12.480 tokens" in thread
 
 
 def test_the_tokens_use_the_separator_of_the_interface_language(en_client, agents):
     agents.agent.tokens = (3877, 40)
     meta = meta_of(stream(en_client, ask(en_client, mode="strict")))
-    assert '<span class="tokens" title="input 3,877 · output 40">3,917 / 3,917 tokens</span>' in meta
+    assert 'turn: 3,917 tokens (input 3,877, output 40) · conversation: 3,917 tokens</span>' in meta
 
 
 def test_a_refusal_before_the_model_shows_zero_tokens_and_the_running_total(client, agents):
@@ -377,10 +377,38 @@ def test_a_refusal_before_the_model_shows_zero_tokens_and_the_running_total(clie
     agents.agent_pre_retrieval.tokens = (900, 100)
     stream(client, ask(client))
     meta = meta_of(stream(client, ask(client, "Will it rain tomorrow in Rosario?")))
-    assert 'title="entrada 0 · salida 0">0 / 1.000 tokens</span>' in meta
+    assert 'turno: 0 tokens (entrada 0, salida 0) · conversación: 1.000 tokens</span>' in meta
 
 
 def test_the_streaming_mode_reports_its_tokens(client, agents):
     agents.agent.tokens = (1200, 30)
     events = stream(client, ask(client, mode="streaming"))
-    assert "1.230 / 1.230 tokens" in meta_of([events[-2]])
+    assert "turno: 1.230 tokens (entrada 1.200, salida 30)" in meta_of([events[-2]])
+
+
+def test_the_pages_a_refusal_suggests_are_not_shown_as_cited(client):
+    from web.render import render_markdown
+    from web.routes.chat import answer_meta
+    from web.state import Message
+    pages = {"concepts/cinderella", "concepts/snow-white"}
+    for header in ("Estas páginas tratan temas potencialmente relacionados. Si alguna corresponde a tu "
+                   "consulta, reformulá la pregunta usando su título:",
+                   "These pages cover potentially related topics:"):
+        refusal = (f"No recibí de la wiki información relacionada con esta pregunta.\n\n{header}\n\n"
+                   "- [Cinderella](/wiki/concepts/cinderella.md)\n- [Snow White](/wiki/concepts/snow-white.md)")
+        rendered = render_markdown(WIKI_ID, refusal, None, pages)
+        assert "/pages/concepts/cinderella" in rendered          # the suggestions are links
+        meta = answer_meta(client.app.state.templates, WIKI_ID, Message("assistant", refusal, "pre-retrieval"),
+                           rendered, 0)
+        assert "/pages/" not in meta
+    only_index = ("No recibí de la wiki información relacionada con esta pregunta.\n\n"
+                  "Podés ver todos los temas en el [índice de la wiki](/wiki/index.md).")
+    rendered = render_markdown(WIKI_ID, only_index, None, pages | {"index"})
+    assert "/pages/index" in rendered                            # the index is a link
+    meta = answer_meta(client.app.state.templates, WIKI_ID, Message("assistant", only_index, "pre-retrieval"),
+                       rendered, 0)
+    assert "/pages/" not in meta
+    cited = "Cinderella lost a slipper.\n\nReferencia: wiki/concepts/cinderella.md"
+    meta = answer_meta(client.app.state.templates, WIKI_ID, Message("assistant", cited, "pre-retrieval"),
+                       render_markdown(WIKI_ID, cited, None, pages), 0)
+    assert "/pages/concepts/cinderella" in meta

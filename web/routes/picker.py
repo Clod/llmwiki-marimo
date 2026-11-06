@@ -70,11 +70,15 @@ def browse_listing(raw: str, fallback: Path) -> dict:
 
     The listing holds the subfolders of the folder, hidden ones left out, each marked
     when it looks like a wiki (``is_wiki_dir``). A path that is not an existing absolute
-    folder falls back to ``fallback`` and carries the reason.
+    folder carries the reason in ``error``, sets ``bad_path`` and shows the nearest
+    existing folder above it, or ``fallback`` for a relative path. ``field`` is the text
+    of the path field: the typed text, unchanged. The field updates the panel while the
+    user types, so the panel must not rewrite a half-written path.
     """
     folder, error = check_folder(raw)
+    bad_path = folder is None
     if folder is None:
-        folder = fallback.expanduser().resolve()
+        folder = _nearest_folder(raw.strip()) or fallback.expanduser().resolve()
     dirs: list[dict] = []
     try:
         children = sorted((c for c in folder.iterdir() if c.is_dir() and not c.name.startswith(".")),
@@ -84,7 +88,19 @@ def browse_listing(raw: str, fallback: Path) -> dict:
         error = error or _("The folder cannot be read.")
     parent = folder.parent if folder.parent != folder else None
     return {"path": str(folder), "parent": str(parent) if parent else "", "dirs": dirs,
-            "is_wiki": is_wiki_dir(folder), "error": error}
+            "is_wiki": is_wiki_dir(folder), "error": error, "bad_path": bad_path,
+            "field": raw.strip() or str(folder)}
+
+
+def _nearest_folder(text: str) -> Path | None:
+    """The deepest existing folder above the absolute path ``text``, or None."""
+    path = Path(text).expanduser()
+    if not text or not path.is_absolute():
+        return None
+    for folder in path.parents:
+        if folder.is_dir():
+            return folder.resolve()
+    return None
 
 
 def new_folder_error(parent: Path, name: str) -> str:

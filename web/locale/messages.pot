@@ -954,13 +954,12 @@ msgid "Open the page cited in the answer"
 msgstr ""
 
 #: web/templates/_chat_meta.html
-#, python-format
-msgid "input %(input)s · output %(output)s"
+msgid "The tokens the model used in this answer, and in the whole conversation up to this answer"
 msgstr ""
 
 #: web/templates/_chat_meta.html
 #, python-format
-msgid "%(turn)s / %(conversation)s tokens"
+msgid "turn: %(turn)s tokens (input %(input)s, output %(output)s) · conversation: %(conversation)s tokens"
 msgstr ""
 
 #: web/templates/_dataset_dialog.html

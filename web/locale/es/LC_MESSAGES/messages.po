@@ -957,14 +957,13 @@ msgid "Open the page cited in the answer"
 msgstr "Abrir la página citada en la respuesta"
 
 #: web/templates/_chat_meta.html
-#, python-format
-msgid "input %(input)s · output %(output)s"
-msgstr "entrada %(input)s · salida %(output)s"
+msgid "The tokens the model used in this answer, and in the whole conversation up to this answer"
+msgstr "Los tokens que usó el modelo en esta respuesta, y en toda la conversación hasta esta respuesta"
 
 #: web/templates/_chat_meta.html
 #, python-format
-msgid "%(turn)s / %(conversation)s tokens"
-msgstr "%(turn)s / %(conversation)s tokens"
+msgid "turn: %(turn)s tokens (input %(input)s, output %(output)s) · conversation: %(conversation)s tokens"
+msgstr "turno: %(turn)s tokens (entrada %(input)s, salida %(output)s) · conversación: %(conversation)s tokens"
 
 #: web/templates/_dataset_dialog.html
 #, python-format
@@ -2493,8 +2492,8 @@ msgid ""
 "The No verification mode does not check the answer. Choose Pre-retrieval or Agent with evidence check to verify the "
 "sentences"
 msgstr ""
-"El modo «Sin verificación» no comprueba la respuesta. Elegí «Recuperación previa» o «Agente con comprobación "
-"de evidencia» para verificar las oraciones"
+"El modo «Sin verificación» no comprueba la respuesta. Elegí «Recuperación previa» o «Agente con comprobación de "
+"evidencia» para verificar las oraciones"
 
 #: web/templates/page.html
 msgid "Verify the sentences"
@@ -2903,4 +2902,10 @@ msgstr "Funciones de cálculo"
 #~ msgstr ""
 #~ "El modo «Sin verificación» no comprueba la respuesta. Elegí "
 #~ "«Recuperación previa» o «Estricto» para verificar las oraciones"
+
+#~ msgid "input %(input)s · output %(output)s"
+#~ msgstr "entrada %(input)s · salida %(output)s"
+
+#~ msgid "%(turn)s / %(conversation)s tokens"
+#~ msgstr "%(turn)s / %(conversation)s tokens"
 
