@@ -82,3 +82,24 @@ def test_remove_from_the_list_takes_a_recent_wiki_out_of_the_picker(page, live, 
     expect(page).to_have_url(f"{live.url}/")
     expect(page.locator('a[href="/w/reciente/"]')).to_have_count(0)
     assert (folder / "wiki").is_dir()
+
+
+def test_a_pasted_path_opens_without_go(page, live, tmp_path):
+    # The field updates the panel by itself: pasting the path and pressing «Abrir esta
+    # carpeta» opens that folder, not the one the list showed before.
+    folder = tmp_path / "pegada"
+    (folder / "wiki").mkdir(parents=True)
+    page.goto(f"{live.url}/")
+    page.get_by_role("button", name="Abrir otra carpeta…").click()
+    dialog = page.locator("dialog.browse")
+    field = dialog.get_by_label("Carpeta que se muestra")
+    field.fill(str(folder) + "x")                                   # a path that does not exist yet
+    settled(page, "No hay una carpeta en esa ruta.")
+    expect(field).to_have_value(str(folder) + "x")                  # the half-written path stays
+    expect(field).to_be_focused()
+    expect(dialog.get_by_role("button", name="Abrir esta carpeta")).to_have_count(0)
+    field.press("Backspace")
+    settled(page, "Esta carpeta es una wiki.")
+    expect(field).to_have_value(str(folder))
+    dialog.get_by_role("button", name="Abrir esta carpeta").click()
+    expect(page).to_have_url(f"{live.url}/w/pegada/ingest")

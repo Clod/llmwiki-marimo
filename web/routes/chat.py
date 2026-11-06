@@ -14,6 +14,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from domain.chat.config import DEFAULT_VERIFY_THRESHOLD, load_config
 from domain.chat.postprocess import injected_pages, resolve_injected
+from domain.chat.refusal import suggestions_start
 from domain.datasets.frontmatter import split_frontmatter
 from domain.verify import verify_answer
 from services import chat as chat_service
@@ -36,8 +37,9 @@ def answer_meta(templates: Jinja2Templates, wiki_id: str, message: Message, rend
                 conversation_tokens: int) -> str:
     """The muted line under an answer: the mode that produced it, the pages it cites, as
     links (the first `MAX_CITED`, in the order the answer names them), and the tokens of
-    the turn and of the conversation up to this answer."""
-    cited = list(dict.fromkeys(_PAGE_LINK.findall(rendered)))[:MAX_CITED]
+    the turn and of the conversation up to this answer. The pages a refusal suggests are
+    links too, and they are not cited: the search stops where the suggestions begin."""
+    cited = list(dict.fromkeys(_PAGE_LINK.findall(rendered[:suggestions_start(rendered)])))[:MAX_CITED]
     tokens = {"input": format_number(message.input_tokens), "output": format_number(message.output_tokens),
               "turn": format_number(message.tokens), "conversation": format_number(conversation_tokens)}
     return templates.get_template("_chat_meta.html").render(

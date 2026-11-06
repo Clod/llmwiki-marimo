@@ -88,14 +88,14 @@ def test_not_in_roster_always_points_to_the_wiki_index():
     text = render(Refusal(RefusalCause.NOT_IN_ROSTER, suggestions=PAGES), "es")
     assert text.startswith("No recibí de la wiki información relacionada con esta pregunta.")
     assert "no nombra" not in text
-    assert text.endswith("Podés ver todos los temas en el índice de la wiki, en la pestaña de lectura.")
+    assert text.endswith("Podés ver todos los temas en el [índice de la wiki](/wiki/index.md).")
 
 
 def test_no_page_points_to_the_wiki_index():
     assert render(Refusal(RefusalCause.NOT_IN_ROSTER), "es").endswith(
-        "Podés ver todos los temas en el índice de la wiki, en la pestaña de lectura.")
+        "Podés ver todos los temas en el [índice de la wiki](/wiki/index.md).")
     assert render(Refusal(RefusalCause.UNGROUNDED), "en").endswith(
-        "You can see every topic in the wiki's index, in the Read tab.")
+        "You can see every topic in the [wiki's index](/wiki/index.md).")
 
 
 def test_model_refusal_keeps_the_model_text_and_adds_the_suggestions():
@@ -217,3 +217,21 @@ def test_the_model_refusal_says_what_the_model_received_not_what_the_wiki_holds(
     text = render(Refusal(RefusalCause.MODEL), "es")
     assert "El modelo no encontró la respuesta en el texto que recibió de la wiki." in text
     assert "documentos de esta wiki" not in text
+
+
+def test_the_search_suggests_only_pages_whose_title_shares_a_stem_with_the_question(monkeypatch):
+    """A page found by a word of its text is not related: «¿Cuál es la capital de Francia?»
+    found pages that say "capital". With no such title the refusal offers only the index."""
+    from domain.chat import refusal as module
+    from domain.tools import search
+    rows = [{"title": "Bonos CER/UVA", "path": "/wiki/concepts/", "filename": "bonos-ceruva.md"},
+            {"title": "Coeficiente de Estabilización de Referencia", "path": "/wiki/concepts/",
+             "filename": "coeficiente-de-estabilizacion-de-referencia.md"},     # shares only "de"
+            {"title": "FCI Money Market", "path": "/wiki/concepts/", "filename": "fci-money-market.md"},
+            {"title": "07 FCI Money Market", "path": "/wiki/summaries/", "filename": "07-fci-money-market.md"}]
+    monkeypatch.setattr(search, "search_chunks", lambda *a, **k: rows)
+    assert module.search_suggestions("db", "¿Qué es un FCI?", "es") == [
+        ("FCI Money Market", "/wiki/concepts/fci-money-market.md")]
+    assert module.search_suggestions("db", "¿Cuál es la capital de Francia?", "es") == []
+    text = render(Refusal(RefusalCause.NOT_IN_ROSTER), "es")
+    assert "potencialmente relacionados" not in text and text.endswith("[índice de la wiki](/wiki/index.md).")
