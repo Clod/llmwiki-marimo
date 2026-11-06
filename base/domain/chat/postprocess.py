@@ -201,6 +201,16 @@ def deliberate_sources(messages: list[ModelMessage]) -> tuple[list[str], list[st
     return _dedupe(references), _dedupe(fuentes)
 
 
+# A citation the answer already has: the label, anywhere in the text, followed by a
+# file name ("Referencia: dolar.md", "... en Referencia: datasets/dolar.md"). The word
+# alone is not a citation: "Cotización de referencia: los valores pueden cambiar".
+_REFERENCE_CITED = re.compile(
+    r"\b(referencias?|references?)\b[^:\n]{0,40}?[*_]*\s*:\s*[*_`\[]*[^\s,;)]+\.(md|docx?|pdf|txt|csv)\b",
+    re.IGNORECASE,
+)
+_FUENTE_LABEL = re.compile(r"\b(fuentes?|sources?)\b[*_]*\s*:", re.IGNORECASE)
+
+
 def ensure_citation(
     answer: str,
     messages: list[ModelMessage],
@@ -214,8 +224,9 @@ def ensure_citation(
 
     Each label is decided independently, so a dólar answer that already mentions
     its origin inline still gets its dataset `Referencia:` added. No-op when the
-    answer already carries that kind of attribution (the word, or a named source
-    — including an advisory table's `fuente` column) and on refusals.
+    answer already carries that kind of attribution (the label with a file name or a
+    colon, or a named source — including an advisory table's `fuente` column) and on
+    refusals.
 
     `extra_references` / `extra_fuentes` cite dataset rows the code injected
     into the context itself (pre-retrieval Tier 1, decision 16): those rows
@@ -225,9 +236,8 @@ def ensure_citation(
     fuentes = _dedupe([*fuentes, *extra_fuentes])
     if not references and not fuentes:
         return answer
-    low = answer.lower()
-    add_fuentes = [] if ("fuente" in low or any(f in answer for f in fuentes)) else fuentes
-    add_refs = [] if ("referencia" in low or any(r in answer for r in references)) else references
+    add_fuentes = [] if (_FUENTE_LABEL.search(answer) or any(f in answer for f in fuentes)) else fuentes
+    add_refs = [] if (_REFERENCE_CITED.search(answer) or any(r in answer for r in references)) else references
     if not add_fuentes and not add_refs:
         return answer
     lines: list[str] = []
@@ -281,6 +291,18 @@ _INJECTED_NOTE = {
            "Reference: undetermined. The model received these wiki pages: {names}. "
            "Which of them the answer used cannot be determined."),
 }
+# The same note when the answer already has a reference line, for example the
+# `Referencia: dolar.md` of a dataset: "indeterminada" would contradict that line.
+_INJECTED_EXTRA = {
+    "es": ("Además, el modelo recibió esta página de la wiki: {names}. "
+           "No se puede determinar si la respuesta la usó.",
+           "Además, el modelo recibió estas páginas de la wiki: {names}. "
+           "No se puede determinar si la respuesta las usó."),
+    "en": ("In addition, the model received this wiki page: {names}. "
+           "Whether the answer used it cannot be determined.",
+           "In addition, the model received these wiki pages: {names}. "
+           "Whether the answer used them cannot be determined."),
+}
 _VERIFIED_NOTE = {
     "es": ("Referencia según el verificador de oraciones: aparentemente usadas: {used}. "
            "Aparentemente no usadas: {unused}. Una página usada respalda al menos una "
@@ -309,11 +331,15 @@ def injected_pages(passages: Iterable[ContextPassage]) -> list[str]:
 
 def mark_injected(answer: str, pages: list[str], language: str | None) -> str:
     """`answer` with the undetermined-reference note when the code injected wiki
-    `pages` (file names) and the answer names none of them. Otherwise `answer` as
-    it is."""
+    `pages` (file names) and the answer names none of them. When the answer already
+    cites a file, the note opens with "Además" instead of "Referencia:
+    indeterminada". Otherwise `answer` as it is."""
     if not pages or any(page in answer for page in pages):
         return answer
-    note = _INJECTED_NOTE[_lang(language)][len(pages) > 1].format(names=", ".join(pages))
+    # Any file the answer names is a citation: "Fuente: ambito.com (datasets/dolar.md)".
+    cited = _MODEL_REFERENCE.search(answer) or looks_cited(answer)
+    notes = _INJECTED_EXTRA if cited else _INJECTED_NOTE
+    note = notes[_lang(language)][len(pages) > 1].format(names=", ".join(pages))
     return f"{answer.rstrip()}\n\n{note}"
 
 
@@ -337,7 +363,7 @@ def resolve_injected(
         used=", ".join(p for p in pages if p in used) or none,
         unused=", ".join(p for p in pages if p not in used) or none,
     )
-    for variants in _INJECTED_NOTE.values():
+    for variants in (*_INJECTED_NOTE.values(), *_INJECTED_EXTRA.values()):
         old = variants[len(pages) > 1].format(names=", ".join(pages))
         at = answer.find(old)
         if at >= 0:

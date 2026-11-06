@@ -46,12 +46,30 @@ def test_question_without_topic_is_refused_without_an_open_page(demo):
 def test_question_without_topic_is_answered_from_the_open_page(demo):
     answer, prompts = _turn(demo, "¿Cuánto rinde?", "concepts/plazo-fijo-uva")
     assert answer.startswith("Un plazo fijo UVA rinde")
-    assert prompts[0].index("[/wiki/concepts/plazo-fijo-uva.md]") < 200   # injected first
+    assert prompts[0].index("[/wiki/concepts/plazo-fijo-uva.md]") == prompts[0].index("\n[") + 1  # first block
 
 
 def test_a_missing_open_page_changes_nothing(demo):
     answer, _ = _turn(demo, "¿Cuánto rinde?", "concepts/no-existe")
     assert answer.startswith("No recibí de la wiki información relacionada")
+
+
+def test_a_collection_question_on_the_open_overview_also_gets_the_index(demo):
+    _, prompts = _turn(demo, "¿Qué hay en esta wiki?", "overview")
+    assert prompts[0].count("[/wiki/overview.md]") == 1
+    assert "[wiki/overview.md]" not in prompts[0]          # the open page is not repeated
+    assert "[wiki/index.md]" in prompts[0]
+
+
+def test_a_collection_question_on_an_open_concept_page_gets_both_collection_pages(demo):
+    _, prompts = _turn(demo, "¿Qué hay en esta wiki?", "concepts/plazo-fijo-uva")
+    assert prompts[0].index("[/wiki/concepts/plazo-fijo-uva.md]") == prompts[0].index("\n[") + 1  # first block
+    assert "[wiki/overview.md]" in prompts[0] and "[wiki/index.md]" in prompts[0]
+
+
+def test_a_question_without_collection_shape_gets_only_the_open_page(demo):
+    _, prompts = _turn(demo, "¿Cuánto rinde?", "concepts/plazo-fijo-uva")
+    assert "[wiki/overview.md]" not in prompts[0] and "[wiki/index.md]" not in prompts[0]
 
 
 def test_tool_modes_get_the_open_page_as_a_note():

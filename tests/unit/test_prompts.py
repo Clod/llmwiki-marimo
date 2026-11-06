@@ -24,7 +24,8 @@ NAMES = ("system_prompt", "pre_retrieval", "condense", "inject_template", "langu
 
 # The Spanish-only prompts (pre_retrieval, inject_template) had no English text, so an English
 # wiki received them in Spanish. Their English files are now translations (owner, 2026-10-11):
-# OLD keeps only their Spanish text as the reference.
+# OLD keeps only their Spanish text as the reference. inject_template allows the data tools
+# since 2026-11-05: with ONLY the context, a question on a rate was refused at random.
 OLD = (
 {'system_prompt': {'en': 'You are a personal knowledge-base assistant. You answer **only** from '
                          "the user's own wiki and source documents — never from your own "
@@ -171,16 +172,22 @@ OLD = (
                     'conversation does not name. If the question already stands alone, or is about '
                     'another subject, return it unchanged. Return only the question, on one line.'},
  'inject_template': {'en': 'Respondé la pregunta usando EXCLUSIVAMENTE el siguiente contexto '
-                           'recuperado del wiki, citando la fuente. Si el contexto no alcanza para '
-                           'responder, decilo.\n'
+                           'recuperado del wiki y los resultados de las herramientas de datos que '
+                           'llames, citando la fuente. Si la pregunta pide un valor vigente, como '
+                           'una tasa, un precio o una cotización, y el contexto no lo trae, llamá '
+                           'a la herramienta de datos antes de decir que el contexto no alcanza. '
+                           'Si el contexto y las herramientas no alcanzan, decilo.\n'
                            '\n'
                            '{context}\n'
                            '\n'
                            '---\n'
                            'Pregunta: {question}',
                      'es': 'Respondé la pregunta usando EXCLUSIVAMENTE el siguiente contexto '
-                           'recuperado del wiki, citando la fuente. Si el contexto no alcanza para '
-                           'responder, decilo.\n'
+                           'recuperado del wiki y los resultados de las herramientas de datos que '
+                           'llames, citando la fuente. Si la pregunta pide un valor vigente, como '
+                           'una tasa, un precio o una cotización, y el contexto no lo trae, llamá '
+                           'a la herramienta de datos antes de decir que el contexto no alcanza. '
+                           'Si el contexto y las herramientas no alcanzan, decilo.\n'
                            '\n'
                            '{context}\n'
                            '\n'

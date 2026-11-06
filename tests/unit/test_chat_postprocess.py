@@ -338,6 +338,56 @@ def test_an_answer_with_no_note_and_no_reference_line_is_not_changed():
         "Una caución es un préstamo.", [])
 
 
+def test_an_answer_with_a_reference_line_gets_the_note_as_an_addition():
+    from domain.chat.postprocess import mark_injected, resolve_injected
+    answer = mark_injected("El MEP está a $1.185.\n\nReferencia: dolar.md", PAGES, "es")
+    assert answer == (
+        "El MEP está a $1.185.\n\nReferencia: dolar.md\n\nAdemás, el modelo recibió estas "
+        "páginas de la wiki: caucion-bursatil.md, byma.md. No se puede determinar si la "
+        "respuesta las usó."
+    )
+    assert "indeterminada" not in answer
+    assert mark_injected("It is $1,185.\n\nReference: dolar.md", ["byma.md"], "en").endswith(
+        "In addition, the model received this wiki page: byma.md. "
+        "Whether the answer used it cannot be determined.")
+    after, _ = resolve_injected(answer, PAGES, {"byma.md"}, "es")
+    assert "Además" not in after and "Referencia según el verificador de oraciones" in after
+
+
+def test_the_word_referencia_in_the_prose_is_not_a_citation():
+    from pydantic_ai.messages import ModelRequest, ModelResponse, ToolCallPart, ToolReturnPart
+    from domain.chat.postprocess import ensure_citation
+    messages = [
+        ModelResponse(parts=[ToolCallPart(tool_name="query_dataset", args={"categoria": "dolar"},
+                                          tool_call_id="c1")]),
+        ModelRequest(parts=[ToolReturnPart(tool_name="query_dataset", tool_call_id="c1",
+                                           content="**1 dataset row(s)** for categoria='dolar': | MEP | 1185 |")]),
+    ]
+    answer = "El MEP está a $1.185. Cotización de referencia: los valores pueden cambiar."
+    assert ensure_citation(answer, messages, extra_references=["dolar.md"]).endswith("Referencia: dolar.md")
+    cited = "El MEP está a $1.185 (Referencia: dolar.md)."
+    assert ensure_citation(cited, messages, extra_references=["dolar.md"]) == cited
+
+
+def test_a_citation_in_the_middle_of_a_line_gets_the_note_as_an_addition():
+    from domain.chat.postprocess import mark_injected
+    for answer in ("Fuente: ambito.com (datos en Referencia: datasets/dolar.md). Es un dato del día.",
+                   "Fuente: ambito.com (datasets/dolar.md, clave MEP)"):
+        assert mark_injected(answer, PAGES, "es").endswith(
+            "Además, el modelo recibió estas páginas de la wiki: caucion-bursatil.md, byma.md. "
+            "No se puede determinar si la respuesta las usó.")
+    assert "indeterminada" in mark_injected("El MEP está a $1.185.", PAGES, "es")
+
+
+def test_no_sentence_of_the_addition_is_verified():
+    from domain.chat.postprocess import mark_injected
+    from domain.verify.checkable import is_checkable
+    from domain.verify.sentences import split_sentences
+    answer = mark_injected("El MEP está a $1.185.\n\nReferencia: dolar.md", PAGES, "es")
+    checked = [s.text for s in split_sentences(answer) if is_checkable(s, answer, [])]
+    assert checked == ["El MEP está a $1.185."]
+
+
 def test_no_sentence_of_either_note_is_verified():
     from domain.chat.postprocess import mark_injected, resolve_injected
     from domain.verify.checkable import is_checkable

@@ -129,14 +129,14 @@ _OPENING = {
 }
 
 _SUGGEST_REWORD = {
-    "es": ("Estas páginas tratan temas relacionados. Si alguna corresponde a tu "
+    "es": ("Estas páginas tratan temas potencialmente relacionados. Si alguna corresponde a tu "
            "consulta, reformulá la pregunta usando su título:"),
-    "en": ("These pages cover related topics. If one of them matches your "
+    "en": ("These pages cover potentially related topics. If one of them matches your "
            "question, ask again using its title:"),
 }
 _SUGGEST = {
-    "es": "Estas páginas tratan temas relacionados:",
-    "en": "These pages cover related topics:",
+    "es": "Estas páginas tratan temas potencialmente relacionados:",
+    "en": "These pages cover potentially related topics:",
 }
 _INDEX = {
     "es": "Podés ver todos los temas en el índice de la wiki, en la pestaña de lectura.",
