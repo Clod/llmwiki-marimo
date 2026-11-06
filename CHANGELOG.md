@@ -11,6 +11,41 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-11-06
+
+### Fixed
+
+Five defects found asking every question of the workshop notebook to the real
+model in the web interface (#74).
+
+- **A question about the whole wiki keeps the index with a page open.** With
+  `overview.md` open in the reader, «¿qué hay en esta wiki?» got only the
+  overview: the open page put the question in the roster, and node Q7 answered
+  before node Q9 added the collection pages. `collection_pages`
+  (`base/domain/chat/workflow/input_checks.py`) now adds the overview and the
+  index after the open page when the question names no topic.
+- **The injected pages allow the data tools for a current value.** «¿cuánto
+  rinde un plazo fijo tradicional?» was refused at random: the message with the
+  pages asked for only that context, and the system prompt asked for
+  `query_dataset` for a current value. `prompts/inject_template.{es,en}.md` now
+  allows the data tools. Measured with the real model: 1 run of 8 called the
+  rate tool before, 8 of 8 after.
+- **The prompt names the aliases the search replaced.** «¿qué es el billete
+  verde?» gave the model the pages of the dollar and no text saying that
+  «billete verde» is the dollar. `synonyms_line`
+  (`base/domain/chat/preretrieval.py`) names each alias of the question before
+  the context.
+- **A cited answer does not get an undetermined reference.** The dollar quote
+  ended in `Referencia: dolar.md` and `Referencia: indeterminada…`, or in the
+  second line alone. `ensure_citation` now needs the label with a file name, not
+  the word «referencia» anywhere; `mark_injected` writes the note as «Además, el
+  modelo recibió…» when the answer cites a file, and the sentence verifier skips
+  it (`base/domain/chat/postprocess.py`, `base/domain/verify/checkable.py`).
+- **The pages a refusal suggests are potentially related.** They come from a
+  text search: for «¿cuál es la capital de Francia?» they are pages on bonds.
+  The header now says «temas potencialmente relacionados» /
+  «potentially related topics» (`base/domain/chat/refusal.py`).
+
 ## [0.6.3] - 2026-11-04
 
 ### Fixed
@@ -1203,7 +1238,8 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.3...master
+[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.4...master
+[0.6.4]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.0...v0.6.1
