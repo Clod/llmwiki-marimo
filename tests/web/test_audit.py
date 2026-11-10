@@ -26,7 +26,7 @@ def test_the_meta_line_has_no_audit_links(client, agents):
     final = stream(client, ask(client))[0][1]
     meta = re.search(r'<div id="meta-\w+" hx-swap-oob="innerHTML">(.*?)</div>', final, re.S).group(1)
     assert "/audit/" not in meta and "Criterio" not in meta
-    assert meta.startswith("Recuperación previa · ") and "concepts/cinderella" in meta
+    assert meta.startswith("Recuperación previa · ") and "/pages/" not in meta
     thread = client.get(f"/w/{WIKI_ID}/chat/c1/thread").text
     assert thread[:thread.index('<nav id="audit-buttons"')].count("/audit/") == 0   # only the row of buttons
 

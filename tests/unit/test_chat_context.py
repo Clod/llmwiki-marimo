@@ -77,7 +77,7 @@ def test_pre_retrieval_context_holds_the_pages_injected_in_the_prompt(wiki, monk
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper."), [msg("user", "Who is Cinderella?")],
         mode=chat.PRE_RETRIEVAL))
-    assert result.answer.startswith("Cinderella lost a slipper.\n\nReference: undetermined.")
+    assert result.answer.startswith("Cinderella lost a slipper.\n\nReference: the model received this wiki page,")
     assert [p.page for p in result.context] == ["/wiki/concepts/cinderella.md"]
     assert "glass slipper" in result.context[0].text and result.context[0].tool is None
 
@@ -167,7 +167,7 @@ def test_pre_retrieval_sums_the_condensation_and_the_answer(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper.", usage=(200, 20), condenser=condenser), history,
         mode=chat.PRE_RETRIEVAL))
-    assert result.answer.startswith("Cinderella lost a slipper.\n\nReference: undetermined.")
+    assert result.answer.startswith("Cinderella lost a slipper.\n\nReference: the model received this wiki page,")
     assert (result.input_tokens, result.output_tokens) == (300, 25)
 
 

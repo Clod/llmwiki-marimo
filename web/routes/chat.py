@@ -14,7 +14,6 @@ from sse_starlette.sse import EventSourceResponse
 
 from domain.chat.config import DEFAULT_VERIFY_THRESHOLD, load_config
 from domain.chat.postprocess import injected_pages, resolve_injected
-from domain.chat.refusal import suggestions_start
 from domain.datasets.frontmatter import split_frontmatter
 from domain.verify import verify_answer
 from services import chat as chat_service
@@ -28,22 +27,19 @@ router = APIRouter()
 
 MODES = (chat_service.PRE_RETRIEVAL, chat_service.STRICT, chat_service.STREAMING)
 _SAVED_PAGE = re.compile(r"wiki/(\S+)\.md")
-_PAGE_LINK = re.compile(r'href="/w/[^/"]+/pages/([^"#?]+)"')
-MAX_CITED = 3
 _EMPTY_CONVERSATION = N_("There is no answered question to save.")
 
 
-def answer_meta(templates: Jinja2Templates, wiki_id: str, message: Message, rendered: str,
+def answer_meta(templates: Jinja2Templates, wiki_id: str, message: Message,
                 conversation_tokens: int) -> str:
-    """The muted line under an answer: the mode that produced it, the pages it cites, as
-    links (the first `MAX_CITED`, in the order the answer names them), and the tokens of
-    the turn and of the conversation up to this answer. The pages a refusal suggests are
-    links too, and they are not cited: the search stops where the suggestions begin."""
-    cited = list(dict.fromkeys(_PAGE_LINK.findall(rendered[:suggestions_start(rendered)])))[:MAX_CITED]
+    """The muted line under an answer: the mode that produced it, and the tokens of the
+    turn and of the conversation up to this answer. The line names no page: every page
+    the answer names is already a link in the answer, and a list of pages next to the
+    mode read as the pages the mode retrieved."""
     tokens = {"input": format_number(message.input_tokens), "output": format_number(message.output_tokens),
               "turn": format_number(message.tokens), "conversation": format_number(conversation_tokens)}
     return templates.get_template("_chat_meta.html").render(
-        wiki_id=wiki_id, mode_label=MODE_LABELS.get(message.mode, ""), cited=cited, tokens=tokens).strip()
+        mode_label=MODE_LABELS.get(message.mode, ""), tokens=tokens).strip()
 
 
 def conversation_tokens(messages) -> int:
@@ -163,7 +159,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
         conversation.append(answer)
         sources = source_names(entry.wiki)
         rendered = render_markdown(wiki_id, full, None, pages, sources)
-        meta = answer_meta(templates, wiki_id, answer, rendered, conversation_tokens(conversation))
+        meta = answer_meta(templates, wiki_id, answer, conversation_tokens(conversation))
         buttons = audit_buttons(templates, wiki_id, turn.conversation_id, conversation)
         pending = _verify_note(_("Verifying the sentences…")) if result is not None else ""
         yield {"event": "chunk",
@@ -220,7 +216,7 @@ def chat_thread(request: Request, wiki_id: str, conversation_id: str,
             continue
         rendered = render_markdown(wiki_id, m.content, None, pages, sources)
         running += m.tokens
-        meta = answer_meta(templates, wiki_id, m, rendered, running) if m.mode else ""
+        meta = answer_meta(templates, wiki_id, m, running) if m.mode else ""
         messages.append({"role": m.role, "html": rendered, "meta": meta})
     prompts = load_config(entry.wiki.path).suggested_prompts
     thread = templates.get_template("_chat_thread.html").render(

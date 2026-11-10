@@ -278,16 +278,17 @@ def test_an_answer_that_names_no_injected_page_says_it_cannot_tell_which_one_it_
     from domain.chat.postprocess import mark_injected
     answer = mark_injected("Una caución es un préstamo.", PAGES, "es")
     assert answer == (
-        "Una caución es un préstamo.\n\nReferencia: indeterminada. El modelo recibió estas "
-        "páginas de la wiki: caucion-bursatil.md, byma.md. No se puede determinar cuáles usó "
-        "la respuesta."
+        "Una caución es un préstamo.\n\nReferencia: el modelo recibió estas páginas de la "
+        "wiki, y no se puede determinar cuáles usó la respuesta: caucion-bursatil.md, "
+        "byma.md."
     )
 
 
 def test_one_injected_page_is_named_in_the_singular():
     from domain.chat.postprocess import mark_injected
     assert mark_injected("It is a loan.", ["byma.md"], "en").endswith(
-        "The model received this wiki page: byma.md. Whether the answer used it cannot be determined.")
+        "Reference: the model received this wiki page, and whether the answer used it "
+        "cannot be determined: byma.md.")
 
 
 def test_an_answer_that_names_an_injected_page_or_has_none_gets_no_note():
@@ -346,7 +347,7 @@ def test_an_answer_with_a_reference_line_gets_the_note_as_an_addition():
         "páginas de la wiki: caucion-bursatil.md, byma.md. No se puede determinar si la "
         "respuesta las usó."
     )
-    assert "indeterminada" not in answer
+    assert "Referencia: el modelo recibió" not in answer
     assert mark_injected("It is $1,185.\n\nReference: dolar.md", ["byma.md"], "en").endswith(
         "In addition, the model received this wiki page: byma.md. "
         "Whether the answer used it cannot be determined.")
@@ -376,7 +377,7 @@ def test_a_citation_in_the_middle_of_a_line_gets_the_note_as_an_addition():
         assert mark_injected(answer, PAGES, "es").endswith(
             "Además, el modelo recibió estas páginas de la wiki: caucion-bursatil.md, byma.md. "
             "No se puede determinar si la respuesta las usó.")
-    assert "indeterminada" in mark_injected("El MEP está a $1.185.", PAGES, "es")
+    assert "Referencia: el modelo recibió" in mark_injected("El MEP está a $1.185.", PAGES, "es")
 
 
 def test_no_sentence_of_the_addition_is_verified():
@@ -400,3 +401,26 @@ def test_no_sentence_of_either_note_is_verified():
     for answer in (first, second, third):
         checked = [s.text for s in split_sentences(answer) if is_checkable(s, answer, [])]
         assert checked == ["Una caución es un préstamo de corto plazo."]
+
+
+def test_a_reference_line_of_the_model_with_injected_pages_is_labelled_and_completed():
+    # The model cited one of the two pages in its own line: the line is labelled as the
+    # model's, and the note lists both pages the model received.
+    from domain.chat.postprocess import mark_injected
+    answer = mark_injected(
+        "Una caución es un préstamo.\n\nReferencia: wiki/concepts/caucion-bursatil.md", PAGES, "es")
+    assert answer == (
+        "Una caución es un préstamo.\n\nReferencia según el modelo: "
+        "wiki/concepts/caucion-bursatil.md\n\nAdemás, el modelo recibió estas páginas de la "
+        "wiki: caucion-bursatil.md, byma.md. No se puede determinar si la respuesta las usó."
+    )
+
+
+def test_the_verification_replaces_the_note_below_a_labelled_reference_of_the_model():
+    from domain.chat.postprocess import mark_injected, resolve_injected
+    before = mark_injected("Es un préstamo.\n\nReferencia: caucion-bursatil.md", PAGES, "es")
+    after, _ = resolve_injected(before, PAGES, {"caucion-bursatil.md"}, "es")
+    assert after.count("según el modelo") == 1
+    assert "Además" not in after
+    assert after.endswith("Aparentemente no usadas: byma.md. Una página usada respalda al menos "
+                          "una oración de la respuesta.")

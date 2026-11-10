@@ -72,8 +72,8 @@ def test_the_conversation_keeps_the_answer_without_marks(client, app):
 def test_the_verification_splits_the_injected_pages_into_used_and_not_used(client):
     events = stream(client, ask_verified(client))
     first, verification = events[0][1], events[1][1]
-    assert "Reference: undetermined." in first
-    assert "Reference: undetermined." not in verification
+    assert "Reference: the model received" in first
+    assert "Reference: the model received" not in verification
     assert "Reference according to the sentence verifier: apparently used:" in verification
     assert "Apparently not used:" in verification
 
@@ -83,8 +83,11 @@ def test_the_reference_line_of_the_model_is_labelled_and_the_split_follows(setti
     client = TestClient(create_app(settings, agents_factory=lambda wiki: agents, verifier=verifier), cookies=SPANISH)
     events = stream(client, ask_verified(client))
     first, verification = events[0][1], events[1][1]
-    assert "Reference according to the model" not in first
-    assert "Reference according to the model:" in verification
+    # The answer labels the model's line before the verification, with the pages received.
+    assert "Reference according to the model:" in first
+    assert "In addition, the model received these wiki pages:" in first
+    assert verification.count("Reference according to the model:") == 1
+    assert "In addition, the model received" not in verification
     assert "Reference according to the sentence verifier: apparently used:" in verification
     assert f'<mark class="unsupported" title="{UNSUPPORTED_TIP}">{INVENTED}</mark>' in verification
 

@@ -275,24 +275,25 @@ def mark_uncited(answer: str, messages: list[ModelMessage], language: str | None
 
 # The notes of a pre-retrieval answer that names none of the wiki pages the code
 # injected into its prompt. The code knows which pages the model received; it does
-# not know which ones the answer used. The first note says so. The sentence
+# not know which ones the answer used. The first note says so, before the list of
+# pages: what cannot be determined is which page the answer used, not the reference. The sentence
 # verifier, when it runs, replaces it with the second note, which splits the pages
 # by whether they support at least one sentence of the answer. When the model wrote
 # its own reference line, the verifier keeps that line, labels it as the model's,
 # and adds the second note below it. Both notes open like a citation line, for the
 # reason `_UNCITED_NOTE` gives.
 _INJECTED_NOTE = {
-    "es": ("Referencia: indeterminada. El modelo recibió esta página de la wiki: {names}. "
-           "No se puede determinar si la respuesta la usó.",
-           "Referencia: indeterminada. El modelo recibió estas páginas de la wiki: {names}. "
-           "No se puede determinar cuáles usó la respuesta."),
-    "en": ("Reference: undetermined. The model received this wiki page: {names}. "
-           "Whether the answer used it cannot be determined.",
-           "Reference: undetermined. The model received these wiki pages: {names}. "
-           "Which of them the answer used cannot be determined."),
+    "es": ("Referencia: el modelo recibió esta página de la wiki, y no se puede determinar "
+           "si la respuesta la usó: {names}.",
+           "Referencia: el modelo recibió estas páginas de la wiki, y no se puede determinar "
+           "cuáles usó la respuesta: {names}."),
+    "en": ("Reference: the model received this wiki page, and whether the answer used it "
+           "cannot be determined: {names}.",
+           "Reference: the model received these wiki pages, and which of them the answer "
+           "used cannot be determined: {names}."),
 }
 # The same note when the answer already has a reference line, for example the
-# `Referencia: dolar.md` of a dataset: "indeterminada" would contradict that line.
+# `Referencia: dolar.md` of a dataset: a second "Referencia:" line would contradict it.
 _INJECTED_EXTRA = {
     "es": ("Además, el modelo recibió esta página de la wiki: {names}. "
            "No se puede determinar si la respuesta la usó.",
@@ -329,12 +330,39 @@ def injected_pages(passages: Iterable[ContextPassage]) -> list[str]:
                     if p.tool is None and p.page.lstrip("/").startswith("wiki/")])
 
 
+def _model_reference_line(answer: str, pages: list[str]) -> tuple[int, int] | None:
+    """Where the label ends and where the line ends, in the first reference line of
+    `answer` that names one of the injected `pages`; None when no such line exists.
+
+    In pre-retrieval the model has no wiki tools, so `ensure_citation` never cites an
+    injected page: a reference line that names one was written by the model."""
+    for match in _MODEL_REFERENCE.finditer(answer):
+        line_end = answer.find("\n", match.end(1))
+        line_end = len(answer) if line_end < 0 else line_end
+        if any(page in answer[match.start():line_end] for page in pages):
+            return match.end(1), line_end
+    return None
+
+
 def mark_injected(answer: str, pages: list[str], language: str | None) -> str:
     """`answer` with the undetermined-reference note when the code injected wiki
     `pages` (file names) and the answer names none of them. When the answer already
-    cites a file, the note opens with "Además" instead of "Referencia:
-    indeterminada". Otherwise `answer` as it is."""
-    if not pages or any(page in answer for page in pages):
+    cites a file, the note opens with "Además" instead of "Referencia:".
+
+    When the model wrote its own reference line with injected pages, the line is
+    labelled as the model's ("Referencia según el modelo"), and the "Además" note
+    below it lists every page the model received: nothing checks the model's line.
+    Otherwise `answer` as it is."""
+    if not pages:
+        return answer
+    lang = _lang(language)
+    line = _model_reference_line(answer, pages)
+    if line is not None:
+        label_at, line_end = line
+        note = _INJECTED_EXTRA[lang][len(pages) > 1].format(names=", ".join(pages))
+        return (answer[:label_at] + _MODEL_LABEL[lang] + answer[label_at:line_end]
+                + f"\n\n{note}" + answer[line_end:])
+    if any(page in answer for page in pages):
         return answer
     # Any file the answer names is a citation: "Fuente: ambito.com (datasets/dolar.md)".
     cited = _MODEL_REFERENCE.search(answer) or looks_cited(answer)
