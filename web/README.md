@@ -73,8 +73,10 @@ unsupported sentence wrapped in `<mark class="unsupported">`, and a summary line
 the answer and the line says "No se pudo verificar". The stored answer never
 changes.
 
-The verifier is the local NLI model (`uv sync --group verify`, or
-`python3 quickstart.py --with-verifier`; see `CONTRIBUTING.md`). The threshold is
+The verifier is the local NLI model. The Maintain screen installs it into the
+environment of the server (the line "NLI verifier", `domain.verify.install`), and so do
+`python3 quickstart.py --with-verifier` and `uv sync --group web --group verify` (see
+`CONTRIBUTING.md`). The threshold is
 `[verify] threshold` in `wiki_config.toml`. `create_app(..., verifier=...)` takes
 another verifier, as the tests do with `FakeVerifier`.
 

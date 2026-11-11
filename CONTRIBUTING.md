@@ -24,12 +24,19 @@ read supports. It needs the `verify` dependency group (`transformers`, `torch`)
 and a multilingual NLI model in the Hugging Face cache:
 
 ```bash
-uv sync --group verify    # on Linux this pulls the CUDA build of torch (about 2 GB)
+uv sync --group web --group verify    # on Linux this pulls the CUDA build of torch (about 2 GB)
 uv run python -c "import sys; sys.path.insert(0, 'base'); from domain.verify.nli import download_model; download_model()"
 ```
 
+Name every group you use: `uv sync` removes the packages of the groups it is not given,
+so `uv sync --group verify` alone removes the web interface. `download_model` takes only
+the files the verifier loads (`nli.MODEL_FILES`, about 550 MB, of 2.4 GB in the model
+repository).
+
 `python3 quickstart.py --with-verifier` does both for an installed copy and, on
 Linux, installs the CPU build of `torch` from `https://download.pytorch.org/whl/cpu`.
+The web interface does the same from the Maintain screen, in the line "NLI verifier",
+without stopping the server.
 Without the group and the model the checkbox "Verificar las oraciones" is
 disabled, and the tests of the local model skip.
 

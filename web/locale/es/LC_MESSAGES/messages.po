@@ -571,6 +571,39 @@ msgid "The text of no source could be extracted, so the current index stays as i
 msgstr "No se pudo extraer el texto de ninguna fuente, así que el índice actual queda como estaba. Primer error: %(error)s"
 
 #: web/routes/ingest.py
+msgid "→ Installing torch, the build without CUDA"
+msgstr "→ Instalando torch, la versión sin CUDA"
+
+#: web/routes/ingest.py
+msgid "→ Installing the packages of the verifier"
+msgstr "→ Instalando los paquetes del verificador"
+
+#: web/routes/ingest.py
+msgid "→ Downloading the NLI model"
+msgstr "→ Bajando el modelo NLI"
+
+#: web/routes/ingest.py
+#, python-format
+msgid ""
+"The step “%(step)s” ended with the code %(code)s. The verifier is not installed. The lines above give the cause. The "
+"button runs every step again."
+msgstr ""
+"El paso «%(step)s» terminó con el código %(code)s. El verificador no quedó instalado. Las líneas de arriba dan la "
+"causa. El botón vuelve a ejecutar todos los pasos."
+
+#: web/routes/ingest.py
+msgid "The steps ended, but the verifier is still not found."
+msgstr "Los pasos terminaron, pero el verificador todavía no aparece."
+
+#: web/routes/ingest.py
+msgid "✓ The verifier is installed. Reload a screen to use it."
+msgstr "✓ El verificador está instalado. Recargá una pantalla para usarlo."
+
+#: web/routes/ingest.py
+msgid "An installation of the verifier is already running."
+msgstr "Ya hay una instalación del verificador en curso."
+
+#: web/routes/ingest.py
 #, python-format
 msgid "Deleted %(n)s stale page."
 msgid_plural "Deleted %(n)s stale pages."
@@ -1232,12 +1265,8 @@ msgstr ""
 "cambia"
 
 #: web/templates/_review_dialog.html web/templates/ingest.html web/templates/maintain.html web/templates/page.html
-msgid ""
-"The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group "
-"verify)"
-msgstr ""
-"El verificador local no está instalado. Instalalo con: python3 quickstart.py --with-verifier (o uv sync --group "
-"verify)"
+msgid "The local verifier is not installed. Install it from Maintain, in the line “NLI verifier”."
+msgstr "El verificador local no está instalado. Se instala desde Mantener, en la línea «Verificador NLI»."
 
 #: web/templates/_review_dialog.html
 msgid "Verify the draft"
@@ -2078,6 +2107,54 @@ msgid ""
 msgstr ""
 "Sin LibreOffice falla la ingesta de DOCX, DOC, ODT y RTF; los archivos MD y TXT no lo necesitan. macOS: brew install "
 "--cask libreoffice"
+
+#: web/templates/maintain.html
+msgid "NLI verifier"
+msgstr "Verificador NLI"
+
+#: web/templates/maintain.html
+msgid "The local model that checks each sentence of an answer or a page against its passages"
+msgstr "El modelo local que comprueba cada oración de una respuesta o de una página contra sus pasajes"
+
+#: web/templates/maintain.html
+msgid "Installed"
+msgstr "Instalado"
+
+#: web/templates/maintain.html
+msgid "Without the verifier, the checkboxes and buttons that verify sentences are disabled"
+msgstr "Sin el verificador, las casillas y los botones que verifican oraciones están desactivados"
+
+#: web/templates/maintain.html
+msgid "Packages installed, the model is missing"
+msgstr "Paquetes instalados, falta el modelo"
+
+#: web/templates/maintain.html
+msgid "Install the packages and the model of the verifier; asks for confirmation"
+msgstr "Instala los paquetes y el modelo del verificador; pide confirmación"
+
+#: web/templates/maintain.html
+msgid "Install the verifier"
+msgstr "Instalar el verificador"
+
+#: web/templates/maintain.html
+msgid ""
+"Install the verifier? It downloads its packages (between 0.5 and 1 GB) and the NLI model (about 550 MB) into this "
+"computer, and can take several minutes. The server keeps running, and the verification is available when it ends."
+msgstr ""
+"¿Instalar el verificador? Baja a esta computadora sus paquetes (entre 0,5 y 1 GB) y el modelo NLI (unos 550 MB), y "
+"puede tardar varios minutos. El servidor sigue funcionando, y la verificación queda disponible al terminar."
+
+#: web/templates/maintain.html
+msgid "Start the installation; progress appears in the console"
+msgstr "Empieza la instalación; el avance aparece en la consola"
+
+#: web/templates/maintain.html
+msgid "Install"
+msgstr "Instalar"
+
+#: web/templates/maintain.html
+msgid "Close without installing"
+msgstr "Cerrar sin instalar"
 
 #: web/templates/maintain.html
 msgid "Summary pages"
@@ -2970,4 +3047,11 @@ msgstr "Funciones de cálculo"
 
 #~ msgid "%(turn)s / %(conversation)s tokens"
 #~ msgstr "%(turn)s / %(conversation)s tokens"
+
+#~ msgid ""
+#~ "The local verifier is not installed. Install it with: "
+#~ "python3 quickstart.py --with-verifier (or uv sync --group verify)"
+#~ msgstr ""
+#~ "El verificador local no está instalado. Instalalo con: python3 "
+#~ "quickstart.py --with-verifier (o uv sync --group verify)"
 

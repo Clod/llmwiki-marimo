@@ -18,6 +18,10 @@ import threading
 from collections.abc import Sequence
 
 MODEL_NAME = "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7"
+# The files of the model repository the verifier loads: the weights in the safetensors
+# format, the configuration and the tokenizer, about 552 MB. The repository also holds the
+# same weights as `pytorch_model.bin` and in `onnx/`, 2.4 GB in all, which nothing loads.
+MODEL_FILES = ["*.json", "model.safetensors", "spm.model"]
 MAX_PASSAGE_CHARS = 1200
 BATCH_SIZE = 8
 _MAX_TOKENS = 512
@@ -33,7 +37,7 @@ def model_is_cached(model_name: str = MODEL_NAME) -> bool:
     try:
         from huggingface_hub import snapshot_download
 
-        snapshot_download(model_name, local_files_only=True)
+        snapshot_download(model_name, local_files_only=True, allow_patterns=MODEL_FILES)
         return True
     except Exception:
         return False
@@ -45,13 +49,15 @@ def is_available(model_name: str = MODEL_NAME) -> bool:
 
 
 def download_model(model_name: str = MODEL_NAME) -> str:
-    """Download the model into the Hugging Face cache; return its local folder.
+    """Download the files of the model the verifier loads (`MODEL_FILES`) into the Hugging
+    Face cache; return its local folder.
 
-    `quickstart.py` calls this after it installs the `verify` group.
+    `quickstart.py` calls this after it installs the `verify` group, and so does the
+    installation from the Maintenance screen (`domain.verify.install`).
     """
     from huggingface_hub import snapshot_download
 
-    return snapshot_download(model_name)
+    return snapshot_download(model_name, allow_patterns=MODEL_FILES)
 
 
 class LocalNliVerifier:

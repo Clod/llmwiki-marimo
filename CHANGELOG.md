@@ -13,6 +13,17 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **The Maintain screen installs the sentence verifier.** The checkboxes and
+  buttons that verify sentences were disabled with a help line that gave
+  `python3 quickstart.py --with-verifier` or `uv sync --group verify`: an install
+  made with `uv` has no `python3` in the PATH, and the second command removes the
+  packages of the web interface (measured: "Would uninstall 3 packages: babel,
+  fastapi, nh3"). The line "NLI verifier" of Maintain now shows the status and a
+  button that installs the packages and the model into the environment of the
+  running server, with the progress in the console. No step removes a package, and
+  the verification is available at the end without a restart. The help of a
+  disabled control points to that line.
+
 - **The Settings screen edits the models.** A first question failed with no
   `.env`, and the only way to set the model was to edit that file by hand. The
   block "Models" edits the endpoint URL, the API key and the model name of the
@@ -23,6 +34,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The NLI model download takes only the files the verifier loads.** The model
+  repository holds the same weights in three formats (`model.safetensors`,
+  `pytorch_model.bin`, `onnx/`), 2.4 GB in all. `download_model` now takes the
+  safetensors weights, the configuration and the tokenizer: about 550 MB. The
+  verifier gives the same probabilities.
 - **The reference line of injected pages says what is undetermined.** A
   pre-retrieval answer that named none of the pages in its prompt ended in
   "Referencia: indeterminada. El modelo recibió estas páginas de la wiki: …",

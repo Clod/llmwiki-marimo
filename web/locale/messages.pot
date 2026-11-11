@@ -570,6 +570,37 @@ msgid "The text of no source could be extracted, so the current index stays as i
 msgstr ""
 
 #: web/routes/ingest.py
+msgid "→ Installing torch, the build without CUDA"
+msgstr ""
+
+#: web/routes/ingest.py
+msgid "→ Installing the packages of the verifier"
+msgstr ""
+
+#: web/routes/ingest.py
+msgid "→ Downloading the NLI model"
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid ""
+"The step “%(step)s” ended with the code %(code)s. The verifier is not installed. The lines above give the cause. The "
+"button runs every step again."
+msgstr ""
+
+#: web/routes/ingest.py
+msgid "The steps ended, but the verifier is still not found."
+msgstr ""
+
+#: web/routes/ingest.py
+msgid "✓ The verifier is installed. Reload a screen to use it."
+msgstr ""
+
+#: web/routes/ingest.py
+msgid "An installation of the verifier is already running."
+msgstr ""
+
+#: web/routes/ingest.py
 #, python-format
 msgid "Deleted %(n)s stale page."
 msgid_plural "Deleted %(n)s stale pages."
@@ -1216,9 +1247,7 @@ msgid ""
 msgstr ""
 
 #: web/templates/_review_dialog.html web/templates/ingest.html web/templates/maintain.html web/templates/page.html
-msgid ""
-"The local verifier is not installed. Install it with: python3 quickstart.py --with-verifier (or uv sync --group "
-"verify)"
+msgid "The local verifier is not installed. Install it from Maintain, in the line “NLI verifier”."
 msgstr ""
 
 #: web/templates/_review_dialog.html
@@ -2029,6 +2058,52 @@ msgstr ""
 msgid ""
 "Without LibreOffice, ingesting DOCX, DOC, ODT and RTF fails; MD and TXT files do not need it. macOS: brew install "
 "--cask libreoffice"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "NLI verifier"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "The local model that checks each sentence of an answer or a page against its passages"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Installed"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Without the verifier, the checkboxes and buttons that verify sentences are disabled"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Packages installed, the model is missing"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Install the packages and the model of the verifier; asks for confirmation"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Install the verifier"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"Install the verifier? It downloads its packages (between 0.5 and 1 GB) and the NLI model (about 550 MB) into this "
+"computer, and can take several minutes. The server keeps running, and the verification is available when it ends."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Start the installation; progress appears in the console"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Install"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Close without installing"
 msgstr ""
 
 #: web/templates/maintain.html

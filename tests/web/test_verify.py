@@ -167,7 +167,7 @@ def test_the_checkbox_is_disabled_when_the_local_verifier_is_not_installed(setti
 
 def test_the_page_names_the_reason_in_each_tooltip(client):
     html = client.get(f"/w/{WIKI_ID}/pages/overview").text
-    assert "python3 quickstart.py --with-verifier" in html
+    assert "Se instala desde Mantener" in html
     assert "Sin verificación" in html and "no comprueba la respuesta" in html
 
 
@@ -238,7 +238,7 @@ def test_without_a_local_verifier_the_draft_button_is_disabled(settings, agents,
     html = plain.post(f"/w/{WIKI_ID}/chat/draft", data={
         "conversation_id": "c1", "title": "Slipper story", "open_page": ""}).text
     assert re.search(r'data-url="/w/tales/chat/verify-draft"[^>]*disabled', html, re.S)
-    assert "python3 quickstart.py --with-verifier" in html
+    assert "Se instala desde Mantener" in html
 
 
 @pytest.mark.usefixtures("drafts")
