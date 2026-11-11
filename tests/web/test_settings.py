@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import re
 import tomllib
 
@@ -154,3 +155,88 @@ def test_saving_is_one_commit_of_the_wiki(client, config_wiki):
     assert subject.strip() == "settings: assistant.suggested_prompts, pre_retrieval.min_coverage"
     status = subprocess.run(["git", "status", "--porcelain"], cwd=config_wiki.path, capture_output=True, text=True).stdout
     assert "wiki_config.toml" not in status
+
+
+# ── The models: the reading model and the ingestion model, in `.env` ──────────
+
+MODELS_URL = f"/w/{WIKI_ID}/settings/models"
+ENV = ("# Comment that must survive.\nOTHER=1\nLLM_BASE_URL=http://old.invalid/v1\n"
+       "LLM_API_KEY=secret-old\nLLM_MODEL=old-model\n")
+MODELS_FORM = {"llm_base_url": "https://new.invalid/v1", "llm_api_key": "", "llm_model": "new-model",
+               "wiki_llm_base_url": "", "wiki_llm_api_key": "", "wiki_llm_model": "big-model"}
+
+
+@pytest.fixture
+def env_file(app, tmp_path):
+    """The application writes the models to a `.env` of the test, not to the project's."""
+    path = tmp_path / ".env"
+    path.write_text(ENV, encoding="utf-8")
+    state = app.state.web
+    state.settings = dataclasses.replace(state.settings, env_file=path)
+    return path
+
+
+def test_without_an_env_file_the_models_form_is_not_shown(client):
+    assert 'action="/w/tales/settings/models"' not in client.get(URL).text
+
+
+def test_the_models_are_shown_and_the_key_is_not(client, env_file):
+    html = client.get(URL).text
+    assert 'action="/w/tales/settings/models"' in html
+    assert 'value="http://old.invalid/v1"' in html and 'value="old-model"' in html
+    assert re.search(r'name="llm_api_key" type="password"[^>]*value=""', html)
+    assert "secret-old" not in html
+    assert "Hay una clave guardada" in html and "No hay ninguna clave guardada." in html
+    assert "Modelo de lectura" in html and "Modelo de ingesta" in html
+
+
+def test_saving_writes_env_keeps_the_key_and_the_other_lines(client, env_file, app):
+    html = client.post(MODELS_URL, data=MODELS_FORM).text
+    assert "Guardado en .env" in html
+    text = env_file.read_text(encoding="utf-8")
+    assert text.startswith("# Comment that must survive.\nOTHER=1\n")
+    assert "LLM_BASE_URL=https://new.invalid/v1\n" in text and "LLM_MODEL=new-model\n" in text
+    assert "LLM_API_KEY=secret-old\n" in text  # an empty key field keeps the saved key
+    assert "WIKI_LLM_MODEL=big-model\n" in text and "WIKI_LLM_BASE_URL=\n" in text
+    s = app.state.web.settings
+    assert (s.llm_base_url, s.llm_api_key, s.llm_model) == ("https://new.invalid/v1", "secret-old", "new-model")
+    # The blank ingestion values fall back to the reading model.
+    assert (s.ingest_base_url, s.ingest_api_key, s.ingest_model) == ("https://new.invalid/v1", "secret-old", "big-model")
+
+
+def test_a_new_key_replaces_the_saved_one_and_is_not_echoed(client, env_file):
+    html = client.post(MODELS_URL, data={**MODELS_FORM, "llm_api_key": 'sk "new" #1'}).text
+    assert "sk " not in html
+    assert 'LLM_API_KEY="sk \\"new\\" #1"\n' in env_file.read_text(encoding="utf-8")
+    from dotenv import dotenv_values
+    assert dotenv_values(env_file)["LLM_API_KEY"] == 'sk "new" #1'
+
+
+def test_a_url_without_http_writes_nothing_and_is_shown_again(client, env_file):
+    html = client.post(MODELS_URL, data={**MODELS_FORM, "llm_base_url": "new.invalid/v1"}).text
+    assert "Escribí una URL que empiece con http:// o https://." in html
+    assert 'value="new.invalid/v1"' in html
+    assert env_file.read_text(encoding="utf-8") == ENV
+
+
+def test_a_missing_env_file_is_created(client, app, tmp_path):
+    path = tmp_path / "new" / ".env"
+    path.parent.mkdir()
+    app.state.web.settings = dataclasses.replace(app.state.web.settings, env_file=path)
+    client.post(MODELS_URL, data={**MODELS_FORM, "llm_api_key": "k1"})
+    assert "LLM_API_KEY=k1\n" in path.read_text(encoding="utf-8")
+
+
+def test_the_next_question_builds_the_agents_with_the_new_model(env_file, settings, tmp_path):
+    from fastapi.testclient import TestClient
+    from tests.web.conftest import SPANISH
+
+    built = []
+    app = create_app(dataclasses.replace(settings, env_file=env_file),
+                     agents_factory=lambda wiki: built.append(app.state.web.settings.llm_model) or fake_agents("Ok."))
+    client = TestClient(app, follow_redirects=False, cookies=SPANISH)
+    state = app.state.web
+    state.get_agents(state.get_wiki(WIKI_ID))
+    client.post(MODELS_URL, data=MODELS_FORM)
+    state.get_agents(state.get_wiki(WIKI_ID))
+    assert built == ["model", "new-model"]

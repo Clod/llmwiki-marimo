@@ -164,6 +164,14 @@ class AppState:
         if entry is not None:
             entry.agents = None
 
+    def set_models(self, values: dict[str, str]) -> None:
+        """Use the models of `values` (the `MODEL_KEYS` of `.env`) from the next question and
+        the next ingestion: the settings change, and every open wiki drops its agents, which
+        were built with the old model."""
+        self.settings = self.settings.with_models(values)
+        for entry in self._open.values():
+            entry.agents = None
+
     def _build_agents(self, wiki: Wiki) -> chat_service.ChatAgents:
         s = self.settings
         _require("LLM", BASE_URL=s.llm_base_url, API_KEY=s.llm_api_key, MODEL=s.llm_model)

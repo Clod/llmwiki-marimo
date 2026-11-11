@@ -672,6 +672,10 @@ msgid "Saved. The changes apply from the next question; the earlier answers do n
 msgstr ""
 
 #: web/routes/settings.py
+msgid "Saved in .env. The models apply from the next question and the next ingestion."
+msgstr ""
+
+#: web/routes/settings.py
 msgid "Write a text."
 msgstr ""
 
@@ -689,6 +693,19 @@ msgstr ""
 
 #: web/routes/settings.py
 msgid "The value is not valid."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "Write a URL that starts with http:// or https://."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "The models cannot be edited here: there is no .env file to write."
+msgstr ""
+
+#: web/routes/settings.py
+#, python-format
+msgid "The .env file could not be written: %(error)s"
 msgstr ""
 
 #: web/routes/tools.py
@@ -1963,7 +1980,7 @@ msgstr ""
 msgid "Configuration"
 msgstr ""
 
-#: web/templates/maintain.html
+#: web/templates/maintain.html web/templates/settings.html
 msgid "Model"
 msgstr ""
 
@@ -2607,6 +2624,55 @@ msgstr ""
 
 #: web/templates/relations.html
 msgid "The wiki has no pages to show yet."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Models"
+msgstr ""
+
+#: web/templates/settings.html
+#, python-format
+msgid "The models are the same for every wiki. They are saved in <code>%(path)s</code>."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Reading model"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "The model of the chat."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Ingestion model"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "The model that writes the pages of the wiki. An empty field uses the value of the reading model."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Endpoint URL"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "API key"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "A key is saved, and the page does not show it. Leave the field empty to keep it."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "No key is saved."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Write the models to .env. They apply from the next question"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Save the models"
 msgstr ""
 
 #: web/templates/settings.html
