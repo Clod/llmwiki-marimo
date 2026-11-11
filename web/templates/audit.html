@@ -3,9 +3,10 @@
 {% block head %}<link rel="stylesheet" href="/static/css/audit.css">
 <script src="/static/js/mermaid.min.js" defer></script>
 <script src="/static/js/audit-diagram.js" defer></script>
-<script src="/static/js/audit-columns.js" defer></script>{% endblock %}
+<script src="/static/js/audit-columns.js" defer></script>
+<script src="/static/js/audit-conversation.js" defer></script>{% endblock %}
 {% block body %}
-<main class="container audit audit-columns" data-selected="{{ selected }}">
+<main class="container audit audit-columns" data-selected="{{ selected }}" data-wiki="{{ wiki_id }}" data-conversation="{{ conversation_id }}">
   <div class="audit-left" id="audit-left">
   <header>
     <h1>{{ _("Audit of the conversation") }}</h1>

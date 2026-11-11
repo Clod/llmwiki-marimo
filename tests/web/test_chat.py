@@ -32,12 +32,20 @@ def stream(client, turn_id):
     return sse_events(response.text)
 
 
-def test_each_answer_carries_a_muted_line_with_its_mode_and_the_cited_page(client, agents):
-    agents.agent_pre_retrieval.output = "Cinderella lost a glass slipper (Referencia: wiki/concepts/cinderella.md)."
-    final = stream(client, ask(client))[0][1]
-    meta = re.search(r'<div id="meta-\w+" hx-swap-oob="innerHTML">(.*?)</div>', final, re.S).group(1)
-    assert meta.startswith("Recuperación previa · ")
-    assert '<a class="mono" href="/w/tales/pages/concepts/cinderella"' in meta and ">concepts/cinderella</a>" in meta
+@pytest.mark.parametrize("mode, label", [("pre-retrieval", "Recuperación previa"),
+                                         ("strict", "Agente con comprobación de evidencia"),
+                                         ("streaming", "Sin verificación")])
+def test_the_muted_line_under_an_answer_names_its_mode_and_no_page(client, agents, mode, label):
+    # The page the answer cites is a link in the answer; the line under it repeats no page.
+    text = "Cinderella lost a glass slipper (Referencia: wiki/concepts/cinderella.md)."
+    agents.agent_pre_retrieval.output = agents.agent.output = text
+    agents.agent.grounded = True
+    events = stream(client, ask(client, mode=mode))
+    html_ = "".join(data for _, data in events)
+    meta = re.search(r'<div id="meta-\w+" hx-swap-oob="innerHTML">(.*?)</div>', html_, re.S).group(1)
+    assert meta.startswith(f"{label} · ")
+    assert "/pages/" not in meta
+    assert 'href="/w/tales/pages/concepts/cinderella"' in html_
 
 
 def test_the_line_names_the_mode_used_and_has_no_link_when_nothing_is_cited(client, agents):
@@ -60,7 +68,7 @@ def test_the_thread_keeps_the_line_of_each_answer(client, agents):
     agents.agent_pre_retrieval.output = "Cinderella lost a glass slipper (Referencia: wiki/concepts/cinderella.md)."
     stream(client, ask(client))
     html = client.get(f"/w/{WIKI_ID}/chat/c1/thread").text
-    assert '<div class="meta">Recuperación previa · <a class="mono"' in html
+    assert '<div class="meta">Recuperación previa · <span class="tokens"' in html
 
 
 def test_pre_retrieval_turn_streams_the_rendered_answer(client, agents):
@@ -386,29 +394,3 @@ def test_the_streaming_mode_reports_its_tokens(client, agents):
     assert "turno: 1.230 tokens (entrada 1.200, salida 30)" in meta_of([events[-2]])
 
 
-def test_the_pages_a_refusal_suggests_are_not_shown_as_cited(client):
-    from web.render import render_markdown
-    from web.routes.chat import answer_meta
-    from web.state import Message
-    pages = {"concepts/cinderella", "concepts/snow-white"}
-    for header in ("Estas páginas tratan temas potencialmente relacionados. Si alguna corresponde a tu "
-                   "consulta, reformulá la pregunta usando su título:",
-                   "These pages cover potentially related topics:"):
-        refusal = (f"No recibí de la wiki información relacionada con esta pregunta.\n\n{header}\n\n"
-                   "- [Cinderella](/wiki/concepts/cinderella.md)\n- [Snow White](/wiki/concepts/snow-white.md)")
-        rendered = render_markdown(WIKI_ID, refusal, None, pages)
-        assert "/pages/concepts/cinderella" in rendered          # the suggestions are links
-        meta = answer_meta(client.app.state.templates, WIKI_ID, Message("assistant", refusal, "pre-retrieval"),
-                           rendered, 0)
-        assert "/pages/" not in meta
-    only_index = ("No recibí de la wiki información relacionada con esta pregunta.\n\n"
-                  "Podés ver todos los temas en el [índice de la wiki](/wiki/index.md).")
-    rendered = render_markdown(WIKI_ID, only_index, None, pages | {"index"})
-    assert "/pages/index" in rendered                            # the index is a link
-    meta = answer_meta(client.app.state.templates, WIKI_ID, Message("assistant", only_index, "pre-retrieval"),
-                       rendered, 0)
-    assert "/pages/" not in meta
-    cited = "Cinderella lost a slipper.\n\nReferencia: wiki/concepts/cinderella.md"
-    meta = answer_meta(client.app.state.templates, WIKI_ID, Message("assistant", cited, "pre-retrieval"),
-                       render_markdown(WIKI_ID, cited, None, pages), 0)
-    assert "/pages/concepts/cinderella" in meta

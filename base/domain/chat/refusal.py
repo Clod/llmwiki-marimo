@@ -140,14 +140,6 @@ _SUGGEST = {
 }
 
 
-def suggestions_start(text: str) -> int:
-    """Where the suggested pages or the link to the index begin in `text`, or `len(text)`
-    when there are none. Both are links, and they are not pages the answer cites."""
-    heads = [head.rstrip(":") for head in _SUGGEST.values()] + [line.split("[")[0] for line in _INDEX.values()]
-    starts = [text.find(head) for head in heads]
-    return min((at for at in starts if at >= 0), default=len(text))
-
-
 _INDEX = {
     "es": "Podés ver todos los temas en el [índice de la wiki](/wiki/index.md).",
     "en": "You can see every topic in the [wiki's index](/wiki/index.md).",

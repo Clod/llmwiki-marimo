@@ -11,6 +11,29 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Changed
+
+- **The reference line of injected pages says what is undetermined.** A
+  pre-retrieval answer that named none of the pages in its prompt ended in
+  "Referencia: indeterminada. El modelo recibió estas páginas de la wiki: …",
+  which read as if the reference itself were unknown while it listed the pages.
+  The line now reads "Referencia: el modelo recibió estas páginas de la wiki, y
+  no se puede determinar cuáles usó la respuesta: …" (the English note changes
+  the same way).
+- **A reference line the model wrote is labelled as the model's.** In
+  pre-retrieval, the model sometimes ends its answer with its own
+  "Referencia:" line, naming some of the pages in its prompt. Nothing checks
+  that line, and it looked like the citation the code adds. The line now reads
+  "Referencia según el modelo", and a line below it lists every page the model
+  received ("Además, el modelo recibió estas páginas de la wiki: …"). Before,
+  the label appeared only with the sentence verifier on.
+- **The line under an answer names no page.** It listed the first three pages
+  the answer linked, right after the mode: "Recuperación previa ·
+  concepts/caucion-bursatil · …" read as the pages pre-retrieval had found,
+  while they were a copy of the model's own reference line. Every page the
+  answer names is a link in the answer itself, so the line now gives only the
+  mode and the tokens, in every mode.
+
 ## [0.6.5] - 2026-11-06
 
 ### Fixed

@@ -578,3 +578,17 @@ def test_static_files_are_revalidated_so_a_changed_stylesheet_is_seen(client):
     assert response.status_code == 200 and response.headers["cache-control"] == "no-cache"
     again = client.get("/static/css/reader.css", headers={"If-None-Match": response.headers["etag"]})
     assert again.status_code == 304
+
+
+def test_a_wiki_id_that_moves_to_another_folder_opens_that_folder(client, app, tmp_path):
+    # Two folders share the name «trabajo». The id «trabajo» goes to the folder opened
+    # last (the recent list puts it first), and the other one gets «trabajo-2». The id
+    # serves the folder it names now, not the folder it named when it was first opened.
+    first, second = tmp_path / "a" / "trabajo", tmp_path / "b" / "trabajo"
+    for folder in (first, second):
+        folder.mkdir(parents=True)
+    assert client.post("/open", data={"path": str(first), "create": "true"}).headers["location"] == "/w/trabajo/"
+    assert app.state.web.get_wiki("trabajo").wiki.path == first.resolve()
+    assert client.post("/open", data={"path": str(second), "create": "true"}).headers["location"] == "/w/trabajo/"
+    assert app.state.web.get_wiki("trabajo").wiki.path == second.resolve()
+    assert app.state.web.get_wiki("trabajo-2").wiki.path == first.resolve()

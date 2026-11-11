@@ -143,9 +143,13 @@ class AppState:
         if path is None or (path != self.settings.wiki_path and not is_wiki_dir(Path(path))):
             self._open.pop(wiki_id, None)
             raise UnknownWiki(wiki_id)
-        if wiki_id not in self._open:
-            self._open[wiki_id] = OpenWiki(wiki=open_wiki(path))
-        return self._open[wiki_id]
+        # The id of a folder can change while the server runs: when two folders share a
+        # name, the recent list decides which one gets the bare name. An open wiki whose
+        # folder is no longer the one of its id is opened again, from the folder of the id.
+        entry = self._open.get(wiki_id)
+        if entry is None or entry.wiki.path != Path(path).expanduser().resolve():
+            entry = self._open[wiki_id] = OpenWiki(wiki=open_wiki(path))
+        return entry
 
     def get_agents(self, entry: OpenWiki) -> chat_service.ChatAgents:
         """The wiki's agents, built on first use and kept."""

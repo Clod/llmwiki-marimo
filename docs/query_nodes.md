@@ -33,6 +33,9 @@ answer is built from:
 
 The tools that the model calls are described once, in section 5.
 
+In the diagrams, a blue node whose label ends in «🤖 model call» is a node
+where the code sends a request to the model. Every other node runs only code.
+
 ## The node tables
 
 Every node table of this document has the same columns:
@@ -62,12 +65,14 @@ flowchart TD
     C1["C1 · the history of the turn<br/>model_history:<br/>1. strip_refused_exchanges removes every refused answer<br/>and the question that the refused answer answered<br/>2. trim_history keeps the last turns"]
     C2{"C2 · the mode of the turn"}
     P["Q1 · pre-retrieval, section 2"]
-    S["T1 · strict, section 3"]
-    F["F1 · streaming, section 4"]
+    S["T1 · strict, section 3<br/>🤖 model call"]
+    F["F1 · streaming, section 4<br/>🤖 model call"]
     Q0 --> C1 --> C2
     C2 -->|pre-retrieval| P
     C2 -->|strict| S
     C2 -->|streaming| F
+    classDef llm fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1f2937
+    class S,F llm
 ```
 
 | ID | What it does | Code | Trace | Status |
@@ -89,14 +94,14 @@ each refusal node is named by the cause of the refusal (R1 to R5,
 flowchart TD
     IDX[("DB · chunks_fts<br/>inverted index: each stem → the rows that contain the stem<br/>see ingestion_nodes.md")]
 
-    subgraph R["Reading: a question arrives, pre-retrieval mode"]
+    subgraph IN["Input workflow · input_checks.py · runs before the model"]
         Q["Q1 · question<br/>«¿Cuánto rinden los plazos fijos?»"]
         N["Q2 · _normalize: lowercase, accents removed<br/>«¿cuanto rinden los plazos fijos?»"]
         BL{"Q3 · does the question name a blacklist term?<br/>is_off_limits, whole words, NOT stemmed<br/>[fuera_de_alcance]:<br/>– cedear<br/>– cedears<br/>– cripto<br/>– bitcoin"}
         ST["Q4 · stem_text on the question<br/>«cuant rind los plaz fij»"]
         RO{"Q5 · is the question in the coverage roster?<br/>mentions_known_data compares:<br/>– the stemmed question with the stemmed<br/>dataset categories, concept-page titles and aliases<br/>– the normalised question with the dataset keys, exact<br/>in the example, yes: plazo_fijo → «plaz fij»"}
         OP{"Q5a · is the user reading a wiki page?<br/>an open page makes the question covered"}
-        CO{"Q5b · query condensation<br/>only with history, no data, no open page<br/>the model rewrites the follow-up so that the follow-up stands alone<br/>blacklist and roster run again on the rewrite<br/>«¿Y qué riesgos tiene?» → «¿Qué riesgos tiene la caución bursátil?»"}
+        CO{"Q5b · query condensation<br/>only with history, no data, no open page<br/>the model rewrites the follow-up so that the follow-up stands alone<br/>blacklist and roster run again on the rewrite<br/>«¿Y qué riesgos tiene?» → «¿Qué riesgos tiene la caución bursátil?»<br/>🤖 model call"}
         SQ["Q6 · wiki search, retrieve_wiki<br/>stop words removed, then stem_fts_query<br/>cuant OR rind OR plaz OR fij"]
         HITS{"Q7 · did the wiki search find a page?<br/>in the example, yes:<br/>– Plazo fijo tradicional<br/>– Plazo fijo UVA<br/>– …"}
         DC{"Q7a · does the question name a dataset category?<br/>the category, one of its keys, or an alias<br/>stemmed match<br/>in the example, yes: plazo_fijo"}
@@ -108,15 +113,22 @@ flowchart TD
         DQ{"Q10 · is the question a data question?<br/>– the question names a dataset category, stemmed<br/>– or a dataset key, exact<br/>– or a data alias from [alias_datos]<br/>– or asks for investment advice"}
         FR{"Q11 · did the source search find a fragment,<br/>for a question in the coverage roster?"}
         IR{"Q12 · is the question in the coverage roster?"}
-        M1["Q13 · Tier 1: the wiki pages are injected,<br/>with the dataset rows of Q7c or the key names of Q7d<br/>the model writes the answer"]
-        M4["Q14 · overview.md and index.md are injected<br/>the model writes the answer"]
-        M2["Q15 · no page is injected<br/>the model calls the data tools of section 5<br/>the model writes the answer"]
-        M3["Q16 · Tier 2: the source fragments are injected<br/>the model writes the answer"]
+    end
+
+    subgraph AG["The agent call · _pre_retrieval_turn · between the two workflows"]
+        M1["Q13 · Tier 1: the wiki pages are injected,<br/>with the dataset rows of Q7c or the key names of Q7d<br/>the model writes the answer<br/>🤖 model call"]
+        M4["Q14 · overview.md and index.md are injected<br/>the model writes the answer<br/>🤖 model call"]
+        M2["Q15 · no page is injected<br/>the model calls the data tools of section 5<br/>the model writes the answer<br/>🤖 model call"]
+        M3["Q16 · Tier 2: the source fragments are injected<br/>the model writes the answer<br/>🤖 model call"]
+    end
+
+    subgraph OUT["Output workflow · output_checks.py · runs after the model"]
         V2{"Q17 · is the answer grounded in the fragments?<br/>coverage:<br/>– removes the stop words of the wiki's language<br/>– stems the remaining words<br/>– requires coverage ≥ min_coverage, 0.2 by default"}
         WARN["Q18 · the Tier-2 warning is appended<br/>⚠️ Esta respuesta proviene de un documento fuente<br/>sin página curada del wiki; verificá."]
         GR{"Q19 · did a dataset tool return evidence?<br/>has_grounding"}
         FS{"Q20 · does the answer open with<br/>«No encontré la respuesta en el texto que recibí de la wiki.»?"}
-        OK["Q21 · the answer is shown<br/>ensure_citation adds the citation of the tools the model used<br/>for injected dataset rows, the code adds the dataset citation<br/>for injected pages the answer does not name, the code adds the line Referencia: indeterminada"]
+        OK["Q21 · the answer is shown<br/>ensure_citation adds the citation of the tools the model used<br/>for injected dataset rows, the code adds the dataset citation<br/>for injected pages the answer does not name, the code adds a Referencia line that lists them<br/>and says which ones the answer used cannot be determined"]
+    end
 
         Q --> N --> BL
         BL -->|no| ST --> RO
@@ -149,7 +161,6 @@ flowchart TD
         M3 -->|sentence verifier on| WARN
         V2 -->|yes| WARN --> FS
         FS -->|no| OK
-    end
 
     subgraph X["Refusals"]
         R1["R1 · blacklist<br/>names the matched term, no suggestions<br/>¿Qué son los CEDEARs y conviene comprarlos?"]
@@ -178,6 +189,8 @@ flowchart TD
     class IDX db
     classDef ok fill:#bbf7d0,stroke:#15803d,color:#1f2937
     class OK ok
+    classDef llm fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1f2937
+    class CO,M1,M2,M3,M4 llm
 ```
 
 Every diamond is a question with two answers. When the wiki search finds a page,
@@ -226,7 +239,7 @@ of the agent and that `PreRetrievalTurn`.
 | Q18 | Appends the fixed Tier-2 warning to the answer | `base/domain/i18n.py`, `get_locale`; `base/domain/chat/workflow/output_checks.py`, `tier2_warning` | no attributes | code |
 | Q19 | Asks whether a data tool returned evidence | `base/domain/chat/guardrail.py`, `has_grounding`; `base/domain/chat/workflow/output_checks.py`, `tool_evidence` | `answer` | code |
 | Q20 | Asks whether the answer opens with the fixed refusal sentence of the model | `base/domain/chat/refusal.py`, `fixed_sentence`; `base/domain/chat/workflow/output_checks.py`, `model_refusal` | `answer` | code |
-| Q21 | Shows the answer; `ensure_citation` adds the citation of the tools the model used; for injected dataset rows the code adds the dataset citation. When the answer names none of the injected wiki pages, `mark_injected` adds the line `Referencia: indeterminada`, which lists the pages the model received. When the sentence verifier runs, the web interface adds the line `Referencia según el verificador de oraciones`, with the injected pages split into apparently used (they support at least one sentence) and apparently not used. That line replaces `Referencia: indeterminada`; when the model wrote its own reference line instead, the line goes below it, and the model's line is labelled `Referencia según el modelo` | `base/domain/chat/postprocess.py`, `ensure_citation`, `mark_injected`, `resolve_injected`, `answer_with_table`; `base/domain/chat/preretrieval.py`, `offer_available_keys`; `web/routes/chat.py`, `chat_stream`; `base/domain/chat/workflow/output_checks.py`, `table`, `keys`, `citation`, `shown` | `final_answer`, `citation_added`, `keys_offered` | code |
+| Q21 | Shows the answer; `ensure_citation` adds the citation of the tools the model used; for injected dataset rows the code adds the dataset citation. When the answer names none of the injected wiki pages, `mark_injected` adds a `Referencia:` line that lists the pages the model received and says that which of them the answer used cannot be determined. When the model wrote its own reference line with injected pages, `mark_injected` labels that line `Referencia según el modelo` and adds below it a line that starts with `Además` and lists every page the model received. When the sentence verifier runs, the web interface adds the line `Referencia según el verificador de oraciones`, with the injected pages split into apparently used (they support at least one sentence) and apparently not used. That line replaces the line of `mark_injected`; when the answer has only a reference line of the model, the line goes below it, and the model's line is labelled `Referencia según el modelo` | `base/domain/chat/postprocess.py`, `ensure_citation`, `mark_injected`, `resolve_injected`, `answer_with_table`; `base/domain/chat/preretrieval.py`, `offer_available_keys`; `web/routes/chat.py`, `chat_stream`; `base/domain/chat/workflow/output_checks.py`, `table`, `keys`, `citation`, `shown` | `final_answer`, `citation_added`, `keys_offered` | code |
 | R1 | Refusal of cause 1: the question, or the rewrite of Q5b, names a blacklist term; the refusal names the matched term | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`; `base/domain/chat/workflow/input_checks.py`, `refuse_blacklist` | `cause`, `final_answer`, `suggestions` | code |
 | R2a | Refusal of cause 2a: the question names no topic of the wiki | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/input_checks.py`, `refuse_not_in_roster` | `cause`, `final_answer`, `suggestions` | code |
 | R2b | Refusal of cause 2b: the question names a topic of the wiki, and the searches found no text | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/input_checks.py`, `refuse_nothing_found` | `cause`, `final_answer`, `suggestions` | code |
@@ -248,7 +261,7 @@ of the answer of the pre-retrieval mode. `chat_turn_with_context`
 
 ```mermaid
 flowchart TD
-    T1["T1 · the model runs with the wiki tools and the data tools<br/>the tools of section 5"]
+    T1["T1 · the model runs with the wiki tools and the data tools<br/>the tools of section 5<br/>🤖 model call"]
     T2{"T2 · did a tool return evidence?<br/>has_grounding"}
     T3["T3 · the answer is replaced by the guardrail refusal<br/>«No pude respaldar esta respuesta con una consulta a la wiki en este turno.»"]
     T4["T4 · the advisory table and the citation are added<br/>answer_with_table, ensure_citation, mark_uncited"]
@@ -256,6 +269,8 @@ flowchart TD
     T1 --> T2
     T2 -->|yes| T4 --> T5
     T2 -->|no| T3 --> T5
+    classDef llm fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1f2937
+    class T1 llm
 ```
 
 | ID | What it does | Code | Trace | Status |

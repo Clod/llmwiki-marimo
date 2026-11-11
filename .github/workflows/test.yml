@@ -32,7 +32,8 @@ jobs:
 
   web:
     name: Web interface tests (Playwright, no network, no model)
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest became Ubuntu 26.04, for which Playwright 1.59.1 has no Chromium.
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4

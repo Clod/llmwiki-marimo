@@ -8,7 +8,12 @@
 
   const draw = () => {
     if (!window.mermaid) return;
-    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", flowchart: { useMaxWidth: false } });
+    // The labels are SVG text, not HTML: with an HTML label, a page zoom other than 100%
+    // makes Mermaid size the node for a text that does not wrap, and the label is cut.
+    mermaid.initialize({
+      startOnLoad: false, securityLevel: "strict", htmlLabels: false,
+      flowchart: { useMaxWidth: false, htmlLabels: false }, themeVariables: { fontSize: "12px" },
+    });
     mermaid.run({ nodes: column.querySelectorAll("pre.mermaid:not([data-processed])") });
   };
 

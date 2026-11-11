@@ -116,8 +116,7 @@ over SSE. The selector **Mode** has three values (`web/deps.py:MODES`):
 | `strict` | Strict | The model consults the wiki with tools; if it did not, the answer is replaced by a refusal (§15.3). |
 | `streaming` | No verification | The answer appears as the model writes it. Code does not check that it comes from the wiki. |
 
-Under each answer, one line names the mode, links up to three cited pages and gives the
-tokens: "N / M tokens", the tokens of the turn and of the whole conversation, with the
+Under each answer, one line names the mode and gives the tokens: "N / M tokens", the tokens of the turn and of the whole conversation, with the
 input and output tokens of the turn in its tooltip.
 
 **The audit of the conversation.** Above the question field, three buttons refer to the

@@ -953,10 +953,6 @@ msgid "Send this question"
 msgstr "Enviar esta pregunta"
 
 #: web/templates/_chat_meta.html
-msgid "Open the page cited in the answer"
-msgstr "Abrir la página citada en la respuesta"
-
-#: web/templates/_chat_meta.html
 msgid "The tokens the model used in this answer, and in the whole conversation up to this answer"
 msgstr "Los tokens que usó el modelo en esta respuesta, y en toda la conversación hasta esta respuesta"
 
