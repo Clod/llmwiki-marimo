@@ -11,6 +11,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ## [Unreleased]
 
+### Added
+
+- **The Settings screen edits the models.** A first question failed with no
+  `.env`, and the only way to set the model was to edit that file by hand. The
+  block "Models" edits the endpoint URL, the API key and the model name of the
+  reading model (`LLM_*`) and of the ingestion model (`WIKI_LLM_*`, empty fields
+  use the reading model). The keys are password fields, and the page never shows
+  a saved key. The values are written to `.env` and apply from the next question
+  and the next ingestion, without a restart.
+
 ### Changed
 
 - **The reference line of injected pages says what is undetermined.** A

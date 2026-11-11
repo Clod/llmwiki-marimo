@@ -14,8 +14,9 @@ that builds an LLM client decides what to require.
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Project root = parent of base/
-_ENV_FILE = str(Path(__file__).parent.parent / ".env")
+# Project root = parent of base/. The web Settings screen writes the models to this file.
+ENV_FILE = Path(__file__).parent.parent / ".env"
+_ENV_FILE = str(ENV_FILE)
 
 
 class Settings(BaseSettings):

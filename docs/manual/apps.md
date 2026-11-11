@@ -333,6 +333,19 @@ that changed, with `tomlkit` (`domain.chat.settings_writer`: comments and order 
 commits the wiki, and drops the cached agents of the wiki (`AppState.reset_agents`), so
 the next question uses the new settings without a restart.
 
+The block **Models**, above the keys of `wiki_config.toml`, edits the two models of
+`.env` (§8), the same for every wiki: the reading model (`LLM_BASE_URL`, `LLM_API_KEY`,
+`LLM_MODEL`), which answers in the chat, and the ingestion model (`WIKI_LLM_*`), whose
+empty fields use the reading model's values. The API keys are password fields: the page
+never shows a saved key, and an empty key field keeps it. `POST
+/w/{wiki_id}/settings/models` refuses a URL that does not start with `http://` or
+`https://`. A valid form replaces the lines of those keys in `.env` and adds the missing
+ones. The other lines and the comments stay, and a new `.env` is readable by its owner
+only (`web.settings.write_models`). `AppState.set_models` then drops the agents of every
+open wiki, so the next question and the next ingestion use the new models without a
+restart. The block is shown only when the application has a `.env` to write
+(`WebSettings.env_file`, set by `from_env`).
+
 ---
 
 ## 8. Configuration

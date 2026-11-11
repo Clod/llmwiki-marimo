@@ -673,6 +673,10 @@ msgid "Saved. The changes apply from the next question; the earlier answers do n
 msgstr "Guardado. Los cambios se aplican desde la próxima pregunta; las respuestas anteriores no cambian."
 
 #: web/routes/settings.py
+msgid "Saved in .env. The models apply from the next question and the next ingestion."
+msgstr "Guardado en .env. Los modelos se aplican desde la próxima pregunta y la próxima ingesta."
+
+#: web/routes/settings.py
 msgid "Write a text."
 msgstr "Escribí un texto."
 
@@ -691,6 +695,19 @@ msgstr "Escribí un número entero, 1 o más."
 #: web/routes/settings.py
 msgid "The value is not valid."
 msgstr "El valor no es válido."
+
+#: web/routes/settings.py
+msgid "Write a URL that starts with http:// or https://."
+msgstr "Escribí una URL que empiece con http:// o https://."
+
+#: web/routes/settings.py
+msgid "The models cannot be edited here: there is no .env file to write."
+msgstr "Los modelos no se pueden editar acá: no hay un archivo .env donde escribirlos."
+
+#: web/routes/settings.py
+#, python-format
+msgid "The .env file could not be written: %(error)s"
+msgstr "No se pudo escribir el archivo .env: %(error)s"
 
 #: web/routes/tools.py
 msgid "The wiki has no data files."
@@ -2003,7 +2020,7 @@ msgstr "Mantenimiento"
 msgid "Configuration"
 msgstr "Configuración"
 
-#: web/templates/maintain.html
+#: web/templates/maintain.html web/templates/settings.html
 msgid "Model"
 msgstr "Modelo"
 
@@ -2692,6 +2709,55 @@ msgstr "Encuadrar"
 #: web/templates/relations.html
 msgid "The wiki has no pages to show yet."
 msgstr "La wiki todavía no tiene páginas para mostrar."
+
+#: web/templates/settings.html
+msgid "Models"
+msgstr "Modelos"
+
+#: web/templates/settings.html
+#, python-format
+msgid "The models are the same for every wiki. They are saved in <code>%(path)s</code>."
+msgstr "Los modelos son los mismos para todas las wikis. Se guardan en <code>%(path)s</code>."
+
+#: web/templates/settings.html
+msgid "Reading model"
+msgstr "Modelo de lectura"
+
+#: web/templates/settings.html
+msgid "The model of the chat."
+msgstr "El modelo del chat."
+
+#: web/templates/settings.html
+msgid "Ingestion model"
+msgstr "Modelo de ingesta"
+
+#: web/templates/settings.html
+msgid "The model that writes the pages of the wiki. An empty field uses the value of the reading model."
+msgstr "El modelo que escribe las páginas de la wiki. Un campo vacío usa el valor del modelo de lectura."
+
+#: web/templates/settings.html
+msgid "Endpoint URL"
+msgstr "URL del servicio"
+
+#: web/templates/settings.html
+msgid "API key"
+msgstr "Clave de la API"
+
+#: web/templates/settings.html
+msgid "A key is saved, and the page does not show it. Leave the field empty to keep it."
+msgstr "Hay una clave guardada, y la página no la muestra. Dejá el campo vacío para conservarla."
+
+#: web/templates/settings.html
+msgid "No key is saved."
+msgstr "No hay ninguna clave guardada."
+
+#: web/templates/settings.html
+msgid "Write the models to .env. They apply from the next question"
+msgstr "Escribe los modelos en .env. Se aplican desde la próxima pregunta"
+
+#: web/templates/settings.html
+msgid "Save the models"
+msgstr "Guardar los modelos"
 
 #: web/templates/settings.html
 msgid "Content language"
