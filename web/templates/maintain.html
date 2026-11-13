@@ -13,6 +13,8 @@
         <dd>{% if tools.java %}<span title="{{ _('Ingesting PDF and office documents needs Java: the text extractor runs a .jar. .md and .txt files do not need it') }}">{{ tools.java }}</span>{% else %}<span class="missing" title="{{ _('Without Java, ingesting PDF and office documents (DOCX, DOC, ODT, RTF) fails; MD and TXT files do not need it. macOS: brew install --cask temurin') }}">{{ _("Not installed") }}</span>{% endif %}</dd></div>
       <div><dt>LibreOffice</dt>
         <dd>{% if tools.libreoffice %}<span title="{{ _('LibreOffice converts each office document (DOCX, DOC, ODT, RTF) to PDF') }}">{{ tools.libreoffice }}</span>{% elif tools.libreoffice_found %}<span class="missing" title="{{ _('%(path)s exists, but it did not convert a test DOCX. The Writer component is usually missing (Linux: sudo apt-get install libreoffice-writer). Ingesting DOCX, DOC, ODT and RTF fails; MD and TXT files do not need it.', path=tools.libreoffice_found) }}">{{ _("Installed, but it does not convert documents") }}</span>{% else %}<span class="missing" title="{{ _('Without LibreOffice, ingesting DOCX, DOC, ODT and RTF fails; MD and TXT files do not need it. macOS: brew install --cask libreoffice') }}">{{ _("Not installed") }}</span>{% endif %}</dd></div>
+      <div><dt>OCR</dt>
+        <dd>{% if tools.ocr.usable %}<span title="{{ _('The engine that reads PDFs with no text layer (set in Settings, or OCR_ENGINE in .env)') }}">{{ tools.ocr.label }}</span>{% else %}<span class="missing" title="{{ tools.ocr.problem }}">{{ _("%(engine)s: cannot be used", engine=tools.ocr.label) }}</span>{% endif %}</dd></div>
       <div><dt>{{ _("NLI verifier") }}</dt>
         <dd>{% if verifier_status == "installed" %}<span title="{{ _('The local model that checks each sentence of an answer or a page against its passages') }}">{{ _("Installed") }}</span>{% else %}<span class="missing" title="{{ _('Without the verifier, the checkboxes and buttons that verify sentences are disabled') }}">{% if verifier_status == "packages" %}{{ _("Packages installed, the model is missing") }}{% else %}{{ _("Not installed") }}{% endif %}</span>
           <button class="btn btn-sm" type="button" id="install-verifier" aria-controls="confirm-verifier" title="{{ _('Install the packages and the model of the verifier; asks for confirmation') }}" onclick="toggle('confirm-verifier', true)">{{ _("Install the verifier") }}</button>{% endif %}</dd></div>
@@ -91,6 +93,36 @@
           </form>
           {% else %}<p class="muted">{{ _("There are no stale pages.") }}</p>{% endif %}
         </section>
+
+        {% if not images_ignored or images.kept %}
+        <section class="task panel panel-body" id="images-panel">
+          <h2 class="card-title">{{ _("Images") }} · {{ images.kept }}</h2>
+          <p class="task-text">{{ _("The images kept from the sources. With descriptions on, the vision model describes each image and the description enters the text of its source. Each description is one call to the model.") }}</p>
+          <dl class="config-line" aria-label="{{ _('Counts of the images') }}">
+            <div><dt>{{ _("Kept") }}</dt><dd>{{ images.kept }}</dd></div>
+            <div><dt>{{ _("Described") }}</dt><dd>{{ images.described }}</dd></div>
+            <div><dt>{{ _("Without description") }}</dt><dd>{{ images.without_description }}</dd></div>
+            <div><dt>{{ _("Stale") }}</dt><dd title="{{ _('Described with an earlier version of the description prompt, or the image changed') }}">{{ images.stale }}</dd></div>
+          </dl>
+          <dl class="config-line" aria-label="{{ _('Images not described, by reason') }}">
+            <div><dt>{{ _("Too small") }}</dt><dd>{{ images.skipped.too_small }}</dd></div>
+            <div><dt>{{ _("Decorative") }}</dt><dd>{{ images.skipped.decorative }}</dd></div>
+            <div><dt>{{ _("Duplicate") }}</dt><dd>{{ images.skipped.duplicate }}</dd></div>
+            <div><dt>{{ _("Over the limit") }}</dt><dd title="{{ _('Past the maximum of images described per source') }}">{{ images.skipped.over_limit }}</dd></div>
+            <div><dt>{{ _("Failed") }}</dt><dd>{{ images.skipped.failed }}</dd></div>
+          </dl>
+          {% if not images.enabled %}<p class="muted">{% trans %}Descriptions are off. Turn them on with <code>describe = true</code> in the <code>[images]</code> section of the Settings screen.{% endtrans %}</p>{% endif %}
+          <button class="btn task-action" type="button" aria-controls="confirm-describe" {% if images.enabled and images.to_describe and vision_model %}title="{{ _('Describe the images that have no description; asks for confirmation') }}" onclick="toggle('confirm-describe', true)"{% else %}disabled title="{{ _('There is nothing to describe, descriptions are off, or no vision model is configured') }}"{% endif %}>{{ _("Describe the images") }}</button>
+          <div class="confirm" id="confirm-describe" hidden>
+            <p>{% trans count=images.to_describe, model=vision_model %}Describe {{ count }} image with {{ model }}? It is one call to the model.{% pluralize %}Describe {{ count }} images with {{ model }}? It is one call to the model for each image.{% endtrans %}</p>
+            <div class="actions">
+              <button class="btn btn-danger" title="{{ _('Start describing; progress appears in the console') }}" hx-post="/w/{{ wiki_id }}/describe-images" hx-target="#progress" hx-swap="innerHTML"
+                      onclick="toggle('confirm-describe', false)">{{ _("Describe") }}</button>
+              <button class="btn cancel" type="button" title="{{ _('Close without describing') }}" onclick="toggle('confirm-describe', false)">{{ _("Cancel") }}</button>
+            </div>
+          </div>
+        </section>
+        {% endif %}
 
         <section class="task panel panel-body">
           <h2 class="card-title">{{ _("Index of the wiki") }}</h2>

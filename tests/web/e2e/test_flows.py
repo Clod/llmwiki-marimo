@@ -416,8 +416,10 @@ def test_a_md_file_is_uploaded_ingested_and_opened_as_a_source(page, live, monke
         return [SimpleNamespace(status="ingested", doc_id="md-1")]
 
     monkeypatch.setattr(ingest, "ingest_uploads", fake_ingest)
+    with (live.wiki_dir / "wiki_config.toml").open("a", encoding="utf-8") as config:
+        config.write("\n[images]\nignore = false\n")
     goto(page, live, "ingest")
-    expect(page.locator("label.drop")).to_contain_text("DOC, DOCX, MD, ODT, PDF, RTF o TXT")
+    expect(page.locator("label.drop")).to_contain_text("DOC, DOCX, GIF, JPEG, JPG, MD, ODT, PDF, PNG, RTF, TXT o WEBP")
     note = {"name": "notas.md", "mimeType": "text/markdown",
             "buffer": "---\ntitle: x\n---\n# Notas de campo\n\nUn **texto** cualquiera.\n".encode()}
     page.locator("input[type=file]").set_input_files(note)
@@ -571,7 +573,7 @@ def test_rebuild_the_index_from_the_maintenance_screen(page, live, monkeypatch):
     extractor is replaced, since it needs Java and LibreOffice."""
     from domain.ingestion import extractor
 
-    monkeypatch.setattr(extractor, "extract", lambda path, cache_dir: ([(1, f"Texto de {path.name}.")], "fake"))
+    monkeypatch.setattr(extractor, "extract", lambda path, cache_dir, **_kwargs: ([(1, f"Texto de {path.name}.")], "fake"))
     before = {r["relative_path"] for r in ingest_rows(live)}
     goto(page, live, "maintain")
     page.get_by_role("button", name="Reconstruir el índice").click()

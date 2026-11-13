@@ -40,6 +40,28 @@ class Settings(BaseSettings):
     WIKI_LLM_API_KEY: str = ""
     WIKI_LLM_MODEL: str = ""
 
+    # Vision LLM: describes the images of the sources (`[images] describe = true` in
+    # wiki_config.toml). Each value falls back to its WIKI_LLM_* counterpart, and that
+    # one to its LLM_* counterpart (docs/design_image_handling.md, D3).
+    VISION_BASE_URL: str = ""
+    VISION_API_KEY: str = ""
+    VISION_MODEL: str = ""
+
+    def vision(self) -> tuple[str, str, str]:
+        """(base URL, API key, model) of the vision model, with the fallbacks applied."""
+        return (
+            self.VISION_BASE_URL or self.WIKI_LLM_BASE_URL or self.LLM_BASE_URL,
+            self.VISION_API_KEY or self.WIKI_LLM_API_KEY or self.LLM_API_KEY,
+            self.VISION_MODEL or self.WIKI_LLM_MODEL or self.LLM_MODEL,
+        )
+    # OCR for PDFs with no text layer: "none" (default), "tesseract" or "vision".
+    # The vision engine reads each page with a model; each OCR_* value falls back
+    # to its LLM_* counterpart when blank.
+    OCR_ENGINE: str = "none"
+    OCR_BASE_URL: str = ""
+    OCR_API_KEY: str = ""
+    OCR_MODEL: str = ""
+
     # Note: a few runtime toggles documented in .env.example — WIKI_HOME,
     # WIKI_AUTOCOMMIT, WIKI_DEBUG, WIKI_TRACE — are intentionally NOT modelled
     # here. The marimo apps read them ad hoc via os.environ.get() (workspace
@@ -48,6 +70,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def apply_values(values: dict[str, str]) -> None:
+    """Assign to `settings` each key of `values` that is a field of `Settings`; ignore the
+    other keys. The web Settings screen calls it after it writes the models to `.env`, so
+    the code that reads `settings` at each call (the OCR engine, the vision model) uses the
+    new values without a restart."""
+    for key, value in values.items():
+        if key in Settings.model_fields:
+            setattr(settings, key, value)
 
 
 def require_llm_config(base_url: str, api_key: str, model: str, *, purpose: str) -> None:

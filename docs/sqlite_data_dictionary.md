@@ -207,8 +207,48 @@ Stores the raw extracted text of multi-page files (e.g., PDFs) segregated page-b
 | `id` | `TEXT` | `PRIMARY KEY` | `(lower(hex(randomblob(16))))` | A custom 32-character hexadecimal UUID string. |
 | `document_id` | `TEXT` | `NOT NULL`, `FOREIGN KEY REFERENCES documents(id) ON DELETE CASCADE` | None | Links to the parent document. If the document is deleted, all pages are cascadingly deleted. |
 | `page` | `INTEGER` | `NOT NULL`, `UNIQUE(document_id, page)` | None | The 1-indexed page number of the document. |
-| `content` | `TEXT` | `NOT NULL` | None | Raw extracted plain text specific to this page. |
+| `content` | `TEXT` | `NOT NULL` | None | Raw extracted plain text specific to this page. An image of a PDF source appears as a markdown link to the kept copy, in the form described below. |
 | `elements` | `TEXT` | None | None | Rich structural components (e.g., layout coordinates, tables, images, bounding boxes) stored as a JSON payload. Plain `TEXT` — no JSON constraint in the schema. |
+
+#### Images of a PDF source
+
+The images that opendataloader-pdf extracts are kept outside the database, in the
+document's ingestion folder, beside `converted.pdf`:
+
+```
+.llmwiki/cache/local/<document id>/images/<file>
+.llmwiki/cache/local/<document id>/figures.json     page, file, caption, sha256, width, height and description of each image
+.llmwiki/cache/local/<document id>/images/<file>.desc.json   the description of an image (when `[images] describe` is on)
+```
+
+`description` in `figures.json` is the name of the description file, or the reason the image
+has none: `too_small`, `decorative`, `duplicate`, `over_limit` or `failed`; it is empty for an
+image no description was asked for. A description file holds `image_sha256`, `model`,
+`prompt_sha256`, `language`, `generated_at`, `tokens_input`, `tokens_output` and the `answer` of
+the vision model (`type`, `decorative`, `description`, `visible_text`, `values`). A description
+enters `document_pages.content` as a block between `<!-- image-description: <file> -->` and
+`<!-- /image-description -->`, after the link line of its image. The files stay out of the
+database and of git; no table changed.
+
+The text stored in `document_pages.content` (and so in `documents.content` and the
+chunks) links to a kept image with a path relative to the workspace root, which does
+not depend on the URLs of any user interface. The alt text keeps the page number:
+
+```
+![Imagen, página 3](.llmwiki/cache/local/<document id>/images/imageFile4.png)
+```
+
+The file name is a plain name without separators. The web application rewrites this
+form to its own route when it renders a page or an answer. A summary page of a source
+with images also holds a "Figures" section, written by the code, whose thumbnails use
+the same path.
+
+Indexes built before images were kept hold the old form,
+`![image](<stem>_images/imageFile4.png)`, which points to a folder that was deleted
+with the conversion. The `missing_image` lint check finds these links and its repair
+rewrites them to the new form. Ingesting a changed source replaces the images folder;
+deleting a source deletes the ingestion folder. The folder is derived data: a rebuild
+of the index must extract the images again.
 
 ---
 
@@ -277,7 +317,7 @@ Every sentence checked in the verification of a page, supported or not.
 | `end_char` | `INTEGER` | `NOT NULL` | None | Offset in the page body where the sentence ends (exclusive). |
 | `sentence` | `TEXT` | `NOT NULL` | None | The sentence, as in `body[start_char:end_char]`. |
 | `probability` | `REAL` | `NOT NULL` | None | Entailment probability of the best passage, from 0 to 1. A sentence is supported when it reaches the threshold in force. |
-| `best_source` | `TEXT` | None | None | Source of the best passage (relative path). `NULL` when no passage was compared. |
+| `best_source` | `TEXT` | None | None | Source of the best passage (relative path). When the best passage is the generated description of an image, the path carries the fragment `#image:<file>` (`sources/Report.pdf#image:imageFile4.png`): the sentence is supported by an image description, not by the text of the source. `domain/verify/models.py:split_source` separates the fragment. `NULL` when no passage was compared. |
 | `best_excerpt` | `TEXT` | None | None | An excerpt of the best passage. |
 
 ---

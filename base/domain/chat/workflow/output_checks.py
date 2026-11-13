@@ -7,13 +7,16 @@ chooses the steps of the mode:
 
 - pre-retrieval: Q17 and R3 (Tier 2 only), Q19 and R4 (no injected context
   only), Q20 and R5, then the additions: `table` (`answer_with_table`), `keys`
-  (`offer_available_keys`), `citation` (`ensure_citation`), Q18 (Tier 2 only)
-  and Q21. The state carries the `PreRetrievalTurn` that the input workflow
+  (`offer_available_keys`), `citation` (`ensure_citation`), Q18 (Tier 2 only),
+  C3 and Q21. The state carries the `PreRetrievalTurn` that the input workflow
   (`input_checks.py`) filled.
-- strict: T2, T3 (no evidence only), T4 and T5. The state carries no turn.
+- strict: T2, T3 (no evidence only), T4, C3 and T5. The state carries no turn.
 
-The streaming mode runs no check and does not run this graph
-(`chat_turn_stream_with_context`, `services/chat.py`).
+C3 is the figure check (`domain/chat/figure_check.py`), the last step before the
+answer in both modes. A refusal (R3, R4, R5, T3) does not reach C3: the code wrote it.
+
+The streaming mode does not run this graph (`chat_turn_stream_with_context`,
+`services/chat.py`); of the checks it runs only C3.
 
 The steps of the pre-retrieval mode call through the module `preretrieval` the
 functions that it defines (`refuse`, `suggestions`, `offer_available_keys`),
@@ -30,15 +33,18 @@ from typing import Any
 from pydantic_graph import GraphBuilder, StepContext
 
 from domain import tracing
-from domain.chat import preretrieval
+from domain.chat import figure_check, preretrieval
+from domain.chat.config import DEFAULT_NUMBER_TOLERANCE
+from domain.chat.figure_check import FigureCheck
 from domain.chat.guardrail import enforce_grounding, has_grounding, refusal_for
 from domain.chat.overlap import coverage
 from domain.chat.postprocess import (
-    answer_with_table, ensure_citation, injected_pages, mark_injected, mark_uncited,
+    advisory_table, answer_with_table, ensure_citation, injected_pages, mark_injected, mark_uncited,
 )
 from domain.chat.preretrieval import PreRetrievalTurn
 from domain.chat.refusal import Refusal, RefusalCause, fixed_sentence, is_refusal
 from domain.i18n import get_locale
+from domain.verify.context import context_from_messages
 
 R = tracing.READING
 
@@ -54,6 +60,10 @@ class AnswerChecks:
     turn:     the state of the input workflow in the pre-retrieval mode; None
               in the strict mode.
     answer:   the answer as the steps change it; the final answer at the end.
+    tolerance:    `[verify] number_tolerance` of the wiki, for C3.
+    conversation: the `(origin, text)` sources of the conversation that authorise
+                  figures (`figure_check.conversation_sources`), for C3.
+    figures:      what C3 found; None when the path did not reach C3.
     """
 
     raw: str
@@ -73,6 +83,9 @@ class AnswerChecks:
     with_table: str = ""
     tabled: str = ""
     citation_added: bool = False
+    tolerance: float = DEFAULT_NUMBER_TOLERANCE
+    conversation: tuple = ()
+    figures: FigureCheck | None = None
 
 
 Ctx = StepContext[AnswerChecks, None, AnswerChecks]
@@ -215,6 +228,23 @@ async def tier2_warning(ctx: Ctx) -> AnswerChecks:
     return checks
 
 
+@g.step(node_id="C3")
+async def figures(ctx: Ctx) -> AnswerChecks:
+    """The figure check of the prose (`domain/chat/figure_check.py`). The text of the
+    model is not edited; a note is appended when the prose has rounded figures."""
+    checks, turn = ctx.state, ctx.state.turn
+    injected = [preretrieval.context_passage(b) for b in turn.plan.blocks] if turn else []
+    table = advisory_table(checks.messages)
+    check = figure_check.check_answer(
+        checks.answer, [*injected, *context_from_messages(checks.messages)], (table,) if table else (),
+        checks.conversation, tolerance=checks.tolerance, language=checks.language,
+    )
+    checks.answer = figure_check.with_note(checks.answer, check)
+    checks.figures = check
+    tracing.mark("C3", R, **figure_check.counts(check.report), note_added=bool(check.note))
+    return checks
+
+
 @g.step(node_id="Q21")
 async def shown(ctx: Ctx) -> str:
     checks, turn = ctx.state, ctx.state.turn
@@ -305,16 +335,26 @@ g.add(
     g.edge_from(citation).to(
         g.decision(node_id="after_citation")
         .branch(g.match(AnswerChecks, matches=_tier2).label("Tier 2").to(tier2_warning))
+        .branch(g.match(AnswerChecks).to(figures))
+    ),
+    g.edge_from(tier2_warning).to(figures),
+    g.edge_from(figures).to(
+        g.decision(node_id="after_C3")
+        .branch(g.match(AnswerChecks, matches=_strict).label("strict").to(strict_answer))
         .branch(g.match(AnswerChecks).to(shown))
     ),
-    g.edge_from(tier2_warning).to(shown),
     g.edge_from(evidence).to(
         g.decision(node_id="after_T2")
         .branch(g.match(AnswerChecks, matches=_ungrounded).label("no evidence").to(guardrail))
         .branch(g.match(AnswerChecks).to(additions))
     ),
     g.edge_from(guardrail).to(additions),
-    g.edge_from(additions).to(strict_answer),
+    g.edge_from(additions).to(
+        g.decision(node_id="after_T4")
+        .branch(g.match(AnswerChecks, matches=lambda c: c.refusal_substituted)
+                .label("refusal").to(strict_answer))
+        .branch(g.match(AnswerChecks).to(figures))
+    ),
     g.edge_from(refuse_unsupported, refuse_ungrounded, refuse_model, shown, strict_answer).to(g.end_node),
 )
 

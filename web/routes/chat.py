@@ -18,9 +18,11 @@ from domain.datasets.frontmatter import split_frontmatter
 from domain.verify import verify_answer
 from services import chat as chat_service
 from services.wiki import list_pages, source_names
-from web.deps import BUSY, MODE_LABELS, get_state, get_templates, index_groups
+from web.deps import BUSY, MODE_LABELS, described_marks, get_state, get_templates, index_groups
 from web.i18n import N_, _, format_number, ngettext
-from web.render import page_url, render_markdown, render_verified
+from web.render import (
+    SENTENCE_CLASS, figure_marks, page_url, render_marked, render_markdown, render_verified,
+)
 from web.state import AppState, Message, Turn
 
 router = APIRouter()
@@ -72,10 +74,33 @@ def _verify_note(text: str, failed: bool = False) -> str:
     return f'<p class="verify-note{" failed" if failed else ""}" role="status">{html.escape(text)}</p>'
 
 
-def _summary(unsupported: int, checked: int) -> str:
-    return _verify_note(ngettext("%(unsupported)s of %(checked)s sentence without support",
-                                 "%(unsupported)s of %(checked)s sentences without support",
-                                 checked, unsupported=unsupported, checked=checked))
+def _summary(unsupported: int, checked: int, described: int = 0) -> str:
+    text = ngettext("%(unsupported)s of %(checked)s sentence without support",
+                    "%(unsupported)s of %(checked)s sentences without support",
+                    checked, unsupported=unsupported, checked=checked)
+    if described:
+        text += "; " + ngettext("%(described)s supported by an image description",
+                                "%(described)s supported by image descriptions",
+                                described, described=described)
+    return _verify_note(text)
+
+
+def _figure_summary(report) -> str:
+    """The line under an answer that has figures without support; empty when it has none."""
+    count = len(report.unsupported()) if report else 0
+    if not count:
+        return ""
+    return _verify_note(ngettext("%(n)s figure without support", "%(n)s figures without support", count))
+
+
+def _shifted(report, shifted):
+    """`report` with the offsets of its figures moved by `shifted`, for the stored answer
+    after the verification changed its text; None stays None."""
+    if report is None:
+        return None
+    return replace(report, findings=tuple(
+        replace(f, figure=replace(f.figure, start=shifted(f.figure.start), end=shifted(f.figure.end)))
+        for f in report.findings))
 
 
 def _error(text: str) -> str:
@@ -106,7 +131,8 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
     """Stream the answer: raw text chunks while it arrives (streaming mode), then
     the rendered answer, which replaces the chunks, then, when the turn asked for
     it, one `verification` event with the answer again and its unsupported
-    sentences marked, then `done`."""
+    sentences marked, then `done`. The figures without support are marked in red in
+    the rendered answer of every mode, with or without that verification."""
     turn = state.turns.pop(turn_id, None)
     if turn is None:
         raise HTTPException(status_code=404, detail=_("That question is no longer in progress."))
@@ -119,6 +145,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
         result = None
         raw_answer, path = None, ()
         input_tokens = output_tokens = 0
+        figures = None
         try:
             agents = state.get_agents(entry)
             context: tuple = ()
@@ -131,6 +158,9 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                         full += item
                         yield {"event": "chunk", "data": html.escape(item)}
                     else:
+                        # The service may append the note on rounded figures: the
+                        # final answer, not the chunks, is the answer of the turn.
+                        full, figures = item.answer, item.figures
                         context, path = item.context, item.path
                         input_tokens, output_tokens = item.input_tokens, item.output_tokens
             else:
@@ -143,7 +173,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                     entry.wiki, agents, conversation, mode=turn.mode,
                     conversation_id=turn.conversation_id, open_page=turn.open_page,
                     sentence_verifier=turn.verify)
-                full, context = answered.answer, answered.context
+                full, context, figures = answered.answer, answered.context, answered.figures
                 raw_answer, path = answered.raw_answer, answered.path
                 input_tokens, output_tokens = answered.input_tokens, answered.output_tokens
                 result = answered if turn.verify else None
@@ -155,15 +185,17 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
             yield {"event": "done", "data": ""}
             return
         answer = Message("assistant", full, turn.mode, tuple(context), raw_answer, tuple(path),
-                         input_tokens, output_tokens)
+                         input_tokens, output_tokens, figures)
         conversation.append(answer)
         sources = source_names(entry.wiki)
-        rendered = render_markdown(wiki_id, full, None, pages, sources)
+        red_marks = figure_marks(figures)
+        rendered = render_marked(wiki_id, full, red_marks, pages, sources)
+        figure_note = _figure_summary(figures)
         meta = answer_meta(templates, wiki_id, answer, conversation_tokens(conversation))
         buttons = audit_buttons(templates, wiki_id, turn.conversation_id, conversation)
         pending = _verify_note(_("Verifying the sentences…")) if result is not None else ""
         yield {"event": "chunk",
-               "data": f'<div id="answer-{turn_id}" hx-swap-oob="innerHTML">{rendered}{pending}</div>'
+               "data": f'<div id="answer-{turn_id}" hx-swap-oob="innerHTML">{rendered}{figure_note}{pending}</div>'
                        f'<div id="meta-{turn_id}" hx-swap-oob="innerHTML">{meta}</div>{buttons}'}
         if result is not None:
             try:
@@ -181,17 +213,21 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 def shifted(offset: int) -> int:
                     return offset + sum(change for at, change in edits if at <= offset)
 
-                spans = [(shifted(s.start), shifted(s.end)) for s in report.unsupported_sentences()]
+                marks = [(shifted(s.start), shifted(s.end), SENTENCE_CLASS, None)
+                         for s in report.unsupported_sentences()]
+                marks += [(shifted(a), shifted(b), css, title) for a, b, css, title in red_marks]
                 if text != full:
-                    conversation[-1] = replace(answer, content=text)
-                marked = render_verified(wiki_id, text, spans, pages, sources)
-                body = marked + _summary(report.unsupported, report.checked)
+                    conversation[-1] = replace(answer, content=text, figures=_shifted(figures, shifted))
+                described = [(shifted(a), shifted(b), support)
+                             for a, b, support in described_marks(entry.wiki, wiki_id, report)]
+                marked = render_marked(wiki_id, text, marks, pages, sources, described=described)
+                body = marked + _summary(report.unsupported, report.checked, report.described) + figure_note
             except Exception:  # noqa: BLE001 — the answer stays as it is
                 # A Tier-2 answer that skipped Q17 was compared with nothing.
                 note = (_("Could not verify. The answer was not compared with the fragments "
                           "of the original documents.") if _skipped_containment(path)
                         else _("Could not verify"))
-                body = rendered + _verify_note(note, failed=True)
+                body = rendered + figure_note + _verify_note(note, failed=True)
             yield {"event": "verification",
                    "data": f'<div id="answer-{turn_id}" hx-swap-oob="innerHTML">{body}</div>'}
         yield {"event": "done", "data": ""}
@@ -214,10 +250,10 @@ def chat_thread(request: Request, wiki_id: str, conversation_id: str,
         if m.role == "user":
             messages.append({"role": "user", "html": m.content, "meta": ""})
             continue
-        rendered = render_markdown(wiki_id, m.content, None, pages, sources)
+        rendered = render_marked(wiki_id, m.content, figure_marks(m.figures), pages, sources)
         running += m.tokens
         meta = answer_meta(templates, wiki_id, m, running) if m.mode else ""
-        messages.append({"role": m.role, "html": rendered, "meta": meta})
+        messages.append({"role": m.role, "html": rendered + _figure_summary(m.figures), "meta": meta})
     prompts = load_config(entry.wiki.path).suggested_prompts
     thread = templates.get_template("_chat_thread.html").render(
         request=request, messages=messages, prompts=prompts)
@@ -295,8 +331,8 @@ async def chat_verify_draft(wiki_id: str, conversation_id: str = Form(...), mark
     except Exception:  # noqa: BLE001 — the draft stays as it is
         return rendered + _verify_note(_("Could not verify"), failed=True)
     marked = render_verified(wiki_id, markdown, [(s.start, s.end) for s in report.unsupported_sentences()],
-                             pages, sources)
-    return marked + _summary(report.unsupported, report.checked)
+                             pages, sources, described=described_marks(entry.wiki, wiki_id, report))
+    return marked + _summary(report.unsupported, report.checked, report.described)
 
 
 @router.post("/w/{wiki_id}/chat/save", response_class=HTMLResponse)

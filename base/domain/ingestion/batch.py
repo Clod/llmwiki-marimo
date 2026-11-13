@@ -29,6 +29,7 @@ from typing import Callable
 # - _init_wiki_workspace: Prepares folders like wiki/concepts/ if missing
 # - ingest_file: The standard single-file ingestion executor
 from domain import tracing
+from .describe import Vision
 from .pipeline import IngestResult, _all_concept_names, _init_wiki_workspace, ingest_file
 # Import the function that uses LLMs to structure a global wiki overview document
 from .wiki_generator import update_overview
@@ -50,6 +51,7 @@ def batch_ingest(
     progress_cb: Callable[[str], None] | None = None,
     run_lint: bool = False,
     language: str = "en",
+    vision: Vision | None = None,
 ) -> list[IngestResult]:
     """Ingest multiple files, deferring overview/log/git to the end of the batch.
 
@@ -66,6 +68,7 @@ def batch_ingest(
         progress_cb: Optional callback function to report progress back to a UI.
         run_lint: Run deterministic lint checks at the end and append to log.
         language: ISO 639-1 code controlling the language of generated content.
+        vision: the vision model that describes images (`[images] describe = true`).
 
     Returns:
         List of IngestResult (one per file, in order).
@@ -104,6 +107,7 @@ def batch_ingest(
                 progress_cb=progress_cb,
                 _batch_mode=True,
                 language=language,
+                vision=vision,
             )
             results.append(result)
 

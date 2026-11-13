@@ -34,6 +34,7 @@ stemmer of a wiki whose language is Spanish.
 The node identifiers follow five groups:
 
 - I1 to I13: the ingestion of one document.
+- I17 to I19: the images of one document (inside I4, when the document has kept images).
 - I14 to I16: the passes that run after the documents of a scan or of an upload.
 - E1 to E4: the end state of one document.
 - W1 to W4: the path of one fragment, from the text to the index.
@@ -64,6 +65,9 @@ flowchart TD
         E2["E2 · skipped, already up to date"]
         E3["E3 · failed after I3<br/>an exception in I4 to I13<br/>the pages written in I6 and I8 are rolled back<br/>status=failed"]
         E4["E4 · ingested"]
+        I17["I17 · images kept for the document<br/>count and total bytes"]
+        I18["I18 · one image described<br/>one vision-model call, or a description reused<br/>from the cache of the images folder"]
+        I19["I19 · one image not described<br/>too_small, decorative, duplicate, over_limit or failed"]
         I14["I14 · scan only: dataset aliases<br/>regenerate_dataset_aliases, one model call<br/>when the datasets/ fingerprint changed"]
         I15["I15 · upload only: reconciliation<br/>lint_wiki, then repair_wiki on the issues<br/>of the pages the upload touched"]
         I16["I16 · See also cross-links<br/>crosslink_wiki_pages, no model call<br/>on the pages the run touched"]
@@ -81,6 +85,8 @@ flowchart TD
         I13 -->|single file| E4
         E4 -.->|after the last document of a scan| I14 --> I16
         E4 -.->|after the last document of an upload| I15 --> I16
+        I4 --> I17 --> I18
+        I17 --> I19
         I4 -.->|exception| E3
     end
 
@@ -148,6 +154,9 @@ The columns of the node table:
 | I14 | After the documents of a scan: regenerates the aliases of the dataset terms with one model call, only when the fingerprint of `datasets/` changed | `base/domain/ingestion/alias_generation.py`, `regenerate_dataset_aliases`; `base/domain/ingestion/pipeline.py`, `scan_and_ingest` | `regenerated`, or `error` | code |
 | I15 | After the documents of an upload: runs the lint checks, and repairs the issues of the pages the upload touched | `base/domain/lint/runner.py`, `lint_wiki`; `base/domain/repair/runner.py`, `repair_wiki`; `base/services/ingest.py`, `ingest_uploads` | `mode`, `pages`, `issues`, `fixable` | code |
 | I16 | After a scan or an upload: adds "See also" cross-links to the pages the run touched, with no model call | `base/domain/ingestion/pipeline.py`, `crosslink_wiki_pages`, `scan_and_ingest`; `base/services/ingest.py`, `ingest_uploads` | `touched`, `linked` | code |
+| I17 | The images kept for a document: count and total bytes; recorded when the document has kept images | `base/domain/ingestion/describe.py`, `describe_images` | `count`, `total_bytes` | code |
+| I18 | One image described: the vision-model call, or the reuse of a description file whose `image_sha256` and `prompt_sha256` match; the call carries the image, and the trace of the request keeps a reference to the image instead (`wrap_openai`) | `base/domain/ingestion/describe.py`, `describe_images`, `call_vision`; `base/domain/tracing.py`, `wrap_openai` | `file`, `image_sha256`, `model`, `cached`, `tokens_input`, `tokens_output`, or `error` | code |
+| I19 | One image not described, with its reason: `too_small`, `decorative`, `duplicate`, `over_limit` or `failed` | `base/domain/ingestion/describe.py`, `describe_images` | `file`, `reason` | code |
 | E1 | Failed validation: the result is `failed`, and nothing was written | `base/domain/ingestion/pipeline.py`, `ingest_file` | `message` | code |
 | E2 | Unchanged file: the result is `skipped` | `base/domain/ingestion/pipeline.py`, `ingest_file` | no attributes | code |
 | E3 | An exception in I4 to I13: the pages written in I6 and I8 are rolled back, and the row of the document in `documents` gets `status='failed'` | `base/domain/ingestion/pipeline.py`, `_ingest_file`, `_rollback_wiki_pages` | `error`, `rolled_back` | code |

@@ -186,11 +186,12 @@ def source_names(wiki: Wiki) -> set[str]:
 def source_view(wiki: Wiki, filename: str) -> Path:
     """The file a browser can show for the source document `filename`.
 
-    A PDF, a .md and a .txt are themselves. An office file (.docx, .doc, .odt,
-    .rtf) is the PDF that ingestion converted it to, in the document's cache
-    directory; when that PDF is missing, LibreOffice converts the file again
-    and the PDF is kept there. Raises FileNotFoundError when `filename` is not
-    a file of the sources folder.
+    A PDF is itself, or its OCR copy (`ocr.pdf` in the document's cache
+    directory, a PDF with a text layer) when ingestion ran OCR on it. A .md and a
+    .txt are themselves. An office file (.docx, .doc, .odt, .rtf) is the PDF that
+    ingestion converted it to, in the document's cache directory; when that PDF is
+    missing, LibreOffice converts the file again and the PDF is kept there.
+    Raises FileNotFoundError when `filename` is not a file of the sources folder.
     """
     from domain.ingestion.extractor import convert_office_to_pdf
     from domain.ingestion.formats import OFFICE_EXTENSIONS
@@ -198,17 +199,63 @@ def source_view(wiki: Wiki, filename: str) -> Path:
     if filename not in source_names(wiki):
         raise FileNotFoundError(f"{filename} is not a source of this wiki")
     path = wiki.sources_dir / filename
-    if path.suffix.lower() not in OFFICE_EXTENSIONS:
-        return path
+    is_docx = path.suffix.lower() in OFFICE_EXTENSIONS      # an office file, converted to PDF
+    if not is_docx and path.suffix.lower() != ".pdf":
+        return path                                          # .md and .txt are shown as they are
     with get_connection(wiki.db_path) as conn:
         row = conn.execute(
             "SELECT id FROM documents WHERE source_kind = 'source' AND filename = ?", (filename,),
         ).fetchone()
     if row is None:
-        raise FileNotFoundError(f"{filename} has not been ingested")
+        if is_docx:
+            raise FileNotFoundError(f"{filename} has not been ingested")
+        return path
     cache_dir = wiki.path / ".llmwiki" / "cache" / "local" / row["id"]
+    if not is_docx:
+        ocr_copy = cache_dir / "ocr.pdf"
+        return ocr_copy if ocr_copy.is_file() else path
     cached = cache_dir / "converted.pdf"
     return cached if cached.is_file() else convert_office_to_pdf(path, cache_dir)
+
+
+def kept_image(wiki: Wiki, document_id: str, file: str) -> Path:
+    """The kept image `file` of the source document `document_id`.
+
+    Only a document id of the index and a plain file name inside that document's
+    images folder are accepted (domain/ingestion/images.py). Raises
+    FileNotFoundError for anything else, including a name with `..` or a separator.
+    """
+    from domain.ingestion.images import DESC_SUFFIX, image_path
+
+    if file.endswith(DESC_SUFFIX):    # a description file is not an image
+        raise FileNotFoundError(f"{file} is not a kept image of {document_id}")
+    with get_connection(wiki.db_path) as conn:
+        row = conn.execute(
+            "SELECT id FROM documents WHERE source_kind = 'source' AND id = ?", (document_id,),
+        ).fetchone()
+    path = image_path(wiki.path, row["id"], file) if row else None
+    if path is None:
+        raise FileNotFoundError(f"{file} is not a kept image of {document_id}")
+    return path
+
+
+def image_reference(wiki: Wiki, source: str, file: str) -> tuple[str, int | None] | None:
+    """(document id, page) of the kept image `file` of the source at `source`
+    (`sources/x.pdf`, with or without a leading slash), or None when the source is
+    not in the index or has no such kept image. Used to link a sentence supported by
+    a description to the image."""
+    from domain.ingestion.images import document_dir, image_path, read_figures
+
+    with get_connection(wiki.db_path) as conn:
+        row = conn.execute(
+            "SELECT id FROM documents WHERE source_kind = 'source' AND relative_path = ?",
+            (source.lstrip("/"),),
+        ).fetchone()
+    if row is None or image_path(wiki.path, row["id"], file) is None:
+        return None
+    page = next((f.get("page") for f in read_figures(document_dir(wiki.path, row["id"]))
+                 if f.get("file") == file), None)
+    return row["id"], page if isinstance(page, int) else None
 
 
 def reindex(wiki: Wiki, *, progress: Callable[[str], None] = lambda _: None):

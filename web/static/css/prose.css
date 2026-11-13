@@ -12,3 +12,6 @@
 .prose code { background: var(--color-canvas); padding: 0 var(--space-1); border-radius: var(--radius-sm); }
 .prose pre { background: var(--color-canvas); padding: var(--space-3); overflow: auto; border-radius: var(--radius); }
 .prose mark { background: var(--color-attention); color: var(--color-text); padding: 0 2px; border-radius: 2px; }
+/* An image kept from a PDF source; the thumbnails of the "Figures" section are a link around an image, inside a list item. */
+.prose img { max-width: 100%; height: auto; }
+.prose li > a > img { width: 8rem; max-height: 8rem; object-fit: cover; vertical-align: middle; margin-right: var(--space-2); }

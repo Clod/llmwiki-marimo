@@ -282,6 +282,86 @@ def write_env(wiki_path: Path, wiki_home: Path, provider: tuple[str, str, str], 
     say(f"  Wrote {env_path}")
 
 
+# ── OCR engine ────────────────────────────────────────────────────────────────
+
+OCR_CHOICES = ("none", "tesseract", "vision")
+OCRMYPDF_WINDOWS_DOCS = "https://ocrmypdf.readthedocs.io/en/latest/installation.html#windows"
+
+
+def ocr_install_command() -> str:
+    """The command that installs ocrmypdf and Tesseract (with Spanish) on this system."""
+    if sys.platform == "darwin":
+        return "brew install ocrmypdf tesseract tesseract-lang"
+    if os.name == "nt":
+        return f"see the ocrmypdf documentation: {OCRMYPDF_WINDOWS_DOCS}"
+    return "sudo apt-get install ocrmypdf tesseract-ocr tesseract-ocr-spa"
+
+
+def check_ocr_programs() -> bool:
+    """True when ocrmypdf and tesseract are installed; otherwise print how to install them.
+
+    Advisory: the choice is kept either way. The installer never runs `sudo`.
+    """
+    missing = [name for name in ("ocrmypdf", "tesseract") if shutil.which(name) is None]
+    if not missing:
+        say("  \u2713 ocrmypdf and tesseract found.")
+        return True
+    say(f"  \u26a0 Not installed: {', '.join(missing)}. Until they are, a scanned PDF fails with a message "
+        "that says so. Install them with:")
+    say(f"      {ocr_install_command()}")
+    say("    The Spanish language pack (tesseract-ocr-spa, or tesseract-lang on macOS) is needed "
+        "for a wiki in Spanish.")
+    return False
+
+
+def choose_ocr(preselected: str | None, provider: tuple[str, str, str]) -> dict[str, str]:
+    """Ask which OCR engine reads PDFs with no text layer; return the OCR_* values for .env."""
+    choice = preselected
+    if not choice:
+        say("A PDF with no text layer (a scan) needs OCR to be ingested. Which engine should read it?")
+        say("  1) Sin OCR  (default; a scanned PDF fails with a message)")
+        say("  2) Local: ocrmypdf + Tesseract  (free, on-device)")
+        say("  3) Modelo externo con visi\u00f3n  (a model reads each page through an OpenAI-compatible API)")
+        reply = ask("Choice", "1")
+        choice = {"2": "tesseract", "3": "vision"}.get(reply, "none")
+    if choice == "tesseract":
+        check_ocr_programs()
+        return {"OCR_ENGINE": "tesseract"}
+    if choice == "vision":
+        return _vision_wizard(provider)
+    return {"OCR_ENGINE": "none"}
+
+
+def _vision_wizard(provider: tuple[str, str, str]) -> dict[str, str]:
+    say("  Each page costs one model call, and the text may vary between runs.")
+    model = ask("  Model with vision (OCR_MODEL)")
+    while not model:
+        say("  A model is required.")
+        model = ask("  Model with vision (OCR_MODEL)")
+    values = {"OCR_ENGINE": "vision", "OCR_MODEL": model}
+    base, key, _ = provider
+    if base and key and confirm(f"  Reuse LLM_BASE_URL ({base}) and LLM_API_KEY?", assume_yes=False, default=True):
+        return values  # blank OCR_BASE_URL and OCR_API_KEY fall back to the LLM_* values
+    values["OCR_BASE_URL"] = ask("  Base URL (OpenAI-compatible, OCR_BASE_URL)")
+    values["OCR_API_KEY"] = (
+        getpass.getpass("  API key (input hidden): ").strip() if sys.stdin.isatty() else ask("  API key (OCR_API_KEY)")
+    )
+    return values
+
+
+def write_ocr_env(values: dict[str, str]) -> None:
+    """Set the OCR_* `values` in .env: replace the lines that exist, append the rest."""
+    env_path = REPO_ROOT / ".env"
+    lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+    kept = [ln for ln in lines if ln.split("=", 1)[0].strip() not in values and not ln.startswith("# OCR")]
+    while kept and not kept[-1].strip():
+        kept.pop()
+    kept += ["", "# OCR for PDFs with no text layer: none, tesseract or vision (see .env.example)"]
+    kept += [f"{name}={value}" for name, value in values.items()]
+    env_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    say(f"  Wrote OCR_ENGINE={values['OCR_ENGINE']} to {env_path}")
+
+
 # ── venv + dependencies ───────────────────────────────────────────────────────
 
 def venv_python(venv_dir: Path) -> Path:
@@ -486,6 +566,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="LLM Wiki quick-start installer.")
     p.add_argument("--demo", help="demo wiki to install (skips the prompt)")
     p.add_argument("--provider", choices=["ollama", "cloud"], help="LLM provider (skips the prompt)")
+    p.add_argument("--ocr", choices=list(OCR_CHOICES), help="OCR engine for scanned PDFs (skips the prompt)")
     p.add_argument("--wiki-home", type=Path, default=DEFAULT_WIKI_HOME, help="where demo wikis are created")
     p.add_argument("--port", type=int, default=DEFAULT_PORT, help="port for the web interface")
     p.add_argument("--yes", action="store_true", help="assume yes for all confirmations")
@@ -502,7 +583,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    total = 8
+    total = 9
 
     say(style("1", "LLM Wiki — quick start"))
     check_python()
@@ -545,7 +626,10 @@ def main(argv: list[str]) -> int:
     else:
         validate_model(venv_dir)
 
-    step(8, total, "Launch")
+    step(8, total, "Choose the OCR engine")
+    write_ocr_env(choose_ocr(args.ocr or ("none" if args.yes else None), provider))
+
+    step(9, total, "Launch")
     maybe_launch(venv_dir, args.port, do_launch=not args.no_launch, assume_yes=args.yes)
     return 0
 

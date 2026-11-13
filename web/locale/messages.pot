@@ -39,6 +39,10 @@ msgid "Mode of the turn"
 msgstr ""
 
 #: web/audit_nodes.py
+msgid "Figure check: each figure of the prose is exact, rounded or without support"
+msgstr ""
+
+#: web/audit_nodes.py
 msgid "The question enters pre-retrieval"
 msgstr ""
 
@@ -195,7 +199,7 @@ msgid "The model answers, calling the tools; the text is shown as it arrives"
 msgstr ""
 
 #: web/audit_nodes.py
-msgid "The answer is complete, with no check"
+msgid "The answer is complete, with no check but the figure check"
 msgstr ""
 
 #: web/audit_nodes.py
@@ -319,6 +323,32 @@ msgid "No page the model read supports this sentence"
 msgstr ""
 
 #: web/render.py
+#, python-format
+msgid "Supported by the generated description of the image on page %(page)s"
+msgstr ""
+
+#: web/render.py
+msgid "Supported by the generated description of an image"
+msgstr ""
+
+#: web/render.py
+msgid "Open the image"
+msgstr ""
+
+#: web/render.py
+msgid "your question"
+msgstr ""
+
+#: web/render.py
+msgid "No data supports this figure"
+msgstr ""
+
+#: web/render.py
+#, python-format
+msgid "No data supports this figure; the nearest value is %(value)s (%(origin)s)"
+msgstr ""
+
+#: web/render.py
 msgid "No source of this page supports this sentence"
 msgstr ""
 
@@ -355,6 +385,20 @@ msgstr ""
 #, python-format
 msgid "%(unsupported)s of %(checked)s sentence without support"
 msgid_plural "%(unsupported)s of %(checked)s sentences without support"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/routes/chat.py web/templates/page.html
+#, python-format
+msgid "%(described)s supported by an image description"
+msgid_plural "%(described)s supported by image descriptions"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/routes/chat.py
+#, python-format
+msgid "%(n)s figure without support"
+msgid_plural "%(n)s figures without support"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -601,6 +645,17 @@ msgid "An installation of the verifier is already running."
 msgstr ""
 
 #: web/routes/ingest.py
+msgid ""
+"The vision model is not configured: set it in the Settings screen, or define VISION_BASE_URL, VISION_API_KEY and "
+"VISION_MODEL in the .env file."
+msgstr ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 Images: %(described)s described, %(pending)s without description"
+msgstr ""
+
+#: web/routes/ingest.py
 #, python-format
 msgid "Deleted %(n)s stale page."
 msgid_plural "Deleted %(n)s stale pages."
@@ -720,6 +775,10 @@ msgstr ""
 
 #: web/routes/settings.py
 msgid "Write a whole number, 1 or more."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "Write a whole number, 0 or more."
 msgstr ""
 
 #: web/routes/settings.py
@@ -2061,6 +2120,15 @@ msgid ""
 msgstr ""
 
 #: web/templates/maintain.html
+msgid "The engine that reads PDFs with no text layer (set in Settings, or OCR_ENGINE in .env)"
+msgstr ""
+
+#: web/templates/maintain.html
+#, python-format
+msgid "%(engine)s: cannot be used"
+msgstr ""
+
+#: web/templates/maintain.html
 msgid "NLI verifier"
 msgstr ""
 
@@ -2273,6 +2341,105 @@ msgstr ""
 
 #: web/templates/maintain.html
 msgid "There are no stale pages."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Images"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"The images kept from the sources. With descriptions on, the vision model describes each image and the description "
+"enters the text of its source. Each description is one call to the model."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Counts of the images"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Kept"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Described"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Without description"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Stale"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Described with an earlier version of the description prompt, or the image changed"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Images not described, by reason"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Too small"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Decorative"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Duplicate"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Over the limit"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Past the maximum of images described per source"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Failed"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid ""
+"Descriptions are off. Turn them on with <code>describe = true</code> in the <code>[images]</code> section of the "
+"Settings screen."
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Describe the images that have no description; asks for confirmation"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "There is nothing to describe, descriptions are off, or no vision model is configured"
+msgstr ""
+
+#: web/templates/maintain.html web/templates/settings.html
+msgid "Describe the images"
+msgstr ""
+
+#: web/templates/maintain.html
+#, python-format
+msgid "Describe %(count)s image with %(model)s? It is one call to the model."
+msgid_plural "Describe %(count)s images with %(model)s? It is one call to the model for each image."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/maintain.html
+msgid "Start describing; progress appears in the console"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Describe"
+msgstr ""
+
+#: web/templates/maintain.html
+msgid "Close without describing"
 msgstr ""
 
 #: web/templates/maintain.html
@@ -2727,6 +2894,16 @@ msgid "The model that writes the pages of the wiki. An empty field uses the valu
 msgstr ""
 
 #: web/templates/settings.html
+msgid "Vision model"
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"The model that describes the images of the sources and reads the scanned PDFs when the OCR engine is the vision "
+"model. It must accept images. An empty field uses the value of the ingestion model."
+msgstr ""
+
+#: web/templates/settings.html
 msgid "Endpoint URL"
 msgstr ""
 
@@ -2740,6 +2917,24 @@ msgstr ""
 
 #: web/templates/settings.html
 msgid "No key is saved."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "OCR engine"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Engine"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "None"
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"The engine that reads a PDF with no text layer. With no engine, a scanned PDF is not ingested. Tesseract needs the "
+"programs ocrmypdf and tesseract installed in this computer. The vision model reads each page with the model above."
 msgstr ""
 
 #: web/templates/settings.html
@@ -2838,6 +3033,56 @@ msgstr ""
 
 #: web/templates/settings.html
 msgid "The passages kept for each sentence of a page before the verifier runs. A whole number, 1 or more."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Figure tolerance"
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"From 0 to 1: the largest relative difference a rounded figure of an answer may have from the value in the data it "
+"rounds. A figure beyond it is marked as without support."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Ignore the images"
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"The ingestion does not keep the images of the sources: it copies, links and describes none, and it does not accept an"
+" image file as a source. Untick it to keep the images. The change applies to the sources ingested afterwards."
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"Each image kept from a source is described by a vision model, and the description enters the text of the source. Each"
+" description is one call to the model. The vision model is set in the .env file (VISION_*)."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Minimum side"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Images with a smaller side, in pixels, are not described. A whole number, 0 or more."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Minimum size"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Images smaller than this, in bytes, are not described. A whole number, 0 or more."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Maximum per source"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "At most this many images are described for each source; the others are not. A whole number, 1 or more."
 msgstr ""
 
 #: web/templates/settings.html

@@ -113,6 +113,7 @@ def test_the_default_prompts_follow_the_language_of_the_wiki():
     ({"assistant.system_prompt": "  \n "}, "assistant.system_prompt", "empty"),
     ({"verify.threshold": 1.5}, "verify.threshold", "out_of_range"),
     ({"pre_retrieval.min_coverage": -0.1}, "pre_retrieval.min_coverage", "out_of_range"),
+    ({"verify.number_tolerance": 1.5}, "verify.number_tolerance", "out_of_range"),
     ({"verify.candidates": 0}, "verify.candidates", "not_positive"),
     ({"verify.candidates": True}, "verify.candidates", "not_positive"),
     ({"wiki.language": "en"}, "wiki.language", "unknown"),
@@ -140,3 +141,13 @@ def test_the_form_reports_what_is_not_a_number():
     _, errors = sw.parse_form({"verify.threshold": "abc", "verify.candidates": "2.5", "pre_retrieval.min_coverage": "2"})
     assert errors == {"verify.threshold": "not_a_number", "verify.candidates": "not_positive",
                       "pre_retrieval.min_coverage": "out_of_range"}
+
+
+def test_the_number_tolerance_is_written_read_and_parsed(wiki):
+    sw.write_settings(wiki, {"verify.number_tolerance": 0.1})
+    assert data(wiki)["verify"] == {"number_tolerance": 0.1}
+    assert load_config(wiki).number_tolerance == 0.1
+    assert sw.current(load_config(wiki))["verify.number_tolerance"] == 0.1
+    assert sw.defaults("en")["verify.number_tolerance"] == 0.05
+    values, errors = sw.parse_form({"verify.number_tolerance": "0,02"})
+    assert errors == {} and values == {"verify.number_tolerance": 0.02}

@@ -8,7 +8,9 @@ import tomllib
 
 import pytest
 
+import config
 from domain import prompts
+from domain.ingestion import ocr
 from domain.chat.config import load_config
 from tests.web.conftest import WIKI_ID, fake_agents
 from web.app import create_app
@@ -17,7 +19,8 @@ URL = f"/w/{WIKI_ID}/settings"
 CONFIG = ('# Comment that must survive.\n[wiki]\nlanguage = "es"\n\n[assistant]\nsystem_prompt = "Old prompt."\n\n'
           '[pre_retrieval]\nenabled = true\nmin_coverage = 0.3\n\n[fuera_de_alcance]\nterminos = ["cripto"]\n')
 FORM = {"system_prompt": "Old prompt.", "suggested_prompts": "Q1\nQ2", "enabled": "on", "min_coverage": "0.3",
-        "condense_question": "on", "threshold": "0.5", "candidates": "5"}
+        "condense_question": "on", "threshold": "0.5", "candidates": "5",
+        "number_tolerance": "0.05", "ignore": "on"}
 
 
 @pytest.fixture
@@ -40,7 +43,8 @@ def test_the_menu_link_after_history(client, en_client):
 
 def test_every_key_is_shown_with_its_value_and_the_language_is_read_only(client, config_wiki):
     html = client.get(URL).text
-    for name in ("system_prompt", "suggested_prompts", "enabled", "min_coverage", "condense_question", "threshold", "candidates"):
+    for name in ("system_prompt", "suggested_prompts", "enabled", "min_coverage", "condense_question", "threshold", "candidates",
+                 "number_tolerance"):
         assert f'name="{name}"' in html
     assert "Old prompt." in html and 'value="0.3"' in html
     assert re.search(r'name="enabled"[^>]*checked', html)
@@ -240,3 +244,84 @@ def test_the_next_question_builds_the_agents_with_the_new_model(env_file, settin
     client.post(MODELS_URL, data=MODELS_FORM)
     state.get_agents(state.get_wiki(WIKI_ID))
     assert built == ["model", "new-model"]
+
+
+# ── The vision model and the OCR engine (design 3) ───────────────────────────
+
+def test_the_vision_model_follows_the_ingestion_model(settings):
+    old = dataclasses.replace(settings, vision_base_url="http://old.invalid/v1", vision_api_key="old-key",
+                              vision_model="old-model")
+    new = old.with_models({"LLM_BASE_URL": "http://read.invalid/v1", "LLM_API_KEY": "k-read",
+                           "LLM_MODEL": "read-model", "WIKI_LLM_MODEL": "big-model"})
+    assert (new.vision_base_url, new.vision_api_key, new.vision_model) == (
+        "http://read.invalid/v1", "k-read", "big-model")
+    own = old.with_models({"LLM_BASE_URL": "http://read.invalid/v1", "LLM_API_KEY": "k-read",
+                           "LLM_MODEL": "read-model", "VISION_MODEL": "eye-model"})
+    assert (own.vision_base_url, own.vision_api_key, own.vision_model) == (
+        "http://read.invalid/v1", "k-read", "eye-model")
+
+
+VISION_FORM = {**MODELS_FORM, "vision_base_url": "https://eye.invalid/v1", "vision_api_key": "secret-eye",
+               "vision_model": "eye-model", "ocr_engine": "vision"}
+# `config.settings` as the tests found it; the fixture `restore_config_settings` keeps it so.
+_AT_IMPORT = config.settings.model_dump()
+
+
+def test_the_vision_model_and_the_ocr_engine_are_shown_and_the_key_is_not(client, env_file):
+    env_file.write_text(ENV + "VISION_MODEL=eye-model\nVISION_API_KEY=secret-eye\nOCR_ENGINE=tesseract\n",
+                        encoding="utf-8")
+    html = client.get(URL).text
+    assert "Modelo de visión" in html and "Motor de OCR" in html
+    assert 'name="vision_base_url"' in html and 'value="eye-model"' in html
+    assert re.search(r'name="vision_api_key" type="password"[^>]*value=""', html)
+    assert "secret-eye" not in html
+    assert re.search(r'<option value="tesseract" selected>Tesseract</option>', html)
+
+
+def test_an_env_without_ocr_engine_shows_none(client, env_file):
+    html = client.get(URL).text
+    assert re.search(r'<option value="none" selected>Ninguno</option>', html)
+
+
+def test_saving_writes_the_vision_model_and_the_ocr_engine(client, env_file):
+    html = client.post(MODELS_URL, data=VISION_FORM).text
+    assert "Guardado en .env" in html and "secret-eye" not in html
+    text = env_file.read_text(encoding="utf-8")
+    assert "VISION_BASE_URL=https://eye.invalid/v1\n" in text and "VISION_MODEL=eye-model\n" in text
+    assert "VISION_API_KEY=secret-eye\n" in text and "OCR_ENGINE=vision\n" in text
+    # An empty key field keeps the saved key, as for the other two models.
+    client.post(MODELS_URL, data={**VISION_FORM, "vision_api_key": ""})
+    assert "VISION_API_KEY=secret-eye\n" in env_file.read_text(encoding="utf-8")
+
+
+def test_an_unknown_ocr_engine_is_saved_as_none(client, env_file):
+    client.post(MODELS_URL, data={**VISION_FORM, "ocr_engine": "magic"})
+    assert "OCR_ENGINE=none\n" in env_file.read_text(encoding="utf-8")
+
+
+def test_a_vision_url_without_http_writes_nothing(client, env_file):
+    html = client.post(MODELS_URL, data={**VISION_FORM, "vision_base_url": "eye.invalid/v1"}).text
+    assert "Escribí una URL que empiece con http:// o https://." in html
+    assert env_file.read_text(encoding="utf-8") == ENV
+
+
+def test_the_saved_models_apply_without_a_restart(client, env_file, app):
+    state = app.state.web
+    client.post(MODELS_URL, data={**VISION_FORM, "ocr_engine": "tesseract"})
+    assert config.settings.OCR_ENGINE == "tesseract" and ocr.engine_name() == "tesseract"
+    assert config.settings.VISION_MODEL == "eye-model"
+    assert app.state.web is state
+    vision = state.vision()
+    assert vision.model == "eye-model" and str(vision.client.base_url).startswith("https://eye.invalid/v1")
+    assert state.vision_model() == "eye-model"
+
+    # With the vision fields empty, the vision model is the new ingestion model.
+    client.post(MODELS_URL, data={**MODELS_FORM, "ocr_engine": "vision"})
+    assert state.vision_model() == "big-model"
+    assert ocr.vision_config()[2] == "big-model"
+    assert ocr.engine_status("es")["label"] == "modelo externo (big-model)"
+
+
+def test_a_test_that_saves_the_models_leaves_config_settings_as_it_was():
+    """Runs after the tests above that save the models: the fixture put every field back."""
+    assert config.settings.model_dump() == _AT_IMPORT

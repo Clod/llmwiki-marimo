@@ -23,7 +23,7 @@ from domain.i18n import get_locale
 # The default prompts are files, one per language.
 from domain.prompts import load_prompt
 # Single source of truth for reading [wiki].language from wiki_config.toml.
-from domain.wiki_settings import load_wiki_language
+from domain.wiki_settings import ImagesConfig, images_config_from, load_wiki_language
 # Merge the ingest-generated alias artifact under the hand-written overrides.
 from domain.chat.vocabulary import merge_aliases, read_generated_aliases
 
@@ -34,6 +34,9 @@ DEFAULT_VERIFY_THRESHOLD = 0.5
 # Passages kept for each sentence of a wiki page before the verifier runs
 # (`[verify] candidates`). See domain/verify/preselect.py.
 DEFAULT_VERIFY_CANDIDATES = 5
+# Largest relative deviation a rounded figure of an answer may have from the value it
+# rounds (`[verify] number_tolerance`). See domain/verify/figures.py.
+DEFAULT_NUMBER_TOLERANCE = 0.05
 
 
 # ── DEFAULT SYSTEM PROMPT (THE AI'S CONSTITUTION) ─────────────────────────────
@@ -103,6 +106,12 @@ class WikiAssistantConfig:
     # intent predicates. The base lists for the keys it lacks are resolved per turn
     # (`preretrieval.intent_lists`), because they depend on the active domains.
     intent_section: dict[str, list[str]] = field(default_factory=dict)
+    # The description of the images of the sources (`[images]`): ingestion reads it with
+    # `domain.wiki_settings.load_images_config`; the Settings screen reads it from here.
+    images: ImagesConfig = field(default_factory=ImagesConfig)
+    # Figure check: the largest relative deviation a rounded figure of the prose may have
+    # from its authorised value (`[verify] number_tolerance`).
+    number_tolerance: float = DEFAULT_NUMBER_TOLERANCE
 
 
 # ── CONFIG LOADER ─────────────────────────────────────────────────────────────
@@ -114,6 +123,17 @@ def _threshold(value) -> float:
     except (TypeError, ValueError):
         return DEFAULT_VERIFY_THRESHOLD
     return number if 0.0 <= number <= 1.0 else DEFAULT_VERIFY_THRESHOLD
+
+
+def _number_tolerance(value) -> float:
+    """`[verify] number_tolerance` as a float in [0, 1]; the default when absent or invalid."""
+    if isinstance(value, bool):
+        return DEFAULT_NUMBER_TOLERANCE
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return DEFAULT_NUMBER_TOLERANCE
+    return number if 0.0 <= number <= 1.0 else DEFAULT_NUMBER_TOLERANCE
 
 
 def _candidates(value) -> int:
@@ -179,6 +199,7 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
 
     verify_threshold = _threshold(data.get("verify", {}).get("threshold"))
     verify_candidates = _candidates(data.get("verify", {}).get("candidates"))
+    number_tolerance = _number_tolerance(data.get("verify", {}).get("number_tolerance"))
 
     # 5. Populate and return a WikiAssistantConfig object, safely defaulting
     #    if specific parameters are missing from the configuration file.
@@ -201,4 +222,6 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
         verify_threshold=verify_threshold,
         verify_candidates=verify_candidates,
         intent_section={k: list(v) for k, v in data.get("intent", {}).items()},
+        images=images_config_from(data.get("images")),
+        number_tolerance=number_tolerance,
     )

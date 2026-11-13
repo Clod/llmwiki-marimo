@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sse_starlette.sse import EventSourceResponse
 
-from domain.ingestion.formats import sorted_extensions
+from domain.ingestion.formats import IMAGE_EXTENSIONS, sorted_extensions, supported_extensions
 from domain.tools.reindex import NothingExtracted
 from domain.verify import install as verifier_install
 from services import ingest as ingest_service
@@ -27,15 +27,18 @@ from web.state import AppState, LLMNotConfigured
 
 router = APIRouter()
 
-_UPLOAD_SUFFIXES = tuple(sorted_extensions())
-# The ingestion screen's `accept` attribute and, by `format_label`, its label ("PDF, DOCX, … or TXT").
-_FORMAT_NAMES = [e.lstrip(".").upper() for e in _UPLOAD_SUFFIXES]
-ACCEPT = ",".join(_UPLOAD_SUFFIXES)
+
+def format_label(images: bool = True) -> str:
+    """The accepted formats as a sentence fragment, in the interface language ("PDF, DOCX, … or
+    TXT"). With `images` false the image formats are left out (`[images] ignore = true`)."""
+    names = [e.lstrip(".").upper() for e in sorted_extensions(supported_extensions(images))]
+    return _("%(formats)s or %(last)s", formats=", ".join(names[:-1]), last=names[-1])
 
 
-def format_label() -> str:
-    """The accepted formats as a sentence fragment, in the interface language."""
-    return _("%(formats)s or %(last)s", formats=", ".join(_FORMAT_NAMES[:-1]), last=_FORMAT_NAMES[-1])
+def accept(images: bool = True) -> str:
+    """The `accept` attribute of the upload field of the ingestion screen. With `images` false
+    the image formats are left out."""
+    return ",".join(sorted_extensions(supported_extensions(images)))
 
 
 def summary_line(label: str, results: list) -> str:
@@ -61,6 +64,13 @@ def _verifier(state: AppState, wanted: bool) -> dict:
     return {"verifier": state.get_verifier()} if wanted and state.verifier_available() else {}
 
 
+def _vision(state: AppState) -> dict:
+    """`{"vision": …}` when a vision model is configured, else `{}`: a wiki with
+    `[images] describe = false` never uses it."""
+    vision = state.vision()
+    return {"vision": vision} if vision is not None else {}
+
+
 def _log(request: Request, templates: Jinja2Templates, wiki_id: str, op_id: str | None):
     if op_id is None:
         return HTMLResponse(f'<p class="warn">{html.escape(_(BUSY))}</p>')
@@ -72,9 +82,10 @@ def ingest_page(request: Request, wiki_id: str, notice: str = "", state: AppStat
                 templates: Jinja2Templates = Depends(get_templates)):
     """What enters and leaves sources/: upload, scan, the sources table."""
     wiki = state.get_wiki(wiki_id).wiki
+    images = not ingest_service.images_ignored(wiki)
     context = page_context(state, wiki_id, "", section="ingest")
     context.update(sources=ingest_service.list_sources(wiki), notice=notice,
-                   format_label=format_label(), accept=ACCEPT)
+                   format_label=format_label(images), accept=accept(images))
     return templates.TemplateResponse(request, "ingest.html", context)
 
 
@@ -97,8 +108,10 @@ def maintain_page(request: Request, wiki_id: str, notice: str = "", state: AppSt
     context = page_context(state, wiki_id, "", section="maintain")
     context.update(sources=ingest_service.list_sources(wiki), stale=ingest_service.list_stale_pages(wiki),
                    verifiable=len(verification_service.verifiable_pages(wiki)),
-                   tools=ingest_service.tool_status(), model=model, base_url=base_url, notice=notice,
-                   verifier_status=state.verifier_status())
+                   tools=ingest_service.tool_status(wiki.language), model=model, base_url=base_url, notice=notice,
+                   verifier_status=state.verifier_status(),
+                   images=ingest_service.image_counts(wiki), vision_model=state.vision_model(),
+                   images_ignored=ingest_service.images_ignored(wiki))
     return templates.TemplateResponse(request, "maintain.html", context)
 
 
@@ -113,14 +126,21 @@ async def ingest_post(request: Request, wiki_id: str, files: list[UploadFile], f
         return _unconfigured(exc)
     verifier = _verifier(state, verify)
     uploads, refused = [], []
-    labels = format_label()
+    images = not ingest_service.images_ignored(entry.wiki)
+    labels = format_label(images)
     for f in files:
         if not f.filename:
             continue
         try:
-            uploads.append(ingest_service.Upload(f.filename, await f.read()))
+            upload = ingest_service.Upload(f.filename, await f.read())
         except ingest_service.InvalidUpload as exc:
             refused.append(exc)
+            continue
+        # A wiki that ignores images takes no image file: it is refused before it reaches sources/.
+        if not images and os.path.splitext(upload.name)[1].lower() in IMAGE_EXTENSIONS:
+            refused.append(ingest_service.UnsupportedUploadType(upload.name, "this wiki ignores images"))
+            continue
+        uploads.append(upload)
 
     def work(progress):
         for exc in refused:
@@ -130,7 +150,8 @@ async def ingest_post(request: Request, wiki_id: str, files: list[UploadFile], f
             else:
                 progress(_("⚠️ %(name)s: invalid file name", name=exc.name or _("file")))
         results = ingest_service.ingest_uploads(entry.wiki, uploads, client, model,
-                                                full_repair=full_repair, progress=progress, **verifier)
+                                                full_repair=full_repair, progress=progress,
+                                                **verifier, **_vision(state))
         return summary_line(_("Ingestion"), results)
 
     return _log(request, templates, wiki_id, state.start_operation(entry, work))
@@ -149,7 +170,7 @@ def scan_post(request: Request, wiki_id: str, verify: bool = Form(False), state:
     return _log(request, templates, wiki_id, state.start_operation(
         entry, lambda progress: summary_line(
             _("Scan"), ingest_service.scan_sources(entry.wiki, client, model, progress=progress,
-                                                   **verifier))))
+                                                   **verifier, **_vision(state)))))
 
 
 @router.post("/w/{wiki_id}/regenerate", response_class=HTMLResponse)
@@ -261,6 +282,24 @@ def verifier_install_post(request: Request, wiki_id: str, state: AppState = Depe
     if op_id is None:
         return HTMLResponse(f'<p class="warn">{html.escape(_("An installation of the verifier is already running."))}</p>')
     return _log(request, templates, wiki_id, op_id)
+
+
+@router.post("/w/{wiki_id}/describe-images", response_class=HTMLResponse)
+def describe_images_post(request: Request, wiki_id: str, state: AppState = Depends(get_state),
+                         templates: Jinja2Templates = Depends(get_templates)):
+    """Describe the images that have no valid description, as a streamed operation under
+    the wiki's lock. Each description is one call to the vision model."""
+    entry = state.get_wiki(wiki_id)
+    vision = state.vision()
+    if vision is None:
+        return HTMLResponse(f'<p class="warn">{html.escape(_("The vision model is not configured: set it in the Settings screen, or define VISION_BASE_URL, VISION_API_KEY and VISION_MODEL in the .env file."))}</p>')
+
+    def work(progress):
+        counts = ingest_service.describe_images(entry.wiki, vision, progress=progress)
+        return _("🏁 Images: %(described)s described, %(pending)s without description",
+                 described=counts.described, pending=counts.without_description + counts.skipped["failed"])
+
+    return _log(request, templates, wiki_id, state.start_operation(entry, work))
 
 
 @router.post("/w/{wiki_id}/stale/delete")

@@ -11,7 +11,7 @@ import pytest
 
 from domain.ingestion import extractor, pipeline
 from domain.ingestion.extractor import extract
-from domain.ingestion.formats import OFFICE_EXTENSIONS, SUPPORTED_EXTENSIONS, TEXT_EXTENSIONS
+from domain.ingestion.formats import IMAGE_EXTENSIONS, OFFICE_EXTENSIONS, SUPPORTED_EXTENSIONS, TEXT_EXTENSIONS
 from domain.ingestion.text_extract import PAGE_CHARS, extract_text_file, split_pages
 
 
@@ -156,8 +156,9 @@ def test_extract_reads_md_and_txt_without_java_or_libreoffice(tmp_path, no_tools
 
 def test_extract_a_pdf_goes_to_the_pdf_extractor(tmp_path, monkeypatch):
     monkeypatch.setattr(extractor, "check_java", lambda: "/usr/bin/java")
-    monkeypatch.setattr(extractor, "extract_pdf", lambda path: [(1, f"pdf:{Path(path).name}")])
-    assert extract(write(tmp_path, "a.pdf", b"%PDF"), tmp_path / "c") == ([(1, "pdf:a.pdf")], "opendataloader")
+    text = "A page with a text layer, long enough not to look scanned."
+    monkeypatch.setattr(extractor, "extract_pdf", lambda path, images_dir=None: [(1, f"{text} {Path(path).name}")])
+    assert extract(write(tmp_path, "a.pdf", b"%PDF"), tmp_path / "c") == ([(1, f"{text} a.pdf")], "opendataloader")
 
 
 @pytest.mark.parametrize("suffix", sorted(OFFICE_EXTENSIONS))
@@ -170,7 +171,7 @@ def test_extract_an_office_file_converts_then_reads_the_pdf(tmp_path, monkeypatc
         return cache_dir / "converted.pdf"
 
     monkeypatch.setattr(extractor, "convert_office_to_pdf", convert)
-    monkeypatch.setattr(extractor, "extract_pdf", lambda path: [(1, Path(path).name)])
+    monkeypatch.setattr(extractor, "extract_pdf", lambda path, images_dir=None: [(1, Path(path).name)])
     pages, parser = extract(write(tmp_path, f"a{suffix}", b"x"), tmp_path / "c")
     assert converted == [f"a{suffix}"]
     assert pages == [(1, "converted.pdf")] and parser == "libreoffice+opendataloader"
@@ -197,7 +198,8 @@ def test_the_old_converter_name_is_an_alias():
 def test_the_format_lists_are_defined_once():
     assert TEXT_EXTENSIONS == {".md", ".txt"}
     assert OFFICE_EXTENSIONS == {".docx", ".doc", ".odt", ".rtf"}
-    assert SUPPORTED_EXTENSIONS == TEXT_EXTENSIONS | OFFICE_EXTENSIONS | {".pdf"}
+    assert IMAGE_EXTENSIONS == {".png", ".jpg", ".jpeg", ".webp", ".gif"}   # D11 of the image design
+    assert SUPPORTED_EXTENSIONS == TEXT_EXTENSIONS | OFFICE_EXTENSIONS | IMAGE_EXTENSIONS | {".pdf"}
     assert pipeline.SUPPORTED_EXTENSIONS is SUPPORTED_EXTENSIONS
 
 
@@ -226,10 +228,11 @@ def test_validation_asks_for_java_for_a_pdf_and_lists_the_formats_of_a_refusal(t
 
 
 def test_the_scan_of_sources_takes_every_supported_extension(tmp_workspace, monkeypatch):
+    (tmp_workspace.workspace / "wiki_config.toml").write_text("[images]\nignore = false\n", encoding="utf-8")
     sources = tmp_workspace.workspace / "sources"
     sources.mkdir(exist_ok=True)
     names = sorted(f"f{e}" for e in SUPPORTED_EXTENSIONS)
-    for name in [*names, "skip.xlsx", "skip.png", ".hidden.md"]:
+    for name in [*names, "skip.xlsx", "skip.svg", ".hidden.md"]:
         (sources / name).write_bytes(b"x")
     (sources / "sub").mkdir()
     (sources / "sub" / "nested.txt").write_bytes(b"x")

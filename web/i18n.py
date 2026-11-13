@@ -116,6 +116,12 @@ def format_number(n: int) -> str:
     return format_decimal(n, format="#,##0", locale=get_language())
 
 
+def format_value(value) -> str:
+    """A figure's value with the separators of the current language (es: 1.187,5, en: 1,187.5),
+    keeping every decimal digit."""
+    return format_decimal(value, format="#,##0.##########", locale=get_language())
+
+
 def N_(message: str) -> str:
     return message
 

@@ -26,7 +26,7 @@ from typing import Literal
 from domain.ingestion import extractor
 from domain.rollback import snapshots
 from domain.tools.git_ops import autocommit_enabled, head_sha
-from domain.ingestion.formats import OFFICE_EXTENSIONS, TEXT_EXTENSIONS
+from domain.ingestion.formats import IMAGE_EXTENSIONS, OFFICE_EXTENSIONS, TEXT_EXTENSIONS
 from domain.tools.reindex import SOURCE_SUFFIXES, NothingExtracted, ReindexReport, reindex_from_disk
 
 logger = logging.getLogger(__name__)
@@ -132,8 +132,8 @@ def _extractor_gap(workspace: Path) -> IndexUnavailable | None:
     names = [n for n in names if n.endswith(SOURCE_SUFFIXES)]
     if not names:
         return None
-    # The text formats (.md, .txt) are read directly: they need neither tool.
-    needs_java = [n for n in names if not n.endswith(tuple(TEXT_EXTENSIONS))]
+    # The text formats (.md, .txt) and the image files are read directly: they need neither tool.
+    needs_java = [n for n in names if not n.endswith((*TEXT_EXTENSIONS, *IMAGE_EXTENSIONS))]
     if needs_java and extractor.check_java() is None:
         return IndexUnavailable("java", "Java is not installed; rebuilding the index extracts every source again")
     if any(n.endswith(tuple(OFFICE_EXTENSIONS)) for n in names) and extractor.check_libreoffice() is None:

@@ -1,7 +1,9 @@
 """Split the pages the model read into passages for the verifier.
 
-A page is split at its headings, then at paragraph boundaries. Paragraphs of a
-section are packed into passages of at most `max_chars` characters. Each passage
+A page is split at its headings, then at paragraph boundaries. An image-description
+block (domain/ingestion/describe.py) is a passage of its own, whole: no passage mixes
+the author's text with a generated description, and a block is never cut. Paragraphs
+of a section are packed into passages of at most `max_chars` characters. Each passage
 of a section starts with the heading line, so the premise names its topic. A
 paragraph longer than the limit is split at lines, then at sentences, then at
 the limit.
@@ -12,12 +14,14 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
+from domain.ingestion.chunker import is_block
 from domain.verify.models import ContextPassage, Passage
 from domain.verify.sentences import split_sentences
 
 _HEADING = re.compile(r"^\s{0,3}#{1,6}\s+\S")
 _PARAGRAPH_BREAK = re.compile(r"\n\s*\n")
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
+_BLOCK_FILE = re.compile(r"\A<!-- image-description: (?P<file>[^\n]*?) -->")
 
 
 def _sections(text: str) -> list[tuple[str, str]]:
@@ -65,22 +69,40 @@ def _pack(units: list[str], limit: int, joiner: str) -> list[str]:
     return packed
 
 
+def _block_passage(page: str, block: str) -> Passage:
+    """The passage of a description block: the generated text without the delimiters
+    and the quote marks, with the image file it describes."""
+    file = _BLOCK_FILE.match(block)["file"].strip()
+    inner = block.split("\n")[1:-1]
+    text = "\n".join(line[1:].lstrip() if line.startswith(">") else line for line in inner)
+    return Passage(page, text, image=file or None)
+
+
 def split_passages(page: ContextPassage, max_chars: int) -> list[Passage]:
     """The passages of one context item, each at most `max_chars` long plus its
-    heading line."""
+    heading line. A description block is one passage, whatever its length."""
     text = _FRONTMATTER.sub("", page.text.replace("\r\n", "\n"), count=1).strip()
     passages: list[Passage] = []
     for heading, body in _sections(text):
         prefix = f"{heading}\n" if heading else ""
         room = max(max_chars - len(prefix), max_chars // 2)
         units: list[str] = []
+
+        def flush() -> None:
+            for chunk in _pack(units, room, "\n\n"):
+                passages.append(Passage(page.page, prefix + chunk))
+            units.clear()
+
         for paragraph in _PARAGRAPH_BREAK.split(body.strip()):
             paragraph = paragraph.strip()
             if not paragraph:
                 continue
+            if is_block(paragraph):
+                flush()
+                passages.append(_block_passage(page.page, paragraph))
+                continue
             units.extend([paragraph] if len(paragraph) <= room else _split_long(paragraph, room))
-        for chunk in _pack(units, room, "\n\n"):
-            passages.append(Passage(page.page, prefix + chunk))
+        flush()
     return passages
 
 

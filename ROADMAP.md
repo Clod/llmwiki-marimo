@@ -31,11 +31,17 @@ translated once, after the open branches merge, rather than twice.
   skipped; the interface should say so.
 - **Document `scan_and_ingest` for end users** — what it touches, and when
   `batch_ingest` is the better call.
-- **OCR for scanned PDFs.** `pdf_extract.py` extracts text only, so an image-only
-  PDF yields nothing. Any fix should stay provider-agnostic: a local engine
-  (Tesseract via ocrmypdf, docTR, Surya, RapidOCR, Docling) fits the local-first
-  ethos with no extra key, or page images could go to the vision-capable model
-  already configured through `LLM_*`.
+- **Select the tools by the type of question.** In pre-retrieval mode the
+  model always receives the same tools: the data tools of the wiki and of its
+  active domains (`services/chat.py`, `build_agents`). The type of question
+  (node Q10: a named data term, or an advisory question with an amount or a
+  term) only decides whether the code injects text. The open work: give the
+  model only the tools that type needs, for example the dataset query for a
+  dated value and the alternatives estimate for an advisory question.
+- **OCR for scanned PDFs — built** (commit `01497f0`; see `CHANGELOG.md`).
+  `OCR_ENGINE` selects `none`, `tesseract` or `vision`. The engine interface is in
+  `base/domain/ingestion/ocr.py`; another engine (RapidOCR, docTR, Surya) is one
+  class and one entry there. Those three are not built.
 
 ---
 
@@ -65,41 +71,48 @@ reasoning applies to asking it to cite. Deciding this means choosing what a
 guaranteed citation would name — the passages injected, or only those the answer
 demonstrably used — which is the same open question as the fit check below.
 
-**A number invented in the model's own prose is asked against, not blocked.**
-The project's rule is that the model explains figures and never arrives at them:
-`query_dataset` returns values read straight out of the data files, and the
+**A number invented in the model's own prose is marked, not blocked.**
+Built. The project's rule is that the model explains figures and never arrives at
+them: `query_dataset` returns values read straight out of the data files, and the
 advisory's whole comparison table is computed in Python and appended by
-`postprocess.answer_with_table` whether or not the model reproduced it. What
-none of that covers is the model writing a *different* number into the sentences
-around the table. The system prompt asks it not to. Nothing checks.
+`postprocess.answer_with_table`. The figure check
+(`base/domain/verify/figures.py`, called by `services.chat.check_turn_figures` at
+the end of the three chat modes) covers the sentences around the table. It is
+deterministic, calls no model and does not need the NLI verifier.
 
-Unlike the fit check below, this one is exactly checkable. Numbers are a closed
-class and compare exactly, where a paraphrase does not, and the figures the tools
-returned are already held as typed values rather than as text to be parsed back
-out — `DatasetRow.valor`, plus the figures in the computed advisory block. The shape is the one `postprocess.py`
-already uses: a pure function over the run's message log, reading `ToolReturnPart`
-contents.
+The check reads every figure of the prose, the part of the answer the model wrote,
+and classifies it:
 
-```python
-authorised = {norm(v) for v in dataset_values(messages)} | numbers_in(advisory_table)
-invented   = {n for n in numbers_in(answer_prose) if norm(n) not in authorised}
-```
+- **exact**: the figure equals an authorised value. The authorised values are the
+  numbers of the passages the model read in the turn, of the advisory table, of
+  every message of the user and of the passages read in earlier turns of the
+  conversation. The row count and the columns `as_of` and `fuente` of a dataset
+  table authorise nothing.
+- **rounded**: the figure equals an authorised value rounded to the precision the
+  model wrote ("cerca de 1.200" for `1187.5`), and differs from it by no more than
+  `[verify] number_tolerance` (default `0.05`, relative).
+- **unsupported**: any other figure ("1.150" and "1.000" for `1187.5`).
 
-Two decisions block it, and neither is technical:
+The web interface marks each unsupported figure in red, with a tooltip that names
+the nearest authorised value and where it comes from. When the prose has rounded
+figures, a fixed note in the language of the wiki is appended to the answer. The
+text of the model is never edited and the answer is never blocked. The check runs
+in the three chat modes, with or without the NLI verifier.
 
-**Rounding.** The data says `1187.5`, the model writes "cerca de 1.200". That is
-good prose, not an invention, and an exact match rejects it. Admitting a
-tolerance (±x%) reopens the hole the check exists to close; refusing one forbids
-rounding outright. The project's own stance narrows this more than it would
-narrow elsewhere — under "the model does not arrive at figures", a computed
-number *is* the violation — but the rounding case still has to be decided rather
-than assumed away. Numbers appearing inside a page the answer legitimately read
-also have to be admitted into the authorised set.
+Limits, as measured and as designed:
 
-**What happens on a hit.** Reject and regenerate, strike the sentence, or
-annotate. The existing precedent is to append rather than rewrite
-(`answer_with_table` never edits the model's text), but only rejection is
-actually a guarantee.
+1. A number written in words ("tres", "un tercio") is not checked.
+2. A date and a year alone are not checked.
+3. An integer from 0 to 12 with no unit (`%`, `$` or a currency word next to it)
+   is a count and is not checked: "en 3 días", invented, passes.
+4. The authorised set is permissive: a figure that equals any number of any passage
+   read, or of any question of the user, passes, even when the passage speaks of
+   another thing. The check proves that the figure comes from the material read,
+   not that it is the right figure for the sentence. A date of a passage authorises
+   nothing: `updated: 2026-10-01` in a wiki page does not authorise "1", "10" or
+   "2026".
+5. A computed figure (a sum, a difference, "un 20 % más") is unsupported unless
+   the computation is in the advisory table.
 
 Stated as a limit in
 [`docs/query_walkthrough.md`](docs/query_walkthrough.md#the-question-this-document-answers).
@@ -527,6 +540,3 @@ Recorded so the absence reads as a decision rather than an oversight.
   interactive graph rendering of `document_references`. Each is a plausible thing
   to build on top of the wiki, and none of them tests the idea the project exists
   to test.
-- **Image handling.** Ingestion is text-only; images embedded in a document are
-  skipped rather than described. Storing them under `sources/assets/` and passing
-  them to a vision-capable model is the obvious extension, and is not on the path.

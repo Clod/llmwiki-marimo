@@ -337,7 +337,7 @@ lint and repair, and the messages `services` return.
 Routes: `web/routes/settings.py`, `base/services/settings.py`. `GET /w/{wiki_id}/settings`
 shows every scalar key of `wiki_config.toml` (§8) with its value, its default and a line
 of help: `[assistant] system_prompt`, `[pre_retrieval] enabled`, `min_coverage` and
-`condense_question`, and `[verify] threshold` and `candidates`. `[wiki] language` is shown
+`condense_question`, `[verify] threshold`, `candidates` and `number_tolerance`, and the four keys of `[images]`. `[wiki] language` is shown
 read only, because the index keeps the stems of that language. The field of the system
 prompt shows the file `prompts/system_prompt.<lang>.md` of the wiki's language when the
 wiki defines none. The button **Restore the default** fills the field with that file's
@@ -382,10 +382,38 @@ LLM_MODEL=llama3.2
 WIKI_LLM_BASE_URL=
 WIKI_LLM_API_KEY=
 WIKI_LLM_MODEL=
+
+# Optional vision model that describes images (`[images] describe = true`);
+# each value falls back to WIKI_LLM_*, then to LLM_*
+VISION_BASE_URL=
+VISION_API_KEY=
+VISION_MODEL=
 ```
 
-PDF extraction uses opendataloader-pdf (text-based PDFs only; no OCR backend yet
-— see the [ROADMAP](../../ROADMAP.md)). There is no PDF-backend selector setting today.
+PDF extraction uses opendataloader-pdf, which reads the text layer. A PDF with no
+text layer (a scan) is read by the OCR engine that `OCR_ENGINE` selects:
+
+```bash
+OCR_ENGINE=none        # none (default), tesseract or vision
+OCR_BASE_URL=          # vision only; each OCR_* value falls back to its LLM_* value
+OCR_API_KEY=
+OCR_MODEL=
+```
+
+- `none`: a scanned PDF fails with a message that names `OCR_ENGINE` and the two engines.
+- `tesseract`: `ocrmypdf` and Tesseract run as external programs and write `ocr.pdf`
+  (a PDF with a text layer) in the document's cache directory. The Tesseract language
+  follows the wiki language (`spa` for `es`, `eng` for `en`). The ingestion screen
+  checks that both programs and the language pack are installed.
+- `vision`: each page is rendered with `pypdfium2` and sent to a model with vision.
+  It costs one model call per page, and the text may vary between runs. A page that
+  fails is reported in the console; the other pages continue.
+
+A page needs OCR when it has fewer than 20 characters that are not whitespace
+(`ocr.MIN_CHARS_PER_PAGE`). A document needs OCR when at least a quarter of its pages
+need it (`ocr.MAX_BLANK_PAGE_SHARE`); then both engines read only the pages that need it.
+A DOCX never goes through OCR. The ingestion console prints
+`🔍 OCR (<engine>) en N páginas de <file>` when a document does.
 
 ### `workspace/wiki_config.toml` (optional, per-workspace)
 
@@ -419,7 +447,15 @@ Vocabulary screen (§7.6) edits the lists.
   `0.2`) and `condense_question` (default `true`) of the code-driven retrieval.
 - **`[verify]`** — `threshold` (default `0.5`): the probability at which a sentence
   counts as supported; `candidates` (default `5`): the passages kept for each
-  sentence before the verifier runs (`domain/verify/preselect.py`).
+  sentence before the verifier runs (`domain/verify/preselect.py`);
+  `number_tolerance` (default `0.05`): the largest relative difference a rounded
+  figure of an answer may have from the value in the data it rounds
+  (`domain/verify/figures.py`).
+- **`[images]`** — `describe` (default `false`): a vision model describes each image kept
+  from a source (§6.3); `min_side_px` (default `64`) and `min_bytes` (default `5000`):
+  smaller images are not described; `max_per_document` (default `40`): at most this many
+  images are described for each source. The values `64` and `5000` are starting values,
+  not measured on a corpus with icons. The Settings screen edits the four keys.
 - **`[fuera_de_alcance] terminos`**, **`[alias_datos]`** and **`[falsos_sinonimos]`**
   — the blacklist, the hand-written aliases and the rejected aliases of the
   vocabulary (§7.6). The aliases generated at ingestion

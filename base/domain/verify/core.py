@@ -13,7 +13,7 @@ from collections.abc import Iterable, Sequence
 from domain.chat import refusal
 from domain.chat.config import DEFAULT_VERIFY_THRESHOLD
 from domain.verify.checkable import generated_spans, is_checkable, plain_text
-from domain.verify.models import ContextPassage, SentenceResult, VerificationReport
+from domain.verify.models import ContextPassage, SentenceResult, VerificationReport, image_source
 from domain.verify.passages import split_context
 from domain.verify.preselect import select_candidates
 from domain.verify.sentences import split_sentences
@@ -70,10 +70,24 @@ def verify_answer(
     if len(scores) != len(pairs):
         raise ValueError(f"the verifier returned {len(scores)} scores for {len(pairs)} pairs")
 
+    # The best passage of a sentence. The source text wins (D7 of the image design): a
+    # passage of the text that reaches the threshold is preferred to a generated
+    # description, and a description is the best passage only when no text passage
+    # reaches the threshold.
     best: dict[int, tuple[float, int]] = {}
+    best_text: dict[int, tuple[float, int]] = {}
+    best_image: dict[int, tuple[float, int]] = {}
     for (i, j), score in zip(owners, scores):
         if i not in best or score > best[i][0]:
             best[i] = (score, j)
+        kind = best_image if passages[j].image else best_text
+        if i not in kind or score > kind[i][0]:
+            kind[i] = (score, j)
+    for i in best_image:
+        if i in best_text and best_text[i][0] >= threshold:
+            best[i] = best_text[i]
+        elif best_image[i][0] >= threshold:
+            best[i] = best_image[i]
 
     results = []
     for i, sentence in enumerate(sentences):
@@ -82,7 +96,7 @@ def verify_answer(
         results.append(SentenceResult(
             sentence.start, sentence.end, sentence.text,
             supported=score >= threshold, probability=score,
-            page=passage.page if passage else None,
+            page=image_source(passage.page, passage.image) if passage else None,
             passage=passage.text if passage else None,
         ))
     return VerificationReport(

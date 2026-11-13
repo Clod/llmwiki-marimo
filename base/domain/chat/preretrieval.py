@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from domain import tracing
+from domain.chat.config import DEFAULT_NUMBER_TOLERANCE
 from domain.chat.dataset_tools import format_rows_as_table
 from domain.chat.refusal import (
     Refusal,
@@ -476,6 +477,8 @@ async def pre_retrieval_answer(
     open_page: str | None = None,
     on_context=None,
     condense=None,
+    conversation=(),
+    on_figures=None,
     sentence_verifier: bool = False,
 ) -> str:
     """Run one turn through the hybrid pre-retrieval flow and return the answer.
@@ -504,6 +507,11 @@ async def pre_retrieval_answer(
     data check and no page is open; the gate and the search then use the rewrite,
     and the model still answers the original question (node Q5b).
 
+    `conversation` holds the `(origin, text)` sources of the conversation that
+    authorise the figures of the answer (`figure_check.conversation_sources`).
+    `on_figures`, if given, is called once with the `FigureCheck` of node C3; it is
+    not called when the turn ends in a refusal, which does not reach C3.
+
     `sentence_verifier` is True when the sentence verifier will check the answer
     after it is shown. A Tier-2 answer then skips the containment check (node
     Q17): the sentence verifier is its only comparison against the fragments.
@@ -515,6 +523,7 @@ async def pre_retrieval_answer(
             question, config=config, db_path=db_path, workspace=workspace,
             history=history, language=language, run_agent=run_agent, on_trace=on_trace,
             open_page=open_page, on_context=on_context, condense=condense,
+            conversation=conversation, on_figures=on_figures,
             sentence_verifier=sentence_verifier,
         )
 
@@ -709,7 +718,8 @@ def refuse(node_id: str, turn: PreRetrievalTurn, refusal: Refusal, *, raw: str =
 
 async def _pre_retrieval_turn(
     question: str, *, config, db_path, workspace, history, language, run_agent, on_trace,
-    open_page: str | None = None, on_context=None, condense=None, sentence_verifier: bool = False,
+    open_page: str | None = None, on_context=None, condense=None, conversation=(), on_figures=None,
+    sentence_verifier: bool = False,
 ) -> str:
     """The body of `pre_retrieval_answer`, inside the turn's root span.
 
@@ -751,5 +761,10 @@ async def _pre_retrieval_turn(
 
     checks = output_checks.AnswerChecks(
         result.output, result.all_messages(), language, result=result, turn=turn,
+        tolerance=getattr(config, "number_tolerance", DEFAULT_NUMBER_TOLERANCE),
+        conversation=tuple(conversation),
     )
-    return await output_checks.graph.run(state=checks, inputs=checks)
+    answer = await output_checks.graph.run(state=checks, inputs=checks)
+    if on_figures is not None and checks.figures is not None:
+        on_figures(checks.figures)
+    return answer

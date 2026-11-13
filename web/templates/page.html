@@ -57,7 +57,7 @@ try {
         {% elif check.status == 'outdated' %}
         <p class="verify-note" id="verification-state" role="status">{{ _("Verification outdated: the page or one of its sources changed since the last verification") }}</p>
         {% elif check.status == 'valid' %}
-        <p class="verify-note" id="verification-state" role="status">{{ ngettext("%(unsupported)s of %(checked)s sentence without support", "%(unsupported)s of %(checked)s sentences without support", check.checked, unsupported=check.unsupported, checked=check.checked) }}</p>
+        <p class="verify-note" id="verification-state" role="status">{{ ngettext("%(unsupported)s of %(checked)s sentence without support", "%(unsupported)s of %(checked)s sentences without support", check.checked, unsupported=check.unsupported, checked=check.checked) }}{% if check.described %}; {{ ngettext("%(described)s supported by an image description", "%(described)s supported by image descriptions", check.described, described=check.described) }}{% endif %}</p>
         {% endif %}
         {% if html and deletable %}
         <div class="confirm" id="confirm-delete" hidden>

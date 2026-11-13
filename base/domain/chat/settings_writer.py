@@ -4,12 +4,13 @@ The keys the Configuración screen edits, named `section.key`:
 
   - `[assistant] system_prompt`, `suggested_prompts`;
   - `[pre_retrieval] enabled`, `min_coverage`, `condense_question`;
-  - `[verify] threshold`, `candidates`.
+  - `[verify] threshold`, `candidates`, `number_tolerance`;
+  - `[images] ignore`, `describe`, `min_side_px`, `min_bytes`, `max_per_document`.
 
 `[wiki] language` is never written here: changing it needs a reindex. The vocabulary
 lists are edited by `config_writer`.
 
-The rules of validity are those of `load_config` (`_threshold`, `_candidates`), except
+The rules of validity are those of `load_config` (`_threshold`, `_candidates`, `_number_tolerance`), except
 that `load_config` falls back to the default on an invalid value and this module refuses it.
 `tomlkit` rewrites only the keys that change; the comments and the order stay as written.
 A key absent from the file whose new value is the default stays absent. A missing file
@@ -26,13 +27,16 @@ import tomlkit
 
 from domain.chat import config_writer
 from domain.chat.config import (
+    DEFAULT_NUMBER_TOLERANCE,
     DEFAULT_VERIFY_CANDIDATES,
     DEFAULT_VERIFY_THRESHOLD,
     WikiAssistantConfig,
 )
 from domain.i18n import get_locale
 from domain.prompts import load_prompt
-from domain.wiki_settings import load_wiki_language
+from domain.wiki_settings import (
+    DEFAULT_MAX_PER_DOCUMENT, DEFAULT_MIN_BYTES, DEFAULT_MIN_SIDE_PX, load_wiki_language,
+)
 
 SYSTEM_PROMPT = "assistant.system_prompt"
 SUGGESTED_PROMPTS = "assistant.suggested_prompts"
@@ -41,10 +45,18 @@ MIN_COVERAGE = "pre_retrieval.min_coverage"
 CONDENSE = "pre_retrieval.condense_question"
 THRESHOLD = "verify.threshold"
 CANDIDATES = "verify.candidates"
+IGNORE = "images.ignore"
+DESCRIBE = "images.describe"
+MIN_SIDE_PX = "images.min_side_px"
+MIN_BYTES = "images.min_bytes"
+MAX_PER_DOCUMENT = "images.max_per_document"
+NUMBER_TOLERANCE = "verify.number_tolerance"
 
-KEYS = (SYSTEM_PROMPT, SUGGESTED_PROMPTS, ENABLED, MIN_COVERAGE, CONDENSE, THRESHOLD, CANDIDATES)
-_BOOLEANS = (ENABLED, CONDENSE)
-_FRACTIONS = (MIN_COVERAGE, THRESHOLD)
+KEYS = (SYSTEM_PROMPT, SUGGESTED_PROMPTS, ENABLED, MIN_COVERAGE, CONDENSE, THRESHOLD, CANDIDATES,
+        NUMBER_TOLERANCE, IGNORE, DESCRIBE, MIN_SIDE_PX, MIN_BYTES, MAX_PER_DOCUMENT)
+_BOOLEANS = (ENABLED, CONDENSE, IGNORE, DESCRIBE)
+_FRACTIONS = (MIN_COVERAGE, THRESHOLD, NUMBER_TOLERANCE)
+_COUNTS = (MIN_SIDE_PX, MIN_BYTES)   # whole numbers, 0 or more
 
 
 class SettingsError(Exception):
@@ -66,6 +78,9 @@ def defaults(language: str) -> dict:
         SUGGESTED_PROMPTS: list(get_locale(language).suggested_prompts),
         ENABLED: False, MIN_COVERAGE: 0.2, CONDENSE: True,
         THRESHOLD: DEFAULT_VERIFY_THRESHOLD, CANDIDATES: DEFAULT_VERIFY_CANDIDATES,
+        IGNORE: True, DESCRIBE: False, MIN_SIDE_PX: DEFAULT_MIN_SIDE_PX, MIN_BYTES: DEFAULT_MIN_BYTES,
+        MAX_PER_DOCUMENT: DEFAULT_MAX_PER_DOCUMENT,
+        NUMBER_TOLERANCE: DEFAULT_NUMBER_TOLERANCE,
     }
 
 
@@ -75,6 +90,9 @@ def current(config: WikiAssistantConfig) -> dict:
         SYSTEM_PROMPT: config.system_prompt, SUGGESTED_PROMPTS: list(config.suggested_prompts),
         ENABLED: config.pre_retrieval, MIN_COVERAGE: config.min_coverage, CONDENSE: config.condense_question,
         THRESHOLD: config.verify_threshold, CANDIDATES: config.verify_candidates,
+        IGNORE: config.images.ignore, DESCRIBE: config.images.describe, MIN_SIDE_PX: config.images.min_side_px,
+        MIN_BYTES: config.images.min_bytes, MAX_PER_DOCUMENT: config.images.max_per_document,
+        NUMBER_TOLERANCE: config.number_tolerance,
     }
 
 
@@ -91,8 +109,10 @@ def _error(key: str, value) -> str | None:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return "not_a_number"
         return None if 0.0 <= value <= 1.0 else "out_of_range"
-    if key == CANDIDATES:
+    if key in (CANDIDATES, MAX_PER_DOCUMENT):
         return None if isinstance(value, int) and not isinstance(value, bool) and value >= 1 else "not_positive"
+    if key in _COUNTS:
+        return None if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else "negative"
     return "unknown"
 
 
@@ -119,11 +139,11 @@ def parse_form(raw: dict) -> tuple[dict, dict[str, str]]:
                 values[key] = float(str(value).strip().replace(",", "."))
             except ValueError:
                 errors[key] = "not_a_number"
-        elif key == CANDIDATES:
+        elif key in (CANDIDATES, MAX_PER_DOCUMENT, *_COUNTS):
             try:
                 values[key] = int(str(value).strip())
             except ValueError:
-                errors[key] = "not_positive"
+                errors[key] = "negative" if key in _COUNTS else "not_positive"
         else:
             values[key] = value
     return values, {**validate(values), **errors}

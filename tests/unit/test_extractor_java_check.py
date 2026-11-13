@@ -13,6 +13,9 @@ import pytest
 from domain.ingestion import extractor
 from domain.ingestion.extractor import JavaNotInstalledError, check_java, extract
 
+# A page with real text: a page with almost none is a scan and goes through OCR.
+TEXT = "A page with enough text to have a text layer."
+
 
 def test_check_java_finds_the_executable_on_path(monkeypatch):
     monkeypatch.setattr(extractor.shutil, "which", lambda name: "/usr/bin/java")
@@ -90,10 +93,10 @@ def test_extract_puts_the_java_home_runtime_on_path_for_the_extractor(monkeypatc
     monkeypatch.setenv("PATH", "/nonexistent")
     seen: list[str] = []
 
-    def fake_extract_pdf(path: str):
+    def fake_extract_pdf(path: str, images_dir=None):
         import os
         seen.append(os.environ["PATH"])
-        return [(1, "text")]
+        return [(1, TEXT)]
 
     monkeypatch.setattr(extractor, "extract_pdf", fake_extract_pdf)
     pdf = tmp_path / "doc.pdf"
@@ -102,7 +105,7 @@ def test_extract_puts_the_java_home_runtime_on_path_for_the_extractor(monkeypatc
     pages, parser = extract(pdf, tmp_path / "cache")
 
     import os
-    assert pages == [(1, "text")] and parser == "opendataloader"
+    assert pages == [(1, TEXT)] and parser == "opendataloader"
     assert seen == [str(bin_dir) + os.pathsep + "/nonexistent"]
     assert os.environ["PATH"] == "/nonexistent"
 
@@ -112,10 +115,10 @@ def test_extract_leaves_path_alone_when_java_is_already_on_it(monkeypatch, tmp_p
     monkeypatch.setenv("PATH", "/usr/bin")
     seen: list[str] = []
 
-    def fake_extract_pdf(path: str):
+    def fake_extract_pdf(path: str, images_dir=None):
         import os
         seen.append(os.environ["PATH"])
-        return [(1, "text")]
+        return [(1, TEXT)]
 
     monkeypatch.setattr(extractor, "extract_pdf", fake_extract_pdf)
     pdf = tmp_path / "doc.pdf"

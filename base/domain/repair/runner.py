@@ -9,8 +9,10 @@ from .actions import (
     repair_data_gap,
     repair_gap_filled,
     repair_missing_concept,
+    repair_missing_image,
     repair_missing_xref,
     repair_orphan,
+    repair_orphan_image,
     repair_stale,
     repair_vocab_collision,
 )
@@ -31,6 +33,8 @@ _DISPATCH = {
     "data_gap":         repair_data_gap,
     "gap_filled":       repair_gap_filled,
     "vocab_collision":  repair_vocab_collision,
+    "missing_image":    repair_missing_image,
+    "orphan_image":     repair_orphan_image,
 }
 
 # Known checks that surface a finding for a human but have no automatic repair
@@ -44,8 +48,11 @@ _DISPATCH = {
 #
 # `unsupported_sentences` and `unverified_pages` are report only: nothing deletes
 # or rewrites a sentence of a page, and verifying a page is an action of its own.
+# `image_without_description` and `stale_image_description` are report only too: every
+# description is a call to the vision model, so it is an action of its own with a confirmation.
 _ADVISORY_CHECKS = {"vocab_stale", "vocab_covered", "vocab_ambiguous", "thin_page",
-                    "unpaged_source", "unsupported_sentences", "unverified_pages"}
+                    "unpaged_source", "unsupported_sentences", "unverified_pages",
+                    "image_without_description", "stale_image_description"}
 
 # Shown in the ingest app's Activity Log, which is where a human actually reads
 # it — so it names the two buttons that supply a model, not the keyword argument

@@ -100,6 +100,17 @@ def test_the_strict_mode_is_verified_against_its_tool_returns(client, agents, ve
     assert "1 de 2 oraciones sin respaldo" in events[1][1]
 
 
+def test_the_verification_event_renders_the_yellow_sentences_and_the_red_figures(client, agents):
+    agents.agent_pre_retrieval.output = f"{SUPPORTED} Cinderella lost 7.777 slippers in Atlantis."
+    events = stream(client, ask_verified(client))
+    first, verification = events[0][1], events[1][1]
+    assert '<mark class="unsupported-figure"' in first and "1 cifra sin respaldo" in first   # before the verifier
+    assert f'<mark class="unsupported" title="{UNSUPPORTED_TIP}">Cinderella lost <mark class="unsupported-figure"' in verification
+    assert ">7.777</mark> slippers in Atlantis.</mark>" in verification
+    assert "1 de 2 oraciones sin respaldo" in verification and "1 cifra sin respaldo" in verification
+    assert verification.count("<mark") == verification.count("</mark>")
+
+
 def test_an_unchecked_box_runs_no_verification(client, verifier):
     events = stream(client, ask_verified(client, verify=""))
     assert [name for name, _ in events] == ["chunk", "done"]
@@ -269,6 +280,17 @@ def test_the_lint_confirmation_offers_the_checkbox_and_passes_it(client, monkeyp
         import time
         time.sleep(0.05)
     assert seen.get("verifier") is not None
+
+
+def test_the_red_mark_stays_on_its_figure_after_the_reference_split_when_the_thread_is_reloaded(settings, verifier):
+    # The model writes its reference line before the prose: the verification labels the
+    # line, so the text after it moves, and the stored figure offsets move with it.
+    agents = fake_agents(f"Reference: cinderella.md\n\n{SUPPORTED} Cinderella lost 7.777 slippers in Atlantis.")
+    client = TestClient(create_app(settings, agents_factory=lambda wiki: agents, verifier=verifier), cookies=SPANISH)
+    stream(client, ask_verified(client))
+    html = client.get(f"/w/{WIKI_ID}/chat/c1/thread").text
+    assert "Reference according to the model:" in html
+    assert re.search(r'<mark class="unsupported-figure" title="[^"]*">7\.777</mark>', html)
 
 
 def test_the_checkbox_tells_the_chat_that_the_sentence_verifier_checks_the_answer(client, monkeypatch):

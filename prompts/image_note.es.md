@@ -1,0 +1,1 @@
+Un pasaje entre <!-- image-description: ... --> y <!-- /image-description --> es una descripción de una imagen generada por un modelo. No es texto del autor. Citalo como "imagen de la página N" y no lo presentes como una afirmación del autor.

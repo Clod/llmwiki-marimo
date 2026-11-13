@@ -11,7 +11,8 @@
       <div class="panel-head"><h2 id="h-models">{{ _("Models") }} <code>.env</code></h2></div>
       <p class="setting-help muted">{% trans path=models.env_file %}The models are the same for every wiki. They are saved in <code>{{ path }}</code>.{% endtrans %}</p>
       {% for group, title, help in [("llm", _("Reading model"), _("The model of the chat.")),
-                                    ("wiki_llm", _("Ingestion model"), _("The model that writes the pages of the wiki. An empty field uses the value of the reading model."))] %}
+                                    ("wiki_llm", _("Ingestion model"), _("The model that writes the pages of the wiki. An empty field uses the value of the reading model.")),
+                                    ("vision", _("Vision model"), _("The model that describes the images of the sources and reads the scanned PDFs when the OCR engine is the vision model. It must accept images. An empty field uses the value of the ingestion model."))] %}
       <h3 class="setting-group">{{ title }}</h3>
       <p class="setting-help muted">{{ help }}</p>
       {% set url = group ~ "_base_url" %}{% set key = group ~ "_api_key" %}{% set model = group ~ "_model" %}
@@ -30,6 +31,16 @@
         <input class="field" id="f-{{ model }}" name="{{ model }}" type="text" spellcheck="false" value="{{ models.fields[model] }}">
       </div>
       {% endfor %}
+      <h3 class="setting-group">{{ _("OCR engine") }}</h3>
+      <div class="setting">
+        <div class="setting-head"><label for="f-ocr_engine">{{ _("Engine") }}</label><code>OCR_ENGINE</code></div>
+        <select class="field" id="f-ocr_engine" name="ocr_engine">
+          {% for value, label in [("none", _("None")), ("tesseract", "Tesseract"), ("vision", _("Vision model"))] %}
+          <option value="{{ value }}"{% if models.fields.ocr_engine == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="setting-help muted">{{ _("The engine that reads a PDF with no text layer. With no engine, a scanned PDF is not ingested. Tesseract needs the programs ocrmypdf and tesseract installed in this computer. The vision model reads each page with the model above.") }}</p>
+      </div>
     </section>
     <div class="settings-actions"><button class="btn btn-primary" title="{{ _('Write the models to .env. They apply from the next question') }}">{{ _("Save the models") }}</button></div>
   </form>
@@ -100,6 +111,50 @@
         <p class="setting-help muted">{{ _("The passages kept for each sentence of a page before the verifier runs. A whole number, 1 or more.") }}</p>
         <p class="setting-default">{{ _("Default value") }}: <code>{{ defaults.candidates }}</code></p>
         {% if errors.candidates %}<p class="field-error" role="alert">{{ errors.candidates }}</p>{% endif %}
+      </div>
+      <div class="setting{% if errors.number_tolerance %} invalid{% endif %}">
+        <div class="setting-head"><label for="f-number_tolerance">{{ _("Figure tolerance") }}</label><code>number_tolerance</code></div>
+        <input class="field num" id="f-number_tolerance" name="number_tolerance" type="number" step="any" min="0" max="1" value="{{ values.number_tolerance }}">
+        <p class="setting-help muted">{{ _("From 0 to 1: the largest relative difference a rounded figure of an answer may have from the value in the data it rounds. A figure beyond it is marked as without support.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ defaults.number_tolerance }}</code></p>
+        {% if errors.number_tolerance %}<p class="field-error" role="alert">{{ errors.number_tolerance }}</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="panel settings-block" aria-labelledby="h-images">
+      <div class="panel-head"><h2 id="h-images"><code>[images]</code></h2></div>
+      <div class="setting">
+        <div class="setting-head"><label for="f-ignore">{{ _("Ignore the images") }}</label><code>ignore</code></div>
+        <label class="check"><input type="checkbox" id="f-ignore" name="ignore"{% if values.ignore %} checked{% endif %}> {{ _("Enabled") }}</label>
+        <p class="setting-help muted">{{ _("The ingestion does not keep the images of the sources: it copies, links and describes none, and it does not accept an image file as a source. Untick it to keep the images. The change applies to the sources ingested afterwards.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ _("yes") if defaults.ignore else _("no") }}</code></p>
+      </div>
+      <div class="setting">
+        <div class="setting-head"><label for="f-describe">{{ _("Describe the images") }}</label><code>describe</code></div>
+        <label class="check"><input type="checkbox" id="f-describe" name="describe"{% if values.describe %} checked{% endif %}> {{ _("Enabled") }}</label>
+        <p class="setting-help muted">{{ _("Each image kept from a source is described by a vision model, and the description enters the text of the source. Each description is one call to the model. The vision model is set in the .env file (VISION_*).") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ _("no") if not defaults.describe else _("yes") }}</code></p>
+      </div>
+      <div class="setting{% if errors.min_side_px %} invalid{% endif %}">
+        <div class="setting-head"><label for="f-min_side_px">{{ _("Minimum side") }}</label><code>min_side_px</code></div>
+        <input class="field num" id="f-min_side_px" name="min_side_px" type="number" step="1" min="0" value="{{ values.min_side_px }}">
+        <p class="setting-help muted">{{ _("Images with a smaller side, in pixels, are not described. A whole number, 0 or more.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ defaults.min_side_px }}</code></p>
+        {% if errors.min_side_px %}<p class="field-error" role="alert">{{ errors.min_side_px }}</p>{% endif %}
+      </div>
+      <div class="setting{% if errors.min_bytes %} invalid{% endif %}">
+        <div class="setting-head"><label for="f-min_bytes">{{ _("Minimum size") }}</label><code>min_bytes</code></div>
+        <input class="field num" id="f-min_bytes" name="min_bytes" type="number" step="1" min="0" value="{{ values.min_bytes }}">
+        <p class="setting-help muted">{{ _("Images smaller than this, in bytes, are not described. A whole number, 0 or more.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ defaults.min_bytes }}</code></p>
+        {% if errors.min_bytes %}<p class="field-error" role="alert">{{ errors.min_bytes }}</p>{% endif %}
+      </div>
+      <div class="setting{% if errors.max_per_document %} invalid{% endif %}">
+        <div class="setting-head"><label for="f-max_per_document">{{ _("Maximum per source") }}</label><code>max_per_document</code></div>
+        <input class="field num" id="f-max_per_document" name="max_per_document" type="number" step="1" min="1" value="{{ values.max_per_document }}">
+        <p class="setting-help muted">{{ _("At most this many images are described for each source; the others are not. A whole number, 1 or more.") }}</p>
+        <p class="setting-default">{{ _("Default value") }}: <code>{{ defaults.max_per_document }}</code></p>
+        {% if errors.max_per_document %}<p class="field-error" role="alert">{{ errors.max_per_document }}</p>{% endif %}
       </div>
     </section>
 

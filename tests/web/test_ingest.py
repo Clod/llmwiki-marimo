@@ -90,6 +90,37 @@ def test_the_maintenance_screen_tells_a_libreoffice_that_cannot_convert_from_a_m
     assert "No está instalado" in html
 
 
+def test_the_maintain_screen_shows_the_ocr_engine_in_force(client, monkeypatch):
+    import config
+    from domain.ingestion import ocr
+
+    html = client.get(f"/w/{WIKI_ID}/maintain").text
+    assert "<dt>OCR</dt>" in html and "<span title=" in html and ">no</span>" in html
+
+    monkeypatch.setattr(config.settings, "OCR_ENGINE", "tesseract")
+    monkeypatch.setattr(ocr.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(ocr, "_tesseract_languages", lambda tesseract: {"eng", "spa"})
+    assert ">Tesseract</span>" in client.get(f"/w/{WIKI_ID}/maintain").text
+
+    monkeypatch.setattr(config.settings, "OCR_ENGINE", "vision")
+    monkeypatch.setattr(config.settings, "OCR_MODEL", "gpt-v")
+    monkeypatch.setattr(config.settings, "OCR_BASE_URL", "http://ocr/v1")
+    monkeypatch.setattr(config.settings, "OCR_API_KEY", "SECRET-KEY")
+    html = client.get(f"/w/{WIKI_ID}/maintain").text
+    assert ">modelo externo (gpt-v)</span>" in html and "SECRET-KEY" not in html
+
+
+def test_the_maintain_screen_warns_when_the_ocr_engine_cannot_run_and_says_how_to_fix_it(client, monkeypatch):
+    import config
+    from domain.ingestion import ocr
+
+    monkeypatch.setattr(config.settings, "OCR_ENGINE", "tesseract")
+    monkeypatch.setattr(ocr.shutil, "which", lambda name: None)
+    html = client.get(f"/w/{WIKI_ID}/maintain").text
+    assert 'class="missing"' in html and "Tesseract: no se puede usar" in html
+    assert "apt-get install ocrmypdf" in html
+
+
 def test_the_notice_of_a_redirect_is_shown_escaped(client):
     html = client.get(f"/w/{WIKI_ID}/ingest?notice=" + urllib.parse.quote("<b>hola</b>")).text
     assert "&lt;b&gt;hola&lt;/b&gt;" in html
@@ -116,7 +147,8 @@ def test_ingest_streams_progress_and_closes_with_a_spanish_summary(client, wiki,
     assert seen == {"names": ["Tale.pdf"], "data": [b"%PDF"], "full_repair": True, "model": "model"}
 
 
-def test_an_upload_name_cannot_leave_sources_and_other_formats_are_refused(client, monkeypatch):
+def test_an_upload_name_cannot_leave_sources_and_other_formats_are_refused(client, wiki, monkeypatch):
+    (wiki.path / "wiki_config.toml").write_text("[images]\nignore = false\n", encoding="utf-8")
     seen = {}
 
     def fake(wiki_, uploads, client_, model, *, full_repair, progress):
@@ -130,7 +162,7 @@ def test_an_upload_name_cannot_leave_sources_and_other_formats_are_refused(clien
     lines = lines_of(client, response)
     assert seen["names"] == ["evil.pdf"]
     assert ("⚠️ notes.xlsx: formato no admitido; se admiten "
-            "DOC, DOCX, MD, ODT, PDF, RTF o TXT") in lines
+            "DOC, DOCX, GIF, JPEG, JPG, MD, ODT, PDF, PNG, RTF, TXT o WEBP") in lines
 
 
 def test_every_supported_format_is_accepted_in_any_letter_case(client, monkeypatch):
@@ -150,20 +182,21 @@ def test_the_upload_filter_is_the_domain_list():
     from domain.ingestion.formats import SUPPORTED_EXTENSIONS
     from web.routes import ingest as route
 
-    assert set(route._UPLOAD_SUFFIXES) == SUPPORTED_EXTENSIONS
-    assert set(route.ACCEPT.split(",")) == SUPPORTED_EXTENSIONS
+    assert set(route.accept().split(",")) == SUPPORTED_EXTENSIONS
 
 
-def test_the_ingest_screen_lists_the_formats_and_says_which_need_libreoffice(client):
+def test_the_ingest_screen_lists_the_formats_and_says_which_need_libreoffice(client, wiki):
+    (wiki.path / "wiki_config.toml").write_text("[images]\nignore = false\n", encoding="utf-8")
     html = client.get(f"/w/{WIKI_ID}/ingest").text
-    assert "DOC, DOCX, MD, ODT, PDF, RTF o TXT" in html
-    assert 'accept=".doc,.docx,.md,.odt,.pdf,.rtf,.txt"' in html
+    assert "DOC, DOCX, GIF, JPEG, JPG, MD, ODT, PDF, PNG, RTF, TXT o WEBP" in html
+    assert 'accept=".doc,.docx,.gif,.jpeg,.jpg,.md,.odt,.pdf,.png,.rtf,.txt,.webp"' in html
     assert "ODT, RTF, DOC y DOCX necesitan LibreOffice" in html
     assert "MD y TXT no necesitan ni Java ni LibreOffice" in html
 
 
 def test_the_configuration_line_still_tells_which_tools_are_missing(client, monkeypatch):
-    monkeypatch.setattr(ingest, "tool_status", lambda: {"java": None, "libreoffice": None})
+    monkeypatch.setattr(ingest, "tool_status", lambda language="en": {"java": None, "libreoffice": None,
+                                                                    "ocr": {"label": "no", "usable": True}})
     html = client.get(f"/w/{WIKI_ID}/maintain").text
     assert html.count('class="missing"') >= 2
     assert "No está instalado" in html
@@ -355,7 +388,7 @@ def test_an_operation_without_a_model_says_what_to_configure(unconfigured):
 def test_reindex_streams_progress_and_closes_with_a_spanish_summary(client, wiki, monkeypatch):
     from domain.ingestion import extractor
 
-    monkeypatch.setattr(extractor, "extract", lambda path, cache_dir: ([(1, "Texto de la fuente.")], "fake"))
+    monkeypatch.setattr(extractor, "extract", lambda path, cache_dir, **_kwargs: ([(1, "Texto de la fuente.")], "fake"))
     (wiki.sources_dir / "Cuento.pdf").write_bytes(b"%PDF-1.4")
     lines = lines_of(client, client.post(f"/w/{WIKI_ID}/reindex"))
     assert "📄 Indexing source Cuento.pdf" in lines
@@ -367,7 +400,7 @@ def test_reindex_streams_progress_and_closes_with_a_spanish_summary(client, wiki
 def test_reindex_reports_the_sources_that_could_not_be_read(client, wiki, monkeypatch):
     from domain.ingestion import extractor
 
-    def extract(path, cache_dir):
+    def extract(path, cache_dir, **_kwargs):
         if path.name == "Roto.pdf":
             raise RuntimeError("corrupt PDF")
         return [(1, "Texto.")], "fake"
@@ -381,7 +414,7 @@ def test_reindex_reports_the_sources_that_could_not_be_read(client, wiki, monkey
 def test_reindex_that_extracts_nothing_keeps_the_index_and_says_why(client, wiki, monkeypatch):
     from domain.ingestion import extractor
 
-    def extract(path, cache_dir):
+    def extract(path, cache_dir, **_kwargs):
         raise RuntimeError("LibreOffice produced no PDF output")
 
     monkeypatch.setattr(extractor, "extract", extract)
@@ -395,7 +428,7 @@ def test_reindex_that_extracts_nothing_keeps_the_index_and_says_why(client, wiki
 def test_reindex_without_java_says_so_and_keeps_the_index(client, wiki, monkeypatch):
     from domain.ingestion import extractor
 
-    def extract(path, cache_dir):
+    def extract(path, cache_dir, **_kwargs):
         raise extractor.JavaNotInstalledError(path.name)
 
     monkeypatch.setattr(extractor, "extract", extract)
@@ -413,7 +446,7 @@ def test_reindex_needs_no_model_and_takes_the_wiki_lock(unconfigured, settings, 
 
     started, release = threading.Event(), threading.Event()
 
-    def extract(path, cache_dir):
+    def extract(path, cache_dir, **_kwargs):
         started.set()
         assert release.wait(10)
         return [(1, "x")], "fake"

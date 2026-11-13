@@ -5,7 +5,7 @@
    the header bar, the selected state, the links and the primary button. Yellow is
    reserved for what needs attention: notices, confirmations, highlights, "running",
    and the sentences of an answer that no page supports (the flag).
-   Red is for destruction only. Each text/background pair meets WCAG AA (4.5:1);
+   Red is for destruction and for the figures of an answer that no data supports. Each text/background pair meets WCAG AA (4.5:1);
    tests/web/test_design.py checks them. */
 :root {
   /* Surfaces: the canvas behind the panels, the panels, the heads of the panels */
@@ -47,6 +47,10 @@
   /* Flag: a sentence of a chat answer that no page supports */
   --color-flag-soft: #fbf1c7;
   --color-flag: #5a4400;
+
+  /* Figure flag: a figure of a chat answer that no data supports (red, so that it is
+     told apart from the yellow flag of a sentence) */
+  --color-figure-flag-soft: #fde8e5;
 
   /* Behind a modal dialog (drawn at partial opacity) */
   --color-backdrop: #13233a;

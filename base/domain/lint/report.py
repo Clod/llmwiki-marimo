@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 @dataclass
 class LintIssue:
     check: str       # "orphan" | "stale" | "missing_xref" | "missing_concept" | "contradiction" | "data_gap" | "gap_filled"
+    #   | "missing_image" | "orphan_image"
+    #   | "image_without_description" | "stale_image_description" (report only, no repair)
     #   | "unsupported_sentences" | "unverified_pages" (report only, no repair)
     severity: str    # "error" | "warning" | "info"
     page: str        # affected page path (e.g. "/wiki/concepts/federal-reserve.md")
@@ -14,6 +16,7 @@ class LintIssue:
     related_page: str = ""  # the "other" page (path_b) for xref/contradiction
     topic: str = ""         # gap topic slug for data_gap / gap_filled
     alias: str = ""         # the offending alias for vocab_collision (drives the auto-repair)
+    target: str = ""        # the file an orphan_image issue is about (drives the auto-repair)
     terms: tuple[str, ...] = ()  # the vocabulary checks: the terms of the finding, for a screen to word it
 
 

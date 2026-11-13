@@ -29,3 +29,14 @@ def test_candidates_default_and_are_read_from_the_verify_section(tmp_path):
 def test_an_invalid_candidates_value_falls_back_to_the_default(tmp_path):
     for bad in ("0", "-2", "\"muchos\"", "true"):
         assert write(tmp_path, f"[verify]\ncandidates = {bad}\n").verify_candidates == 5
+
+
+def test_the_number_tolerance_defaults_and_is_read_from_the_verify_section(tmp_path):
+    assert load_config(tmp_path).number_tolerance == 0.05
+    assert write(tmp_path, "[verify]\nnumber_tolerance = 0.1\n").number_tolerance == 0.1
+    assert write(tmp_path, "[verify]\nnumber_tolerance = 0\n").number_tolerance == 0.0
+
+
+def test_an_invalid_number_tolerance_falls_back_to_the_default(tmp_path):
+    for bad in ("2", "-0.1", "\"alto\"", "true"):
+        assert write(tmp_path, f"[verify]\nnumber_tolerance = {bad}\n").number_tolerance == 0.05

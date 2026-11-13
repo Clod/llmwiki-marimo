@@ -36,6 +36,10 @@ msgid "Mode of the turn"
 msgstr "Modo del turno"
 
 #: web/audit_nodes.py
+msgid "Figure check: each figure of the prose is exact, rounded or without support"
+msgstr "Comprobación de cifras: cada cifra del texto es exacta, redondeada o sin respaldo"
+
+#: web/audit_nodes.py
 msgid "The question enters pre-retrieval"
 msgstr "La pregunta entra en pre-retrieval"
 
@@ -192,8 +196,8 @@ msgid "The model answers, calling the tools; the text is shown as it arrives"
 msgstr "El modelo responde llamando a las herramientas; el texto se muestra a medida que llega"
 
 #: web/audit_nodes.py
-msgid "The answer is complete, with no check"
-msgstr "La respuesta está completa, sin control"
+msgid "The answer is complete, with no check but the figure check"
+msgstr "La respuesta está completa, sin otra comprobación que la de las cifras"
 
 #: web/audit_nodes.py
 msgid "Tool: read a wiki page"
@@ -316,6 +320,32 @@ msgid "No page the model read supports this sentence"
 msgstr "Ninguna de las páginas que leyó el modelo respalda esta oración"
 
 #: web/render.py
+#, python-format
+msgid "Supported by the generated description of the image on page %(page)s"
+msgstr "Respaldada por la descripción generada de la imagen de la página %(page)s"
+
+#: web/render.py
+msgid "Supported by the generated description of an image"
+msgstr "Respaldada por la descripción generada de una imagen"
+
+#: web/render.py
+msgid "Open the image"
+msgstr "Abrir la imagen"
+
+#: web/render.py
+msgid "your question"
+msgstr "tu pregunta"
+
+#: web/render.py
+msgid "No data supports this figure"
+msgstr "Ningún dato respalda esta cifra"
+
+#: web/render.py
+#, python-format
+msgid "No data supports this figure; the nearest value is %(value)s (%(origin)s)"
+msgstr "Ningún dato respalda esta cifra; el valor más cercano es %(value)s (%(origin)s)"
+
+#: web/render.py
 msgid "No source of this page supports this sentence"
 msgstr "Ninguna de las fuentes de esta página respalda esta oración"
 
@@ -356,6 +386,20 @@ msgid "%(unsupported)s of %(checked)s sentence without support"
 msgid_plural "%(unsupported)s of %(checked)s sentences without support"
 msgstr[0] "%(unsupported)s de %(checked)s oración sin respaldo"
 msgstr[1] "%(unsupported)s de %(checked)s oraciones sin respaldo"
+
+#: web/routes/chat.py web/templates/page.html
+#, python-format
+msgid "%(described)s supported by an image description"
+msgid_plural "%(described)s supported by image descriptions"
+msgstr[0] "%(described)s respaldada por una descripción de imagen"
+msgstr[1] "%(described)s respaldadas por descripciones de imágenes"
+
+#: web/routes/chat.py
+#, python-format
+msgid "%(n)s figure without support"
+msgid_plural "%(n)s figures without support"
+msgstr[0] "%(n)s cifra sin respaldo"
+msgstr[1] "%(n)s cifras sin respaldo"
 
 #: web/routes/chat.py
 #, python-format
@@ -604,6 +648,19 @@ msgid "An installation of the verifier is already running."
 msgstr "Ya hay una instalación del verificador en curso."
 
 #: web/routes/ingest.py
+msgid ""
+"The vision model is not configured: set it in the Settings screen, or define VISION_BASE_URL, VISION_API_KEY and "
+"VISION_MODEL in the .env file."
+msgstr ""
+"El modelo de visión no está configurado: definilo en la pantalla Configuración, o definí VISION_BASE_URL, "
+"VISION_API_KEY y VISION_MODEL en el archivo .env."
+
+#: web/routes/ingest.py
+#, python-format
+msgid "🏁 Images: %(described)s described, %(pending)s without description"
+msgstr "🏁 Imágenes: %(described)s descritas, %(pending)s sin descripción"
+
+#: web/routes/ingest.py
 #, python-format
 msgid "Deleted %(n)s stale page."
 msgid_plural "Deleted %(n)s stale pages."
@@ -724,6 +781,10 @@ msgstr "El valor debe estar entre 0 y 1."
 #: web/routes/settings.py
 msgid "Write a whole number, 1 or more."
 msgstr "Escribí un número entero, 1 o más."
+
+#: web/routes/settings.py
+msgid "Write a whole number, 0 or more."
+msgstr "Escribí un número entero, 0 o más."
 
 #: web/routes/settings.py
 msgid "The value is not valid."
@@ -2109,6 +2170,15 @@ msgstr ""
 "--cask libreoffice"
 
 #: web/templates/maintain.html
+msgid "The engine that reads PDFs with no text layer (set in Settings, or OCR_ENGINE in .env)"
+msgstr "El motor que lee los PDF sin capa de texto (se elige en Configuración, o con OCR_ENGINE en .env)"
+
+#: web/templates/maintain.html
+#, python-format
+msgid "%(engine)s: cannot be used"
+msgstr "%(engine)s: no se puede usar"
+
+#: web/templates/maintain.html
 msgid "NLI verifier"
 msgstr "Verificador NLI"
 
@@ -2344,6 +2414,109 @@ msgstr "Borrar las páginas obsoletas de la wiki"
 #: web/templates/maintain.html
 msgid "There are no stale pages."
 msgstr "No hay páginas obsoletas."
+
+#: web/templates/maintain.html
+msgid "Images"
+msgstr "Imágenes"
+
+#: web/templates/maintain.html
+msgid ""
+"The images kept from the sources. With descriptions on, the vision model describes each image and the description "
+"enters the text of its source. Each description is one call to the model."
+msgstr ""
+"Las imágenes conservadas de las fuentes. Con las descripciones activadas, el modelo de visión describe cada imagen y "
+"la descripción entra en el texto de su fuente. Cada descripción es una llamada al modelo."
+
+#: web/templates/maintain.html
+msgid "Counts of the images"
+msgstr "Recuento de las imágenes"
+
+#: web/templates/maintain.html
+msgid "Kept"
+msgstr "Conservadas"
+
+#: web/templates/maintain.html
+msgid "Described"
+msgstr "Descritas"
+
+#: web/templates/maintain.html
+msgid "Without description"
+msgstr "Sin descripción"
+
+#: web/templates/maintain.html
+msgid "Stale"
+msgstr "Desactualizadas"
+
+#: web/templates/maintain.html
+msgid "Described with an earlier version of the description prompt, or the image changed"
+msgstr "Descritas con una versión anterior del prompt de descripción, o la imagen cambió"
+
+#: web/templates/maintain.html
+msgid "Images not described, by reason"
+msgstr "Imágenes sin describir, por motivo"
+
+#: web/templates/maintain.html
+msgid "Too small"
+msgstr "Muy pequeñas"
+
+#: web/templates/maintain.html
+msgid "Decorative"
+msgstr "Decorativas"
+
+#: web/templates/maintain.html
+msgid "Duplicate"
+msgstr "Duplicadas"
+
+#: web/templates/maintain.html
+msgid "Over the limit"
+msgstr "Sobre el límite"
+
+#: web/templates/maintain.html
+msgid "Past the maximum of images described per source"
+msgstr "Más allá del máximo de imágenes descritas por fuente"
+
+#: web/templates/maintain.html
+msgid "Failed"
+msgstr "Fallidas"
+
+#: web/templates/maintain.html
+msgid ""
+"Descriptions are off. Turn them on with <code>describe = true</code> in the <code>[images]</code> section of the "
+"Settings screen."
+msgstr ""
+"Las descripciones están desactivadas. Se activan con <code>describe = true</code> en la sección <code>[images]</code>"
+" de la pantalla Configuración."
+
+#: web/templates/maintain.html
+msgid "Describe the images that have no description; asks for confirmation"
+msgstr "Describir las imágenes que no tienen descripción; pide confirmación"
+
+#: web/templates/maintain.html
+msgid "There is nothing to describe, descriptions are off, or no vision model is configured"
+msgstr "No hay nada que describir, las descripciones están desactivadas o no hay un modelo de visión configurado"
+
+#: web/templates/maintain.html web/templates/settings.html
+msgid "Describe the images"
+msgstr "Describir las imágenes"
+
+#: web/templates/maintain.html
+#, python-format
+msgid "Describe %(count)s image with %(model)s? It is one call to the model."
+msgid_plural "Describe %(count)s images with %(model)s? It is one call to the model for each image."
+msgstr[0] "¿Describir %(count)s imagen con %(model)s? Es una llamada al modelo."
+msgstr[1] "¿Describir %(count)s imágenes con %(model)s? Es una llamada al modelo por cada imagen."
+
+#: web/templates/maintain.html
+msgid "Start describing; progress appears in the console"
+msgstr "Empezar a describir; el progreso aparece en la consola"
+
+#: web/templates/maintain.html
+msgid "Describe"
+msgstr "Describir"
+
+#: web/templates/maintain.html
+msgid "Close without describing"
+msgstr "Cerrar sin describir"
 
 #: web/templates/maintain.html
 msgid "Index of the wiki"
@@ -2813,6 +2986,18 @@ msgid "The model that writes the pages of the wiki. An empty field uses the valu
 msgstr "El modelo que escribe las páginas de la wiki. Un campo vacío usa el valor del modelo de lectura."
 
 #: web/templates/settings.html
+msgid "Vision model"
+msgstr "Modelo de visión"
+
+#: web/templates/settings.html
+msgid ""
+"The model that describes the images of the sources and reads the scanned PDFs when the OCR engine is the vision "
+"model. It must accept images. An empty field uses the value of the ingestion model."
+msgstr ""
+"El modelo que describe las imágenes de las fuentes y lee los PDF escaneados cuando el motor de OCR es el modelo de "
+"visión. Tiene que aceptar imágenes. Un campo vacío usa el valor del modelo de ingesta."
+
+#: web/templates/settings.html
 msgid "Endpoint URL"
 msgstr "URL del servicio"
 
@@ -2827,6 +3012,26 @@ msgstr "Hay una clave guardada, y la página no la muestra. Dejá el campo vací
 #: web/templates/settings.html
 msgid "No key is saved."
 msgstr "No hay ninguna clave guardada."
+
+#: web/templates/settings.html
+msgid "OCR engine"
+msgstr "Motor de OCR"
+
+#: web/templates/settings.html
+msgid "Engine"
+msgstr "Motor"
+
+#: web/templates/settings.html
+msgid "None"
+msgstr "Ninguno"
+
+#: web/templates/settings.html
+msgid ""
+"The engine that reads a PDF with no text layer. With no engine, a scanned PDF is not ingested. Tesseract needs the "
+"programs ocrmypdf and tesseract installed in this computer. The vision model reads each page with the model above."
+msgstr ""
+"El motor que lee un PDF sin capa de texto. Sin motor, un PDF escaneado no ingresa. Tesseract necesita los programas "
+"ocrmypdf y tesseract instalados en esta computadora. El modelo de visión lee cada página con el modelo de arriba."
 
 #: web/templates/settings.html
 msgid "Write the models to .env. They apply from the next question"
@@ -2931,6 +3136,63 @@ msgid "The passages kept for each sentence of a page before the verifier runs. A
 msgstr ""
 "Los pasajes que se conservan para cada oración de una página antes de que corra el verificador. Un número entero, 1 o"
 " más."
+
+#: web/templates/settings.html
+msgid "Figure tolerance"
+msgstr "Tolerancia de las cifras"
+
+#: web/templates/settings.html
+msgid ""
+"From 0 to 1: the largest relative difference a rounded figure of an answer may have from the value in the data it "
+"rounds. A figure beyond it is marked as without support."
+msgstr ""
+"De 0 a 1: la mayor diferencia relativa que una cifra redondeada de una respuesta puede tener respecto del valor de "
+"los datos que redondea. Una cifra que la supera se marca como sin respaldo."
+
+#: web/templates/settings.html
+msgid "Ignore the images"
+msgstr "Ignorar las imágenes"
+
+#: web/templates/settings.html
+msgid ""
+"The ingestion does not keep the images of the sources: it copies, links and describes none, and it does not accept an"
+" image file as a source. Untick it to keep the images. The change applies to the sources ingested afterwards."
+msgstr ""
+"La ingesta no conserva las imágenes de las fuentes: no copia, no enlaza y no describe ninguna, y no acepta un archivo"
+" de imagen como fuente. Desmarcala para conservar las imágenes. El cambio vale para las fuentes que se ingieran "
+"después."
+
+#: web/templates/settings.html
+msgid ""
+"Each image kept from a source is described by a vision model, and the description enters the text of the source. Each"
+" description is one call to the model. The vision model is set in the .env file (VISION_*)."
+msgstr ""
+"Un modelo de visión describe cada imagen conservada de una fuente, y la descripción entra en el texto de la fuente. "
+"Cada descripción es una llamada al modelo. El modelo de visión se define en el archivo .env (VISION_*)."
+
+#: web/templates/settings.html
+msgid "Minimum side"
+msgstr "Lado mínimo"
+
+#: web/templates/settings.html
+msgid "Images with a smaller side, in pixels, are not described. A whole number, 0 or more."
+msgstr "Las imágenes con un lado menor, en píxeles, no se describen. Un número entero, 0 o más."
+
+#: web/templates/settings.html
+msgid "Minimum size"
+msgstr "Tamaño mínimo"
+
+#: web/templates/settings.html
+msgid "Images smaller than this, in bytes, are not described. A whole number, 0 or more."
+msgstr "Las imágenes más pequeñas que esto, en bytes, no se describen. Un número entero, 0 o más."
+
+#: web/templates/settings.html
+msgid "Maximum per source"
+msgstr "Máximo por fuente"
+
+#: web/templates/settings.html
+msgid "At most this many images are described for each source; the others are not. A whole number, 1 or more."
+msgstr "Se describen como máximo tantas imágenes por fuente; las demás no. Un número entero, 1 o más."
 
 #: web/templates/settings.html
 #, python-format
@@ -3054,4 +3316,25 @@ msgstr "Funciones de cálculo"
 #~ msgstr ""
 #~ "El verificador local no está instalado. Instalalo con: python3 "
 #~ "quickstart.py --with-verifier (o uv sync --group verify)"
+
+#~ msgid "The answer is complete, with no check"
+#~ msgstr "La respuesta está completa, sin control"
+
+#~ msgid "Open the page cited in the answer"
+#~ msgstr "Abrir la página citada en la respuesta"
+
+#~ msgid ""
+#~ "The vision model is not configured: define VISION_BASE_URL, "
+#~ "VISION_API_KEY and VISION_MODEL in the .env file (the WIKI_LLM_*"
+#~ " and LLM_* variables are the fallback)."
+#~ msgstr ""
+#~ "El modelo de visión no está configurado: definí VISION_BASE_URL,"
+#~ " VISION_API_KEY y VISION_MODEL en el archivo .env (las "
+#~ "variables WIKI_LLM_* y LLM_* son el valor de reserva)."
+
+#~ msgid "The engine that reads PDFs with no text layer (OCR_ENGINE in .env)"
+#~ msgstr "El motor que lee los PDF sin capa de texto (OCR_ENGINE en .env)"
+
+#~ msgid "This wiki ignores the images: untick “Ignore the images” in Settings to describe them."
+#~ msgstr "Esta wiki ignora las imágenes: desmarcá «Ignorar las imágenes» en Configuración para describirlas."
 

@@ -4,14 +4,17 @@ context the reading layout needs."""
 from __future__ import annotations
 
 import posixpath
+from pathlib import PurePosixPath
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from domain.chat.config import load_config
 from domain.tools.db import get_connection
-from services.wiki import list_pages
+from domain.verify.models import split_source
+from services.wiki import image_reference, list_pages
 from web.i18n import N_, _
+from web.render import ImageSupport, image_url
 from web.state import AppState, OpenWiki
 
 BUSY = N_("Another operation is running on this wiki.")
@@ -34,6 +37,26 @@ _GROUP = {"concepts": N_("Concepts"), "summaries": N_("Summaries"), "": N_("Gene
 
 # The values of `documents.status` (`database/sqlite_schema.sql`); the pill keeps the raw value as its CSS class.
 _STATUS = {"pending": N_("pending"), "processing": N_("processing"), "ready": N_("ready"), "failed": N_("failed")}
+
+
+def image_support(wiki, wiki_id: str, path: str, file: str) -> ImageSupport:
+    """The third state of a sentence: the kept image `file` of the source at `path`, whose
+    generated description supports the sentence, with its page and the route that shows it."""
+    name = PurePosixPath(path).name
+    found = image_reference(wiki, path, file)
+    if found is None:
+        return ImageSupport(name, file)
+    return ImageSupport(name, file, found[1], image_url(wiki_id, found[0], file))
+
+
+def described_marks(wiki, wiki_id: str, report) -> list[tuple[int, int, ImageSupport]]:
+    """`(start, end, support)` of each sentence of a verification report that is supported
+    only by the generated description of an image."""
+    marks = []
+    for sentence in report.described_sentences():
+        path, file = split_source(sentence.page)
+        marks.append((sentence.start, sentence.end, image_support(wiki, wiki_id, path or "", file or "")))
+    return marks
 
 
 def status_label(status: str) -> str:

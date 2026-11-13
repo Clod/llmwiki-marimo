@@ -11,6 +11,7 @@ make_wiki_slug()        — filename → url-safe slug
 inject_see_also()       — inject a ## See also section into generated markdown
 """
 
+import html
 import json
 import logging
 import re
@@ -21,6 +22,9 @@ from pathlib import Path
 
 from domain.datasets.frontmatter import render_frontmatter, split_frontmatter
 from domain.i18n import get_locale, with_content_directive
+from domain.ingestion.describe import BLOCK_RE
+from domain.ingestion.formats import IMAGE_EXTENSIONS
+from domain.ingestion.images import link_base
 from domain.prompts import load_prompt
 from domain.tools.references import base_name, cited_in_text, header_sources
 
@@ -64,7 +68,10 @@ def extract_structured(
         page_count=doc_meta["page_count"],
         content=content,
     )
-    system = with_content_directive(load_prompt("extract_system", language), language)
+    base_prompt = load_prompt("extract_system", language)
+    if has_descriptions(page_contents):
+        base_prompt = f"{base_prompt}\n\n{image_note(language)}"
+    system = with_content_directive(base_prompt, language)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -75,6 +82,19 @@ def extract_structured(
     )
     raw = (response.choices[0].message.content or "").strip()
     return _parse_extraction(raw, doc_meta["filename"])
+
+
+def has_descriptions(page_contents: list[tuple[int, str]]) -> bool:
+    """True when the text of some page holds an image-description block."""
+    return any(BLOCK_RE.search(text or "") for _, text in page_contents)
+
+
+def image_note(language: str) -> str:
+    """The sentence that tells the model a delimited passage is a generated
+    description (`prompts/image_note.<lang>.md`, D6 of the image design). The ingestion
+    prompts gain it only when the text holds a description, so the prompts of a wiki
+    with no descriptions do not change."""
+    return load_prompt("image_note", language).strip()
 
 
 def _clean_aliases(raw) -> list[str]:
@@ -156,19 +176,90 @@ def _parse_dataset_aliases(raw: str) -> dict[str, list[str]]:
         return {}
 
 
+def _escaped(text: str) -> str:
+    """`text` for the inside of an inline HTML element of a markdown page: HTML
+    escaped, and the characters markdown would read as markup written as entities."""
+    out = html.escape(" ".join(str(text).split()), quote=False)
+    for char in "*_[]`<>":
+        out = out.replace(char, f"&#{ord(char)};")
+    return out
+
+
+def _alt_text(text: str) -> str:
+    """`text` as the alt text of a markdown image: one line, with nothing that markdown
+    or HTML would read as markup."""
+    plain = re.sub(r"[<>*_`\"]", "", str(text)).replace("[", "(").replace("]", ")")
+    return " ".join(plain.split())
+
+
+def _description_text(answer: dict, loc) -> str:
+    """The description of an image on one line, for the folded block of the Figures section."""
+    parts = []
+    if answer.get("type"):
+        parts.append(f"{loc.lbl_type}: {answer['type']}.")
+    if answer.get("description"):
+        parts.append(f"{loc.lbl_image_description}: {answer['description']}")
+    if answer.get("visible_text"):
+        parts.append(f"{loc.lbl_image_visible_text}: " + "; ".join(answer["visible_text"]))
+    if answer.get("values"):
+        parts.append(f"{loc.lbl_image_values}: " + "; ".join(answer["values"]))
+    return " ".join(parts)
+
+
+def figures_section(doc_id: str, figures: list[dict], language: str = "en") -> str:
+    """The "Figures" section of a summary page: one thumbnail per image kept from
+    the source, with its page number and the caption opendataloader-pdf found
+    next to it. Each thumbnail links to the full image.
+
+    An image whose figure entry carries a generated `answer` (`load_figures` with
+    `with_descriptions`) gets the description in a folded block labelled "Generated
+    description" (an HTML `<details>`), and the `alt` text of its thumbnail is the
+    description, for a screen reader. A decorative image gets neither.
+
+    The code writes it, not the model, from `figures.json`. Empty without figures.
+    """
+    if not figures:
+        return ""
+    loc = get_locale(language)
+    lines = []
+    for fig in figures:
+        link = f"{link_base(doc_id)}/{fig['file']}"
+        answer = fig.get("answer") or {}
+        text = _description_text(answer, loc) if answer and not answer.get("decorative") else ""
+        alt = f"Imagen, página {fig['page']}"
+        if text:
+            alt += ". " + _alt_text(answer.get("description") or text)
+        item = f"- [![{alt}]({link})]({link}) **{loc.lbl_page} {fig['page']}.**"
+        caption = " ".join(str(fig.get("caption", "")).split())
+        item = f"{item} *{caption}*" if caption else item
+        if text:
+            item += (f"\n  <details><summary>{loc.lbl_image_generated_short}</summary>"
+                     f"{_escaped(text)}</details>")
+        lines.append(item)
+    return f"\n## {loc.h_figures}\n\n" + "\n".join(lines) + "\n"
+
+
 def build_summary_page(
     doc_meta: dict,
     extraction: ExtractionResult,
     language: str = "en",
+    figures: list[dict] | None = None,
+    doc_id: str = "",
 ) -> str:
     """Phase 2 of 3: build the summary wiki page from the extraction result.
 
     No LLM call — pure string construction. Section headers and field labels
     are drawn from the locale so a Spanish wiki produces fully Spanish pages.
+    `figures` (page, file, caption of the images kept from the source) adds a
+    "Figures" section after the model's text, before the source information.
     """
     loc = get_locale(language)
     ingested_at = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     title = _title_from_filename(doc_meta["filename"])
+
+    # The text of an image file is wholly generated: the code says so, not the model (D11).
+    image_notice = (f"> {loc.image_source_notice}\n\n"
+                    if f".{str(doc_meta.get('file_type', '')).lower()}" in IMAGE_EXTENSIONS else "")
 
     concept_links = ""
     if extraction.concepts:
@@ -182,8 +273,10 @@ def build_summary_page(
         f"**{loc.lbl_type}:** {doc_meta['file_type']} | "
         f"**{loc.lbl_pages}:** {doc_meta['page_count']} | "
         f"**{loc.lbl_ingested}:** {ingested_at}\n\n"
+        f"{image_notice}"
         f"## {loc.h_summary}\n\n{extraction.document_summary}\n"
-        f"{concept_links}\n"
+        f"{concept_links}"
+        f"{figures_section(doc_id, figures or [], language)}\n"
         f"## {loc.h_source_information}\n\n"
         f"- **{loc.lbl_file}:** {doc_meta['filename']}\n"
         f"- **{loc.lbl_type}:** {doc_meta['file_type']}\n"
@@ -201,8 +294,12 @@ def build_concept_page(
     client,
     model: str,
     language: str = "en",
+    image_descriptions: bool = False,
 ) -> str:
     """Phase 3 of 3: generate or update a concept wiki page.
+
+    `image_descriptions` is true when the source holds generated descriptions of
+    images: the system prompt then carries the note about them (D6).
 
     The content-language directive is appended to the system prompt so the LLM
     writes the page in the wiki language. Section headers in the template are
@@ -233,7 +330,10 @@ def build_concept_page(
             h_sources=loc.h_sources,
         )
 
-    system = with_content_directive(load_prompt("concept_system", language), language)
+    base_prompt = load_prompt("concept_system", language)
+    if image_descriptions:
+        base_prompt = f"{base_prompt}\n\n{image_note(language)}"
+    system = with_content_directive(base_prompt, language)
     response = client.chat.completions.create(
         model=model,
         messages=[

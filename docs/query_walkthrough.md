@@ -167,18 +167,25 @@ any of the three positions above: it applies to wikis that have a `datasets/`
 folder, and `fairy-tales` — the wiki behind every transcript in Part 1 — has
 none, so nothing of this appears until
 [Part 2, Act 6](#6-deterministic-advisory). Second, what the code guarantees is
-that the figures read out of the data files *reach* the user; that the model does not also
-write an invented number into its own sentences is asked for in the system
-prompt, and today nothing checks it.
+that the figures read out of the data files *reach* the user. It does not prevent
+the model from also writing a different number into its own sentences. The
+system prompt asks the model not to, and a figure check marks the numbers it
+cannot trace.
 
-That gap can be closed. Numbers are the one class of claim that compares
-exactly, and the figures the tools returned are already held as typed values
-rather than as text that would have to be parsed back out, so code could extract
-the figures from the model's prose and reject any the tools did not produce. What prevents it is not the check but an
-unresolved decision about rounding: the data says `1187.5`, the model writes
-"about 1,200", and that is correct prose rather than an invention.
-[`ROADMAP.md`](../ROADMAP.md) records the design and the two decisions it waits
-on.
+The figure check runs after every answer, in the three chat modes. It reads each
+number written with digits in the sentences the model wrote, and compares the
+number with the numbers of the passages the model read, of the advisory table, of
+the questions of the user and of the earlier turns of the conversation. A number
+that matches none is marked in red in the web interface, with the nearest value
+the check knows. A number that matches a value rounded ("about 1,200" for
+`1187.5`, within `[verify] number_tolerance`, 5 % by default) is accepted, and a
+note under the answer says that the figures of the text are approximations.
+The text of the model is never edited and the answer is never blocked.
+[`ROADMAP.md`](../ROADMAP.md) records the design and its limits. The check does
+not read a number written in words, a date, a year alone or a count from 0 to 12
+without a unit. It proves that a figure comes from the material read, not that it
+is the right figure for the sentence: a figure equal to any number of any passage
+passes.
 
 ## The two checkboxes
 

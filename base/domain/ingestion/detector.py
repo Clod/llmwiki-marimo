@@ -26,7 +26,9 @@ def needs_ingestion(path: Path, conn: sqlite3.Connection) -> tuple[bool, str]:
 
     Fast path: if mtime_ns matches the stored value, skip the hash entirely.
     Slow path: if mtime_ns differs, compute hash and compare.
-    Returns (True, hash) when the file is new or has changed.
+    Returns (True, hash) when the file is new, has changed, or its last ingestion
+    failed: a failure can come from the setup (no OCR engine, no Java), which the
+    user fixes without touching the file, so the same file must be tried again.
     Returns (False, stored_hash) when the file is unchanged.
     """
     relative = _relative_path(path)
@@ -34,7 +36,7 @@ def needs_ingestion(path: Path, conn: sqlite3.Connection) -> tuple[bool, str]:
     current_mtime_ns = stat.st_mtime_ns
 
     row = conn.execute(
-        "SELECT mtime_ns, content_hash FROM documents WHERE relative_path = ?",
+        "SELECT mtime_ns, content_hash, status FROM documents WHERE relative_path = ?",
         (relative,),
     ).fetchone()
 
@@ -44,6 +46,10 @@ def needs_ingestion(path: Path, conn: sqlite3.Connection) -> tuple[bool, str]:
         return True, current_hash
 
     stored_mtime_ns, stored_hash = row["mtime_ns"], row["content_hash"]
+
+    if row["status"] == "failed":
+        logger.debug("Retrying after a failed ingestion: %s", relative)
+        return True, compute_file_hash(path)
 
     if stored_mtime_ns == current_mtime_ns:
         logger.debug("Unchanged (mtime match): %s", relative)

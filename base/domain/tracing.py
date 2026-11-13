@@ -310,6 +310,53 @@ def mark(node_id: str, diagram: str, **attributes: Any) -> None:
 
 # ── OpenAI client proxy (ingestion model calls) ───────────────────────────────
 
+# The name of the image file the model call in progress is about, for the reference
+# that replaces the image in the trace of the request.
+_image_file: ContextVar[str | None] = ContextVar("_tracing_image_file", default=None)
+
+
+@contextlib.contextmanager
+def image_file(name: str) -> Iterator[None]:
+    """Name, in the trace, the image the model calls inside the block are about."""
+    token = _image_file.set(name)
+    try:
+        yield
+    finally:
+        _image_file.reset(token)
+
+
+def redact_images(messages: Any) -> Any:
+    """`messages` with each image part (a `data:` URL) replaced by a reference.
+
+    The reference is `{"image": <file name>, "sha256": ..., "bytes": ...}`: the image
+    is already kept in the images folder of its document, and a base64 copy in the
+    trace would add a third to its size. The text parts are kept whole; `messages` is
+    not modified.
+    """
+    import base64
+
+    if not isinstance(messages, list):
+        return messages
+
+    def part(item: Any) -> Any:
+        if not (isinstance(item, dict) and item.get("type") == "image_url"):
+            return item
+        url = (item.get("image_url") or {}).get("url", "") if isinstance(item.get("image_url"), dict) else ""
+        if not (isinstance(url, str) and url.startswith("data:") and ";base64," in url):
+            return item
+        try:
+            data = base64.b64decode(url.split(";base64,", 1)[1], validate=False)
+        except ValueError:
+            return item
+        return {"image": _image_file.get(),
+                "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+
+    return [
+        {**m, "content": [part(p) for p in m["content"]]}
+        if isinstance(m, dict) and isinstance(m.get("content"), list) else m
+        for m in messages
+    ]
+
 class _TracedCompletions:
     def __init__(self, real: Any) -> None:
         self._real = real
@@ -339,7 +386,7 @@ class _TracedCompletions:
                 messages = kwargs.get("messages")
                 if messages is not None:
                     node_obj.payload(
-                        "prompt", json.dumps(messages, ensure_ascii=False, indent=2),
+                        "prompt", json.dumps(redact_images(messages), ensure_ascii=False, indent=2),
                         channel="prompts", ext="json",
                     )
                 content = resp.choices[0].message.content or ""

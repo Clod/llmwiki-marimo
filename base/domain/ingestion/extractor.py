@@ -14,13 +14,15 @@ import subprocess
 import tempfile
 import logging
 from pathlib import Path
-from typing import Iterator
+from typing import Callable, Iterator
 
 logger = logging.getLogger(__name__)
 
-from .formats import SUPPORTED_EXTENSIONS, TEXT_EXTENSIONS, sorted_extensions  # noqa: E402
+from .images import IMAGE_LINK_RE, IMAGES_DIRNAME, drop_kept, enrich_figures  # noqa: E402
+from .ocr import OcrNotConfiguredError, apply_ocr  # noqa: E402,F401
+from .formats import IMAGE_EXTENSIONS, TEXT_EXTENSIONS, sorted_extensions, supported_extensions  # noqa: E402
 from .pdf_extract import extract_pdf  # noqa: E402
-from .text_extract import extract_text_file  # noqa: E402
+from .text_extract import extract_image_file, extract_text_file  # noqa: E402
 
 
 class LibreOfficeNotInstalledError(RuntimeError):
@@ -153,32 +155,71 @@ def _probe_conversion(lo: str) -> bool:
         return converted
 
 
-def extract(file_path: Path, cache_dir: Path) -> tuple[list[tuple[int, str]], str]:
+def extract(
+    file_path: Path, cache_dir: Path, language: str = "en",
+    progress_cb: Callable[[str], None] | None = None, *, keep_images: bool = True,
+) -> tuple[list[tuple[int, str]], str]:
     """Extract text from a supported file.
+
+    A PDF with no text layer goes through the OCR engine of ``OCR_ENGINE``
+    (`ocr.apply_ocr`); `language` is the wiki language the engine reads in.
+    A DOCX never does.
 
     Returns (page_contents, parser_name).
     page_contents is list of (page_number, markdown).
-    A .md or .txt file is read directly and needs neither Java nor LibreOffice.
+    A .md or .txt file is read directly and needs neither Java nor LibreOffice; the
+    image links of a .md are kept in `cache_dir/images/`. An image file is one page, its
+    link (`extract_image_file`), and needs neither tool.
     Raises JavaNotInstalledError for a PDF or an office file when no Java
     runtime is installed: both reach opendataloader-pdf, which runs a .jar.
     Raises LibreOfficeNotInstalledError for an office file when LibreOffice is
     missing.
+    Raises OcrNotConfiguredError when a PDF needs OCR and OCR_ENGINE is `none`.
     Raises RuntimeError on extraction failure, including an empty text file.
+    The images of a PDF (or an office file) are kept in `cache_dir/images/`, the
+    document's ingestion folder, and the markdown links to them (domain/ingestion/images.py).
+    With `keep_images` false (`[images] ignore = true`), no image is kept and the text has
+    no link to one: the images folder and `figures.json` of an earlier extraction are
+    deleted, and an image file raises ValueError as an unsupported type.
     """
     ext = file_path.suffix.lower()
-    if ext not in SUPPORTED_EXTENSIONS:
+    supported = supported_extensions(keep_images)
+    if ext not in supported:
         raise ValueError(
-            f"Unsupported file type: {ext}. Supported: {', '.join(sorted_extensions())}"
+            f"Unsupported file type: {ext}. Supported: {', '.join(sorted_extensions(supported))}"
         )
     if ext in TEXT_EXTENSIONS:
-        return extract_text_file(file_path)
+        if keep_images:
+            return extract_text_file(file_path, cache_dir)
+        drop_kept(cache_dir)
+        return extract_text_file(file_path, None)
+    if ext in IMAGE_EXTENSIONS:
+        return extract_image_file(file_path, cache_dir)
     java = check_java()
     if not java:
         raise JavaNotInstalledError(file_path.name)
     with _java_on_path(java):
         if ext == ".pdf":
-            return _extract_pdf(file_path)
-        return _extract_office(file_path, cache_dir)
+            return _extract_pdf(file_path, cache_dir, language, progress_cb, keep_images=keep_images)
+        return _extract_office(file_path, cache_dir, keep_images=keep_images)
+
+
+def extract_images(file_path: Path, cache_dir: Path) -> None:
+    """Extract the images of a PDF or DOCX again into `cache_dir/images/`.
+
+    It runs the same conversion as `extract` and drops the text: the stored text
+    is not touched, no model is called. A PDF does not go through OCR: OCR gives
+    text, and the text is dropped. Used by the missing-image repair.
+    Raises the same errors as `extract`, except OcrNotConfiguredError.
+    """
+    if file_path.suffix.lower() != ".pdf":
+        extract(file_path, cache_dir)
+        return
+    java = check_java()
+    if not java:
+        raise JavaNotInstalledError(file_path.name)
+    with _java_on_path(java):
+        _extract_pdf(file_path, cache_dir, "en", None, ocr=False)
 
 
 @contextlib.contextmanager
@@ -204,10 +245,38 @@ def _java_on_path(java: str) -> Iterator[None]:
         os.environ["PATH"] = previous
 
 
-def _extract_pdf(file_path: Path) -> tuple[list[tuple[int, str]], str]:
+def _extract_pdf(
+    file_path: Path, cache_dir: Path, language: str, progress_cb: Callable[[str], None] | None,
+    *, ocr: bool = True, keep_images: bool = True,
+) -> tuple[list[tuple[int, str]], str]:
+    """The pages of a PDF. The images are kept first; then OCR reads the pages with no
+    text layer. A page that OCR read keeps the links to its kept images
+    (`keep_image_links`), so the image handling sees them as on any other page. With
+    `keep_images` false no image is kept, and the kept images of an earlier extraction
+    are deleted."""
     logger.info("Extracting PDF: %s", file_path.name)
-    pages = extract_pdf(str(file_path))
-    return pages, "opendataloader"
+    if keep_images:
+        pages = extract_pdf(str(file_path), cache_dir / IMAGES_DIRNAME)
+        enrich_figures(cache_dir)
+    else:
+        pages = extract_pdf(str(file_path), None)
+        drop_kept(cache_dir)
+    if not ocr:
+        return pages, "opendataloader"
+    read, engine = apply_ocr(file_path, pages, cache_dir, language, progress=progress_cb)
+    return keep_image_links(pages, read), "opendataloader" if engine is None else f"opendataloader+ocr-{engine}"
+
+
+def keep_image_links(before: list[tuple[int, str]], after: list[tuple[int, str]]) -> list[tuple[int, str]]:
+    """`after` with each link to a kept image of `before` that its page lost appended
+    to that page. OCR replaces the text of a scanned page; the links to the images
+    kept from that page are not text, and the image handling needs them."""
+    links = {number: [m.group(0) for m in IMAGE_LINK_RE.finditer(markdown)] for number, markdown in before}
+    merged = []
+    for number, markdown in after:
+        lost = [link for link in links.get(number, []) if link not in markdown]
+        merged.append((number, "\n\n".join([markdown.rstrip(), *lost]).strip() if lost else markdown))
+    return merged
 
 
 def convert_office_to_pdf(file_path: Path, cache_dir: Path) -> Path:
@@ -251,6 +320,14 @@ def convert_office_to_pdf(file_path: Path, cache_dir: Path) -> Path:
 convert_docx_to_pdf = convert_office_to_pdf
 
 
-def _extract_office(file_path: Path, cache_dir: Path) -> tuple[list[tuple[int, str]], str]:
-    pages = extract_pdf(str(convert_office_to_pdf(file_path, cache_dir)))
+def _extract_office(
+    file_path: Path, cache_dir: Path, *, keep_images: bool = True,
+) -> tuple[list[tuple[int, str]], str]:
+    converted = str(convert_office_to_pdf(file_path, cache_dir))
+    if keep_images:
+        pages = extract_pdf(converted, cache_dir / IMAGES_DIRNAME)
+        enrich_figures(cache_dir)
+    else:
+        pages = extract_pdf(converted, None)
+        drop_kept(cache_dir)
     return pages, "libreoffice+opendataloader"

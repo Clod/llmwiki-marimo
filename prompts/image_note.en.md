@@ -1,0 +1,1 @@
+A passage between <!-- image-description: ... --> and <!-- /image-description --> is a description of an image that a model generated. It is not the author's text. Cite it as "image on page N" and do not present it as the author's statement.
