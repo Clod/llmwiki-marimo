@@ -105,7 +105,7 @@ def test_extract_fails_a_scanned_pdf_when_ocr_is_off(monkeypatch, tmp_path):
 
 def test_a_docx_never_goes_through_ocr(monkeypatch, tmp_path):
     monkeypatch.setattr(extractor, "check_java", lambda: "/usr/bin/java")
-    monkeypatch.setattr(extractor, "convert_docx_to_pdf", lambda path, cache: tmp_path / "converted.pdf")
+    monkeypatch.setattr(extractor, "convert_office_to_pdf", lambda path, cache: tmp_path / "converted.pdf")
     monkeypatch.setattr(extractor, "extract_pdf", lambda path, images_dir=None: [(1, "")])
     monkeypatch.setattr(extractor, "apply_ocr", lambda *a, **k: pytest.fail("OCR on a DOCX"))
     docx = tmp_path / "a.docx"
