@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from domain.verify import install as verifier_install
 from domain.verify import nli
 from domain.verify.verifier import Verifier
 from domain.wiki_registry import discover_wikis, is_wiki_dir, load_recent, merge_options
@@ -108,6 +109,11 @@ class AppState:
         self.conversations: dict[tuple[str, str], list[Message]] = {}
         self.turns: dict[str, Turn] = {}
         self.operations: dict[str, Operation] = {}
+        # The installation of the verifier is one per server, not one per wiki.
+        self.install_lock = threading.Lock()
+        # Runs one installation command, sending each output line to `progress`; returns
+        # the exit code. A test replaces it.
+        self.run_command: Callable[[list[str], Callable[[str], None]], int] = verifier_install.run_command
 
     # ── Wikis ────────────────────────────────────────────────────────────────
 
@@ -186,6 +192,18 @@ class AppState:
             self._local_verifier_installed = nli.is_available()
         return self._local_verifier_installed
 
+    def verifier_status(self) -> verifier_install.Status:
+        """`installed`, `packages` (the model is missing) or `missing`, for the Maintenance
+        screen. A verifier given to the application counts as installed."""
+        if self._verifier is not None:
+            return "installed"
+        return verifier_install.status()
+
+    def refresh_verifier(self) -> None:
+        """Forget the probe of the local verifier: the next `verifier_available` looks again,
+        so a verifier installed while the server runs is found without a restart."""
+        self._local_verifier_installed = None
+
     def get_verifier(self) -> Verifier:
         """The verifier, built on first use and kept (the model loads once)."""
         if self._verifier is None:
@@ -215,11 +233,13 @@ class AppState:
 
     # ── Operations ───────────────────────────────────────────────────────────
 
-    def start_operation(self, entry: OpenWiki, work: Callable[[Callable[[str], None]], str]) -> str | None:
-        """Run `work(progress)` in a thread under the wiki's lock; return the
-        operation id whose events stream the progress, or None when the wiki is
-        busy. `work` returns its closing line."""
-        if not entry.busy.acquire(blocking=False):
+    def start_operation(self, entry: OpenWiki | None, work: Callable[[Callable[[str], None]], str],
+                        *, lock: threading.Lock | None = None) -> str | None:
+        """Run `work(progress)` in a thread under the wiki's lock, or under `lock` for an
+        operation that is not of one wiki; return the operation id whose events stream the
+        progress, or None when the lock is taken. `work` returns its closing line."""
+        busy = lock if lock is not None else entry.busy
+        if not busy.acquire(blocking=False):
             return None
         operation = Operation()
         op_id = self.new_id()
@@ -232,7 +252,7 @@ class AppState:
                 operation.lines.put(f"❌ {exc}")
             finally:
                 operation.lines.put(None)
-                entry.busy.release()
+                busy.release()
 
         # The thread runs in the context of the request, so `_()` writes the lines in its language.
         threading.Thread(target=contextvars.copy_context().run, args=(run,), daemon=True).start()

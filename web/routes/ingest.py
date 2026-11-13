@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import asyncio
 import html
+import os
 import queue
+import sys
 import urllib.parse
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
@@ -15,11 +17,12 @@ from sse_starlette.sse import EventSourceResponse
 
 from domain.ingestion.formats import sorted_extensions
 from domain.tools.reindex import NothingExtracted
+from domain.verify import install as verifier_install
 from services import ingest as ingest_service
 from services import verification as verification_service
 from services import wiki as wiki_service
 from web.deps import BUSY, get_state, get_templates, page_context
-from web.i18n import _, ngettext
+from web.i18n import N_, _, ngettext
 from web.state import AppState, LLMNotConfigured
 
 router = APIRouter()
@@ -94,7 +97,8 @@ def maintain_page(request: Request, wiki_id: str, notice: str = "", state: AppSt
     context = page_context(state, wiki_id, "", section="maintain")
     context.update(sources=ingest_service.list_sources(wiki), stale=ingest_service.list_stale_pages(wiki),
                    verifiable=len(verification_service.verifiable_pages(wiki)),
-                   tools=ingest_service.tool_status(), model=model, base_url=base_url, notice=notice)
+                   tools=ingest_service.tool_status(), model=model, base_url=base_url, notice=notice,
+                   verifier_status=state.verifier_status())
     return templates.TemplateResponse(request, "maintain.html", context)
 
 
@@ -222,6 +226,41 @@ def verify_all_post(request: Request, wiki_id: str, state: AppState = Depends(ge
     return _log(request, templates, wiki_id, state.start_operation(
         entry, lambda progress: verification_service.summary_line(
             verification_service.verify_all(entry.wiki, verifier, progress=progress))))
+
+
+INSTALL_STEPS = {
+    "torch": N_("→ Installing torch, the build without CUDA"),
+    "packages": N_("→ Installing the packages of the verifier"),
+    "model": N_("→ Downloading the NLI model"),
+}
+
+
+@router.post("/w/{wiki_id}/verifier/install", response_class=HTMLResponse)
+def verifier_install_post(request: Request, wiki_id: str, state: AppState = Depends(get_state),
+                          templates: Jinja2Templates = Depends(get_templates)):
+    """Install the local verifier into the environment of this server, as a streamed
+    operation: the packages, then the model (`domain.verify.install`). The commands only add
+    packages, so the server keeps running. One installation runs at a time, whatever the
+    wiki. At the end the server probes the verifier again: no restart is needed."""
+    state.get_wiki(wiki_id)
+
+    def work(progress) -> str:
+        for step, command in verifier_install.install_steps(sys.executable, uv=os.environ.get("UV") or None):
+            progress(_(INSTALL_STEPS[step]))
+            code = state.run_command(command, progress)
+            if code != 0:
+                raise RuntimeError(_("The step “%(step)s” ended with the code %(code)s. The verifier is not "
+                                     "installed. The lines above give the cause. The button runs every step again.",
+                                     step=_(INSTALL_STEPS[step]).lstrip("→ "), code=code))
+        state.refresh_verifier()
+        if state.verifier_status() != "installed":
+            raise RuntimeError(_("The steps ended, but the verifier is still not found."))
+        return _("✓ The verifier is installed. Reload a screen to use it.")
+
+    op_id = state.start_operation(None, work, lock=state.install_lock)
+    if op_id is None:
+        return HTMLResponse(f'<p class="warn">{html.escape(_("An installation of the verifier is already running."))}</p>')
+    return _log(request, templates, wiki_id, op_id)
 
 
 @router.post("/w/{wiki_id}/stale/delete")

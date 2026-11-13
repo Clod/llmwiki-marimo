@@ -23,7 +23,8 @@ SOURCE = "El plazo fijo UVA ajusta el capital por inflación. Tiene un plazo mí
 GOOD = "El plazo fijo UVA tiene un plazo mínimo de 180 días."
 BAD = "Rinde un cuarenta por ciento anual garantizado."
 BODY = f"# UVA\n\n{GOOD}\n\n{BAD}\n\n## Fuentes\n- Tale.pdf\n"
-TIP_INSTALL = "python3 quickstart.py --with-verifier"
+TIP_INSTALL = "Install it from Maintain"           # the English help of a disabled control
+TIP_INSTALL_ES = "Se instala desde Mantener"
 
 
 @pytest.fixture
@@ -180,7 +181,7 @@ def test_without_a_local_verifier_the_checkboxes_and_the_task_are_disabled(setti
     maintain = plain.get(f"/w/{WIKI_ID}/maintain").text
     assert len(re.findall(r'<input type="checkbox" name="verify"[^>]* disabled', ingest)) == 2
     assert len(re.findall(r'<input type="checkbox" name="verify"[^>]* disabled', maintain)) == 2
-    assert ingest.count(TIP_INSTALL) == 2 and maintain.count(TIP_INSTALL) == 3
+    assert ingest.count(TIP_INSTALL_ES) == 2 and maintain.count(TIP_INSTALL_ES) == 3
     assert re.search(r'<button class="btn task-action" type="button" aria-controls="confirm-verify" disabled', maintain)
 
 

@@ -165,8 +165,24 @@ screen asks for the table again (`GET /w/{wiki_id}/sources`).
 ### 7.4 Maintain
 
 Route: `GET /w/{wiki_id}/maintain`. A configuration line shows the model, the server,
-Java and LibreOffice (`services.ingest.tool_status`). Five panels follow, and the same
-console "Progress".
+Java and LibreOffice (`services.ingest.tool_status`), and the local sentence verifier.
+Five panels follow, and the same console "Progress".
+
+**The line "NLI verifier"** shows "Installed", "Packages installed, the model is missing"
+or "Not installed" (`domain.verify.install.status`). When the verifier is not complete,
+the button **Install the verifier** asks for a confirmation with the size of the download
+and starts `POST /w/{wiki_id}/verifier/install`, a streamed operation in the console. The
+operation runs the steps of `domain.verify.install.install_steps` with the Python of the
+server: on Linux, the CPU build of `torch` from `https://download.pytorch.org/whl/cpu`;
+the packages of `requirements-verify.txt`, with `uv pip install --python` when the server
+runs under `uv` (the variable `UV`) and with `python -m pip install` otherwise; then the
+download of the model (`nli.download_model`, about 550 MB). No step syncs, so no package
+of the other groups is removed and the server keeps running. At the end the server probes
+the verifier again (`AppState.refresh_verifier`): the checkboxes and buttons that verify
+are enabled on the next load of each screen, without a restart. One installation runs at
+a time (`AppState.install_lock`). A step that fails ends the operation with its name and
+its exit code. A disabled verification control says, in its help, that the verifier is
+installed from this line.
 
 | Panel | Button | Route | Effect |
 | --- | --- | --- | --- |
