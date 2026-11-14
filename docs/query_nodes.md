@@ -128,7 +128,7 @@ flowchart TD
         SQ["Q6 · wiki search, retrieve_wiki<br/>stop words removed, then stem_fts_query<br/>cuant OR rind OR plaz OR fij"]
         DS["Q8 · source search, retrieve_source_chunks<br/>– same index, scope=sources<br/>– at most 4 fragments"]
         CP["Q8a · for a question about the whole wiki,<br/>collection_intent, overview.md and index.md are read"]
-        CA{"Q8b · the overview and the index join the open page<br/>does the search name a blacklist term?<br/>is the question in the coverage roster?"}
+        CA{"Q8b · the overview and the index join the open page<br/>is the question in the coverage roster?"}
         HITS{"Q7 · did the wiki search find a page?<br/>in the example, yes:<br/>– Plazo fijo tradicional<br/>– Plazo fijo UVA<br/>– …"}
         DC{"Q7a · does the question name a dataset category?<br/>the category, one of its keys, or an alias<br/>stemmed match<br/>in the example, yes: plazo_fijo"}
         DK{"Q7b · does the question name a key of that category?<br/>exact match<br/>in the example, no"}
@@ -171,7 +171,6 @@ flowchart TD
         OP -->|no| CP
         AC -->|rewritten| BR
         AC -->|no| CO
-        BR -->|yes| CO
         BR -->|no| DF --> RG --> CO
         CO -->|in the roster| SQ
         CO -->|no| CP
@@ -226,7 +225,7 @@ flowchart TD
     end
 
     BL -->|yes| R1
-    CA -->|the search names a blacklist term| R1
+    BR -->|yes| R1
     IR -->|no| R2a
     IR -->|yes| R2b
     V2 -->|no| R3
@@ -293,7 +292,7 @@ Each workflow declares the list of the catalog nodes that the workflow runs
 | Q5e | Checks the rewrite against the blacklist, by whole word, as Q3 checks the question | `base/domain/chat/preretrieval.py`, `blacklist`; `base/domain/chat/workflow/catalog.py`, `blacklist_rewrite` | `answer` | code |
 | Q5f | Checks whether the rewrite names data, as Q4a checks the question | `base/domain/chat/preretrieval.py`, `detect_data`; `base/domain/chat/workflow/catalog.py`, `data_detection_rewrite` | `answer` | code |
 | Q5g | Checks the rewrite against the coverage roster, as Q5 checks the question | `base/domain/chat/preretrieval.py`, `match_terms`; `base/domain/chat/workflow/catalog.py`, `roster_rewrite` | `answer`, `matched` | code |
-| Q5b | Records the result of the condensation (Q5c to Q5g): the text that the gate and the search examine, the rewrite or the question, and what the blacklist and the roster check found on that text. The search uses the rewrite, the model answers the original question | `base/domain/chat/workflow/catalog.py`, `condense` | `rewritten`, `answer`, `off_limits`, `matched` | code |
+| Q5b | Records the result of the condensation (Q5c to Q5g): the text that the gate and the search examine, the rewrite or the question, and what the roster check found on that text. A rewrite that names a blacklist term does not reach Q5b: Q5e refuses it with R1. The search uses the rewrite, the model answers the original question | `base/domain/chat/workflow/catalog.py`, `condense` | `rewritten`, `answer`, `off_limits`, `matched` | code |
 | Q6 | Searches the wiki pages: removes the stop words, stems the terms, and runs the FTS query. A topic of Q5 with no page among the hits gets the chunk of its own page in place of the last hit. An alias is searched by the name it stands for (`alias_titles`) | `base/domain/chat/preretrieval.py`, `retrieve_wiki`, `_fts_query`; `base/domain/chat/workflow/catalog.py`, `wiki_search` | `fts_query`, `pages` | code |
 | Q7 | Asks whether the wiki search returned a page | `base/domain/chat/preretrieval.py`, `plan_retrieval`, `tier1_plan`; `base/domain/chat/workflow/catalog.py`, `wiki_pages` | `answer`, `wiki_fragments` | code |
 | Q7a | Asks whether the question names a dataset category, by stemmed match | `base/domain/chat/preretrieval.py`, `named_categories`, `dataset_injection`; `base/domain/chat/workflow/catalog.py`, `dataset_categories` | `answer`, `categories` | code |
@@ -322,7 +321,7 @@ Each workflow declares the list of the catalog nodes that the workflow runs
 | Q20c | `ensure_citation` adds the citation of the tools the model used; for injected dataset rows the code adds the dataset citation | `base/domain/chat/postprocess.py`, `ensure_citation`; `base/domain/chat/workflow/catalog.py`, `citation` | `citation_added` | code |
 | Q20d | When the answer names none of the injected wiki pages, `mark_injected` adds a `Referencia:` line that lists the pages the model received and says that which of them the answer used cannot be determined. When the model wrote its own reference line with injected pages, `mark_injected` labels that line `Referencia según el modelo` and adds below it a line that starts with `Además` and lists every page the model received | `base/domain/chat/postprocess.py`, `mark_injected`, `injected_pages`; `base/domain/chat/workflow/catalog.py`, `injected_reference` | `injected_marked` | code |
 | Q21 | Shows the answer, with the additions of Q20a to Q20d; `citation_added` says whether Q20c or Q20d added a line. When the sentence verifier runs, the web interface adds the line `Referencia según el verificador de oraciones`, with the injected pages split into apparently used (they support at least one sentence) and apparently not used. That line replaces the line of `mark_injected`; when the answer has only a reference line of the model, the line goes below it, and the model's line is labelled `Referencia según el modelo` | `base/domain/chat/postprocess.py`, `resolve_injected`; `web/routes/chat.py`, `chat_stream`; `base/domain/chat/workflow/catalog.py`, `shown` | `final_answer`, `citation_added`, `keys_offered` | code |
-| R1 | Refusal of cause 1: the question, or the rewrite of Q5b, names a blacklist term; the refusal names the matched term | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`; `base/domain/chat/workflow/catalog.py`, `refuse_blacklist` | `cause`, `final_answer`, `suggestions` | code |
+| R1 | Refusal of cause 1: the question (Q3) or the rewrite (Q5e) names a blacklist term; the refusal names the matched term | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`; `base/domain/chat/workflow/catalog.py`, `refuse_blacklist` | `cause`, `final_answer`, `suggestions` | code |
 | R2a | Refusal of cause 2a: the question names no topic of the wiki | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/catalog.py`, `refuse_not_in_roster` | `cause`, `final_answer`, `suggestions` | code |
 | R2b | Refusal of cause 2b: the question names a topic of the wiki, and the searches found no text | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/catalog.py`, `refuse_nothing_found` | `cause`, `final_answer`, `suggestions` | code |
 | R3 | Refusal of cause 3: the Tier-2 answer is not grounded in the fragments; the refusal names the source document | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/catalog.py`, `refuse_unsupported` | `cause`, `final_answer`, `suggestions` | code |

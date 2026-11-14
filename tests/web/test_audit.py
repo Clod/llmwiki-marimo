@@ -286,7 +286,7 @@ def test_a_pre_retrieval_turn_shows_the_input_the_model_call_and_the_output(clie
     html = audit(client).text
     entry, call, exit_ = diagrams(html)
     assert titles(html) == ["Workflow de entrada", "Llamada al modelo", "Workflow de salida"]
-    assert entry.startswith("stateDiagram-v2") and "C2a · Se quitan del historial" in entry
+    assert entry.startswith("flowchart TD") and "C2a · Se quitan del historial" in entry
     assert "Q13 · " in call and "Q21 · " in exit_
     assert '/static/js/mermaid.min.js' in html and "cdn" not in html.split("<body")[1].lower()
 
@@ -386,7 +386,7 @@ def test_every_step_of_a_graph_is_labelled_in_its_diagram():
     for mode, side in GRAPHS:
         graph = WORKFLOW_GRAPHS[mode][side]
         text = workflow_diagram(graph, [])
-        missing = [s for s in steps(graph) if not re.search(rf'^\s*state "{s} · [^"]+" as {s}$', text, re.M)]
+        missing = [s for s in steps(graph) if not re.search(rf'^\s*{s}\["{s} · [^"]+"\]$', text, re.M)]
         assert missing == [], f"{mode}, {('input', 'output')[side]}: steps without a labelled state"
 
 
@@ -399,3 +399,127 @@ def test_the_hand_written_diagrams_name_every_node_of_their_mode():
         drawn = {code for _, code in _NODE.findall(blocks()[block])}
         nodes = {s for graph in WORKFLOW_GRAPHS[mode] for s in steps(graph)} - {"C1", "C2"}
         assert sorted(nodes - drawn) == [], f"block {block} ({mode}) misses nodes"
+
+
+def _branches(text):
+    """The edges that leave a decision in a rendered graph: (decision, target, label or None)."""
+    decisions = set(re.findall(r"^\s*state (\w+) <<choice>>$", text, re.M))
+    found = re.findall(r"^\s*(\w+) --> (\w+)(?:: (.+))?$", text, re.M)
+    return [(a, b, label or None) for a, b, label in found if a in decisions]
+
+
+def test_every_branch_of_every_decision_has_a_label():
+    """Each branch of each decision of the four graphs has a label, the default branch included.
+    Two branches of one decision never share a label."""
+    from web.audit_diagram import WORKFLOW_GRAPHS
+
+    counted = 0
+    for mode, side in GRAPHS:
+        branches = _branches(WORKFLOW_GRAPHS[mode][side].render())
+        counted += len(branches)
+        unlabelled = [(a, b) for a, b, label in branches if not label]
+        assert unlabelled == [], f"{mode}, {('input', 'output')[side]}: branches without a label"
+        by_decision = {}
+        for a, _, label in branches:
+            by_decision.setdefault(a, []).append(label)
+        repeated = {a: labels for a, labels in by_decision.items() if len(labels) != len(set(labels))}
+        assert repeated == {}, f"{mode}, {('input', 'output')[side]}: repeated labels"
+    assert counted == 51        # 35 branches in the input graph, 12 and 4 in the output graphs
+
+
+def test_the_branch_labels_are_translated_to_the_interface_language():
+    """The generated diagram shows each branch label in the interface language."""
+    from domain.chat.workflow import input_checks, output_checks
+    from web.audit_diagram import workflow_diagram
+    from web.i18n import use_language
+
+    with use_language("es"):
+        entry = workflow_diagram(input_checks.graph, [])
+        exit_ = workflow_diagram(output_checks.graph, [])
+    assert 'after_Q3 -->|"nombra un término excluido"| R1' in entry
+    assert 'after_Q3 -->|"no nombra ningún término excluido"| Q4' in entry
+    assert 'after_Q5e -->|"la reescritura nombra un término excluido"| R1' in entry
+    assert 'tier -->|"páginas o datos inyectados"| Q20' in exit_
+    assert "names a blacklisted term" not in entry
+    with use_language("en"):
+        entry = workflow_diagram(input_checks.graph, [])
+    assert 'after_Q3 -->|"names a blacklisted term"| R1' in entry
+    assert 'after_Q3 -->|"names no blacklisted term"| Q4' in entry
+
+
+# The generated diagrams are flowcharts (owner, 2026-11-14): a box per step, a diamond with its
+# question per decision, an arrow with its label per branch.
+
+RENDERED = """stateDiagram-v2
+  A
+  state after_A <<choice>>
+  note right of after_A
+    Does the question name data?
+  end note
+  B
+
+  [*] --> A
+  A --> after_A
+  after_A --> B: names data
+  after_A --> [*]: names no data
+  B --> [*]"""
+
+
+def test_the_conversion_draws_steps_decisions_branches_and_terminals():
+    from web.audit_diagram import END, START, flowchart
+    from web.i18n import use_language
+
+    with use_language("es"):
+        text = flowchart(RENDERED)
+    lines = [line.strip() for line in text.splitlines()]
+    assert lines[0] == "flowchart TD"
+    assert f"{START}@{{ shape: sm-circ }}" in lines and f"{END}@{{ shape: fr-circ }}" in lines
+    assert 'A["A"]' in lines and 'B["B"]' in lines         # a step without a short text: its id alone
+    assert 'after_A{"¿La pregunta nombra datos?"}' in lines
+    assert f"{START} --> A" in lines and "A --> after_A" in lines and f"B --> {END}" in lines
+    assert 'after_A -->|"nombra datos"| B' in lines
+    assert f'after_A -->|"no nombra datos"| {END}' in lines
+    assert "note" not in text and "<<choice>>" not in text
+
+
+def test_the_conversion_quotes_the_texts_and_keeps_an_unknown_text_in_english():
+    from web.audit_diagram import flowchart
+
+    text = flowchart(RENDERED.replace("names data", 'names "data"').replace("Does the question name data?", "Odd?"))
+    assert 'after_A{"Odd?"}' in text and "after_A -->|\"names 'data'\"| B" in text
+
+
+def _render_parts(text):
+    """The steps, the decisions with their questions and the edges of `graph.render()`."""
+    decisions = dict.fromkeys(re.findall(r"^\s*state (\w+) <<choice>>$", text, re.M), "")
+    decisions.update(re.findall(r"^\s*note right of (\w+)\n\s*(.+)$", text, re.M))
+    steps = re.findall(r"^\s+(\w+)$", text, re.M)
+    edges = re.findall(r"^\s*(\S+) --> (\S+)(?:: (.+))?$", text, re.M)
+    return steps, decisions, edges
+
+
+def test_every_step_decision_and_branch_of_the_four_graphs_is_in_its_flowchart():
+    """Each step is a box, each decision a diamond with a question and each edge an arrow,
+    with the same source, target and label as in the graph."""
+    from web.audit_diagram import END, START, WORKFLOW_GRAPHS, workflow_diagram
+    from web.i18n import use_language
+
+    for mode, side in GRAPHS:
+        graph = WORKFLOW_GRAPHS[mode][side]
+        where = f"{mode}, {('input', 'output')[side]}"
+        steps, decisions, edges = _render_parts(graph.render())
+        with use_language("en"):
+            text = workflow_diagram(graph, [])
+        lines = {line.strip() for line in text.splitlines()}
+        assert [s for s in steps if not any(line.startswith(f'{s}["{s}') for line in lines)] == [], where
+        assert [d for d, question in decisions.items() if not question] == [], f"{where}: decisions without a question"
+        assert [d for d, question in decisions.items() if f'{d}{{"{question}"}}' not in lines] == [], where
+        missing = []
+        for source, target, label in edges:
+            source = START if source == "[*]" else source
+            target = END if target == "[*]" else target
+            arrow = f'-->|"{label}"|' if label else "-->"
+            if f"{source} {arrow} {target}" not in lines:
+                missing.append((source, target, label))
+        assert missing == [], f"{where}: edges missing from the flowchart"
+        assert len([line for line in lines if " -->" in line]) == len(edges), where

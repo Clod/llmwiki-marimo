@@ -1,7 +1,7 @@
 """Tests for domain/chat/workflow/input_checks.py — the input workflow of the
 pre-retrieval mode, run on its own, with no agent and no database.
 
-Each refusal that ends the workflow (R1 at Q3, R1 after the rewrite of Q5b, R2a,
+Each refusal that ends the workflow (R1 at Q3, R1 at Q5e on the rewrite, R2a,
 R2b) has a test, and so has each node that calls the agent (Q13 to Q16). The
 retrieval and the vocabulary are patched on the module `preretrieval`, the
 module through which the steps call them.
@@ -79,13 +79,18 @@ def test_blacklist_ends_after_q3(patched):
 
 
 def test_blacklisted_rewrite_ends_in_r1(patched):
+    """A rewrite that names a blacklisted term is refused at Q5e. The refusal
+    names the term that the rewrite matched."""
     async def condense(question, history):
         return "¿Conviene comprar CEDEARs?"
 
     out, path = _run(_turn("¿y eso conviene?", history=["previous turn"], condense=condense))
     assert isinstance(out, Refused)
-    assert "cedears" in out.text.lower()
-    assert path == HISTORY + ["Q1", "Q2", "Q3", "Q4", "Q4a", "Q5", "Q5a", "Q5c", "Q5d", "Q5e", "Q5b", "Q8a", "Q8b", "R1"]
+    assert out.text == (
+        "No puedo responder esta pregunta: menciona «cedears», que está en la lista de temas"
+        " sobre los que esta wiki no tiene permitido responder."
+    )
+    assert path == HISTORY + ["Q1", "Q2", "Q3", "Q4", "Q4a", "Q5", "Q5a", "Q5c", "Q5d", "Q5e", "R1"]
 
 
 def test_not_in_roster_ends_in_r2a(patched):

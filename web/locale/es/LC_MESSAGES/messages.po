@@ -79,7 +79,7 @@ msgstr "La pregunta entra en pre-retrieval"
 msgid "The question normalised (lowercase, no accents)"
 msgstr "La pregunta normalizada (minúsculas, sin acentos)"
 
-#: web/audit_nodes.py
+#: base/domain/chat/workflow/input_checks.py web/audit_nodes.py
 msgid "Does the question name a blacklisted term?"
 msgstr "¿La pregunta nombra un término excluido?"
 
@@ -107,7 +107,7 @@ msgstr "El modelo reescribe la pregunta de seguimiento"
 msgid "Is the rewrite accepted: one line, not empty, not too long?"
 msgstr "¿Se acepta la reescritura: una línea, no vacía, no demasiado larga?"
 
-#: web/audit_nodes.py
+#: base/domain/chat/workflow/input_checks.py web/audit_nodes.py
 msgid "Does the rewrite name a blacklisted term?"
 msgstr "¿La reescritura nombra un término de la lista negra?"
 
@@ -131,11 +131,11 @@ msgstr "Búsqueda en las páginas de la wiki"
 msgid "Did the search find a page?"
 msgstr "¿La búsqueda encontró una página?"
 
-#: web/audit_nodes.py
+#: base/domain/chat/workflow/input_checks.py web/audit_nodes.py
 msgid "Does the question name a dataset category?"
 msgstr "¿La pregunta nombra una categoría de datos?"
 
-#: web/audit_nodes.py
+#: base/domain/chat/workflow/input_checks.py web/audit_nodes.py
 msgid "Does the question name a key of that category?"
 msgstr "¿La pregunta nombra una clave de esa categoría?"
 
@@ -199,7 +199,7 @@ msgstr "No se entrega ninguna página: el modelo llama a las herramientas de dat
 msgid "Source fragments given to the model"
 msgstr "Fragmentos de los documentos entregados al modelo"
 
-#: web/audit_nodes.py
+#: base/domain/chat/workflow/output_checks.py web/audit_nodes.py
 msgid "Is the answer grounded in the fragments?"
 msgstr "¿La respuesta se apoya en los fragmentos?"
 
@@ -207,11 +207,11 @@ msgstr "¿La respuesta se apoya en los fragmentos?"
 msgid "Warning appended: the answer comes from a source document"
 msgstr "Se agrega la advertencia: la respuesta viene de un documento fuente"
 
-#: web/audit_nodes.py
+#: base/domain/chat/workflow/output_checks.py web/audit_nodes.py
 msgid "Did a data tool return evidence?"
 msgstr "¿Una herramienta de datos devolvió evidencia?"
 
-#: web/audit_nodes.py
+#: base/domain/chat/workflow/output_checks.py web/audit_nodes.py
 msgid "Does the answer open with the fixed refusal sentence?"
 msgstr "¿La respuesta empieza con la frase fija de rechazo?"
 
@@ -263,7 +263,7 @@ msgstr "Rechazo: el modelo no encontró la respuesta"
 msgid "The model answers, calling the wiki and data tools"
 msgstr "El modelo responde llamando a las herramientas de la wiki y de datos"
 
-#: web/audit_nodes.py
+#: base/domain/chat/workflow/output_checks.py web/audit_nodes.py
 msgid "Did a tool return evidence?"
 msgstr "¿Una herramienta devolvió evidencia?"
 
@@ -3539,6 +3539,230 @@ msgstr "No cumple"
 #: web/templates/tools.html
 msgid "Calculation functions"
 msgstr "Funciones de cálculo"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "wiki pages injected"
+msgstr "páginas de la wiki inyectadas"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "overview and index injected"
+msgstr "resumen e índice inyectados"
+
+#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/output_checks.py
+msgid "nothing injected"
+msgstr "nada inyectado"
+
+#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/output_checks.py
+msgid "fragments of the source documents injected"
+msgstr "fragmentos de los documentos originales inyectados"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "What text was injected into the prompt?"
+msgstr "¿Qué texto se inyectó en el prompt?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names a blacklisted term"
+msgstr "nombra un término excluido"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names no blacklisted term"
+msgstr "no nombra ningún término excluido"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "Is the question a follow-up to rewrite, does it name a wiki topic, or is a page open?"
+msgstr "¿La pregunta es un seguimiento para reescribir, nombra un tema de la wiki o hay una página abierta?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "follow-up with no wiki topic, no data and no open page"
+msgstr "seguimiento sin tema de la wiki, sin datos y sin página abierta"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names a wiki topic or a page is open"
+msgstr "nombra un tema de la wiki o hay una página abierta"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names no wiki topic and no page is open"
+msgstr "no nombra ningún tema de la wiki y no hay página abierta"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "Was the rewrite accepted?"
+msgstr "¿Se aceptó la reescritura?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "rewrite accepted"
+msgstr "reescritura aceptada"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "rewrite not accepted"
+msgstr "reescritura no aceptada"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "rewrite names a blacklisted term"
+msgstr "la reescritura nombra un término excluido"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "rewrite names no blacklisted term"
+msgstr "la reescritura no nombra ningún término excluido"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "Does the examined text name a wiki topic?"
+msgstr "¿El texto examinado nombra un tema de la wiki?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "the examined text names a wiki topic"
+msgstr "el texto examinado nombra un tema de la wiki"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "the examined text names no wiki topic"
+msgstr "el texto examinado no nombra ningún tema de la wiki"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "Did the wiki search find a page?"
+msgstr "¿La búsqueda en la wiki encontró una página?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "found no wiki page"
+msgstr "no encontró ninguna página de la wiki"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "found a wiki page"
+msgstr "encontró una página de la wiki"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "Does the question name a wiki topic, or is a page open?"
+msgstr "¿La pregunta nombra un tema de la wiki o hay una página abierta?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "Was the overview or the index read?"
+msgstr "¿Se leyó el resumen o el índice?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "overview or index read"
+msgstr "se leyó el resumen o el índice"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "no overview or index read"
+msgstr "no se leyó el resumen ni el índice"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "Does the question name data?"
+msgstr "¿La pregunta nombra datos?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names data"
+msgstr "nombra datos"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names no data"
+msgstr "no nombra datos"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "Did the source search find a fragment, and does the question name a wiki topic?"
+msgstr "¿La búsqueda en los documentos encontró un fragmento y la pregunta nombra un tema de la wiki?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "found a source fragment and names a wiki topic"
+msgstr "encontró un fragmento de los documentos y nombra un tema de la wiki"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "found no source fragment or names no wiki topic"
+msgstr "no encontró ningún fragmento de los documentos o no nombra ningún tema de la wiki"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names a dataset category"
+msgstr "nombra una categoría de datos"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names no dataset category"
+msgstr "no nombra ninguna categoría de datos"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names a key of the category"
+msgstr "nombra una clave de la categoría"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names no key of the category"
+msgstr "no nombra ninguna clave de la categoría"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "Is a named category left?"
+msgstr "¿Queda una categoría nombrada?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "a named category is left"
+msgstr "queda una categoría nombrada"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "no named category is left"
+msgstr "no queda ninguna categoría nombrada"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "What was injected, and does the sentence verifier check the answer?"
+msgstr "¿Qué se inyectó, y el verificador de oraciones revisa la respuesta?"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "fragments of the source documents, without the sentence verifier"
+msgstr "fragmentos de los documentos originales, sin el verificador de oraciones"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "fragments of the source documents, with the sentence verifier later"
+msgstr "fragmentos de los documentos originales, con el verificador de oraciones después"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "wiki pages or data injected"
+msgstr "páginas o datos inyectados"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "answer not grounded in the fragments"
+msgstr "la respuesta no se apoya en los fragmentos"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "answer grounded in the fragments"
+msgstr "la respuesta se apoya en los fragmentos"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "no data tool returned evidence"
+msgstr "ninguna herramienta de datos devolvió evidencia"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "a data tool returned evidence"
+msgstr "una herramienta de datos devolvió evidencia"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "opens with the fixed refusal sentence"
+msgstr "empieza con la frase fija de rechazo"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "does not open with the fixed refusal sentence"
+msgstr "no empieza con la frase fija de rechazo"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "Were fragments of the source documents injected?"
+msgstr "¿Se inyectaron fragmentos de los documentos originales?"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "no fragments of the source documents injected"
+msgstr "sin fragmentos de los documentos originales inyectados"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "no tool returned evidence"
+msgstr "ninguna herramienta devolvió evidencia"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "a tool returned evidence"
+msgstr "una herramienta devolvió evidencia"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "Did the guardrail refusal replace the answer?"
+msgstr "¿El rechazo del guardrail reemplazó la respuesta?"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "answer replaced by the guardrail refusal"
+msgstr "respuesta reemplazada por el rechazo del guardrail"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "answer not replaced by the guardrail refusal"
+msgstr "respuesta no reemplazada por el rechazo del guardrail"
 
 #~ msgid "Dataset"
 #~ msgstr "Dataset"

@@ -33,10 +33,9 @@ from pydantic_graph import GraphBuilder, StepContext
 
 from domain.chat import preretrieval
 from domain.chat.preretrieval import PreRetrievalTurn
-from domain.chat.scope import is_off_limits
 # `Refused` and `AgentCall` are the outputs of the graph; `_pre_retrieval_turn`
 # and the tests import them from this module.
-from domain.chat.workflow.catalog import AgentCall, Refused, register
+from domain.chat.workflow.catalog import N_, AgentCall, Refused, register
 
 Ctx = StepContext[PreRetrievalTurn, None, PreRetrievalTurn]
 
@@ -98,12 +97,6 @@ def _in_roster(turn: PreRetrievalTurn) -> bool:
 
 def _no_wiki_hits(turn: PreRetrievalTurn) -> bool:
     return not turn.wiki_hits
-
-
-def _search_off_limits(turn: PreRetrievalTurn) -> bool:
-    """The first check of `plan_retrieval`: the search, the question or its
-    rewrite (Q5b), names a blacklist term."""
-    return is_off_limits(turn.search, turn.config.off_limits)
 
 
 def _has_wiki_hits(turn: PreRetrievalTurn) -> bool:
@@ -198,15 +191,28 @@ def _agent_call(node: str):
 
 agent_calls = {node: _agent_call(node) for node in AGENT_NODES}
 
+# The label of the branch of the decision `agent` that goes to each node of
+# `AGENT_NODES`, in the same order.
+AGENT_LABELS = (
+    N_("wiki pages injected"),
+    N_("overview and index injected"),
+    N_("nothing injected"),
+    N_("fragments of the source documents injected"),
+)
+
 
 # ── The edges ─────────────────────────────────────────────────────────────────
+
+# Each decision carries its question (`note`) and each branch its label, both in
+# English and marked with `N_`. The audit page draws them in the interface
+# language (`web/audit_diagram.py`).
 
 # The decision that chooses the node that calls the agent. Every branch that
 # ends the checks with a plan goes to C4, Q12a and Q12b, which build the prompt,
 # and then here.
-agent = g.decision(node_id="agent")
-for _node in AGENT_NODES:
-    agent = agent.branch(g.match(PreRetrievalTurn, matches=_calls(_node)).label(_node).to(agent_calls[_node]))
+agent = g.decision(node_id="agent", note=N_("What text was injected into the prompt?"))
+for _node, _label in zip(AGENT_NODES, AGENT_LABELS):
+    agent = agent.branch(g.match(PreRetrievalTurn, matches=_calls(_node)).label(_label).to(agent_calls[_node]))
 
 g.add(
     g.edge_from(g.start_node).to(history_steps[0]),
@@ -215,89 +221,95 @@ g.add(
     g.edge_from(question).to(normalize),
     g.edge_from(normalize).to(blacklist),
     g.edge_from(blacklist).to(
-        g.decision(node_id="after_Q3")
-        .branch(g.match(PreRetrievalTurn, matches=_off_limits).label("blacklisted").to(refuse_blacklist))
-        .branch(g.match(PreRetrievalTurn).to(stem))
+        g.decision(node_id="after_Q3", note=N_("Does the question name a blacklisted term?"))
+        .branch(g.match(PreRetrievalTurn, matches=_off_limits).label(N_("names a blacklisted term")).to(refuse_blacklist))
+        .branch(g.match(PreRetrievalTurn).label(N_("names no blacklisted term")).to(stem))
     ),
     g.edge_from(stem).to(data_detection),
     g.edge_from(data_detection).to(roster),
     g.edge_from(roster).to(open_page),
     g.edge_from(open_page).to(
-        g.decision(node_id="after_Q5a")
-        .branch(g.match(PreRetrievalTurn, matches=_condenses).label("follow-up, not covered").to(rewrite))
-        .branch(g.match(PreRetrievalTurn, matches=_in_roster).label("in the roster").to(wiki_search))
-        .branch(g.match(PreRetrievalTurn).to(collection_pages))
+        g.decision(node_id="after_Q5a", note=N_("Is the question a follow-up to rewrite, does it name a wiki topic, or is a page open?"))
+        .branch(g.match(PreRetrievalTurn, matches=_condenses).label(N_("follow-up with no wiki topic, no data and no open page")).to(rewrite))
+        .branch(g.match(PreRetrievalTurn, matches=_in_roster)
+                .label(N_("names a wiki topic or a page is open")).to(wiki_search))
+        .branch(g.match(PreRetrievalTurn).label(N_("names no wiki topic and no page is open")).to(collection_pages))
     ),
     g.edge_from(rewrite).to(accept_rewrite),
     g.edge_from(accept_rewrite).to(
-        g.decision(node_id="after_Q5d")
-        .branch(g.match(PreRetrievalTurn, matches=_rewritten).label("rewritten").to(blacklist_rewrite))
-        .branch(g.match(PreRetrievalTurn).to(condense))
+        g.decision(node_id="after_Q5d", note=N_("Was the rewrite accepted?"))
+        .branch(g.match(PreRetrievalTurn, matches=_rewritten).label(N_("rewrite accepted")).to(blacklist_rewrite))
+        .branch(g.match(PreRetrievalTurn).label(N_("rewrite not accepted")).to(condense))
     ),
     g.edge_from(blacklist_rewrite).to(
-        g.decision(node_id="after_Q5e")
-        .branch(g.match(PreRetrievalTurn, matches=_off_limits).label("blacklisted").to(condense))
-        .branch(g.match(PreRetrievalTurn).to(data_detection_rewrite))
+        g.decision(node_id="after_Q5e", note=N_("Does the rewrite name a blacklisted term?"))
+        .branch(g.match(PreRetrievalTurn, matches=_off_limits).label(N_("rewrite names a blacklisted term")).to(refuse_blacklist))
+        .branch(g.match(PreRetrievalTurn).label(N_("rewrite names no blacklisted term")).to(data_detection_rewrite))
     ),
     g.edge_from(data_detection_rewrite).to(roster_rewrite),
     g.edge_from(roster_rewrite).to(condense),
     g.edge_from(condense).to(
-        g.decision(node_id="after_Q5b")
-        .branch(g.match(PreRetrievalTurn, matches=_in_roster).label("in the roster").to(wiki_search))
-        .branch(g.match(PreRetrievalTurn).to(collection_pages))
+        g.decision(node_id="after_Q5b", note=N_("Does the examined text name a wiki topic?"))
+        .branch(g.match(PreRetrievalTurn, matches=_in_roster)
+                .label(N_("the examined text names a wiki topic")).to(wiki_search))
+        .branch(g.match(PreRetrievalTurn)
+                .label(N_("the examined text names no wiki topic")).to(collection_pages))
     ),
     g.edge_from(wiki_search).to(
-        g.decision(node_id="after_Q6")
-        .branch(g.match(PreRetrievalTurn, matches=_no_wiki_hits).label("no page").to(source_search))
-        .branch(g.match(PreRetrievalTurn).to(collection_pages))
+        g.decision(node_id="after_Q6", note=N_("Did the wiki search find a page?"))
+        .branch(g.match(PreRetrievalTurn, matches=_no_wiki_hits).label(N_("found no wiki page")).to(source_search))
+        .branch(g.match(PreRetrievalTurn).label(N_("found a wiki page")).to(collection_pages))
     ),
     g.edge_from(source_search).to(collection_pages),
     g.edge_from(collection_pages).to(collection_with_open_page),
     g.edge_from(collection_with_open_page).to(
-        g.decision(node_id="after_Q8b")
-        .branch(g.match(PreRetrievalTurn, matches=_search_off_limits).label("blacklisted").to(refuse_blacklist))
-        .branch(g.match(PreRetrievalTurn, matches=_in_roster).label("in the roster").to(wiki_pages))
-        .branch(g.match(PreRetrievalTurn).to(collection))
+        g.decision(node_id="after_Q8b", note=N_("Does the question name a wiki topic, or is a page open?"))
+        .branch(g.match(PreRetrievalTurn, matches=_in_roster)
+                .label(N_("names a wiki topic or a page is open")).to(wiki_pages))
+        .branch(g.match(PreRetrievalTurn).label(N_("names no wiki topic and no page is open")).to(collection))
     ),
     g.edge_from(wiki_pages).to(
-        g.decision(node_id="after_Q7")
-        .branch(g.match(PreRetrievalTurn, matches=_has_wiki_hits).label("page found").to(dataset_categories))
-        .branch(g.match(PreRetrievalTurn).to(collection))
+        g.decision(node_id="after_Q7", note=N_("Did the wiki search find a page?"))
+        .branch(g.match(PreRetrievalTurn, matches=_has_wiki_hits).label(N_("found a wiki page")).to(dataset_categories))
+        .branch(g.match(PreRetrievalTurn).label(N_("found no wiki page")).to(collection))
     ),
     g.edge_from(collection).to(
-        g.decision(node_id="after_Q9")
-        .branch(g.match(PreRetrievalTurn, matches=_has_collection_hits).label("overview").to(open_page_note))
-        .branch(g.match(PreRetrievalTurn).to(data_question))
+        g.decision(node_id="after_Q9", note=N_("Was the overview or the index read?"))
+        .branch(g.match(PreRetrievalTurn, matches=_has_collection_hits).label(N_("overview or index read")).to(open_page_note))
+        .branch(g.match(PreRetrievalTurn).label(N_("no overview or index read")).to(data_question))
     ),
     g.edge_from(data_question).to(
-        g.decision(node_id="after_Q10")
-        .branch(g.match(PreRetrievalTurn, matches=_has_data).label("data").to(open_page_note))
-        .branch(g.match(PreRetrievalTurn).to(source_fragments))
+        g.decision(node_id="after_Q10", note=N_("Does the question name data?"))
+        .branch(g.match(PreRetrievalTurn, matches=_has_data).label(N_("names data")).to(open_page_note))
+        .branch(g.match(PreRetrievalTurn).label(N_("names no data")).to(source_fragments))
     ),
     g.edge_from(source_fragments).to(
-        g.decision(node_id="after_Q11")
-        .branch(g.match(PreRetrievalTurn, matches=_fragment_in_roster).label("fragment").to(open_page_note))
-        .branch(g.match(PreRetrievalTurn).to(roster_refusal))
+        g.decision(node_id="after_Q11", note=N_("Did the source search find a fragment, and does the question name a wiki topic?"))
+        .branch(g.match(PreRetrievalTurn, matches=_fragment_in_roster).label(N_("found a source fragment and names a wiki topic")).to(open_page_note))
+        .branch(g.match(PreRetrievalTurn)
+                .label(N_("found no source fragment or names no wiki topic")).to(roster_refusal))
     ),
     g.edge_from(roster_refusal).to(
-        g.decision(node_id="after_Q12")
-        .branch(g.match(PreRetrievalTurn, matches=_in_roster).label("in the roster").to(refuse_nothing_found))
-        .branch(g.match(PreRetrievalTurn).to(refuse_not_in_roster))
+        g.decision(node_id="after_Q12", note=N_("Does the question name a wiki topic, or is a page open?"))
+        .branch(g.match(PreRetrievalTurn, matches=_in_roster)
+                .label(N_("names a wiki topic or a page is open")).to(refuse_nothing_found))
+        .branch(g.match(PreRetrievalTurn)
+                .label(N_("names no wiki topic and no page is open")).to(refuse_not_in_roster))
     ),
     g.edge_from(dataset_categories).to(
-        g.decision(node_id="after_Q7a")
-        .branch(g.match(PreRetrievalTurn, matches=_categories_left).label("category named").to(dataset_keys))
-        .branch(g.match(PreRetrievalTurn).to(open_page_note))
+        g.decision(node_id="after_Q7a", note=N_("Does the question name a dataset category?"))
+        .branch(g.match(PreRetrievalTurn, matches=_categories_left).label(N_("names a dataset category")).to(dataset_keys))
+        .branch(g.match(PreRetrievalTurn).label(N_("names no dataset category")).to(open_page_note))
     ),
     g.edge_from(dataset_keys).to(
-        g.decision(node_id="after_Q7b")
-        .branch(g.match(PreRetrievalTurn, matches=_keys_named).label("key named").to(dataset_rows))
-        .branch(g.match(PreRetrievalTurn).to(dataset_key_names))
+        g.decision(node_id="after_Q7b", note=N_("Does the question name a key of that category?"))
+        .branch(g.match(PreRetrievalTurn, matches=_keys_named).label(N_("names a key of the category")).to(dataset_rows))
+        .branch(g.match(PreRetrievalTurn).label(N_("names no key of the category")).to(dataset_key_names))
     ),
     g.edge_from(dataset_rows, dataset_key_names).to(
-        g.decision(node_id="after_Q7cd")
-        .branch(g.match(PreRetrievalTurn, matches=_categories_left).label("next category").to(dataset_keys))
-        .branch(g.match(PreRetrievalTurn).to(open_page_note))
+        g.decision(node_id="after_Q7cd", note=N_("Is a named category left?"))
+        .branch(g.match(PreRetrievalTurn, matches=_categories_left).label(N_("a named category is left")).to(dataset_keys))
+        .branch(g.match(PreRetrievalTurn).label(N_("no named category is left")).to(open_page_note))
     ),
     g.edge_from(open_page_note).to(synonyms),
     g.edge_from(synonyms).to(prompt),

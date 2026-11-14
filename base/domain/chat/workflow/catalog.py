@@ -305,7 +305,8 @@ async def roster_rewrite(ctx: InCtx) -> PreRetrievalTurn:
 
 async def condense(ctx: InCtx) -> PreRetrievalTurn:
     """The result of the condensation (Q5c to Q5g): the text that the gate and
-    the search examine, and what the blacklist and the roster found on it."""
+    the search examine, and what the roster found on it. A rewrite that names
+    a blacklist term does not reach this step: Q5e sends it to R1."""
     turn = ctx.state
     # `search` is the accepted rewrite, or the question when Q5d rejected it.
     tracing.mark("Q5b", R, rewritten=turn.search, answer=turn.in_roster,
@@ -774,3 +775,11 @@ def register(g: GraphBuilder, code: str) -> Step:
     """Register in the graph `g` the step function of `code`, with `code` as its
     node id."""
     return g.step(CATALOG[code], node_id=code)
+
+
+def N_(label: str) -> str:
+    """Mark the label of a branch of a decision for translation, and return it
+    unchanged. The label is in English. `web/i18n_extract.py` extracts the
+    marked labels into the catalogs of the web interface, and the audit page
+    translates each label when it draws a diagram (`web/audit_diagram.py`)."""
+    return label

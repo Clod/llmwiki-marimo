@@ -36,7 +36,7 @@ from pydantic_graph import GraphBuilder
 
 # `AnswerChecks` is the state of the graph; `_pre_retrieval_turn`, the service
 # and the tests import it from this module.
-from domain.chat.workflow.catalog import AnswerChecks, register
+from domain.chat.workflow.catalog import N_, AnswerChecks, register
 
 # The nodes of the catalog that each output workflow registers. Both workflows
 # have no step of their own. The test `tests/unit/test_workflow_nodes_doc.py`
@@ -104,36 +104,39 @@ shown = register(g, "Q21")
 
 g.add(
     g.edge_from(g.start_node).to(
-        g.decision(node_id="tier")
-        .branch(g.match(AnswerChecks, matches=_verifies).label("Tier 2").to(fragment_coverage))
+        g.decision(node_id="tier", note=N_("What was injected, and does the sentence verifier check the answer?"))
+        .branch(g.match(AnswerChecks, matches=_verifies)
+                .label(N_("fragments of the source documents, without the sentence verifier"))
+                .to(fragment_coverage))
         .branch(g.match(AnswerChecks, matches=_verified_by_sentences)
-                .label("Tier 2, sentence verifier").to(model_refusal))
-        .branch(g.match(AnswerChecks, matches=_no_context).label("no context").to(tool_evidence))
-        .branch(g.match(AnswerChecks).to(model_refusal))
+                .label(N_("fragments of the source documents, with the sentence verifier later"))
+                .to(model_refusal))
+        .branch(g.match(AnswerChecks, matches=_no_context).label(N_("nothing injected")).to(tool_evidence))
+        .branch(g.match(AnswerChecks).label(N_("wiki pages or data injected")).to(model_refusal))
     ),
     g.edge_from(fragment_coverage).to(
-        g.decision(node_id="after_Q17")
-        .branch(g.match(AnswerChecks, matches=_ungrounded).label("not grounded").to(refuse_unsupported))
-        .branch(g.match(AnswerChecks).to(model_refusal))
+        g.decision(node_id="after_Q17", note=N_("Is the answer grounded in the fragments?"))
+        .branch(g.match(AnswerChecks, matches=_ungrounded).label(N_("answer not grounded in the fragments")).to(refuse_unsupported))
+        .branch(g.match(AnswerChecks).label(N_("answer grounded in the fragments")).to(model_refusal))
     ),
     g.edge_from(tool_evidence).to(
-        g.decision(node_id="after_Q19")
-        .branch(g.match(AnswerChecks, matches=_ungrounded).label("no evidence").to(refuse_ungrounded))
-        .branch(g.match(AnswerChecks).to(model_refusal))
+        g.decision(node_id="after_Q19", note=N_("Did a data tool return evidence?"))
+        .branch(g.match(AnswerChecks, matches=_ungrounded).label(N_("no data tool returned evidence")).to(refuse_ungrounded))
+        .branch(g.match(AnswerChecks).label(N_("a data tool returned evidence")).to(model_refusal))
     ),
     g.edge_from(model_refusal).to(
-        g.decision(node_id="after_Q20")
+        g.decision(node_id="after_Q20", note=N_("Does the answer open with the fixed refusal sentence?"))
         .branch(g.match(AnswerChecks, matches=lambda c: c.model_refused)
-                .label("fixed sentence").to(refuse_model))
-        .branch(g.match(AnswerChecks).to(table))
+                .label(N_("opens with the fixed refusal sentence")).to(refuse_model))
+        .branch(g.match(AnswerChecks).label(N_("does not open with the fixed refusal sentence")).to(table))
     ),
     g.edge_from(table).to(keys),
     g.edge_from(keys).to(citation),
     g.edge_from(citation).to(injected_reference),
     g.edge_from(injected_reference).to(
-        g.decision(node_id="after_Q20d")
-        .branch(g.match(AnswerChecks, matches=_tier2).label("Tier 2").to(tier2_warning))
-        .branch(g.match(AnswerChecks).to(figures))
+        g.decision(node_id="after_Q20d", note=N_("Were fragments of the source documents injected?"))
+        .branch(g.match(AnswerChecks, matches=_tier2).label(N_("fragments of the source documents injected")).to(tier2_warning))
+        .branch(g.match(AnswerChecks).label(N_("no fragments of the source documents injected")).to(figures))
     ),
     g.edge_from(tier2_warning).to(figures),
     g.edge_from(figures).to(shown),
@@ -156,18 +159,19 @@ strict_answer = register(strict, "T5")
 strict.add(
     strict.edge_from(strict.start_node).to(evidence),
     strict.edge_from(evidence).to(
-        strict.decision(node_id="after_T2")
-        .branch(strict.match(AnswerChecks, matches=_ungrounded).label("no evidence").to(guardrail))
-        .branch(strict.match(AnswerChecks).to(strict_table))
+        strict.decision(node_id="after_T2", note=N_("Did a tool return evidence?"))
+        .branch(strict.match(AnswerChecks, matches=_ungrounded).label(N_("no tool returned evidence")).to(guardrail))
+        .branch(strict.match(AnswerChecks).label(N_("a tool returned evidence")).to(strict_table))
     ),
     strict.edge_from(guardrail).to(strict_table),
     strict.edge_from(strict_table).to(strict_citation),
     strict.edge_from(strict_citation).to(uncited_mark),
     strict.edge_from(uncited_mark).to(
-        strict.decision(node_id="after_T4c")
+        strict.decision(node_id="after_T4c", note=N_("Did the guardrail refusal replace the answer?"))
         .branch(strict.match(AnswerChecks, matches=lambda c: c.refusal_substituted)
-                .label("refusal").to(strict_answer))
-        .branch(strict.match(AnswerChecks).to(strict_figures))
+                .label(N_("answer replaced by the guardrail refusal")).to(strict_answer))
+        .branch(strict.match(AnswerChecks)
+                .label(N_("answer not replaced by the guardrail refusal")).to(strict_figures))
     ),
     strict.edge_from(strict_figures).to(strict_answer),
     strict.edge_from(strict_answer).to(strict.end_node),
