@@ -141,6 +141,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   while they were a copy of the model's own reference line. Every page the
   answer names is a link in the answer itself, so the line now gives only the
   mode and the tokens, in every mode.
+- **The streaming mode changes nothing between the user and the agent.** The
+  mode "No verification" removed the refused exchanges from the history, kept
+  the last 3 turns, added an origin line to each earlier answer that read data,
+  and ran the figure check on the answer. Those four steps are gone from the
+  streaming mode. The agent now receives every prior message as written, and
+  the user sees the text of the agent with no red mark, no summary line and no
+  note on rounded figures. The question still carries the name of the open
+  page. A long conversation can exceed the token limit of the model. The
+  pre-retrieval and strict modes do not change.
 
 ## [0.6.5] - 2026-11-06
 

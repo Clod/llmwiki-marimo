@@ -215,7 +215,8 @@ def test_the_streaming_answer_has_a_page_too(client, agents):
     object.__setattr__(agents, "agent", StreamingAgent("A plain answer."))   # ChatAgents is frozen
     stream(client, ask(client, mode="streaming"))
     html = audit(client).text
-    assert "F1 → C3 → F2" in html and "A plain answer." in html
+    assert "F1 → F2" in html and "A plain answer." in html
+    assert "→ C3" not in html            # the streaming mode runs no figure check
 
 
 def test_a_node_without_a_path_says_so(client, agents, app):

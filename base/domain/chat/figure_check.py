@@ -4,7 +4,7 @@
 values. This module gives it the material of one turn: the prose of the answer, the
 passages of the turn, the texts the code appended, and the messages of the
 conversation. The output workflow (`workflow/output_checks.py`) runs it as the step
-`C3` in the pre-retrieval and the strict modes; the streaming mode runs it after F1
+`C3` in the pre-retrieval and the strict modes. The streaming mode does not run it
 (`services/chat.py`).
 
 The text of the model is never edited. When the prose has rounded figures, a fixed

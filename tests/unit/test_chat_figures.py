@@ -1,4 +1,5 @@
-"""The figure check in the chat service: `check_turn_figures` and the three chat modes.
+"""The figure check in the chat service: `check_turn_figures`, the pre-retrieval and strict
+modes, and its absence in the streaming mode.
 The agents are stand-ins; no model is called."""
 
 from __future__ import annotations
@@ -226,14 +227,12 @@ def test_pre_retrieval_refusal_has_an_empty_report(wiki):
     assert result.figures.findings == ()
 
 
-def test_streaming_returns_the_report_and_the_note_in_the_final_result(wiki):
-    result = stream_result(
-        wiki, agents("Cinderella lost 7.777 slippers, about 1.200."),
-        [msg("user", "How many slippers, 1187,5?")])
-    assert [f.figure.text for f in result.figures.unsupported()] == ["7.777"]
-    assert result.answer.endswith(get_locale("en").rounded_figures_note_data.replace("%(pct)s", "5"))
-    assert [n["node"] for n in result.path][-2:] == ["C3", "F2"] and c3(result)["figures_rounded"] == 1
-    assert c3(result)["note_added"] is True
+def test_streaming_returns_the_text_of_the_agent_with_no_report_and_no_note(wiki):
+    written = "Cinderella lost 7.777 slippers, about 1.200."
+    result = stream_result(wiki, agents(written), [msg("user", "How many slippers, 1187,5?")])
+    assert result.answer == written
+    assert result.figures is None and result.generated == ()
+    assert "C3" not in [n["node"] for n in result.path]
 
 
 def test_chat_turn_returns_the_answer_with_the_note(wiki):
