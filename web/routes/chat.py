@@ -131,8 +131,10 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
     """Stream the answer: raw text chunks while it arrives (streaming mode), then
     the rendered answer, which replaces the chunks, then, when the turn asked for
     it, one `verification` event with the answer again and its unsupported
-    sentences marked, then `done`. The figures without support are marked in red in
-    the rendered answer of every mode, with or without that verification."""
+    sentences marked, then `done`. In the pre-retrieval and strict modes, the figures
+    without support are marked in red in the rendered answer, with or without that
+    verification. The streaming mode runs no check: its answer has no red mark and
+    no summary line."""
     turn = state.turns.pop(turn_id, None)
     if turn is None:
         raise HTTPException(status_code=404, detail=_("That question is no longer in progress."))
@@ -158,9 +160,9 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                         full += item
                         yield {"event": "chunk", "data": html.escape(item)}
                     else:
-                        # The service may append the note on rounded figures: the
-                        # final answer, not the chunks, is the answer of the turn.
-                        full, figures = item.answer, item.figures
+                        # The final answer is the text of the chunks. The streaming
+                        # mode runs no figure check, so `figures` stays None.
+                        full = item.answer
                         context, path = item.context, item.path
                         input_tokens, output_tokens = item.input_tokens, item.output_tokens
             else:

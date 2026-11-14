@@ -16,7 +16,7 @@ C3 is the figure check (`domain/chat/figure_check.py`), the last step before the
 answer in both modes. A refusal (R3, R4, R5, T3) does not reach C3: the code wrote it.
 
 The streaming mode does not run this graph (`chat_turn_stream_with_context`,
-`services/chat.py`); of the checks it runs only C3.
+`services/chat.py`). The streaming mode runs no check, C3 included.
 
 The steps of the pre-retrieval mode call through the module `preretrieval` the
 functions that it defines (`refuse`, `suggestions`, `offer_available_keys`),

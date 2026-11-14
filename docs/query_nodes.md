@@ -29,7 +29,9 @@ answer is built from:
 - **strict**: the model retrieves the text, by calling tools, and the code
   replaces an answer that no tool supports (section 3).
 - **streaming**: the model retrieves the text, by calling tools, and the answer
-  is shown as the model writes the answer, with no check (section 4).
+  is shown as the model writes the answer. The code changes nothing between the
+  user and the agent: no step edits the history, and no check runs on the answer
+  (section 4).
 
 The tools that the model calls are described once, in section 5.
 
@@ -62,7 +64,7 @@ position of the question in the conversation), `mode`, `question` and
 ```mermaid
 flowchart TD
     Q0["a question arrives in the chat"]
-    C1["C1 · the history of the turn<br/>model_history:<br/>1. strip_refused_exchanges removes every refused answer<br/>and the question that the refused answer answered<br/>2. trim_history keeps the last turns"]
+    C1["C1 · the history of the turn<br/>model_history:<br/>1. strip_refused_exchanges removes every refused answer<br/>and the question that the refused answer answered<br/>2. trim_history keeps the last turns<br/>streaming: plain_history, every message as written"]
     C2{"C2 · the mode of the turn"}
     P["Q1 · pre-retrieval, section 2"]
     S["T1 · strict, section 3<br/>🤖 model call"]
@@ -77,9 +79,9 @@ flowchart TD
 
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
-| C1 | Builds the history that the model receives: removes every refused answer, with the question that the refused answer answered, then keeps the last turns. A refused first turn leaves the second turn with an empty history | `base/services/chat.py`, `model_history`; `base/domain/chat/guardrail.py`, `strip_refused_exchanges`; `base/domain/chat/history.py`, `trim_history` | `prior_messages`, `refused_dropped`, `history_messages` | code |
+| C1 | Builds the history that the model receives. In the pre-retrieval and strict modes: removes every refused answer, with the question that the refused answer answered, then keeps the last turns. A refused first turn leaves the second turn with an empty history. In the streaming mode: passes every prior message as written, with no message removed and no line added. `refused_dropped` is 0 | `base/services/chat.py`, `model_history`, `plain_history`; `base/domain/chat/guardrail.py`, `strip_refused_exchanges`; `base/domain/chat/history.py`, `trim_history` | `prior_messages`, `refused_dropped`, `history_messages` | code |
 | C2 | Sends the turn to the mode that the chat selected | `base/services/chat.py`, `chat_turn_with_context`, `chat_turn_stream_with_context` | `mode` | code |
-| C3 | The figure check: classifies every figure of the prose as exact, rounded or unsupported, against the numbers of the passages of the turn, the advisory table, the messages of the user and the passages of the earlier answers. The figures of the advisory table, of the note above it, of the citation lines and of the Tier-2 warning are not checked. When the prose has rounded figures, a fixed note is appended. The text of the model is not edited. It runs in the three modes: before Q21, before T5, and between F1 and F2. A refusal does not reach C3 | `base/domain/chat/figure_check.py`, `check_answer`, `appended_spans`; `base/domain/verify/figures.py`, `check_figures`; `base/domain/chat/workflow/output_checks.py`, `figures`; `base/services/chat.py`, `chat_turn_stream_with_context`, `check_turn_figures` | `figures_checked`, `figures_unsupported`, `figures_rounded`, `note_added` | code |
+| C3 | The figure check: classifies every figure of the prose as exact, rounded or unsupported, against the numbers of the passages of the turn, the advisory table, the messages of the user and the passages of the earlier answers. The figures of the advisory table, of the note above it, of the citation lines and of the Tier-2 warning are not checked. When the prose has rounded figures, a fixed note is appended. The text of the model is not edited. C3 runs in the pre-retrieval mode, before Q21, and in the strict mode, before T5. C3 does not run in the streaming mode. A refusal does not reach C3 | `base/domain/chat/figure_check.py`, `check_answer`, `appended_spans`; `base/domain/verify/figures.py`, `check_figures`; `base/domain/chat/workflow/output_checks.py`, `figures`; `base/services/chat.py`, `check_turn_figures` | `figures_checked`, `figures_unsupported`, `figures_rounded`, `note_added` | code |
 
 ## 2. Pre-retrieval
 
@@ -289,22 +291,29 @@ flowchart TD
 
 In the streaming mode the model receives the question and the history, decides
 which tools to call (section 5), and the answer is shown as the model writes the
-answer. Of the checks of the answer, only the figure check C3 (section 1) runs,
-after the whole answer has arrived; its note, when there is one, is appended to the
-answer.
+answer. The code changes nothing between the user and the agent:
+
+- **The history**: the model receives every prior message as written
+  (`plain_history`, `base/services/chat.py`). Refused exchanges stay, the history
+  is not trimmed, and no origin line is added. A long conversation can exceed the
+  token limit of the model.
+- **The question**: the model receives the question as written. When the user
+  reads a wiki page, the question is preceded by the note that names the page
+  (`with_open_page`), as in the strict mode.
+- **The answer**: the user sees the text of the model. No check runs on the
+  answer: the figure check C3 does not run, and no line is appended.
 
 ```mermaid
 flowchart TD
     F1["F1 · the model runs with the wiki tools and the data tools<br/>the tools of section 5<br/>the text is shown as the text arrives"]
-    FC["C3 · the figure check, section 1"]
-    F2["F2 · the answer is complete<br/>no other check"]
-    F1 --> FC --> F2
+    F2["F2 · the answer is complete<br/>no check"]
+    F1 --> F2
 ```
 
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
 | F1 | The model runs with the question, the history and the tools; each chunk of text is shown as the chunk arrives | `base/services/chat.py`, `chat_turn_stream_with_context`; `base/domain/chat/agent.py`, `create_agent` | `tools_called` | code |
-| F2 | The answer is complete; the answer is shown as the model wrote the answer, with the note of C3 when there is one | `base/services/chat.py`, `chat_turn_stream_with_context` | `final_answer` | code |
+| F2 | The answer is complete. The answer is shown as the model wrote the answer, with no check and no appended line | `base/services/chat.py`, `chat_turn_stream_with_context` | `final_answer` | code |
 
 ## 5. Tools
 

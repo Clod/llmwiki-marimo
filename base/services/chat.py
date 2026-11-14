@@ -117,6 +117,22 @@ def model_history(messages: Sequence[Any], language: str | None = None) -> list:
     return history
 
 
+def plain_history(messages: Sequence[Any]) -> list:
+    """The prior turns as Pydantic AI messages, each with its text as written.
+
+    The streaming mode uses this history: no message is removed, no turn is
+    trimmed and no line is added. A long conversation can exceed the token limit
+    of the model.
+    """
+    history: list = []
+    for message in messages:
+        if message.role == "user":
+            history.append(ModelRequest(parts=[UserPromptPart(content=message.content)]))
+        elif message.role == "assistant":
+            history.append(ModelResponse(parts=[TextPart(content=message.content)]))
+    return history
+
+
 def _history_counts(messages: Sequence[Any], history: list) -> dict:
     """The counts that node C1 records: the prior messages, the refused ones
     `strip_refused_exchanges` removed, and the messages the model receives."""
@@ -174,8 +190,8 @@ class ChatResult:
                refusal the code makes before the model runs has none.
     generated: texts the code appended to the answer (the advisory table, the note on
                rounded figures); the verification skips them.
-    figures:   the figure check of the prose (`check_turn_figures`); None until the
-               check ran.
+    figures:   the figure check of the prose (`check_turn_figures`); None when the
+               check did not run. The streaming mode runs no check.
     """
 
     answer: str
@@ -209,8 +225,8 @@ def check_turn_figures(result: ChatResult, messages: Sequence[Any], config: Any,
     note of the locale is appended after every other appended text and added to
     `generated`, so the sentence verification skips it. The text of the model is never
     edited. A refusal of the code (`refused`) has an empty report: no model text was
-    written. The output workflow runs the same check as its node C3; the streaming mode
-    calls this function.
+    written. The output workflow runs the same check as its node C3. The streaming
+    mode does not call this function.
     """
     if refused:
         check = figure_check.FigureCheck(FigureReport())
@@ -378,10 +394,14 @@ async def chat_turn_stream_with_context(
     """Answer the last message of `messages` in the streaming mode.
 
     Yields the text chunks as they arrive, then one `ChatResult` as the last
-    item, with the whole answer (the note on rounded figures included) and the tool
-    returns of the run.
+    item, with the whole answer and the tool returns of the run. The code changes
+    nothing between the user and the agent: the agent receives every prior message
+    as written (`plain_history`), and the answer is the text of the agent, with no
+    check. The question carries the note of the open page (`_with_open_page`), as
+    in the strict mode.
     """
-    history = model_history(messages[:-1], agents.config.language)
+    prior = list(messages[:-1])
+    history = plain_history(prior)
     question = messages[-1].content
     attributes = _turn_attributes(messages, STREAMING, conversation_id,
                                   agents.config.language, history)
@@ -390,7 +410,8 @@ async def chat_turn_stream_with_context(
     tokens = _Tokens()
     R = tracing.READING
     with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-        tracing.mark("C1", R, **_history_counts(messages, history))
+        tracing.mark("C1", R, prior_messages=len(prior), refused_dropped=0,
+                     history_messages=len(history))
         tracing.mark("C2", R, mode=STREAMING)
         with tracing.node("F1", R) as f1:
             # run_stream_events runs the whole agent — every model request and every
@@ -414,14 +435,10 @@ async def chat_turn_stream_with_context(
                     full_text += chunk
                     yield chunk
             f1.set(tools_called=_tools_called(run_messages))
-        # C3, the figure check: the only check of the streaming mode.
-        final = check_turn_figures(ChatResult(full_text, tuple(context_from_messages(run_messages))),
-                                   messages, agents.config)
-        tracing.mark("C3", R, **figure_counts(final.figures),
-                     note_added=final.answer != full_text)
-        tracing.mark("F2", R, final_answer=final.answer)
-        root.set(raw_output=full_text, final_answer=final.answer, **figure_counts(final.figures))
-    yield replace(final, path=tuple(path), input_tokens=tokens.input, output_tokens=tokens.output)
+        tracing.mark("F2", R, final_answer=full_text)
+        root.set(raw_output=full_text, final_answer=full_text)
+    yield ChatResult(full_text, tuple(context_from_messages(run_messages)), path=tuple(path),
+                     input_tokens=tokens.input, output_tokens=tokens.output)
 
 
 async def chat_turn_stream(

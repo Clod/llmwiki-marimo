@@ -406,8 +406,8 @@ def answer_of(events):
     return [data for name, data in events if name == "chunk"][-1]
 
 
-@pytest.mark.parametrize("mode", ["pre-retrieval", "strict", "streaming"])
-def test_an_invented_figure_is_marked_in_red_in_every_mode_with_no_verifier(client, agents, mode):
+@pytest.mark.parametrize("mode", ["pre-retrieval", "strict"])
+def test_an_invented_figure_is_marked_in_red_with_no_verifier(client, agents, mode):
     agents.agent.output = agents.agent_pre_retrieval.output = INVENTED
     agents.agent.grounded = True
     final = answer_of(stream(client, ask(client, mode=mode)))
@@ -427,22 +427,28 @@ def test_the_tooltip_names_the_nearest_value_and_its_origin(client, agents):
     assert 'title="Ningún dato respalda esta cifra; el valor más cercano es 7.700 (tu pregunta)">7.777</mark>' in final
 
 
-def test_a_rounded_figure_is_not_red_and_the_note_ends_the_answer_in_every_mode(client, agents):
+def test_a_rounded_figure_is_not_red_and_the_note_ends_the_answer(client, agents):
     agents.agent.output = agents.agent_pre_retrieval.output = "Cinderella lost about 7.800 glass slippers."
     agents.agent.grounded = True
-    for mode in ("pre-retrieval", "strict", "streaming"):
+    for mode in ("pre-retrieval", "strict"):
         final = answer_of(stream(client, ask(client, "Cinderella lost 7.777 slippers, right?", mode=mode)))
         assert "unsupported-figure" not in final and "sin respaldo" not in final
         # The note is in the language of the wiki content (English here), not of the interface.
         assert final.count("The figures in the text are approximations") == 1
 
 
-def test_the_streaming_mode_renders_the_final_answer_with_the_note_not_the_chunks(client, agents):
+def test_the_streaming_mode_marks_no_invented_figure_and_adds_no_line(client, agents):
+    agents.agent.output = INVENTED
+    final = answer_of(stream(client, ask(client, mode="streaming")))
+    assert "unsupported-figure" not in final and "sin respaldo" not in final
+
+
+def test_the_streaming_mode_adds_no_note_to_a_rounded_figure(client, agents, app):
     agents.agent.output = "Cinderella lost about 7.800 glass slippers."
     events = stream(client, ask(client, "Cinderella lost 7.777 slippers, right?", mode="streaming"))
-    raw = events[0][1] + events[1][1]
-    assert "approximations" not in raw
-    assert "approximations" in events[2][1]
+    assert "approximations" not in answer_of(events)
+    answer = app.state.web.conversations[(WIKI_ID, "c1")][-1]
+    assert answer.content == "Cinderella lost about 7.800 glass slippers." and answer.figures is None
 
 
 def test_the_thread_keeps_the_red_mark_and_the_line_when_the_page_is_reloaded(client, agents):

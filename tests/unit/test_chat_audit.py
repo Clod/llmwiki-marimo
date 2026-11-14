@@ -185,7 +185,7 @@ def test_streaming_returns_its_path(wiki):
             result = item
         return result
 
-    assert ids(run(last())) == ["C1", "C2", "F1", "C3", "F2"]
+    assert ids(run(last())) == ["C1", "C2", "F1", "F2"]
 
 
 def test_two_turns_keep_separate_paths(wiki):
