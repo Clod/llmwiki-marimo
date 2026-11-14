@@ -42,302 +42,6 @@ msgstr ""
 msgid "Output workflow"
 msgstr ""
 
-#: web/audit_nodes.py
-msgid "History of the turn counted: prior messages, refused ones, messages the model receives"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Mode of the turn"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Refused exchanges removed from the history"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Advisory tables removed from the history"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "History trimmed to the last turns"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Data-origin line added to the answers of the history that read data"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Figure check: each figure of the prose is exact, rounded or without support"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Note of the open page added to the question"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "The question enters pre-retrieval"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "The question normalised (lowercase, no accents)"
-msgstr ""
-
-#: base/domain/chat/workflow/input_checks.py web/audit_nodes.py
-msgid "Does the question name a blacklisted term?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "The question reduced to stems"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Does the question name data: a dataset term, an alias or an advice request?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Does the question name a topic of the wiki (coverage roster)?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Is the user reading a wiki page?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "The model rewrites the follow-up"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Is the rewrite accepted: one line, not empty, not too long?"
-msgstr ""
-
-#: base/domain/chat/workflow/input_checks.py web/audit_nodes.py
-msgid "Does the rewrite name a blacklisted term?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Does the rewrite name data?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Does the rewrite name a topic of the wiki (coverage roster)?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Result of the condensation: the text that the search examines, and what the checks found on it"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Search in the wiki pages"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Did the search find a page?"
-msgstr ""
-
-#: base/domain/chat/workflow/input_checks.py web/audit_nodes.py
-msgid "Does the question name a dataset category?"
-msgstr ""
-
-#: base/domain/chat/workflow/input_checks.py web/audit_nodes.py
-msgid "Does the question name a key of that category?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Rows of the key read from the dataset"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Key names of the category read from the dataset"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Search in the source documents"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Overview and index read, for a question about the whole wiki"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Overview and index added to the open page"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Is the question about the whole wiki?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Is it a data question?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Did the source search find a fragment?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Refusal chosen by the coverage roster"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Line of synonyms added for the aliases of the question"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Prompt built from the injected text and the question"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Wiki pages given to the model, which writes the answer"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Overview and index given to the model"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "No page given: the model calls the data tools"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Source fragments given to the model"
-msgstr ""
-
-#: base/domain/chat/workflow/output_checks.py web/audit_nodes.py
-msgid "Is the answer grounded in the fragments?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Warning appended: the answer comes from a source document"
-msgstr ""
-
-#: base/domain/chat/workflow/output_checks.py web/audit_nodes.py
-msgid "Did a data tool return evidence?"
-msgstr ""
-
-#: base/domain/chat/workflow/output_checks.py web/audit_nodes.py
-msgid "Does the answer open with the fixed refusal sentence?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Advisory table appended, when the advisory tool returned one"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Keys with data offered, when the model asked for a key without data"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Citation of the tools and the injected data added"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Reference line of the injected pages added"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "The answer is shown, with its citation"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Refusal: blacklisted term"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Refusal: no information received from the wiki"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Refusal: a topic of the wiki, no text found"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Refusal: the answer is not grounded in the source document"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Refusal: no evidence behind the answer"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Refusal: the model did not find the answer"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "The model answers, calling the wiki and data tools"
-msgstr ""
-
-#: base/domain/chat/workflow/output_checks.py web/audit_nodes.py
-msgid "Did a tool return evidence?"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Refusal of the guardrail: the answer could not be backed"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Advisory table appended"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Citation of the tools added"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Answer without citation marked"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "The answer is shown"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "The model answers, calling the tools; the text is shown as it arrives"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "The answer is complete, with no check but the figure check"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: read a wiki page"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: search the wiki pages"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: search the source documents"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: read a dataset"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: estimate investment alternatives"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: plazo fijo rate"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: caución rate"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: dollar quote"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: share price"
-msgstr ""
-
-#: web/audit_nodes.py
-msgid "Tool: money market fund return"
-msgstr ""
-
 #: web/deps.py
 msgid "Another operation is running on this wiki."
 msgstr ""
@@ -3423,6 +3127,10 @@ msgstr ""
 msgid "What text was injected into the prompt?"
 msgstr ""
 
+#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/node_texts.py
+msgid "Does the question name a blacklisted term?"
+msgstr ""
+
 #: base/domain/chat/workflow/input_checks.py
 msgid "names a blacklisted term"
 msgstr ""
@@ -3457,6 +3165,10 @@ msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py
 msgid "rewrite not accepted"
+msgstr ""
+
+#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/node_texts.py
+msgid "Does the rewrite name a blacklisted term?"
 msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py
@@ -3531,12 +3243,20 @@ msgstr ""
 msgid "found no source fragment or names no wiki topic"
 msgstr ""
 
+#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/node_texts.py
+msgid "Does the question name a dataset category?"
+msgstr ""
+
 #: base/domain/chat/workflow/input_checks.py
 msgid "names a dataset category"
 msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py
 msgid "names no dataset category"
+msgstr ""
+
+#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/node_texts.py
+msgid "Does the question name a key of that category?"
 msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py
@@ -3557,6 +3277,286 @@ msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py
 msgid "no named category is left"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "History of the turn counted: prior messages, refused ones, messages the model receives"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Mode of the turn"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Refused exchanges removed from the history"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Advisory tables removed from the history"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "History trimmed to the last turns"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Data-origin line added to the answers of the history that read data"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Figure check: each figure of the prose is exact, rounded or without support"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Note of the open page added to the question"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The question enters pre-retrieval"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The question normalised (lowercase, no accents)"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The question reduced to stems"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Does the question name data: a dataset term, an alias or an advice request?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Does the question name a topic of the wiki (coverage roster)?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Is the user reading a wiki page?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The model rewrites the follow-up"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Is the rewrite accepted: one line, not empty, not too long?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Does the rewrite name data?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Does the rewrite name a topic of the wiki (coverage roster)?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Result of the condensation: the text that the search examines, and what the checks found on it"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Search in the wiki pages"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Did the search find a page?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Rows of the key read from the dataset"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Key names of the category read from the dataset"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Search in the source documents"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Overview and index read, for a question about the whole wiki"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Overview and index added to the open page"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Is the question about the whole wiki?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Is it a data question?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Did the source search find a fragment?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Refusal chosen by the coverage roster"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Line of synonyms added for the aliases of the question"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Prompt built from the injected text and the question"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Wiki pages given to the model, which writes the answer"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Overview and index given to the model"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "No page given: the model calls the data tools"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Source fragments given to the model"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
+msgid "Is the answer grounded in the fragments?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Warning appended: the answer comes from a source document"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
+msgid "Did a data tool return evidence?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
+msgid "Does the answer open with the fixed refusal sentence?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Advisory table appended, when the advisory tool returned one"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Keys with data offered, when the model asked for a key without data"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Citation of the tools and the injected data added"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Reference line of the injected pages added"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The answer is shown, with its citation"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Refusal: blacklisted term"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Refusal: no information received from the wiki"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Refusal: a topic of the wiki, no text found"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Refusal: the answer is not grounded in the source document"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Refusal: no evidence behind the answer"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Refusal: the model did not find the answer"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The model answers, calling the wiki and data tools"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
+msgid "Did a tool return evidence?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Refusal of the guardrail: the answer could not be backed"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Advisory table appended"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Citation of the tools added"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Answer without citation marked"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The answer is shown"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The model answers, calling the tools; the text is shown as it arrives"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The answer is complete, with no check but the figure check"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: read a wiki page"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: search the wiki pages"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: search the source documents"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: read a dataset"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: estimate investment alternatives"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: plazo fijo rate"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: caución rate"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: dollar quote"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: share price"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Tool: money market fund return"
 msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py
