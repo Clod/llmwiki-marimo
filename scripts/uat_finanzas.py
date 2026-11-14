@@ -48,7 +48,7 @@ if _BASE not in sys.path:
     sys.path.insert(0, _BASE)
 sys.modules.pop("config", None)  # force base/config.py to win
 
-# Shared pure graders (also used by eval_chat_model.py + the eval packet builder).
+# Shared pure graders (also used by the eval packet builder).
 from domain.eval.graders import (  # noqa: E402 -- after the sys.path bootstrap above
     answered_off_corpus,
     has_citation,

@@ -1,0 +1,9 @@
+<div class="confirm panel panel-body" role="alert">
+  <p>{{ message }}</p>
+  <div class="actions">
+    <button class="btn btn-danger" type="button" hx-post="/w/{{ wiki_id }}/settings/models/{{ group }}" hx-include="closest form"
+            hx-vals='{"confirm": "1"}' hx-target="#test-{{ group }}" hx-swap="innerHTML"
+            title="{{ _('Write this model to .env. It applies from the next question') }}">{{ _("Save anyway") }}</button>
+    <button class="btn cancel" type="button" onclick="this.closest('.confirm').remove()">{{ _("Cancel") }}</button>
+  </div>
+</div>

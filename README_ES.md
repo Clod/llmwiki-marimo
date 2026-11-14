@@ -462,16 +462,32 @@ Si `WIKI_LLM_*` están vacíos, la ingesta recurre a `LLM_*`.
 > suponer que el agente está roto. Puedes mantener un modelo barato para la ingesta y uno
 > más potente para el chat (o viceversa) con la configuración dividida de arriba.
 >
-> **¿No estás seguro de si un modelo supera el umbral?** Ejecuta `uv run python scripts/eval_chat_model.py`
-> — le hace a la wiki de ejemplo incluida unas preguntas fijas y da un PASS/FAIL sobre
-> exactamente estos comportamientos (rechazo fuera del corpus, citas, síntesis citada).
-> Verifica que el modelo **realmente llamó a una herramienta de recuperación**, no solo
-> que la respuesta *parezca* citada — así, un modelo que fabrica una cita de memoria (cero
-> tool calls) falla. Ver [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Parte C.
+> **¿No estás seguro de si un modelo supera el umbral?** Presioná **Probar** al lado del
+> modelo, en el bloque «Modelos» de la pantalla **Configuración**, o ejecutá
+> `uv run python scripts/eval_chat_model.py`. Los dos corren las mismas pruebas, con un
+> material que viene con el producto, en una wiki temporal que se borra al terminar:
+>
+> - **Modelo de lectura** — tres preguntas a una wiki de dos páginas. El modelo responde
+>   con el dato de la página y cita la página, se niega ante una pregunta que la página no
+>   responde y, en el modo con herramientas, busca en la wiki antes de responder.
+> - **Modelo de ingesta** — la ingesta de un texto de un párrafo. El modelo escribe la
+>   página de resumen y una página de concepto que nombra la fuente, y el lint no encuentra
+>   errores.
+> - **Modelo de visión** — una página escaneada con un texto y una tabla inventados. Los
+>   catorce datos de la página están en lo que el modelo lee, y la descripción de la página
+>   tiene el formato que pide el producto.
+>
+> Cada comprobación muestra ✓, ✗, o ? cuando el servicio no respondió. La prueba no
+> escribe `.env`. El botón **Guardar**, al lado, escribe ese modelo, y pide confirmación
+> cuando los valores no se probaron o fallaron su última prueba. Pasar es necesario, no
+> suficiente: las pruebas detectan un modelo que no puede hacer el trabajo, y no comparan
+> dos modelos que sí pueden. Ver [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Parte C.
 >
 > **Un dato de las pruebas locales** (LM Studio en un M2 Pro, quants Q4_K_M, agente de chat
-> fijado en `temperature=0`). El protocolo estricto de recuperar-y-citar es exigente, y los
-> modelos locales por debajo de ~12B lo rompieron cada uno a su manera:
+> fijado en `temperature=0`), medido con una versión anterior de `eval_chat_model.py` que
+> hacía tres preguntas a una wiki de ejemplo de cuentos de hadas. El protocolo estricto de
+> recuperar-y-citar es exigente, y los modelos locales por debajo de ~12B lo rompieron cada
+> uno a su manera:
 >
 > | Modelo (local) | `eval_chat_model.py` | Cómo falló |
 > | --- | --- | --- |
@@ -651,10 +667,11 @@ una prueba de aceptación de usuario en tres partes:
   las fuentes? ¿las páginas generadas se leen como entradas reales? ¿los hallazgos del lint
   tienen sentido?
 - **Parte C** — *¿el modelo que elegiste es lo bastante bueno?* Una comprobación de un solo
-  comando del modelo de chat (no se necesitan documentos — usa la wiki de ejemplo incluida):
+  comando de los modelos de `.env` (no se necesitan documentos — las pruebas traen su propio
+  material). Los botones **Probar** de la pantalla Configuración corren las mismas pruebas:
 
   ```bash
-  uv run python scripts/eval_chat_model.py    # PASS/FAIL para el modelo de chat (LLM_MODEL)
+  uv run python scripts/eval_chat_model.py    # PASS/FAIL para los modelos de lectura, ingesta y visión
   ```
 
 Los PDFs de prueba viven en `tests/fixtures/pdfs/`; el workspace E2E está en .gitignore y se

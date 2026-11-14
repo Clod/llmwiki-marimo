@@ -240,6 +240,7 @@ llmwiki/
 │   │   ├── ingest.py                   #   uploads, scan, regenerate, lint_and_repair, deletion
 │   │   ├── verification.py             #   verify one page, every page, a draft
 │   │   ├── vocabulary.py               #   the roster, aliases and blacklist (§7.6)
+│   │   ├── model_test.py               #   run one model test, fingerprint of its values (§7.12)
 │   │   └── settings.py                 #   the Settings screen (§7.12)
 │   └── domain/
 │       ├── chat/
@@ -265,7 +266,7 @@ llmwiki/
 │       │   ├── parser.py               # matriz/largo markdown → normalized rows
 │       │   └── source.py               # LocalMarkdownSource (parse-on-read) + has_active_datasets
 │       ├── eval/                        # Half-automated UAT eval packet (§9)
-│       │   ├── graders.py              # pure regex/leak checks (shared w/ eval_chat_model)
+│       │   ├── graders.py              # pure regex/leak checks (shared w/ uat_finanzas)
 │       │   ├── rubric.py               # frozen judge instructions + 1–5 rubric + probes
 │       │   ├── packet.py               # dataclasses + pure markdown render
 │       │   └── reader.py               # read-only evidence gathering from a wiki DB
@@ -299,6 +300,11 @@ llmwiki/
 │       │   ├── markers.py              # DATA_GAP markers + fts_safe (shared w/ repair)
 │       │   ├── report.py               # LintIssue, LintReport
 │       │   └── runner.py               # lint_wiki()
+│       ├── modeltest/                   # tests of the reading, ingestion and vision models (§7.12)
+│       │   ├── material.py             # the pages, questions, source and pattern of each language
+│       │   ├── report.py               # Check, Report
+│       │   ├── runner.py               # test_reading, test_ingestion, test_vision, temporary_wiki
+│       │   └── assets/                 # the pattern PDF of each language and its 14 data
 │       ├── repair/
 │       │   ├── actions.py              # 8 repair functions (the report-only checks have none)
 │       │   ├── report.py               # RepairResult, RepairReport
@@ -350,7 +356,7 @@ llmwiki/
 │   └── sqlite_schema.sql               # Canonical schema (applied by open_db)
 ├── scripts/
 │   ├── build_golden_corpus.py          # Build/freeze the golden-corpus snapshot (§9)
-│   ├── eval_chat_model.py              # PASS/FAIL smoke test of the chat model (§9)
+│   ├── eval_chat_model.py              # the model tests of base/domain/modeltest/ (apps.md §7.12)
 │   ├── build_eval_packet.py            # Generate the half-automated UAT eval packet (§9)
 │   ├── uat_finanzas.py                 # Run the finanzas-argentinas demo UAT (9 GUIA_DEMO.md questions)
 │   ├── render_trace.py                 # Render a spans.jsonl trace to a timeline (§14.7)

@@ -115,6 +115,12 @@ class AppState:
         self.operations: dict[str, Operation] = {}
         # The installation of the verifier is one per server, not one per wiki.
         self.install_lock = threading.Lock()
+        # The model tests of the Settings screen: one runs at a time in the server. The
+        # result of the last test of each group of the Models block is kept as
+        # (fingerprint of the values tested, passed), so that saving can tell whether
+        # those values passed. The results are lost on restart.
+        self.model_test_lock = threading.Lock()
+        self.model_tests: dict[str, tuple[str, bool]] = {}
         # Runs one installation command, sending each output line to `progress`; returns
         # the exit code. A test replaces it.
         self.run_command: Callable[[list[str], Callable[[str], None]], int] = verifier_install.run_command

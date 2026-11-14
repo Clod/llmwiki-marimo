@@ -25,3 +25,22 @@ textarea.prompt { font-family: var(--font-mono); font-size: var(--text-xs); line
 /* The models block: one group per model, each with a title and a help line. */
 .settings-block > .setting-help, .setting-group { padding: 0 var(--space-4); }
 .setting-group { margin: var(--space-3) 0 var(--space-1); font: var(--weight-semibold) var(--text-sm)/var(--leading-tight) var(--font-sans); }
+/* The buttons of a group of the models block: Test, the help button and Save, in one row.
+   The help button is round, of the height of the other two. */
+.model-actions { gap: var(--space-2); padding: var(--space-2) var(--space-4) 0; }
+.btn.help { width: var(--control-h); padding: 0; border-radius: 50%; font-weight: var(--weight-semibold); }
+/* The result of a test or of a save, under the buttons of its group: the console lines,
+   a notice or the confirmation panel. */
+.model-test:not(:empty) { padding: var(--space-2) var(--space-4) 0; }
+.model-test .log { min-height: 0; max-height: 200px; padding: var(--space-2) var(--space-3); list-style: none; margin: 0;
+                   border: var(--border); border-radius: var(--radius); overflow: auto;
+                   color: var(--color-text-secondary); font: var(--text-xs)/1.7 var(--font-mono); }
+.model-test .log li:last-child { color: var(--color-text); }
+.model-test .log:empty::before { content: attr(data-empty); color: var(--color-text-muted); }
+/* The help of a model test: a modal dialog with the width and the margin of the review dialog. */
+dialog.help { width: min(920px, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-4)); padding: var(--space-4);
+              border: 1px solid var(--color-selected-border); border-radius: var(--radius-xl); background: var(--color-bg); color: var(--color-text); }
+dialog.help::backdrop { background: var(--color-backdrop); opacity: .35; }
+dialog.help h2 { margin: 0 0 var(--space-3); font: var(--weight-semibold) var(--text-lg)/var(--leading-tight) var(--font-sans); }
+dialog.help p { margin: 0 0 var(--space-3); font-size: var(--text-sm); line-height: 1.6; }
+.help-actions { display: flex; justify-content: flex-end; }

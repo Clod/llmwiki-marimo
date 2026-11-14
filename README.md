@@ -456,16 +456,32 @@ If `WIKI_LLM_*` are blank, ingestion falls back to `LLM_*`.
 > broken. You can keep a cheap model for ingestion and a stronger one for chat (or
 > vice versa) via the split config above.
 >
-> **Not sure if a model clears the bar?** Run `uv run python scripts/eval_chat_model.py`
-> — it asks the built-in sample wiki a few fixed questions and gives a PASS/FAIL on
-> exactly these behaviours (off-corpus refusal, citations, cited synthesis). It
-> verifies the model **actually called a retrieval tool**, not just that the answer
-> *looks* cited — so a model that fabricates a citation from memory (zero tool
-> calls) fails. See [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Part C.
+> **Not sure if a model clears the bar?** Press **Test** next to the model in the
+> block "Models" of the **Settings** screen, or run
+> `uv run python scripts/eval_chat_model.py`. Both run the same tests, on material
+> that ships with the product, in a temporary wiki that is deleted at the end:
+>
+> - **Reading model** — three questions to a wiki of two pages. The model answers
+>   with the datum of the page and cites the page, declines a question the page does
+>   not answer, and, in the mode with tools, searches the wiki before it answers.
+> - **Ingestion model** — the ingestion of a text of one paragraph. The model writes
+>   the summary page and a concept page that names the source, and the lint finds no
+>   error.
+> - **Vision model** — a scanned page with an invented text and table. The fourteen
+>   data of the page are in what the model reads, and the description of the page has
+>   the format the product asks for.
+>
+> Each check prints ✓, ✗, or ? when the service gave no answer. The test does not
+> write `.env`. The **Save** button next to it writes that model, and asks for a
+> confirmation when the values were not tested or failed their last test. Passing is
+> necessary, not sufficient: the tests find a model that cannot do the work, and they
+> do not compare two models that can. See [`docs/uat_test_plan.md`](docs/uat_test_plan.md) Part C.
 >
 > **A data point from local testing** (LM Studio on an M2 Pro, Q4_K_M quants, chat
-> agent pinned at `temperature=0`). The strict retrieve-then-cite protocol is
-> demanding, and local models under ~12B each broke it in a different way:
+> agent pinned at `temperature=0`), measured with an earlier version of
+> `eval_chat_model.py` that asked three questions to a sample wiki of fairy tales.
+> The strict retrieve-then-cite protocol is demanding, and local models under ~12B
+> each broke it in a different way:
 >
 > | Model (local) | `eval_chat_model.py` | How it failed |
 > | --- | --- | --- |
@@ -645,10 +661,11 @@ a user-acceptance test in three parts:
 - **Part B** — a manual checklist: does the chat stay grounded and cite sources?
   do generated pages read like real entries? do lint findings make sense?
 - **Part C** — *is the model you picked good enough?* A one-command check of the
-  chat model (no documents needed — it uses the built-in sample wiki):
+  models of `.env` (no documents needed — the tests bring their own material). The
+  **Test** buttons of the Settings screen run the same tests:
 
   ```bash
-  uv run python scripts/eval_chat_model.py    # PASS/FAIL for the chat model (LLM_MODEL)
+  uv run python scripts/eval_chat_model.py    # PASS/FAIL for the reading, ingestion and vision models
   ```
 
 Test PDFs live in `tests/fixtures/pdfs/`; the E2E workspace is gitignored and

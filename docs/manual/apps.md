@@ -275,8 +275,8 @@ by default**, or any OpenAI-compatible endpoint such as LM Studio / OpenRouter;
 `getpass` for keys) → writes `.env` (never
 clobbering an existing one without consent) → `python -m venv .venv` +
 `pip install -r requirements.txt` → optional `/models` reachability check →
-advisory grounding check of the configured model(s)
-(`scripts/eval_chat_model.py --brief`; `--no-eval` skips) → launches the web
+advisory check of the configured models, with the model tests of §7.12
+(`scripts/eval_chat_model.py --brief`, skipped with `--no-eval`) → launches the web
 interface: `python -m uvicorn web.app:app --port 2720` with the Python of the venv
 (`launch_command`), and opens the browser on `http://localhost:2720`, the wiki
 picker, two seconds later (`open_browser_soon`). `--port` changes the port.
@@ -349,18 +349,58 @@ that changed, with `tomlkit` (`domain.chat.settings_writer`: comments and order 
 commits the wiki, and drops the cached agents of the wiki (`AppState.reset_agents`), so
 the next question uses the new settings without a restart.
 
-The block **Models**, above the keys of `wiki_config.toml`, edits the two models of
-`.env` (§8), the same for every wiki: the reading model (`LLM_BASE_URL`, `LLM_API_KEY`,
-`LLM_MODEL`), which answers in the chat, and the ingestion model (`WIKI_LLM_*`), whose
-empty fields use the reading model's values. The API keys are password fields: the page
-never shows a saved key, and an empty key field keeps it. `POST
-/w/{wiki_id}/settings/models` refuses a URL that does not start with `http://` or
-`https://`. A valid form replaces the lines of those keys in `.env` and adds the missing
-ones. The other lines and the comments stay, and a new `.env` is readable by its owner
-only (`web.settings.write_models`). `AppState.set_models` then drops the agents of every
-open wiki, so the next question and the next ingestion use the new models without a
-restart. The block is shown only when the application has a `.env` to write
-(`WebSettings.env_file`, set by `from_env`).
+The block **Models**, above the keys of `wiki_config.toml`, edits the three models of
+`.env` (§8), the same for every wiki:
+
+- **Reading model** (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`): answers in the chat.
+- **Ingestion model** (`WIKI_LLM_*`): writes the pages. An empty field uses the value of
+  the reading model.
+- **Vision model** (`VISION_*`): describes the images of the sources, and reads the
+  scanned PDFs when the OCR engine is the vision model. An empty field uses the value
+  of the ingestion model. The selector **OCR engine** (`OCR_ENGINE`) belongs to this
+  group.
+
+The API keys are password fields: the page never shows a saved key, and an empty key
+field keeps it. Each group ends with three buttons: **Test**, **?** and **Save**.
+
+**Test** (`POST /w/{wiki_id}/settings/models/{group}/test`) runs the model test of the
+group with the values of the form, and writes nothing to `.env`. An empty field takes
+the value of the group it depends on, as `WebSettings.with_models` does, and an empty key
+first takes the key saved in `.env` for the same field (`effective`). The test runs as an operation in a thread
+(`AppState.start_operation`), with one console line per check. One test runs at a time
+in the server (`AppState.model_test_lock`). The tests live in `base/domain/modeltest/`
+and run the path of the product on material that ships with the code:
+
+- **Reading** (`answers`, `declines`, `uses_tools`): three chat turns on a temporary wiki
+  of two pages. The first question, in the pre-retrieval mode, must end in node `Q21`
+  with the datum of the page (`ZK-4471`) and the slug of the page. The second, which no
+  page answers, must end in `R5`. The first question again, in the strict mode, must
+  end in `T5`, with a node `K` (a call to a tool) in the path and the datum in the
+  answer.
+- **Ingestion** (`ingests`): the ingestion of a `.md` of one paragraph into a temporary
+  wiki. It passes when the status is `ingested`, the summary page exists, a new concept
+  page names the source, and the lint reports no error.
+- **Vision** (`reads_page`, `describes`): the pattern PDF of `assets/`, a scanned page
+  with no text layer. The vision OCR engine must read the fourteen data of its `.json`,
+  and the description of the page must have the five keys of the prompt.
+
+A check whose call to the service raised did not run (`Check.ran` is False). The console
+marks it `?` and does not count it as a failure of the model. The temporary wiki is
+deleted at the end. The **?** button opens a `<dialog>` with the explanation of the
+test and its limits (`web/static/js/settings.js`). Passing is necessary, not
+sufficient: a model gives different results in two runs.
+
+**Save** (`POST /w/{wiki_id}/settings/models/{group}`) writes only the keys of its group,
+and the vision group also writes `OCR_ENGINE`. It refuses a URL that does not start with
+`http://` or `https://`. The server keeps the fingerprint of the values of the last test
+of each group (`AppState.model_tests`, in memory). When the values of the form were not
+tested, or their last test failed, **Save** shows a confirmation panel with **Save
+anyway**, which sends `confirm=1`. A save replaces the lines of those keys in `.env` and
+adds the missing ones. The other lines and the comments stay, and a new `.env` is
+readable by its owner only (`web.settings.write_models`). `AppState.set_models` then
+drops the agents of every open wiki, so the next question and the next ingestion use the
+new models without a restart. The block is shown only when the application has a `.env`
+to write (`WebSettings.env_file`, set by `from_env`).
 
 ---
 

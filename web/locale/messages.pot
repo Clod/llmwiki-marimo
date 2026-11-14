@@ -786,11 +786,84 @@ msgid "The value is not valid."
 msgstr ""
 
 #: web/routes/settings.py
-msgid "Write a URL that starts with http:// or https://."
+msgid "The models cannot be edited here: there is no .env file to write."
 msgstr ""
 
 #: web/routes/settings.py
-msgid "The models cannot be edited here: there is no .env file to write."
+msgid "These values were not tested. Save them anyway?"
+msgstr ""
+
+#: web/routes/settings.py
+msgid "The last test of these values failed. Save them anyway?"
+msgstr ""
+
+#: web/routes/settings.py
+msgid "It answers from the page and cites it"
+msgstr ""
+
+#: web/routes/settings.py
+msgid "It declines when the page has no answer"
+msgstr ""
+
+#: web/routes/settings.py
+msgid "It searches the wiki with the tools"
+msgstr ""
+
+#: web/routes/settings.py
+msgid "It writes the summary page and the concept pages"
+msgstr ""
+
+#: web/routes/settings.py
+msgid "It reads the scanned page"
+msgstr ""
+
+#: web/routes/settings.py
+msgid "It describes an image in the format asked"
+msgstr ""
+
+#: web/routes/settings.py
+msgid "That group of models does not exist."
+msgstr ""
+
+#: web/routes/settings.py
+#, python-format
+msgid "✓ %(check)s"
+msgstr ""
+
+#: web/routes/settings.py
+#, python-format
+msgid "? %(check)s: no answer from the service (%(detail)s)"
+msgstr ""
+
+#: web/routes/settings.py
+#, python-format
+msgid "✗ %(check)s: %(detail)s"
+msgstr ""
+
+#: web/routes/settings.py
+#, python-format
+msgid "✓ The model passed the %(n)s checks (%(seconds)s s). Passing is necessary, not sufficient."
+msgstr ""
+
+#: web/routes/settings.py
+#, python-format
+msgid "✗ The model failed %(failed)s of %(n)s checks (%(seconds)s s)."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "? The tests could not run: the service gave no answer."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "Write the URL, the key and the model before testing."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "A test is already running."
+msgstr ""
+
+#: web/routes/settings.py
+msgid "Write a URL that starts with http:// or https://."
 msgstr ""
 
 #: web/routes/settings.py
@@ -1019,8 +1092,9 @@ msgstr ""
 msgid "Close without creating anything"
 msgstr ""
 
-#: web/templates/_browse_panel.html web/templates/_history_confirm.html web/templates/_review_dialog.html
-#: web/templates/_sources_panel.html web/templates/edit.html web/templates/maintain.html web/templates/page.html
+#: web/templates/_browse_panel.html web/templates/_history_confirm.html web/templates/_model_confirm.html
+#: web/templates/_review_dialog.html web/templates/_sources_panel.html web/templates/edit.html web/templates/maintain.html
+#: web/templates/page.html
 msgid "Cancel"
 msgstr ""
 
@@ -1074,7 +1148,7 @@ msgstr ""
 msgid "Close the dataset"
 msgstr ""
 
-#: web/templates/_dataset_dialog.html web/templates/_history_confirm.html
+#: web/templates/_dataset_dialog.html web/templates/_history_confirm.html web/templates/settings.html
 msgid "Close"
 msgstr ""
 
@@ -1260,6 +1334,14 @@ msgstr ""
 msgid ""
 "The wiki has no history yet. It appears with the first ingestion, or does not exist if the variable "
 "<code>WIKI_AUTOCOMMIT</code> is 0."
+msgstr ""
+
+#: web/templates/_model_confirm.html web/templates/settings.html
+msgid "Write this model to .env. It applies from the next question"
+msgstr ""
+
+#: web/templates/_model_confirm.html
+msgid "Save anyway"
 msgstr ""
 
 #: web/templates/_review_dialog.html
@@ -2924,10 +3006,6 @@ msgid "OCR engine"
 msgstr ""
 
 #: web/templates/settings.html
-msgid "Engine"
-msgstr ""
-
-#: web/templates/settings.html
 msgid "None"
 msgstr ""
 
@@ -2938,11 +3016,73 @@ msgid ""
 msgstr ""
 
 #: web/templates/settings.html
-msgid "Write the models to .env. They apply from the next question"
+msgid "Run the tests with the values of these fields, without saving them"
 msgstr ""
 
 #: web/templates/settings.html
-msgid "Save the models"
+msgid "Test"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "What the test checks"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Test of the reading model"
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"The test builds a small temporary wiki with two pages and asks three questions with the fields above. First: a "
+"question the page answers, in the mode that retrieves before asking; the model must answer with the datum of the page"
+" and cite the page. Second: a question the page does not answer; the model must say it found no answer. Third: the "
+"first question in the mode with tools; the model must search the wiki before it answers. The test takes about ten "
+"seconds and makes three calls to the model."
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"Limits. Passing is necessary, not sufficient: the test finds a model that cannot do the work, and it does not compare"
+" two models that can. A model gives different answers in two runs: repeat a doubtful result. The temporary wiki is "
+"deleted at the end, and your wiki is not read."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Test of the ingestion model"
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"The test builds a small temporary wiki and ingests a text of one paragraph with the fields above, through the same "
+"steps as a real ingestion. The model must write the summary page and at least one concept page that names the source,"
+" and the review of the wiki must find no error. The test takes about twenty seconds and makes several calls to the "
+"model."
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"Limits. Passing is necessary, not sufficient: one short text does not show how the model handles a long document. A "
+"model gives different results in two runs: repeat a doubtful result. The temporary wiki is deleted at the end, and "
+"your wiki is not changed."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "Test of the vision model"
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"The test sends one scanned page that ships with the product, with a text and a table that are invented. First: the "
+"model reads the page as the OCR does; the fourteen data of the page (a code, dates, amounts, the cells of the table) "
+"must be in what it reads. Second: the model describes the same page as an image, in the format the product asks for. "
+"The test takes about ten seconds and makes two calls to the model."
+msgstr ""
+
+#: web/templates/settings.html
+msgid ""
+"Limits. Passing is necessary, not sufficient: the page is clean and printed, and a photograph or handwriting is "
+"harder. A model gives different results in two runs: repeat a doubtful result. The test does not check Tesseract, "
+"which is not a model."
 msgstr ""
 
 #: web/templates/settings.html
