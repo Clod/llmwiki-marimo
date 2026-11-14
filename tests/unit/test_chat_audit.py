@@ -171,7 +171,7 @@ async def _async(value):
 def test_strict_returns_its_path(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper.", grounded()), [msg("user", "Who is Cinderella?")], mode=chat.STRICT))
-    assert ids(result) == ["C1", "C2", "T1", "T2", "T4", "C3", "T5"]
+    assert ids(result) == ["C1", "C2", "C2a", "C2b", "C2c", "C2d", "C4", "T1", "T2", "T4a", "T4b", "T4c", "C3", "T5"]
     refused = run(chat.chat_turn_with_context(
         wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.STRICT))
     assert "T3" in ids(refused)
@@ -193,4 +193,4 @@ def test_two_turns_keep_separate_paths(wiki):
                                           mode=chat.STRICT))
     two = run(chat.chat_turn_with_context(wiki, agents("a", grounded()), [msg("user", "Who is Cinderella?")],
                                           mode=chat.STRICT))
-    assert len(one.path) == len(two.path) == 7
+    assert len(one.path) == len(two.path) == 14

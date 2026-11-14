@@ -248,7 +248,7 @@ def ensure_citation(
     return f"{answer.rstrip()}\n\n" + "\n".join(lines)
 
 
-# The note of an answer that cites nothing (strict mode, node T4). The model may
+# The note of an answer that cites nothing (strict mode, node T4c). The model may
 # answer from a search result (`search_wiki_fts`, `search_source_chunks`), which
 # `deliberate_sources` does not cite: a search candidate is not a page used. The
 # answer is delivered, marked, rather than refused.

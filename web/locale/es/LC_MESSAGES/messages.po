@@ -27,17 +27,49 @@ msgstr "Volver a la lista de wikis"
 msgid "Cannot open the index of this wiki."
 msgstr "No se puede abrir el índice de esta wiki."
 
+#: web/audit_diagram.py
+msgid "Input workflow"
+msgstr "Workflow de entrada"
+
+#: web/audit_diagram.py
+msgid "Model call"
+msgstr "Llamada al modelo"
+
+#: web/audit_diagram.py
+msgid "Output workflow"
+msgstr "Workflow de salida"
+
 #: web/audit_nodes.py
-msgid "History of the turn: refused exchanges removed, last turns kept"
-msgstr "Historial del turno: se quitan los intercambios rechazados y se conservan los últimos turnos"
+msgid "History of the turn counted: prior messages, refused ones, messages the model receives"
+msgstr "Conteo del historial del turno: mensajes previos, intercambios con negativa, mensajes que recibe el modelo"
 
 #: web/audit_nodes.py
 msgid "Mode of the turn"
 msgstr "Modo del turno"
 
 #: web/audit_nodes.py
+msgid "Refused exchanges removed from the history"
+msgstr "Se quitan del historial los intercambios con negativa"
+
+#: web/audit_nodes.py
+msgid "Advisory tables removed from the history"
+msgstr "Se quitan del historial las tablas de alternativas"
+
+#: web/audit_nodes.py
+msgid "History trimmed to the last turns"
+msgstr "Se recorta el historial a los últimos turnos"
+
+#: web/audit_nodes.py
+msgid "Data-origin line added to the answers of the history that read data"
+msgstr "Se agrega la línea de origen a las respuestas del historial que leyeron datos"
+
+#: web/audit_nodes.py
 msgid "Figure check: each figure of the prose is exact, rounded or without support"
 msgstr "Comprobación de cifras: cada cifra del texto es exacta, redondeada o sin respaldo"
+
+#: web/audit_nodes.py
+msgid "Note of the open page added to the question"
+msgstr "Se agrega a la pregunta la nota de la página abierta"
 
 #: web/audit_nodes.py
 msgid "The question enters pre-retrieval"
@@ -56,6 +88,10 @@ msgid "The question reduced to stems"
 msgstr "La pregunta reducida a raíces"
 
 #: web/audit_nodes.py
+msgid "Does the question name data: a dataset term, an alias or an advice request?"
+msgstr "¿La pregunta nombra datos: un término de los datasets, un alias o un pedido de consejo?"
+
+#: web/audit_nodes.py
 msgid "Does the question name a topic of the wiki (coverage roster)?"
 msgstr "¿La pregunta nombra un tema de la wiki (padrón de cobertura)?"
 
@@ -64,8 +100,28 @@ msgid "Is the user reading a wiki page?"
 msgstr "¿El usuario está leyendo una página de la wiki?"
 
 #: web/audit_nodes.py
-msgid "Follow-up rewritten so that it stands alone"
-msgstr "Repregunta reescrita para que se entienda sola"
+msgid "The model rewrites the follow-up"
+msgstr "El modelo reescribe la pregunta de seguimiento"
+
+#: web/audit_nodes.py
+msgid "Is the rewrite accepted: one line, not empty, not too long?"
+msgstr "¿Se acepta la reescritura: una línea, no vacía, no demasiado larga?"
+
+#: web/audit_nodes.py
+msgid "Does the rewrite name a blacklisted term?"
+msgstr "¿La reescritura nombra un término de la lista negra?"
+
+#: web/audit_nodes.py
+msgid "Does the rewrite name data?"
+msgstr "¿La reescritura nombra datos?"
+
+#: web/audit_nodes.py
+msgid "Does the rewrite name a topic of the wiki (coverage roster)?"
+msgstr "¿La reescritura nombra un tema de la wiki (padrón de cobertura)?"
+
+#: web/audit_nodes.py
+msgid "Result of the condensation: the text that the search examines, and what the checks found on it"
+msgstr "Resultado de la condensación: el texto que examina la búsqueda, y lo que encontraron las comprobaciones"
 
 #: web/audit_nodes.py
 msgid "Search in the wiki pages"
@@ -96,6 +152,14 @@ msgid "Search in the source documents"
 msgstr "Búsqueda en los documentos fuente"
 
 #: web/audit_nodes.py
+msgid "Overview and index read, for a question about the whole wiki"
+msgstr "Se leen el resumen y el índice, para una pregunta sobre toda la wiki"
+
+#: web/audit_nodes.py
+msgid "Overview and index added to the open page"
+msgstr "Se agregan el resumen y el índice a la página abierta"
+
+#: web/audit_nodes.py
 msgid "Is the question about the whole wiki?"
 msgstr "¿La pregunta trata sobre toda la wiki?"
 
@@ -110,6 +174,14 @@ msgstr "¿La búsqueda en los documentos encontró un fragmento?"
 #: web/audit_nodes.py
 msgid "Refusal chosen by the coverage roster"
 msgstr "Rechazo elegido según el padrón de cobertura"
+
+#: web/audit_nodes.py
+msgid "Line of synonyms added for the aliases of the question"
+msgstr "Se agrega la línea de sinónimos de los alias de la pregunta"
+
+#: web/audit_nodes.py
+msgid "Prompt built from the injected text and the question"
+msgstr "Se arma el prompt con el texto inyectado y la pregunta"
 
 #: web/audit_nodes.py
 msgid "Wiki pages given to the model, which writes the answer"
@@ -142,6 +214,22 @@ msgstr "¿Una herramienta de datos devolvió evidencia?"
 #: web/audit_nodes.py
 msgid "Does the answer open with the fixed refusal sentence?"
 msgstr "¿La respuesta empieza con la frase fija de rechazo?"
+
+#: web/audit_nodes.py
+msgid "Advisory table appended, when the advisory tool returned one"
+msgstr "Se agrega la tabla de alternativas, si la herramienta de alternativas devolvió una"
+
+#: web/audit_nodes.py
+msgid "Keys with data offered, when the model asked for a key without data"
+msgstr "Se ofrecen las claves con datos, si el modelo pidió una clave sin datos"
+
+#: web/audit_nodes.py
+msgid "Citation of the tools and the injected data added"
+msgstr "Se agrega la cita de las herramientas y de los datos inyectados"
+
+#: web/audit_nodes.py
+msgid "Reference line of the injected pages added"
+msgstr "Se agrega la línea de referencia de las páginas inyectadas"
 
 #: web/audit_nodes.py
 msgid "The answer is shown, with its citation"
@@ -184,8 +272,16 @@ msgid "Refusal of the guardrail: the answer could not be backed"
 msgstr "Rechazo del guardrail: la respuesta no se pudo respaldar"
 
 #: web/audit_nodes.py
-msgid "Advisory table and citation added"
-msgstr "Se agregan la tabla de datos y la cita"
+msgid "Advisory table appended"
+msgstr "Se agrega la tabla de alternativas"
+
+#: web/audit_nodes.py
+msgid "Citation of the tools added"
+msgstr "Se agrega la cita de las herramientas"
+
+#: web/audit_nodes.py
+msgid "Answer without citation marked"
+msgstr "Se marca la respuesta sin cita"
 
 #: web/audit_nodes.py
 msgid "The answer is shown"
@@ -995,6 +1091,10 @@ msgstr "Respuesta"
 #, python-format
 msgid "Diagrams of the query · turn %(n)s"
 msgstr "Diagramas de la consulta · turno %(n)s"
+
+#: web/templates/_audit_diagrams.html
+msgid "The model was not called in this turn."
+msgstr "El modelo no fue llamado en este turno."
 
 #: web/templates/_audit_diagrams.html
 msgid "The diagrams could not be read from docs/query_nodes.md."
@@ -3508,4 +3608,13 @@ msgstr "Funciones de cálculo"
 
 #~ msgid "Save the models"
 #~ msgstr "Guardar los modelos"
+
+#~ msgid "History of the turn: refused exchanges removed, last turns kept"
+#~ msgstr "Historial del turno: se quitan los intercambios rechazados y se conservan los últimos turnos"
+
+#~ msgid "Follow-up rewritten so that it stands alone"
+#~ msgstr "Repregunta reescrita para que se entienda sola"
+
+#~ msgid "Advisory table and citation added"
+#~ msgstr "Se agregan la tabla de datos y la cita"
 

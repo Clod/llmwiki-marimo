@@ -53,23 +53,27 @@ DATA = RetrievalPlan("invoke", None, None, False)
 
 
 def _run(checks):
-    """Run the output workflow; return the final answer and the nodes it recorded."""
+    """Run the output workflow of the mode (strict when the state carries no turn);
+    return the final answer and the nodes it recorded."""
+    graph = output_checks.strict_graph if checks.turn is None else output_checks.graph
+
     async def go():
         with tracing.collect() as path:
-            out = await output_checks.graph.run(state=checks, inputs=checks)
+            out = await graph.run(state=checks, inputs=checks)
         return out, [entry["node"] for entry in path]
     return asyncio.run(go())
 
 
 def test_graph_has_no_instrumentation():
     assert output_checks.graph.auto_instrument is False
+    assert output_checks.strict_graph.auto_instrument is False
 
 
 def test_tier1_answer_is_shown():
     traced = []
     out, path = _run(AnswerChecks("Respuesta.", [], "es", turn=_turn(TIER1, traced=traced)))
     assert out == "Respuesta."
-    assert path == ["Q20", "C3", "Q21"]
+    assert path == ["Q20", "Q20a", "Q20b", "Q20c", "Q20d", "C3", "Q21"]
     assert traced[0]["refusal_substituted"] is False and traced[0]["final"] == out
 
 
@@ -88,7 +92,7 @@ def test_tier2_supported_gets_the_warning():
                           [], "es", turn=_turn(TIER2, doc_hits=[FRAGMENT]))
     out, path = _run(checks)
     assert "documento fuente" in out.lower()
-    assert path == ["Q17", "Q20", "Q18", "C3", "Q21"]
+    assert path == ["Q17", "Q20", "Q20a", "Q20b", "Q20c", "Q20d", "Q18", "C3", "Q21"]
 
 
 def test_tier2_checked_by_the_sentence_verifier_skips_q17():
@@ -99,13 +103,13 @@ def test_tier2_checked_by_the_sentence_verifier_skips_q17():
     out, path = _run(AnswerChecks("Los CEDEARs permiten invertir en Apple.", [], "es", turn=turn))
     assert out.startswith("Los CEDEARs permiten invertir en Apple.")
     assert "documento fuente" in out.lower()
-    assert path == ["Q20", "Q18", "C3", "Q21"]
+    assert path == ["Q20", "Q20a", "Q20b", "Q20c", "Q20d", "Q18", "C3", "Q21"]
 
 
 def test_the_sentence_verifier_changes_no_path_outside_tier2():
     turn = _turn(TIER1)
     turn.sentence_verifier = True
-    assert _run(AnswerChecks("Respuesta.", [], "es", turn=turn))[1] == ["Q20", "C3", "Q21"]
+    assert _run(AnswerChecks("Respuesta.", [], "es", turn=turn))[1] == ["Q20", "Q20a", "Q20b", "Q20c", "Q20d", "C3", "Q21"]
 
 
 def test_data_answer_without_evidence_ends_in_r4():
@@ -116,7 +120,7 @@ def test_data_answer_without_evidence_ends_in_r4():
 
 def test_data_answer_with_evidence_is_shown():
     out, path = _run(AnswerChecks("El dólar blue está a 1200.", _evidence(), "es", turn=_turn(DATA)))
-    assert path == ["Q19", "Q20", "C3", "Q21"]
+    assert path == ["Q19", "Q20", "Q20a", "Q20b", "Q20c", "Q20d", "C3", "Q21"]
     assert out.startswith("El dólar blue está a 1200.")
 
 
@@ -130,7 +134,7 @@ def test_model_refusal_ends_in_r5():
 def test_strict_answer_with_evidence():
     checks = AnswerChecks("El dólar blue está a 1200.", _evidence(), "es")
     out, path = _run(checks)
-    assert path == ["T2", "T4", "C3", "T5"]
+    assert path == ["T2", "T4a", "T4b", "T4c", "C3", "T5"]
     assert checks.grounded is True and checks.refusal_substituted is False
     assert out.startswith("El dólar blue está a 1200.")
 
@@ -138,14 +142,14 @@ def test_strict_answer_with_evidence():
 def test_strict_answer_without_evidence_is_replaced():
     checks = AnswerChecks("Inventado.", [], "es")
     out, path = _run(checks)
-    assert path == ["T2", "T3", "T4", "T5"]
+    assert path == ["T2", "T3", "T4a", "T4b", "T4c", "T5"]
     assert out == REFUSAL_ES
     assert checks.grounded is False and checks.refusal_substituted is True
 
 
 def test_render_names_the_nodes():
-    diagram = output_checks.graph.render()
-    for node in ("Q17", "Q18", "Q19", "Q20", "Q21", "R3", "R4", "R5", "T2", "T3", "T4", "T5", "C3"):
+    diagram = output_checks.graph.render() + output_checks.strict_graph.render()
+    for node in ("Q17", "Q18", "Q19", "Q20", "Q21", "R3", "R4", "R5", "T2", "T3", "T4a", "T5", "C3"):
         assert node in diagram
 
 
@@ -164,7 +168,7 @@ def test_strict_answer_from_a_search_only_is_marked_uncited():
     the answer is delivered with the note, not refused."""
     checks = AnswerChecks("Una caución es un préstamo.", _returns("search_wiki_fts", SEARCH), "es")
     out, path = _run(checks)
-    assert path == ["T2", "T4", "C3", "T5"]
+    assert path == ["T2", "T4a", "T4b", "T4c", "C3", "T5"]
     assert out.startswith("Una caución es un préstamo.")
     assert out.endswith("Referencia: ninguna (la respuesta no se apoya en ninguna página "
                         "leída ni en ningún dato consultado)")

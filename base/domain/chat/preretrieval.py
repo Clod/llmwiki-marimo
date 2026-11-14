@@ -280,23 +280,19 @@ def _names_term(
     )
 
 
-def dataset_injection(
+def named_categories(
     question: str,
     source: DatasetSource,
     data_aliases: dict[str, list[str]],
     language: str | None,
-) -> DatasetInjection:
-    """Nodes Q7a–Q7d: read the dataset the question names, for a Tier-1 context.
+) -> list[tuple[str, list[str], list[str], list]]:
+    """The categories the question names (node Q7a), in the order of the source.
 
-    A category is named when the question names the category, one of its keys,
-    or an alias of either: categories and aliases by stem, keys by whole word
-    (decision 15). For each named category: when the question names
-    keys of it, the code injects those keys' rows (Q7c); otherwise it injects
-    only the category's key names, without values (Q7d), so the model can say
-    which keys have data — "Banco Comafi" is not a key of `plazo_fijo`, and the
-    eight banks that are become visible.
+    One tuple per named category: the category, its keys, the keys the question
+    names, and the rows of the category. A category is named when the question
+    names the category, one of its keys, or an alias of either: categories and
+    aliases by stem, keys by whole word (decision 15).
     """
-    R = tracing.READING
     stem_language = language or "en"
     named: list[tuple[str, list[str], list[str], list]] = []
     for categoria in source.categories():
@@ -310,29 +306,59 @@ def dataset_injection(
             question, categoria, data_aliases, language=stem_language, stem_term=True,
         ):
             named.append((categoria, keys, named_keys, rows))
-    tracing.mark("Q7a", R, answer=bool(named), categories=[n[0] for n in named])
+    return named
 
+
+def rows_block(categoria: str, named_keys: list[str], rows: list) -> tuple[str, str, list[str]]:
+    """The rows of the named keys of a category (node Q7c): the block to inject,
+    the dataset file to cite, and the origin of each injected row."""
+    key_rows = [row for row in rows if row.clave in named_keys]
+    block = f"[datasets/{categoria}.md]\n{format_rows_as_table(categoria, key_rows)}"
+    return block, f"{categoria}.md", [row.fuente for row in key_rows]
+
+
+def key_names_block(
+    categoria: str, keys: list[str], source: DatasetSource, language: str | None,
+) -> tuple[str, tuple[str, list[str]]]:
+    """The key names of a category, without values (node Q7d): the block to
+    inject, and the entry of `DatasetInjection.key_names` (key column, keys)."""
     header = _KEY_NAMES_HEADER.get((language or "es").lower(), _KEY_NAMES_HEADER["en"])
+    clave = str(source.attributes(categoria).get("clave") or "clave")
+    block = header.format(categoria=categoria, clave=clave) + "\n" + "\n".join(f"- {k}" for k in keys)
+    return block, (clave, keys)
+
+
+def dataset_injection(
+    question: str,
+    source: DatasetSource,
+    data_aliases: dict[str, list[str]],
+    language: str | None,
+) -> DatasetInjection:
+    """Read the dataset the question names, for a Tier-1 context.
+
+    For each named category (`named_categories`): when the question names
+    keys of it, the code injects those keys' rows (`rows_block`); otherwise it
+    injects only the category's key names, without values (`key_names_block`),
+    so the model can say which keys have data — "Banco Comafi" is not a key of
+    `plazo_fijo`, and the eight banks that are become visible.
+
+    The function records no node. The input workflow
+    (`domain/chat/workflow/input_checks.py`) runs the same three parts as the
+    nodes Q7a, Q7b, Q7c and Q7d.
+    """
     blocks: list[str] = []
     references: list[str] = []
     fuentes: list[str] = []
     key_names: dict[str, tuple[str, list[str]]] = {}
-    for categoria, keys, named_keys, rows in named:
-        tracing.mark("Q7b", R, category=categoria, answer=bool(named_keys), keys=named_keys)
+    for categoria, keys, named_keys, rows in named_categories(question, source, data_aliases, language):
         if named_keys:
-            key_rows = [row for row in rows if row.clave in named_keys]
-            blocks.append(f"[datasets/{categoria}.md]\n{format_rows_as_table(categoria, key_rows)}")
-            references.append(f"{categoria}.md")
-            fuentes.extend(row.fuente for row in key_rows)
-            tracing.mark("Q7c", R, category=categoria, keys=named_keys, rows=len(key_rows))
+            block, reference, origins = rows_block(categoria, named_keys, rows)
+            blocks.append(block)
+            references.append(reference)
+            fuentes.extend(origins)
         else:
-            clave = str(source.attributes(categoria).get("clave") or "clave")
-            key_names[categoria] = (clave, keys)
-            blocks.append(
-                header.format(categoria=categoria, clave=clave) + "\n"
-                + "\n".join(f"- {k}" for k in keys)
-            )
-            tracing.mark("Q7d", R, category=categoria, key_names=keys)
+            block, key_names[categoria] = key_names_block(categoria, keys, source, language)
+            blocks.append(block)
     return DatasetInjection(blocks, references, list(dict.fromkeys(fuentes)), key_names)
 
 
@@ -403,6 +429,21 @@ class RetrievalPlan:
 _REFUSE = RetrievalPlan(action="refuse", tier=None, context=None, verify=False)
 
 
+def tier1_plan(hits: list[str]) -> RetrievalPlan:
+    """The Tier-1 plan: inject the wiki pages, or the overview and the index."""
+    return RetrievalPlan("invoke", "curado", "\n\n".join(hits), False, tuple(hits))
+
+
+def data_plan() -> RetrievalPlan:
+    """The plan of a data question: inject nothing, the model calls the data tools."""
+    return RetrievalPlan("invoke", None, None, False)
+
+
+def tier2_plan(hits: list[str]) -> RetrievalPlan:
+    """The Tier-2 plan: inject the source fragments, and verify the answer against them."""
+    return RetrievalPlan("invoke", "crudo", "\n\n".join(hits), True, tuple(hits))
+
+
 def plan_retrieval(
     question: str,
     *,
@@ -435,32 +476,26 @@ def plan_retrieval(
     when the wiki actually has an overview/index page to inject (see
     `retrieve_collection_pages`), so this branch is a no-op — not a special
     case — on a wiki without one.
+
+    The function records no node. The input workflow
+    (`domain/chat/workflow/input_checks.py`) takes the same decisions in the
+    same order, and records each one as its node: Q7, Q9, Q10, Q11 and Q12.
     """
-    # Each decision is recorded as its node of the reading diagram
-    # (design_stemming.md, section 1.2), in the order the code evaluates it.
-    R = tracing.READING
     if is_off_limits(question, off_limits):
         return _REFUSE
-    if in_roster:
-        tracing.mark("Q7", R, answer=bool(wiki_hits), wiki_fragments=len(wiki_hits))
     if wiki_hits and in_roster:
-        return RetrievalPlan("invoke", "curado", "\n\n".join(wiki_hits), False, tuple(wiki_hits))
-    tracing.mark("Q9", R, answer=bool(collection_hits), collection_pages=len(collection_hits))
+        return tier1_plan(wiki_hits)
     if collection_hits:
-        return RetrievalPlan("invoke", "curado", "\n\n".join(collection_hits), False, tuple(collection_hits))
-    tracing.mark("Q10", R, answer=has_data)
+        return tier1_plan(collection_hits)
     if has_data:
         # A question that names known data goes to the tools (query_dataset /
         # advisory) before any raw-doc fallback: the dataset value/date beats
         # answering from raw prose — and a lexical raw-doc hit would otherwise
         # divert "¿a cuánto está el billete verde?" to Tier-2 and starve it of
         # the actual number.
-        return RetrievalPlan("invoke", None, None, False)
-    tracing.mark("Q11", R, answer=bool(doc_hits and in_roster),
-                 source_fragments=len(doc_hits), in_roster=in_roster)
+        return data_plan()
     if doc_hits and in_roster:
-        return RetrievalPlan("invoke", "crudo", "\n\n".join(doc_hits), True, tuple(doc_hits))
-    tracing.mark("Q12", R, answer=in_roster)
+        return tier2_plan(doc_hits)
     return _REFUSE
 
 
@@ -470,7 +505,7 @@ async def pre_retrieval_answer(
     config,
     db_path: str,
     workspace,
-    history: list,
+    history: list | None = None,
     language: str | None,
     run_agent,
     on_trace=None,
@@ -480,6 +515,7 @@ async def pre_retrieval_answer(
     conversation=(),
     on_figures=None,
     sentence_verifier: bool = False,
+    prior: list | None = None,
 ) -> str:
     """Run one turn through the hybrid pre-retrieval flow and return the answer.
 
@@ -515,16 +551,21 @@ async def pre_retrieval_answer(
     `sentence_verifier` is True when the sentence verifier will check the answer
     after it is shown. A Tier-2 answer then skips the containment check (node
     Q17): the sentence verifier is its only comparison against the fragments.
+
+    `prior` holds the prior messages of the chat (`.role`, `.content`); the nodes
+    C2a to C2d of the input workflow build the history of the model from them.
+    A caller without `prior` passes the history already built in `history`, and
+    C2a to C2d leave that history as it is.
     """
     with tracing.root(
         "turn", workspace, mode="pre-retrieval", question=question, language=language,
     ):
         return await _pre_retrieval_turn(
             question, config=config, db_path=db_path, workspace=workspace,
-            history=history, language=language, run_agent=run_agent, on_trace=on_trace,
-            open_page=open_page, on_context=on_context, condense=condense,
+            history=[] if history is None else history, language=language, run_agent=run_agent,
+            on_trace=on_trace, open_page=open_page, on_context=on_context, condense=condense,
             conversation=conversation, on_figures=on_figures,
-            sentence_verifier=sentence_verifier,
+            sentence_verifier=sentence_verifier, prior=prior,
         )
 
 
@@ -544,6 +585,16 @@ def with_open_page(question: str, open_page: str | None, language: str | None) -
         return question
     lang = "es" if (language or "en").lower().startswith("es") else "en"
     return _OPEN_PAGE_NOTE[lang].format(page=open_page) + question
+
+
+def build_prompt(context: str | None, synonyms: str, asked: str, language: str | None) -> str:
+    """The prompt that the model receives (node Q12b): the injected `context`, with
+    the `synonyms` line first, in the inject template, or the question `asked`
+    alone, after the synonyms line, when nothing is injected."""
+    if context:
+        context = f"{synonyms}\n\n{context}" if synonyms else context
+        return load_prompt("inject_template", language).format(context=context, question=asked)
+    return f"{synonyms}\n\n{asked}" if synonyms else asked
 
 
 def _open_page_block(workspace, open_page: str | None) -> str | None:
@@ -590,9 +641,9 @@ def _answer_node(plan: RetrievalPlan, wiki_hits: list[str], in_roster: bool) -> 
 class PreRetrievalTurn:
     """The state of one pre-retrieval turn: the inputs, and what each check found.
 
-    One object per turn. `build_roster`, `blacklist`, `match_roster`, `screen`,
-    `suggestions` and `refuse` read and write it; so do the steps of the input
-    and the output workflows (`domain/chat/workflow/`).
+    One object per turn. `ensure_roster`, `blacklist`, `detect_data`,
+    `match_terms`, `suggestions` and `refuse` read and write it; so do the steps
+    of the input and the output workflows (`domain/chat/workflow/`).
     """
 
     question: str
@@ -609,15 +660,18 @@ class PreRetrievalTurn:
     # The sentence verifier checks the answer after it is shown: a Tier-2 answer
     # skips the containment check (node Q17).
     sentence_verifier: bool = False
-    # What the gate and the search examine: the question, or its rewrite (Q5b).
+    # What the gate and the search examine: the question, or its rewrite (Q5d).
     search: str = ""
     off_limits: bool = False
-    # The coverage roster (`build_roster`).
+    # The text that the condenser returned (Q5c).
+    rewrite: str = ""
+    # The coverage roster (`ensure_roster`), built once per turn.
+    roster_built: bool = False
     aliases: list[str] = field(default_factory=list)
     categories: set[str] = field(default_factory=set)
     keys: set[str] = field(default_factory=set)
     roster_terms: set[str] = field(default_factory=set)
-    # The data detection and the roster match (`match_roster`).
+    # The data detection (`detect_data`) and the roster match (`match_terms`).
     has_data: bool = False
     matched: list[str] = field(default_factory=list)
     in_roster: bool = False
@@ -628,15 +682,39 @@ class PreRetrievalTurn:
     plan: RetrievalPlan | None = None
     intent: IntentLists | None = None   # resolved by `intent_lists`, once per turn
     injection: DatasetInjection = field(default_factory=lambda: DatasetInjection([], [], []))
+    # The categories the question names (Q7a), not yet read, and the category
+    # that Q7c or Q7d reads (Q7b): tuples of `named_categories`.
+    named: list[tuple[str, list[str], list[str], list]] = field(default_factory=list)
+    category: tuple[str, list[str], list[str], list] | None = None
+    # The prior messages of the chat, from which C2a to C2d build `history`; None
+    # when the caller passed `history` already built. `mode` is what C2 records.
+    # `kept` is the history between C2a and C2d.
+    prior: list | None = None
+    mode: str = "pre-retrieval"
+    kept: list = field(default_factory=list)
+    # The question with the open-page note (C4), the synonyms line (Q12a) and
+    # the prompt that the model receives (Q12b).
+    asked: str = ""
+    synonyms: str = ""
+    prompt: str = ""
 
     def __post_init__(self) -> None:
         if not self.search:
             self.search = self.question
 
+    @property
+    def noted_page(self) -> str | None:
+        """The page that the note of C4 names: the open page, when Q5a found it."""
+        return self.open_page if self.open_block is not None else None
 
-def build_roster(turn: PreRetrievalTurn) -> None:
-    """The coverage roster of node Q5: the aliases, the dataset categories and
-    keys, and the roster terms (categories and concept-page titles)."""
+
+def ensure_roster(turn: PreRetrievalTurn) -> None:
+    """The coverage roster of nodes Q4a and Q5: the aliases, the dataset
+    categories and keys, and the roster terms (categories and concept-page
+    titles). Built once per turn: the second call does nothing."""
+    if turn.roster_built:
+        return
+    turn.roster_built = True
     turn.aliases = [alias for names in turn.config.data_aliases.values() for alias in names]
     vocabulary = build_vocabulary(turn.source)
     turn.categories = set(turn.source.categories())
@@ -673,9 +751,9 @@ def intent_lists(turn: PreRetrievalTurn) -> IntentLists:
     return turn.intent
 
 
-def match_roster(turn: PreRetrievalTurn, text: str) -> None:
-    """Node Q5 on `text`: the data detection (`has_data`) and the roster match
-    (`matched`, `in_roster`). `build_roster` runs first."""
+def detect_data(turn: PreRetrievalTurn, text: str) -> None:
+    """The data detection (`has_data`) on `text`: node Q4a on the question, node
+    Q5f on the rewrite. `ensure_roster` runs first."""
     # Route to the tools either by a NAMED data term or by generic advisory
     # intent ("$1M, 3 meses, ¿qué alternativas?") — the latter names no
     # instrument but still belongs on the query_dataset/estimar_alternativas
@@ -684,19 +762,16 @@ def match_roster(turn: PreRetrievalTurn, text: str) -> None:
     turn.has_data = mentions_known_data(
         text, turn.categories, turn.aliases, language=turn.stem_language, exact=turn.keys,
     ) or advisory_intent(text, intent.advisory, intent.advisory_shapes)
+
+
+def match_terms(turn: PreRetrievalTurn, text: str) -> None:
+    """The roster match (`matched`, `in_roster`) on `text`: node Q5 on the
+    question, node Q5g on the rewrite. `ensure_roster` runs first."""
     turn.matched = matched_terms(
         text, sorted(turn.roster_terms), turn.aliases, language=turn.stem_language,
         exact=sorted(turn.keys),
     )
     turn.in_roster = bool(turn.matched)
-
-
-def screen(turn: PreRetrievalTurn, text: str) -> None:
-    """The blacklist, the data detection and the roster on `text`: `blacklist`,
-    then `match_roster` when `text` names no blacklist term. Node Q5b runs it on
-    the rewrite; nodes Q3 and Q5 run its two parts on the question."""
-    if not blacklist(turn, text):
-        match_roster(turn, text)
 
 
 def suggestions(turn: PreRetrievalTurn) -> list[tuple[str, str]]:
@@ -719,14 +794,17 @@ def refuse(node_id: str, turn: PreRetrievalTurn, refusal: Refusal, *, raw: str =
 async def _pre_retrieval_turn(
     question: str, *, config, db_path, workspace, history, language, run_agent, on_trace,
     open_page: str | None = None, on_context=None, condense=None, conversation=(), on_figures=None,
-    sentence_verifier: bool = False,
+    sentence_verifier: bool = False, prior: list | None = None,
 ) -> str:
     """The body of `pre_retrieval_answer`, inside the turn's root span.
 
-    The input workflow (`domain/chat/workflow/input_checks.py`) runs the checks
-    of the question. When it ends in a refusal, the model is not called. Else
-    the agent runs here, between the two workflows, and the output workflow
-    (`domain/chat/workflow/output_checks.py`) runs the checks of the answer.
+    The input workflow (`domain/chat/workflow/input_checks.py`, `graph`) builds
+    the history (C1 to C2d), runs the checks of the question and builds the
+    prompt (C4, Q12a, Q12b). When the input workflow ends in a refusal, the model
+    is not called. Else the agent runs here, between the two workflows, and
+    records Q13, Q14, Q15 or Q16. The output workflow
+    (`domain/chat/workflow/output_checks.py`, `graph`) runs the checks of the
+    answer and the additions Q20a to Q20d.
     """
     from domain.chat.workflow import input_checks, output_checks
 
@@ -735,20 +813,14 @@ async def _pre_retrieval_turn(
         stem_language=language or language_for_db(db_path),
         source=LocalMarkdownSource(workspace / "datasets"),
         open_page=open_page, condense=condense, on_trace=on_trace,
-        sentence_verifier=sentence_verifier,
+        sentence_verifier=sentence_verifier, prior=prior,
     )
     outcome = await input_checks.graph.run(state=turn, inputs=turn)
     if isinstance(outcome, input_checks.Refused):
         return outcome.text
 
-    plan = turn.plan
-    asked = with_open_page(question, open_page if turn.open_block is not None else None, language)
-    synonyms = synonyms_line(turn.matched, config.data_aliases, language)
-    if plan.context:
-        context = f"{synonyms}\n\n{plan.context}" if synonyms else plan.context
-        prompt = load_prompt("inject_template", language).format(context=context, question=asked)
-    else:
-        prompt = f"{synonyms}\n\n{asked}" if synonyms else asked
+    # The nodes C4, Q12a and Q12b of the input workflow built the prompt.
+    plan, prompt = turn.plan, turn.prompt
     if on_context is not None:
         on_context([context_passage(block) for block in plan.blocks])
     with tracing.node(
@@ -756,7 +828,7 @@ async def _pre_retrieval_turn(
         tier=plan.tier or "data", context_chars=len(plan.context or ""),
     ) as answer_node:
         answer_node.payload("prompt", prompt, channel="prompts")
-        result = await run_agent(prompt, history)
+        result = await run_agent(prompt, turn.history)
         answer_node.set(raw_output=result.output)
 
     checks = output_checks.AnswerChecks(
