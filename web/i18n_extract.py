@@ -4,7 +4,9 @@
     uv run --group web python -m web.i18n_extract --check    # exit 1 when a catalog is out of date
 
 The ids are the English texts written with `_()`, `N_()` and `ngettext()` in the Python modules and
-in the templates (`_()` and `{% trans %}`). Not imported by the application.
+in the templates (`_()` and `{% trans %}`). The labels of the branches of the chat workflows, marked
+with `N_()` in `base/domain/chat/workflow/`, are extracted too: the audit page shows them in its
+diagrams. Not imported by the application.
 """
 
 from __future__ import annotations
@@ -20,6 +22,8 @@ from babel.messages.extract import extract_from_dir
 from web.i18n import LANGUAGES, LOCALE_DIR, SOURCE_LANGUAGE
 
 WEB = Path(__file__).parent
+ROOT = WEB.parent
+WORKFLOWS = ROOT / "base" / "domain" / "chat" / "workflow"
 METHODS = [("**.py", "python"), ("templates/**.html", "jinja2")]
 OPTIONS = {"templates/**.html": {"extensions": "jinja2.ext.i18n", "trimmed": "true"}}
 # The tests are not under web/, so nothing else needs to be skipped; the extraction itself is.
@@ -28,17 +32,20 @@ FIXED_DATE = datetime(2026, 10, 5, tzinfo=timezone.utc)
 
 
 def extract() -> Catalog:
-    """The catalog of every message id in `web/`, with the places it is used."""
+    """The catalog of every message id in `web/` and in the chat workflows, with the places it is used."""
     catalog = Catalog(project="llmwiki", charset="utf-8")
-    for filename, lineno, message, comments, context in extract_from_dir(
-            str(WEB), method_map=METHODS, options_map=OPTIONS, comment_tags=(), strip_comment_tags=False):
-        if Path(filename).name in SKIP or not message:
-            continue
-        singular, plural = (message[0], message[1]) if isinstance(message, tuple) else (message, None)
-        if not isinstance(singular, str):
-            continue
-        catalog.add((singular, plural) if plural else singular, locations=[(f"web/{filename}", lineno)],
-                    context=context)
+    for directory, methods, options in ((WEB, METHODS, OPTIONS), (WORKFLOWS, [("**.py", "python")], {})):
+        prefix = directory.relative_to(ROOT).as_posix()
+        for filename, lineno, message, comments, context in extract_from_dir(
+                str(directory), method_map=methods, options_map=options, comment_tags=(),
+                strip_comment_tags=False):
+            if Path(filename).name in SKIP or not message:
+                continue
+            singular, plural = (message[0], message[1]) if isinstance(message, tuple) else (message, None)
+            if not isinstance(singular, str):
+                continue
+            catalog.add((singular, plural) if plural else singular, locations=[(f"{prefix}/{filename}", lineno)],
+                        context=context)
     return catalog
 
 
