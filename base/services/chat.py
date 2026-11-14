@@ -27,12 +27,13 @@ from domain.chat.agent import create_agent
 from domain.chat import figure_check
 from domain.chat.config import DEFAULT_NUMBER_TOLERANCE, WikiAssistantConfig, load_config
 from domain.chat.guardrail import strip_refused_exchanges
-from domain.chat.history import data_origin, trim_history
+# `model_history` is imported here under the same name: callers use `chat.model_history`.
+from domain.chat.history import history_counts, model_history  # noqa: F401
 from domain.chat.postprocess import advisory_table
 from domain.chat.condense import prompt as condense_user_prompt
 from domain.chat.condense import system_prompt as condense_prompt
 from domain.chat.preretrieval import pre_retrieval_answer, with_open_page
-from domain.chat.workflow import output_checks
+from domain.chat.workflow import input_checks, output_checks
 from domain.prompts import load_prompt
 from domain.verify.context import context_from_messages
 from domain.verify.figures import FigureReport
@@ -44,7 +45,8 @@ STRICT = "strict"
 STREAMING = "streaming"
 
 # In the strict and streaming modes the model searches with its own tools; the
-# open page reaches it as the same note the pre-retrieval mode uses.
+# open page reaches it as the same note the pre-retrieval mode uses. The strict
+# mode adds the note in node C4 of its input workflow.
 _with_open_page = with_open_page
 
 
@@ -96,27 +98,6 @@ def build_agents(wiki: Wiki, base_url: str, api_key: str, model: str) -> ChatAge
                       condenser=condenser)
 
 
-def model_history(messages: Sequence[Any], language: str | None = None) -> list:
-    """The prior turns as Pydantic AI messages, without refused exchanges.
-
-    A citation-less refusal left in the context primes the model to answer the
-    next question without a citation too (verified), so refused exchanges are
-    dropped before the history is trimmed and converted. An assistant turn that
-    read data ends with its origin line (`data_origin`): the history has no tool
-    call and no injected context, so without the line the model calls the figures
-    of a past answer unsupported.
-    """
-    history: list = []
-    for message in trim_history(strip_refused_exchanges(list(messages))):
-        if message.role == "user":
-            history.append(ModelRequest(parts=[UserPromptPart(content=message.content)]))
-        elif message.role == "assistant":
-            origin = data_origin(getattr(message, "context", ()), language)
-            content = f"{message.content}\n\n{origin}" if origin else message.content
-            history.append(ModelResponse(parts=[TextPart(content=content)]))
-    return history
-
-
 def plain_history(messages: Sequence[Any]) -> list:
     """The prior turns as Pydantic AI messages, each with its text as written.
 
@@ -131,17 +112,6 @@ def plain_history(messages: Sequence[Any]) -> list:
         elif message.role == "assistant":
             history.append(ModelResponse(parts=[TextPart(content=message.content)]))
     return history
-
-
-def _history_counts(messages: Sequence[Any], history: list) -> dict:
-    """The counts that node C1 records: the prior messages, the refused ones
-    `strip_refused_exchanges` removed, and the messages the model receives."""
-    prior = list(messages[:-1])
-    return dict(
-        prior_messages=len(prior),
-        refused_dropped=len(prior) - len(strip_refused_exchanges(prior)),
-        history_messages=len(history),
-    )
 
 
 def _raw_answer(raw: str, answer: str) -> str | None:
@@ -172,12 +142,12 @@ def _tools_called(run_messages: Sequence[Any]) -> list[str]:
 
 
 def _turn_attributes(messages: Sequence[Any], mode: str, conversation_id: str | None,
-                     language: str, history: list) -> dict:
+                     language: str, history_messages: int) -> dict:
     return dict(
         conversation_id=conversation_id,
         turn=sum(1 for m in messages if m.role == "user"),
         mode=mode, question=messages[-1].content, language=language,
-        history_messages=len(history),
+        history_messages=history_messages,
     )
 
 
@@ -295,11 +265,17 @@ async def chat_turn_with_context(
     does not depend on `WIKI_TRACE`. `sentence_verifier` is True when the caller
     checks the answer with the sentence verifier after it is shown: in the
     pre-retrieval mode, a Tier-2 answer then skips the containment check (Q17).
+
+    Each mode runs its two workflows (`domain/chat/workflow/`). The pre-retrieval
+    mode runs them in `pre_retrieval_answer`. The strict mode runs here the input
+    workflow (`input_checks.strict_graph`, C1 to C2d and C4), the model (T1) and
+    the output workflow (`output_checks.strict_graph`, T2 to T5).
     """
-    history = model_history(messages[:-1], agents.config.language)
+    prior = list(messages[:-1])
     question = messages[-1].content
     language = agents.config.language
-    attributes = _turn_attributes(messages, mode, conversation_id, language, history)
+    attributes = _turn_attributes(messages, mode, conversation_id, language,
+                                  history_counts(prior, language)["history_messages"])
     R = tracing.READING
     tokens = _Tokens()
 
@@ -309,9 +285,9 @@ async def chat_turn_with_context(
 
         outputs: list[str] = []
 
-        async def run_agent(prompt, prior):
+        async def run_agent(prompt, history):
             result = await agents.agent_pre_retrieval.run(
-                prompt, deps=wiki.db_path, message_history=prior,
+                prompt, deps=wiki.db_path, message_history=history,
             )
             tokens.add(result)
             ran.append(result.all_messages())
@@ -319,12 +295,11 @@ async def chat_turn_with_context(
             return result
 
         with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-            tracing.mark("C1", R, **_history_counts(messages, history))
-            tracing.mark("C2", R, mode=mode)
+            # The input workflow records C1, C2 and C2a to C2d.
             checked: list[figure_check.FigureCheck] = []
             answer = await pre_retrieval_answer(
                 question, config=agents.config, db_path=wiki.db_path, workspace=wiki.path,
-                history=history, language=language, run_agent=run_agent, open_page=open_page,
+                prior=prior, language=language, run_agent=run_agent, open_page=open_page,
                 on_context=injected.extend, condense=_condenser(agents, language, tokens),
                 conversation=figure_check.conversation_sources(messages), on_figures=checked.append,
                 sentence_verifier=sentence_verifier,
@@ -345,12 +320,13 @@ async def chat_turn_with_context(
     if mode != STRICT:
         raise ValueError(f"chat_turn answers the pre-retrieval and strict modes, not {mode!r}")
     with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-        tracing.mark("C1", R, **_history_counts(messages, history))
-        tracing.mark("C2", R, mode=mode)
+        # The input workflow of the strict mode, C1 to C2d and C4: the history and
+        # the question that the model receives.
+        turn = input_checks.StrictTurn(question, prior, language, open_page)
+        await input_checks.strict_graph.run(state=turn, inputs=turn)
         with tracing.node("T1", R) as t1:
             result = await agents.agent.run(
-                _with_open_page(question, open_page, language),
-                deps=wiki.db_path, message_history=history,
+                turn.asked, deps=wiki.db_path, message_history=turn.history,
             )
             tokens.add(result)
             raw = result.output
@@ -362,7 +338,7 @@ async def chat_turn_with_context(
             tolerance=getattr(agents.config, "number_tolerance", DEFAULT_NUMBER_TOLERANCE),
             conversation=tuple(figure_check.conversation_sources(messages)),
         )
-        answer = await output_checks.graph.run(state=checks, inputs=checks)
+        answer = await output_checks.strict_graph.run(state=checks, inputs=checks)
         root.set(raw_output=raw, final_answer=answer, grounded=checks.grounded,
                  refusal_substituted=checks.refusal_substituted, **figure_counts(
                      checks.figures.report if checks.figures else None))
@@ -404,7 +380,7 @@ async def chat_turn_stream_with_context(
     history = plain_history(prior)
     question = messages[-1].content
     attributes = _turn_attributes(messages, STREAMING, conversation_id,
-                                  agents.config.language, history)
+                                  agents.config.language, len(history))
     full_text = ""
     run_messages: list = []
     tokens = _Tokens()

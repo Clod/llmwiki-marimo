@@ -33,6 +33,7 @@ body.resizing { cursor: col-resize; user-select: none; }
 .audit-right pre.mermaid { overflow-x: auto; background: none; border: 0; white-space: pre; text-align: center; }
 .audit-right pre.mermaid:not([data-processed]) { visibility: hidden; }
 .audit-diagrams-title { font: var(--weight-medium) var(--text-md)/var(--leading-tight) var(--font-sans); }
+.audit-diagram-title { font: var(--weight-medium) var(--text-sm)/var(--leading-tight) var(--font-sans); margin: var(--space-3) 0 0; }
 .audit-diagrams-note { color: var(--color-text-muted); font-size: var(--text-xs); }
 .audit-select { align-self: flex-start; }
 @media (max-width: 768px) {

@@ -97,7 +97,7 @@ def test_a_strict_turn_writes_the_nodes_of_the_strict_mode(wiki):
     assert rec["T1"]["raw_output"] == "Cinderella lost a slipper."
     assert rec["T2"]["answer"] is True
     assert "T3" not in rec
-    assert rec["T4"]["citation_added"] is True and rec["T4"]["table_added"] is False
+    assert rec["T4b"]["citation_added"] is True and rec["T4a"]["table_added"] is False
     assert rec["T5"]["refusal_substituted"] is False
     assert rec["T5"]["final_answer"].startswith("Cinderella lost a slipper.")
 

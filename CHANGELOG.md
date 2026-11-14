@@ -150,6 +150,38 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   note on rounded figures. The question still carries the name of the open
   page. A long conversation can exceed the token limit of the model. The
   pre-retrieval and strict modes do not change.
+- **Each checked mode has an input workflow and an output workflow.** The
+  pre-retrieval and strict modes each run two pydantic-graph workflows: the
+  input workflow builds the history and checks the question, and the output
+  workflow checks the answer. The call to the model runs between them. Before,
+  one output workflow chose the steps of each mode, and the strict mode had no
+  input workflow. Each node is a function of one catalog
+  (`base/domain/chat/workflow/catalog.py`), written once: C1, C2 and C3 are the
+  same function in every workflow that runs them. The answers and the refusals
+  do not change. The streaming mode has no workflow.
+- **Every step of the checked modes records its own node in the trace.** Steps
+  that did several things are split, and the audit page shows one text per new
+  node, in English and in Spanish. The history: C2a (refused exchanges), C2b
+  (advisory tables), C2c (last turns), C2d (data-origin lines). The question:
+  Q4a (data detection), Q5c to Q5g (the condensation of a follow-up), Q8a and
+  Q8b (the overview and the index), C4 (the note of the open page), Q12a (the
+  synonyms line) and Q12b (the prompt). The answer: Q20a (advisory table), Q20b
+  (keys with data), Q20c (citation), Q20d (reference line of the injected
+  pages), and T4a, T4b and T4c in place of T4. The pre-retrieval mode now
+  records whether the advisory table was added (`table_added` of Q20a).
+- **The audit page draws the three parts of a checked turn.** A pre-retrieval
+  or strict turn shows three diagrams: the input workflow, the call to the
+  model with each tool it called in order, and the output workflow. The input
+  and output diagrams are generated from the graphs, with the short text of
+  each node in the interface language. Before, the page showed the diagrams
+  written by hand in `docs/query_nodes.md`. A streaming turn still shows the
+  diagram of section 1 of that file.
+- **`docs/workflow_nodes.md` says which workflow runs each node.** The table
+  has one row per node of the catalog and one column per workflow. It is
+  generated from the node list that each workflow declares
+  (`scripts/workflow_nodes.py`), and a test fails when the file and the
+  workflows differ. A node that runs in one mode and not in the other shows in
+  one row: Q3, the blacklist, runs in the pre-retrieval input workflow only.
 
 ## [0.6.5] - 2026-11-06
 

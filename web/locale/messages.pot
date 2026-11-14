@@ -30,8 +30,20 @@ msgstr ""
 msgid "Cannot open the index of this wiki."
 msgstr ""
 
+#: web/audit_diagram.py
+msgid "Input workflow"
+msgstr ""
+
+#: web/audit_diagram.py
+msgid "Model call"
+msgstr ""
+
+#: web/audit_diagram.py
+msgid "Output workflow"
+msgstr ""
+
 #: web/audit_nodes.py
-msgid "History of the turn: refused exchanges removed, last turns kept"
+msgid "History of the turn counted: prior messages, refused ones, messages the model receives"
 msgstr ""
 
 #: web/audit_nodes.py
@@ -39,7 +51,27 @@ msgid "Mode of the turn"
 msgstr ""
 
 #: web/audit_nodes.py
+msgid "Refused exchanges removed from the history"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Advisory tables removed from the history"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "History trimmed to the last turns"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Data-origin line added to the answers of the history that read data"
+msgstr ""
+
+#: web/audit_nodes.py
 msgid "Figure check: each figure of the prose is exact, rounded or without support"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Note of the open page added to the question"
 msgstr ""
 
 #: web/audit_nodes.py
@@ -59,6 +91,10 @@ msgid "The question reduced to stems"
 msgstr ""
 
 #: web/audit_nodes.py
+msgid "Does the question name data: a dataset term, an alias or an advice request?"
+msgstr ""
+
+#: web/audit_nodes.py
 msgid "Does the question name a topic of the wiki (coverage roster)?"
 msgstr ""
 
@@ -67,7 +103,27 @@ msgid "Is the user reading a wiki page?"
 msgstr ""
 
 #: web/audit_nodes.py
-msgid "Follow-up rewritten so that it stands alone"
+msgid "The model rewrites the follow-up"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Is the rewrite accepted: one line, not empty, not too long?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Does the rewrite name a blacklisted term?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Does the rewrite name data?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Does the rewrite name a topic of the wiki (coverage roster)?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Result of the condensation: the text that the search examines, and what the checks found on it"
 msgstr ""
 
 #: web/audit_nodes.py
@@ -99,6 +155,14 @@ msgid "Search in the source documents"
 msgstr ""
 
 #: web/audit_nodes.py
+msgid "Overview and index read, for a question about the whole wiki"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Overview and index added to the open page"
+msgstr ""
+
+#: web/audit_nodes.py
 msgid "Is the question about the whole wiki?"
 msgstr ""
 
@@ -112,6 +176,14 @@ msgstr ""
 
 #: web/audit_nodes.py
 msgid "Refusal chosen by the coverage roster"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Line of synonyms added for the aliases of the question"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Prompt built from the injected text and the question"
 msgstr ""
 
 #: web/audit_nodes.py
@@ -144,6 +216,22 @@ msgstr ""
 
 #: web/audit_nodes.py
 msgid "Does the answer open with the fixed refusal sentence?"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Advisory table appended, when the advisory tool returned one"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Keys with data offered, when the model asked for a key without data"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Citation of the tools and the injected data added"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Reference line of the injected pages added"
 msgstr ""
 
 #: web/audit_nodes.py
@@ -187,7 +275,15 @@ msgid "Refusal of the guardrail: the answer could not be backed"
 msgstr ""
 
 #: web/audit_nodes.py
-msgid "Advisory table and citation added"
+msgid "Advisory table appended"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Citation of the tools added"
+msgstr ""
+
+#: web/audit_nodes.py
+msgid "Answer without citation marked"
 msgstr ""
 
 #: web/audit_nodes.py
@@ -989,6 +1085,10 @@ msgstr ""
 #: web/templates/_audit_diagrams.html
 #, python-format
 msgid "Diagrams of the query · turn %(n)s"
+msgstr ""
+
+#: web/templates/_audit_diagrams.html
+msgid "The model was not called in this turn."
 msgstr ""
 
 #: web/templates/_audit_diagrams.html

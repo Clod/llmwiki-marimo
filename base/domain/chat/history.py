@@ -16,11 +16,23 @@ the full answers in the UI):
 Composes with `strip_refused_exchanges` (guardrail.py), which is applied first.
 Operates on chat messages duck-typed as `.role` ("user"/"assistant") + `.content`;
 compacted turns are returned as small immutable stand-ins.
+
+`model_history` builds the history that the model receives in the pre-retrieval
+and strict modes from three helpers, `compact_tables`, `cap_turns` and
+`with_origin_lines`, after `strip_refused_exchanges`. The nodes C2a to C2d of
+the input workflows (`domain/chat/workflow/catalog.py`) run the same four steps,
+one per node.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
+
+from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
+
+from domain.chat.guardrail import strip_refused_exchanges
 
 # Markers of the advisory table block inside an assistant answer. We cut from the
 # earliest one to the end and replace it with a short placeholder.
@@ -93,6 +105,20 @@ def _compact(message: object) -> object:
     return message
 
 
+def compact_tables(messages: list) -> list:
+    """`messages` with the advisory table of each assistant turn replaced by a
+    placeholder (`_compact`)."""
+    return [_compact(m) for m in messages]
+
+
+def cap_turns(messages: list, max_turns: int | None = DEFAULT_MAX_TURNS) -> list:
+    """The last `max_turns` turns of `messages` (``max_turns * 2`` messages);
+    ``0``/``None`` disables the cap."""
+    if not max_turns:
+        return list(messages)
+    return messages[-(max_turns * 2):]
+
+
 def trim_history(messages: list, max_turns: int = DEFAULT_MAX_TURNS) -> list:
     """Return a lean history: advisory tables compacted out of older turns, then
     capped to the last `max_turns` turns (``max_turns * 2`` messages).
@@ -101,7 +127,42 @@ def trim_history(messages: list, max_turns: int = DEFAULT_MAX_TURNS) -> list:
         messages: chat messages (`.role`/`.content`), already refusal-stripped.
         max_turns: how many recent turns to keep; ``0``/``None`` disables the cap.
     """
-    compacted = [_compact(m) for m in messages]
-    if not max_turns:
-        return compacted
-    return compacted[-(max_turns * 2):]
+    return cap_turns(compact_tables(messages), max_turns)
+
+
+def with_origin_lines(messages: list, language: str | None = None) -> list:
+    """`messages` as Pydantic AI messages. An assistant turn that read data ends
+    with its origin line (`data_origin`)."""
+    history: list = []
+    for message in messages:
+        if message.role == "user":
+            history.append(ModelRequest(parts=[UserPromptPart(content=message.content)]))
+        elif message.role == "assistant":
+            origin = data_origin(getattr(message, "context", ()), language)
+            content = f"{message.content}\n\n{origin}" if origin else message.content
+            history.append(ModelResponse(parts=[TextPart(content=content)]))
+    return history
+
+
+def model_history(messages: Sequence[Any], language: str | None = None) -> list:
+    """The prior turns as Pydantic AI messages, without refused exchanges.
+
+    A citation-less refusal left in the context primes the model to answer the
+    next question without a citation too (verified), so refused exchanges are
+    dropped before the history is trimmed and converted. An assistant turn that
+    read data ends with its origin line (`data_origin`): the history has no tool
+    call and no injected context, so without the line the model calls the figures
+    of a past answer unsupported.
+    """
+    return with_origin_lines(trim_history(strip_refused_exchanges(list(messages))), language)
+
+
+def history_counts(prior: Sequence[Any], language: str | None = None) -> dict:
+    """The counts that node C1 records: the prior messages, the refused ones
+    `strip_refused_exchanges` removed, and the messages the model receives."""
+    prior = list(prior)
+    return dict(
+        prior_messages=len(prior),
+        refused_dropped=len(prior) - len(strip_refused_exchanges(prior)),
+        history_messages=len(model_history(prior, language)),
+    )

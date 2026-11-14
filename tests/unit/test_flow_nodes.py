@@ -23,10 +23,11 @@ ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "base"
 PRERETRIEVAL = "base/domain/chat/preretrieval.py"
 # The files whose `refuse("R…", ...)` and `preretrieval.refuse("R…", ...)` calls
-# record a refusal node: the pre-retrieval module and the two workflows of the
-# chat checks.
+# record a refusal node: the pre-retrieval module, the catalog of the nodes of
+# the chat workflows, and the two workflows of the chat checks.
 REFUSING = {
     PRERETRIEVAL,
+    "base/domain/chat/workflow/catalog.py",
     "base/domain/chat/workflow/input_checks.py",
     "base/domain/chat/workflow/output_checks.py",
 }

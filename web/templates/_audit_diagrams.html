@@ -1,4 +1,6 @@
 <h2 class="audit-diagrams-title">{{ _("Diagrams of the query · turn %(n)s", n=n) }}</h2>
-{% for text in diagrams %}<pre class="mermaid">{{ text }}</pre>
+{% for diagram in diagrams %}{% if diagram.title %}<h3 class="audit-diagram-title">{{ _(diagram.title) }}</h3>{% endif %}
+{% if diagram.text %}<pre class="mermaid">{{ diagram.text }}</pre>
+{% else %}<p class="empty-row">{{ _("The model was not called in this turn.") }}</p>{% endif %}
 {% else %}<p class="empty-row">{{ _("The diagrams could not be read from docs/query_nodes.md.") }}</p>{% endfor %}
 <p class="audit-diagrams-note">{{ _("The highlighted nodes are the ones this turn went through.") }}</p>

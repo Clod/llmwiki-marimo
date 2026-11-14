@@ -133,7 +133,7 @@ def test_criterio_lists_the_path_and_each_node_with_its_text(client, agents):
     agents.agent_pre_retrieval.output = CITED
     stream(client, ask(client))
     html = audit(client).text
-    assert "C1 → C2 → Q1" in html
+    assert "C1 → C2 → C2a" in html
     assert "Q5" in html and "¿La pregunta nombra un tema de la wiki (padrón de cobertura)?" in html
     assert "Cinderella" in html     # the matched term, in the definition list of Q5
 
@@ -144,8 +144,8 @@ def test_the_audit_of_one_question_shows_the_figure_check_c3_in_its_path(client,
     html = audit(client).text
     assert "C3 → Q21" in html
     assert "Comprobación de cifras: cada cifra del texto es exacta, redondeada o sin respaldo" in html
-    overview, detail = diagrams(html)
-    assert "FIG" in visited(detail)         # the node C3 of the diagram of section 2
+    entry, call, exit_ = diagrams(html)
+    assert "C3" in visited(exit_)           # the node C3 of the output workflow
 
 
 def test_criterio_of_q5_shows_the_roster_when_nothing_matched(client, agents):
@@ -261,11 +261,17 @@ def test_every_recorded_reading_node_has_a_short_text():
     assert not sorted(recorded - set(NODE_TEXTS)), "nodes without a short text"
 
 
-# The diagrams of docs/query_nodes.md beside the turns (owner, 2026-10-12).
+# The diagrams beside the turns (owner, 2026-10-12): the input workflow, the call to the model
+# and the output workflow, generated from the graphs (owner, 2026-11-14).
 
 def diagrams(html):
     """The Mermaid texts of the right column, in order."""
     return re.findall(r'<pre class="mermaid">(.*?)</pre>', html, re.S)
+
+
+def titles(html):
+    """The titles of the diagrams of the right column, in order."""
+    return re.findall(r'<h3 class="audit-diagram-title">(.*?)</h3>', html)
 
 
 def visited(text):
@@ -274,39 +280,51 @@ def visited(text):
     return set(found.group(1).split(",")) if found else set()
 
 
-def test_the_page_shows_the_overview_and_the_diagram_of_the_mode_of_the_turn(client, agents):
+def test_a_pre_retrieval_turn_shows_the_input_the_model_call_and_the_output(client, agents):
     agents.agent_pre_retrieval.output = CITED
     stream(client, ask(client))
     html = audit(client).text
-    shown = diagrams(html)
-    assert len(shown) == 2
-    assert "C2 · the mode of the turn" in shown[0] and "Q13 · Tier 1" in shown[1]
+    entry, call, exit_ = diagrams(html)
+    assert titles(html) == ["Workflow de entrada", "Llamada al modelo", "Workflow de salida"]
+    assert entry.startswith("stateDiagram-v2") and "C2a · Se quitan del historial" in entry
+    assert "Q13 · " in call and "Q21 · " in exit_
     assert '/static/js/mermaid.min.js' in html and "cdn" not in html.split("<body")[1].lower()
 
 
-def test_the_nodes_of_the_path_are_marked_visited_and_only_ids_of_the_block(client, agents):
+def test_the_nodes_of_the_path_are_marked_visited_in_each_diagram(client, agents):
     agents.agent_pre_retrieval.output = CITED
     stream(client, ask(client))
-    overview, detail = diagrams(audit(client).text)
-    assert "classDef visited" in overview and "classDef visited" in detail
-    assert visited(overview) == {"C1", "C2", "P"}               # C1 → C2 → Q1; Q1 is the id P in the overview
-    assert {"Q", "N", "BL", "ST"} <= visited(detail) and "C1" not in visited(detail)
+    entry, call, exit_ = diagrams(audit(client).text)
+    assert "classDef visited" in entry and "classDef visited" in exit_
+    assert {"C1", "C2", "C2a", "Q1", "Q3", "Q12b", "Q13"} <= visited(entry) and "R1" not in visited(entry)
+    assert visited(call) == {"n0"}                              # Q13; the fake agent calls no tool
+    assert {"Q20", "C3", "Q21"} <= visited(exit_) and "R5" not in visited(exit_)
 
 
-def test_the_strict_mode_selects_the_block_of_section_3(client, agents):
+def test_the_strict_mode_shows_its_own_graphs_and_the_call_t1(client, agents):
     agents.agent.output = "The deposit lasts 90 days."
     agents.agent.grounded = False
     stream(client, ask(client, "capital of France?", mode="strict"))
-    shown = diagrams(audit(client).text)
-    assert len(shown) == 2 and "T3 · the answer is replaced" in shown[1] and "Q13" not in shown[1]
-    assert {"T1", "T2", "T3"} <= visited(shown[1])
+    entry, call, exit_ = diagrams(audit(client).text)
+    assert "C4 · " in entry and "Q1 · " not in entry
+    assert "T1 · " in call and "Q13" not in call
+    assert "T3 · " in exit_ and "Q21" not in exit_
+    assert {"T2", "T3", "T5"} <= visited(exit_)
+
+
+def test_a_refusal_of_the_input_says_the_model_was_not_called(client, agents):
+    stream(client, ask(client, "Will it rain tomorrow in Rosario?"))
+    html = audit(client).text
+    assert len(diagrams(html)) == 2 and len(titles(html)) == 3
+    assert "El modelo no fue llamado en este turno." in html
 
 
 def test_a_streaming_turn_shows_only_the_overview(client, agents):
     object.__setattr__(agents, "agent", StreamingAgent("A plain answer."))
     stream(client, ask(client, mode="streaming"))
-    shown = diagrams(audit(client).text)
-    assert len(shown) == 1 and "C2 · the mode of the turn" in shown[0]
+    html = audit(client).text
+    shown = diagrams(html)
+    assert len(shown) == 1 and "C2 · the mode of the turn" in shown[0] and titles(html) == []
     assert visited(shown[0]) >= {"C1", "C2", "F"}
 
 
@@ -318,33 +336,66 @@ def test_selecting_another_turn_returns_its_diagrams(client, agents):
     stream(client, ask(client, "capital of France?", mode="strict"))
     first = client.get(f"/w/{WIKI_ID}/audit/c1/diagram/1").text
     second = client.get(f"/w/{WIKI_ID}/audit/c1/diagram/2").text
-    assert "Q13 · Tier 1" in first and "T3 · the answer is replaced" not in first
-    assert "T3 · the answer is replaced" in second and "Q13" not in second
+    assert "Q13 · " in first and "T3 · " not in first
+    assert "T3 · " in second and "Q13" not in second
     assert client.get(f"/w/{WIKI_ID}/audit/c1/diagram/3").status_code == 404
     page = audit(client).text
     assert 'hx-get="/w/tales/audit/c1/diagram/1"' in page and 'hx-get="/w/tales/audit/c1/diagram/2"' in page
 
 
-def test_a_change_in_the_markdown_source_changes_the_page(client, agents, tmp_path, monkeypatch):
+def test_a_change_in_the_markdown_source_changes_the_streaming_page(client, agents, tmp_path, monkeypatch):
     from web import audit_diagram
 
     source = tmp_path / "query_nodes.md"
-    source.write_text(
-        "```mermaid\nflowchart TD\n    C1[\"C1 · edited overview\"]\n```\n"
-        "```mermaid\nflowchart TD\n    Q[\"Q1 · edited pre-retrieval\"]\n```\n"
-        "```mermaid\nflowchart TD\n    T[\"T1 · edited strict\"]\n```\n", encoding="utf-8")
+    source.write_text("```mermaid\nflowchart TD\n    C1[\"C1 · edited overview\"]\n```\n", encoding="utf-8")
     monkeypatch.setattr(audit_diagram, "SOURCE", source)
-    agents.agent_pre_retrieval.output = CITED
-    stream(client, ask(client))
-    overview, detail = diagrams(audit(client).text)
-    assert "edited overview" in overview and "edited pre-retrieval" in detail
-    assert visited(overview) == {"C1"} and visited(detail) == {"Q"}   # the ids missing from a block are skipped
+    object.__setattr__(agents, "agent", StreamingAgent("A plain answer."))
+    stream(client, ask(client, mode="streaming"))
+    (overview,) = diagrams(audit(client).text)
+    assert "edited overview" in overview
+    assert visited(overview) == {"C1"}          # the ids missing from the block are skipped
 
 
-def test_a_missing_source_leaves_the_page_without_diagrams(client, agents, tmp_path, monkeypatch):
+def test_a_missing_source_leaves_the_streaming_page_without_diagrams(client, agents, tmp_path, monkeypatch):
     from web import audit_diagram
 
     monkeypatch.setattr(audit_diagram, "SOURCE", tmp_path / "absent.md")
-    stream(client, ask(client))
+    object.__setattr__(agents, "agent", StreamingAgent("A plain answer."))
+    stream(client, ask(client, mode="streaming"))
     response = audit(client)
     assert response.status_code == 200 and diagrams(response.text) == []
+
+
+def test_the_model_call_chain_keeps_each_tool_call_in_order():
+    from web.audit_diagram import model_call_chain, model_call_diagram
+
+    path = ["C1", "C2", "C2a", "C2b", "C2c", "C2d", "C4", "T1", "K1", "K3", "K1", "T2", "T4a", "T5"]
+    assert model_call_chain(path) == ["T1", "K1", "K3", "K1"]
+    text = model_call_diagram(path)
+    assert "n0 --> n1" in text and "n2 --> n3" in text and visited(text) == {"n0", "n1", "n2", "n3"}
+    assert model_call_chain(["C1", "Q1", "Q3", "R1"]) == [] and model_call_diagram(["R1"]) == ""
+
+
+GRAPHS = [("pre-retrieval", 0), ("pre-retrieval", 1), ("strict", 0), ("strict", 1)]
+
+
+def test_every_step_of_a_graph_is_labelled_in_its_diagram():
+    """Each step of the four graphs appears in its generated diagram, with its short text."""
+    from web.audit_diagram import WORKFLOW_GRAPHS, steps, workflow_diagram
+
+    for mode, side in GRAPHS:
+        graph = WORKFLOW_GRAPHS[mode][side]
+        text = workflow_diagram(graph, [])
+        missing = [s for s in steps(graph) if not re.search(rf'^\s*state "{s} · [^"]+" as {s}$', text, re.M)]
+        assert missing == [], f"{mode}, {('input', 'output')[side]}: steps without a labelled state"
+
+
+def test_the_hand_written_diagrams_name_every_node_of_their_mode():
+    """The diagrams of sections 2 and 3 of docs/query_nodes.md stay as documentation: each one
+    names every node of the two workflows of its mode, except C1 and C2 (section 1)."""
+    from web.audit_diagram import WORKFLOW_GRAPHS, _NODE, blocks, steps
+
+    for block, mode in ((1, "pre-retrieval"), (2, "strict")):
+        drawn = {code for _, code in _NODE.findall(blocks()[block])}
+        nodes = {s for graph in WORKFLOW_GRAPHS[mode] for s in steps(graph)} - {"C1", "C2"}
+        assert sorted(nodes - drawn) == [], f"block {block} ({mode}) misses nodes"
