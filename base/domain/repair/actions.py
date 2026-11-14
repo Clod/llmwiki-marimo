@@ -576,3 +576,183 @@ def repair_vocab_collision(
         action="deleted", success=True,
         message=f"Dropped colliding alias '{issue.alias}' from the generated artifact",
     )
+
+
+# ── Images kept from PDF sources ──────────────────────────────────────────────
+
+def _figure_pages(workspace: Path, doc_id: str) -> dict[str, int]:
+    """file → page of the images of a document, from its `figures.json`."""
+    from domain.ingestion.images import FIGURES_FILENAME, document_dir
+
+    try:
+        figures = json.loads((document_dir(workspace, doc_id) / FIGURES_FILENAME).read_text(encoding="utf-8"))
+        return {f["file"]: int(f["page"]) for f in figures}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+
+
+def _rewrite_image_links(
+    text: str, workspace: Path, page: int | None, own_doc: str | None,
+    by_stem: dict[str, str],
+) -> tuple[str, int, int]:
+    """Rewrite the image links of `text`; return (text, restored, replaced).
+
+    A link whose file exists is kept. A link in the old form whose image was
+    extracted again becomes the new form. Any other missing link becomes
+    "[Imagen no disponible, página N]". `page` is the page of `text` when it is
+    one page of a source; otherwise the page comes from the alt text or from
+    `figures.json`.
+    """
+    from domain.ingestion.images import (
+        alt_page, image_link, image_path, links_in, unavailable_text,
+    )
+
+    out, last, restored, replaced = [], 0, 0, 0
+    for m, old in links_in(text):
+        if old:
+            doc = own_doc or by_stem.get(m.group("stem").rsplit("/", 1)[-1])
+            file = m.group("file")
+            n = page or (_figure_pages(workspace, doc).get(file) if doc else None)
+            if doc and n and image_path(workspace, doc, file):
+                new, restored = image_link(doc, file, n), restored + 1
+            else:
+                new, replaced = unavailable_text(n or "?"), replaced + 1
+        else:
+            if image_path(workspace, m.group("doc"), m.group("file")):
+                continue
+            n = alt_page(m.group("alt")) or page
+            new, replaced = unavailable_text(n or "?"), replaced + 1
+        out.append(text[last:m.start()])
+        out.append(new)
+        last = m.end()
+    out.append(text[last:])
+    return "".join(out), restored, replaced
+
+
+def repair_missing_image(
+    issue: LintIssue,
+    db_path: str,
+    workspace: Path,
+) -> RepairResult:
+    """Restore the images a text links to, or replace the links with a note.
+
+    The images are extracted again with opendataloader-pdf when the source file
+    is still in `sources/`; no model is called and the stored text is not
+    extracted again. A link whose source is gone becomes
+    "[Imagen no disponible, página N]". Links in the old form are rewritten to
+    the new form when their image comes back.
+    """
+    from domain.ingestion.extractor import extract_images
+    from domain.ingestion.images import document_dir, image_path, links_in
+    from domain.tools.wiki_fs import read_page, write_page_content
+
+    def fail(message: str) -> RepairResult:
+        return RepairResult(check="missing_image", page=issue.page, action="failed",
+                            success=False, message=message)
+
+    with get_connection(db_path) as conn:
+        sources = [dict(r) for r in conn.execute(
+            "SELECT id, filename, relative_path FROM documents WHERE source_kind = 'source'")]
+    by_stem = {Path(s["filename"]).stem: s["id"] for s in sources}
+    by_id = {s["id"]: s for s in sources}
+    own = next((s for s in sources if s["relative_path"] == issue.page), None)
+
+    if own is not None:
+        with get_connection(db_path) as conn:
+            rows = [dict(r) for r in conn.execute(
+                "SELECT id, page, content FROM document_pages WHERE document_id = ? ORDER BY page",
+                (own["id"],))]
+        texts = [r["content"] or "" for r in rows]
+    else:
+        dir_path, slug = _parse_page_path(issue.page)
+        content = read_page(db_path, workspace, dir_path, slug)
+        if content is None:
+            return fail(f"Page not found: {issue.page}")
+        texts = [content]
+
+    # The documents whose images are needed.
+    needed: set[str] = set()
+    for text in texts:
+        for m, old in links_in(text):
+            if old:
+                doc = own["id"] if own else by_stem.get(m.group("stem").rsplit("/", 1)[-1])
+            else:
+                doc = m.group("doc") if image_path(workspace, m.group("doc"), m.group("file")) is None else None
+            if doc:
+                needed.add(doc)
+
+    # Extract again, when the source file is still there.
+    extracted: list[str] = []
+    for doc in sorted(needed):
+        src = by_id.get(doc)
+        if src is None or not (workspace / src["relative_path"]).is_file():
+            continue
+        try:
+            extract_images(workspace / src["relative_path"], document_dir(workspace, doc))
+        except Exception as exc:  # noqa: BLE001 — Java or LibreOffice missing, corrupt PDF
+            return fail(f"Could not extract the images of {src['filename']}: {exc}")
+        extracted.append(doc)
+
+    restored = replaced = 0
+    if own is not None:
+        with get_connection(db_path) as conn:
+            with conn:
+                new_pages = []
+                for row, text in zip(rows, texts):
+                    new, r, p = _rewrite_image_links(text, workspace, row["page"], own["id"], by_stem)
+                    restored, replaced = restored + r, replaced + p
+                    new_pages.append(new)
+                    if new != text:
+                        conn.execute("UPDATE document_pages SET content = ? WHERE id = ?", (new, row["id"]))
+                conn.execute("UPDATE documents SET content = ? WHERE id = ?",
+                             ("\n\n---\n\n".join(new_pages), own["id"]))
+                for chunk in conn.execute(
+                        "SELECT id, page, content FROM document_chunks WHERE document_id = ?",
+                        (own["id"],)).fetchall():
+                    new, _, _ = _rewrite_image_links(chunk["content"] or "", workspace,
+                                                     chunk["page"], own["id"], by_stem)
+                    if new != chunk["content"]:
+                        conn.execute("UPDATE document_chunks SET content = ? WHERE id = ?",
+                                     (new, chunk["id"]))
+    else:
+        new, restored, replaced = _rewrite_image_links(texts[0], workspace, None, None, by_stem)
+        if new != texts[0]:
+            write_page_content(db_path, workspace, dir_path, slug, new)
+
+    message = f"{restored} image link(s) restored, {replaced} replaced with a note"
+    if extracted:
+        message += f" (images extracted again for {len(extracted)} source(s))"
+    return RepairResult(
+        check="missing_image", page=issue.page,
+        action="images_restored" if restored else "links_replaced", success=True, message=message,
+    )
+
+
+def repair_orphan_image(
+    issue: LintIssue,
+    db_path: str,
+    workspace: Path,
+) -> RepairResult:
+    """Delete an image no link uses. The use is checked again here: a repair that
+    ran before this one may have linked the file."""
+    from domain.ingestion.images import DESC_SUFFIX, image_path
+    from domain.lint.image_checks import linked_files
+
+    with get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT id FROM documents WHERE source_kind = 'source' AND relative_path = ?",
+            (issue.page,)).fetchone()
+    path = image_path(workspace, row["id"], issue.target) if row else None
+    if path is None:
+        return RepairResult(check="orphan_image", page=issue.page, action="skipped",
+                            success=True, message=f"{issue.target} no longer exists")
+    if issue.target.endswith(DESC_SUFFIX):
+        if image_path(workspace, row["id"], issue.target.removesuffix(DESC_SUFFIX)) is not None:
+            return RepairResult(check="orphan_image", page=issue.page, action="skipped",
+                                success=True, message=f"the image of {issue.target} exists now")
+    elif issue.target in linked_files(db_path, workspace, row["id"]):
+        return RepairResult(check="orphan_image", page=issue.page, action="skipped",
+                            success=True, message=f"{issue.target} is used by a link now")
+    path.unlink()
+    return RepairResult(check="orphan_image", page=issue.page, action="deleted",
+                        success=True, message=f"Deleted orphan image: {issue.target}")

@@ -19,7 +19,8 @@ import markdown
 import nh3
 
 from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
-from web.i18n import N_, _, ngettext
+from domain.ingestion.images import IMAGE_TARGET_RE
+from web.i18n import N_, _, format_value, ngettext
 
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
 # A bare page reference in a chat answer: `/wiki/concepts/x.md`,
@@ -68,6 +69,10 @@ def source_url(wiki_id: str, filename: str) -> str:
     return f"/w/{wiki_id}/view/{urllib.parse.quote(filename)}"
 
 
+def image_url(wiki_id: str, document_id: str, file: str) -> str:
+    return f"/w/{wiki_id}/images/{urllib.parse.quote(document_id)}/{urllib.parse.quote(file)}"
+
+
 def _outside_links(text: str, fn: Callable[[str], str]) -> str:
     """Apply `fn` to the parts of `text` that are not already markdown links."""
     parts, last = [], 0
@@ -91,7 +96,9 @@ def render_markdown(wiki_id: str, text: str, page: str | None, pages: Collection
     becomes a link too. In a chat answer a bare file name becomes a link only
     when exactly one page has that name. The name of a source document, such as
     `10 Plazos Fijos.docx`, becomes a link to that document, which opens in a
-    new tab; it stays a source when a page has the same name (`notas.md`). A link to an external address, a mail address or an anchor stays
+    new tab; it stays a source when a page has the same name (`notas.md`). An image kept from a PDF source
+    (`![Imagen, página 3](.llmwiki/cache/local/<id>/images/<file>)`) becomes the route that serves it, and so
+    does a link to one (the thumbnails of a summary's "Figures" section). A link to an external address, a mail address or an anchor stays
     untouched.
     """
     pages = set(pages)
@@ -125,6 +132,8 @@ def render_markdown(wiki_id: str, text: str, page: str | None, pages: Collection
         resolved = resolve(match.group(1))
         return f"[{match.group(1)}]({page_url(wiki_id, resolved)})" if resolved else match.group(1)
 
+    body = IMAGE_TARGET_RE.sub(
+        lambda m: f"]({image_url(wiki_id, m.group('doc'), m.group('file'))})", body)
     body = _MD_LINK.sub(link, body)
     body = _outside_links(body, lambda part: _BARE_MD.sub(bare, part))
     if sources:
@@ -134,6 +143,8 @@ def render_markdown(wiki_id: str, text: str, page: str | None, pages: Collection
     # Sanitize first: the target and rel of a source link are ours, added below,
     # and the text of a page or an answer cannot set them.
     rendered = sanitize_html(markdown.markdown(body, extensions=["tables", "fenced_code"]))
+    # A kept image can weigh megabytes; the browser loads it when it is scrolled to.
+    rendered = rendered.replace(f'src="/w/{wiki_id}/images/', f'loading="lazy" src="/w/{wiki_id}/images/')
     return rendered.replace(
         f'<a href="/w/{wiki_id}/view/',
         f'<a target="_blank" rel="noopener" title="{_("Open the source document in a new tab")}" '
@@ -141,7 +152,47 @@ def render_markdown(wiki_id: str, text: str, page: str | None, pages: Collection
 
 
 UNSUPPORTED_TIP = N_("No page the model read supports this sentence")
+DESCRIBED_TIP = N_("Supported by the generated description of the image on page %(page)s")
+DESCRIBED_TIP_NO_PAGE = N_("Supported by the generated description of an image")
+OPEN_IMAGE = N_("Open the image")
 _MARK_OPEN, _MARK_CLOSE = "\ue000", "\ue001"   # private-use characters: markdown leaves them alone
+_DESCRIBED_OPEN, _DESCRIBED_CLOSE = "\ue004", "\ue005"
+_TIP_BASE = 0xE100
+
+
+@dataclass(frozen=True)
+class ImageSupport:
+    """The image whose generated description supports a sentence (the third state of the
+    verification). `url` is the route of the image, or empty when the image cannot be shown;
+    `page` is its page in the source, or None when unknown."""
+
+    source: str
+    file: str
+    page: int | None = None
+    url: str = ""
+
+    @property
+    def tip(self) -> str:
+        return (_(DESCRIBED_TIP, page=self.page) if self.page is not None else _(DESCRIBED_TIP_NO_PAGE))
+
+
+def _described_tags(rendered: str, supports: list[ImageSupport]) -> str:
+    """Turn the private-use markers of the described sentences into a dotted-underline
+    span plus a link to the image. Runs after the sanitizer: the markup is ours."""
+    def opening(match: re.Match[str]) -> str:
+        support = supports[ord(match.group(1)) - _TIP_BASE]
+        return f'<span class="described" title="{html.escape(support.tip, quote=True)}">'
+
+    def closing(match: re.Match[str]) -> str:
+        support = supports[ord(match.group(1)) - _TIP_BASE]
+        if not support.url:
+            return "</span>"
+        label = html.escape(_(OPEN_IMAGE), quote=True)
+        return (f'</span><a class="image-link" href="{html.escape(support.url, quote=True)}" '
+                f'target="_blank" rel="noopener" title="{label}" aria-label="{label}">\U0001F5BC</a>')
+
+    rendered = re.sub(f"{_DESCRIBED_OPEN}([\ue100-\ue1ff])", opening, rendered)
+    return re.sub(f"{_DESCRIBED_CLOSE}([\ue100-\ue1ff])", closing, rendered)
 
 
 def _cells(text: str, start: int, end: int) -> list[tuple[int, int]]:
@@ -165,21 +216,103 @@ def _cells(text: str, start: int, end: int) -> list[tuple[int, int]]:
     return ranges
 
 
+# The sentence marks and the figure marks are told apart by their class: a sentence the
+# verifier does not support is yellow, a figure without support is red.
+SENTENCE_CLASS, FIGURE_CLASS = "unsupported", "unsupported-figure"
+# Not the characters of `_DESCRIBED_OPEN` and `_DESCRIBED_CLOSE`.
+_FIG_OPEN, _FIG_CLOSE = "\ue006", "\ue007"
+_FIG_TIP_BASE = 0xE200      # a figure mark opens with _FIG_OPEN and one character that indexes its title
+_FIG_TIP_RANGE = "\ue200-\uf8ff"
+
+# Marks at the same offset are inserted in this order, so the HTML nests well: the closing
+# mark of the figure, the closing mark of the sentence, the opening mark of the sentence
+# (the outer one), the opening mark of the figure (the inner one).
+_ORDER = {"figure-close": 0, "sentence-close": 1, "sentence-open": 2, "figure-open": 3}
+
+
+def render_marked(wiki_id: str, text: str, marks: Iterable[tuple[int, int, str, str | None]],
+                  pages: Collection[str], sources: Collection[str] = frozenset(),
+                  described: Iterable[tuple[int, int, ImageSupport]] = ()) -> str:
+    """`render_markdown` of a chat answer with marks over ranges of `text`.
+
+    `marks` holds `(start, end, css_class, title)` with offsets in `text`. The class
+    `unsupported` marks a sentence (a table row is marked cell by cell; the title is the
+    fixed tooltip, `None`); the class `unsupported-figure` marks a figure, with its own
+    title. `described` holds `(start, end, support)` for the sentences supported only by
+    the generated description of an image (the third state): each is wrapped in a dotted
+    underline `<span class="described">` with a link to the image. A figure mark inside a
+    sentence mark nests inside it; a figure that crosses the border of a sentence mark is
+    left unmarked, so the HTML stays well nested. The text itself is not changed.
+    """
+    sentences = [(a, b) for start, end, css, _title in marks if css == SENTENCE_CLASS
+                 for a, b in _cells(text, start, end)]
+    inserts: list[tuple[int, int, str]] = []
+    for a, b in sentences:
+        inserts += [(a, _ORDER["sentence-open"], _MARK_OPEN), (b, _ORDER["sentence-close"], _MARK_CLOSE)]
+    supports: list[ImageSupport] = []
+    for start, end, support in described:
+        if support not in supports:
+            supports.append(support)
+        index = chr(_TIP_BASE + supports.index(support))
+        for a, b in _cells(text, start, end):
+            inserts += [(a, _ORDER["sentence-open"], _DESCRIBED_OPEN + index),
+                        (b, _ORDER["sentence-close"], _DESCRIBED_CLOSE + index)]
+            sentences.append((a, b))
+    tips: list[str] = []
+    for start, end, css, title in marks:
+        if css != FIGURE_CLASS or any(a < start < b < end or start < a < end < b for a, b in sentences):
+            continue
+        tip = title or ""
+        if tip not in tips:
+            tips.append(tip)
+        inserts += [(start, _ORDER["figure-open"], _FIG_OPEN + chr(_FIG_TIP_BASE + tips.index(tip))),
+                    (end, _ORDER["figure-close"], _FIG_CLOSE)]
+    parts, last = [], 0
+    for position, _order, marker in sorted(inserts, key=lambda item: (item[0], item[1])):
+        parts += [text[last:position], marker]
+        last = position
+    parts.append(text[last:])
+    rendered = render_markdown(wiki_id, "".join(parts), None, pages, sources)
+    rendered = re.sub(
+        f"{_FIG_OPEN}([{_FIG_TIP_RANGE}])",
+        lambda m: f'<mark class="{FIGURE_CLASS}" title="{html.escape(tips[ord(m.group(1)) - _FIG_TIP_BASE])}">',
+        rendered)
+    rendered = rendered.replace(_FIG_CLOSE, "</mark>")
+    rendered = rendered.replace(_MARK_OPEN, f'<mark class="{SENTENCE_CLASS}" title="{html.escape(_(UNSUPPORTED_TIP))}">')
+    return _described_tags(rendered.replace(_MARK_CLOSE, "</mark>"), supports)
+
+
 def render_verified(wiki_id: str, text: str, unsupported: Iterable[tuple[int, int]], pages: Collection[str],
-                    sources: Collection[str] = frozenset()) -> str:
+                    sources: Collection[str] = frozenset(),
+                    described: Iterable[tuple[int, int, ImageSupport]] = ()) -> str:
     """`render_markdown` of a chat answer with each unsupported sentence wrapped
     in `<mark class="unsupported">`. `unsupported` holds the `(start, end)`
-    offsets of the sentences in `text`; the text itself is not changed."""
-    inserts: list[tuple[int, str]] = []
-    for start, end in unsupported:
-        for a, b in _cells(text, start, end):
-            inserts += [(a, _MARK_OPEN), (b, _MARK_CLOSE)]
-    marked = text
-    for position, mark in sorted(inserts, key=lambda item: item[0], reverse=True):
-        marked = marked[:position] + mark + marked[position:]
-    rendered = render_markdown(wiki_id, marked, None, pages, sources)
-    rendered = rendered.replace(_MARK_OPEN, f'<mark class="unsupported" title="{html.escape(_(UNSUPPORTED_TIP))}">')
-    return rendered.replace(_MARK_CLOSE, "</mark>")
+    offsets of the sentences in `text`; the text itself is not changed.
+
+    `described` holds `(start, end, support)` for the sentences supported only by the
+    generated description of an image (`render_marked`).
+    """
+    return render_marked(wiki_id, text, [(a, b, SENTENCE_CLASS, None) for a, b in unsupported], pages, sources,
+                         described=described)
+
+
+def _origin_label(origin: str) -> str:
+    return _("your question") if origin == "pregunta" else origin
+
+
+def figure_title(finding) -> str:
+    """The tooltip of an unsupported figure: the nearest authorised value and where it comes from."""
+    if finding.nearest is None:
+        return _("No data supports this figure")
+    return _("No data supports this figure; the nearest value is %(value)s (%(origin)s)",
+             value=format_value(finding.nearest.value), origin=_origin_label(finding.nearest.origin))
+
+
+def figure_marks(report) -> list[tuple[int, int, str, str]]:
+    """The marks of the unsupported figures of a `FigureReport` (None: no mark), for `render_marked`."""
+    if report is None:
+        return []
+    return [(f.figure.start, f.figure.end, FIGURE_CLASS, figure_title(f)) for f in report.unsupported()]
 
 
 def render_source_markdown(text: str) -> str:
@@ -209,7 +342,6 @@ PAGE_UNSUPPORTED_TIP = N_("No source of this page supports this sentence")
 # indexes the tooltip; the close character says which tag to close.
 _UNSUPPORTED_OPEN, _UNSUPPORTED_CLOSE = "\ue000", "\ue001"
 _SUPPORTED_OPEN, _SUPPORTED_CLOSE = "\ue002", "\ue003"
-_TIP_BASE = 0xE100
 _LINE_PREFIX = re.compile(r"^[ \t]*(?:>[ \t]*|[-*+][ \t]+|\d+[.)][ \t]+)*(?:#{1,6}[ \t]+)?")
 
 
@@ -234,12 +366,15 @@ def _segments(text: str, start: int, end: int) -> list[tuple[int, int]]:
     return ranges
 
 
-def render_page_verified(wiki_id: str, text: str, page: str, marks: Iterable[tuple[int, int, str | None]],
+def render_page_verified(wiki_id: str, text: str, page: str,
+                         marks: Iterable[tuple[int, int, "str | ImageSupport | None"]],
                          pages: Collection[str], sources: Collection[str] = frozenset()) -> str:
     """`render_markdown` of a wiki page with the sentences of its verification
     marked. `marks` holds `(start, end, support)` with the offsets in the page
     body (the text after the front-matter) and `support` the name of the source
-    that supports the sentence, or None when no source does.
+    that supports the sentence, or None when no source does. An `ImageSupport` marks
+    the third state: the sentence is supported only by the generated description of an
+    image, shown with a dotted underline and a link to the image.
 
     An unsupported sentence is wrapped in `<mark class="unsupported">`; a
     supported one in `<span class="supported">` with the tooltip "Supported by
@@ -247,8 +382,16 @@ def render_page_verified(wiki_id: str, text: str, page: str, marks: Iterable[tup
     """
     _block, body = split_frontmatter(text)
     tips: list[str] = []
+    supports: list[ImageSupport] = []
     inserts: list[tuple[int, int, str]] = []   # (position, order, marker): closes sort before opens
     for start, end, support in marks:
+        if isinstance(support, ImageSupport):
+            if support not in supports:
+                supports.append(support)
+            index = chr(_TIP_BASE + supports.index(support))
+            for a, b in _segments(body, start, end):
+                inserts += [(a, 1, _DESCRIBED_OPEN + index), (b, 0, _DESCRIBED_CLOSE + index)]
+            continue
         tip = _(PAGE_UNSUPPORTED_TIP) if support is None else _("Supported by %(source)s", source=support)
         if tip not in tips:
             tips.append(tip)
@@ -270,7 +413,8 @@ def render_page_verified(wiki_id: str, text: str, page: str, marks: Iterable[tup
         return f'<span class="supported" title="{tip}">'
 
     rendered = re.sub(f"([{_UNSUPPORTED_OPEN}{_SUPPORTED_OPEN}])([\ue100-\ue1ff])", open_tag, rendered)
-    return rendered.replace(_UNSUPPORTED_CLOSE, "</mark>").replace(_SUPPORTED_CLOSE, "</span>")
+    rendered = rendered.replace(_UNSUPPORTED_CLOSE, "</mark>").replace(_SUPPORTED_CLOSE, "</span>")
+    return _described_tags(rendered, supports)
 
 
 @dataclass(frozen=True)

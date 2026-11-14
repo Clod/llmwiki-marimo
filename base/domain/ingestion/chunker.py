@@ -33,6 +33,10 @@ MIN_CHUNK_TOKENS = 32
 
 # Matches punctuation boundaries followed by whitespace to locate sentence transitions
 SENTENCE_RE = re.compile(r'(?<=[.!?])\s+')
+# A paragraph that is a whole image-description block (domain/ingestion/describe.py):
+# it is never cut, and it is a chunk of its own.
+BLOCK_PARAGRAPH_RE = re.compile(
+    r"\A<!-- image-description: [^\n]*? -->\n.*\n<!-- /image-description -->\Z", re.DOTALL)
 # Matches markdown headings (e.g. "## Introduction" -> Level 2, Title "Introduction")
 HEADER_RE = re.compile(r'^(#{1,6})\s+(.+)$', re.MULTILINE)
 
@@ -196,9 +200,16 @@ def chunk_text_continuing(
     # Absolute character position pointer in the original file
     char_pos = start_char_offset
 
+    # Whether the paragraph before the current one was an image-description block.
+    previous_was_block = False
+
     # 3. Process each paragraph one by one
     for para in paragraphs:
         para_tokens = _estimate_tokens(para)
+        para_is_block = is_block(para)
+        # A block is a chunk of its own: a fragment is the author's text or a
+        # description, never both (docs/design_image_handling.md, D5).
+        isolate = bool(current_blocks) and (para_is_block or previous_was_block)
 
         # A. Check if this paragraph is a Markdown heading (e.g., "### Sub-section")
         header_match = HEADER_RE.match(para)
@@ -224,14 +235,14 @@ def chunk_text_continuing(
 
         # B. If adding this paragraph would exceed the maximum CHUNK_SIZE:
         #    we finalize, validate, and save the current chunk before continuing
-        if current_tokens + para_tokens > chunk_size and current_blocks:
+        if (current_tokens + para_tokens > chunk_size and current_blocks) or isolate:
             # Combine current paragraphs with double-newlines
             chunk_str = "\n\n".join(current_blocks)
 
             # If the chunk is long enough to be useful (above minimum limits):
             emitted_breadcrumb = _settled_or(current_breadcrumb, current_settled,
                                              outline.last_breadcrumb)
-            if _estimate_tokens(chunk_str) >= MIN_CHUNK_TOKENS:
+            if _estimate_tokens(chunk_str) >= MIN_CHUNK_TOKENS or previous_was_block:
                 chunks.append(Chunk(
                     index=len(chunks),
                     content=chunk_str,
@@ -244,7 +255,7 @@ def chunk_text_continuing(
 
             # C. Establish context overlap for the NEXT chunk.
             #    We pull trailing paragraphs from this chunk until we fill the 'overlap' budget.
-            overlap_blocks, overlap_tokens = _get_overlap(current_blocks, overlap)
+            overlap_blocks, overlap_tokens = ([], 0) if isolate else _get_overlap(current_blocks, overlap)
             current_blocks = overlap_blocks
             current_tokens = overlap_tokens
 
@@ -259,6 +270,7 @@ def chunk_text_continuing(
 
         # D. Add current paragraph block to our buffer
         current_blocks.append(para)
+        previous_was_block = para_is_block
         current_tokens += para_tokens
         # Body text sitting under a heading closes the chunk's title
         if block_has_body and outline.headers:
@@ -271,7 +283,7 @@ def chunk_text_continuing(
         chunk_str = "\n\n".join(current_blocks)
         emitted_breadcrumb = _settled_or(current_breadcrumb, current_settled,
                                          outline.last_breadcrumb)
-        if _estimate_tokens(chunk_str) >= MIN_CHUNK_TOKENS:
+        if _estimate_tokens(chunk_str) >= MIN_CHUNK_TOKENS or previous_was_block:
             chunks.append(Chunk(
                 index=len(chunks),
                 content=chunk_str,
@@ -314,6 +326,11 @@ def _split_paragraphs(text: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
+def is_block(paragraph: str) -> bool:
+    """True for a paragraph that is one image-description block."""
+    return bool(BLOCK_PARAGRAPH_RE.match(paragraph))
+
+
 def _split_oversized(paragraphs: list[str], chunk_size: int) -> list[str]:
     """Break any paragraph larger than chunk_size into sentence-packed pieces.
 
@@ -324,7 +341,7 @@ def _split_oversized(paragraphs: list[str], chunk_size: int) -> list[str]:
     """
     out: list[str] = []
     for para in paragraphs:
-        if _estimate_tokens(para) <= chunk_size:
+        if _estimate_tokens(para) <= chunk_size or is_block(para):
             out.append(para)
             continue
         out.extend(_pack_sentences(para, chunk_size))

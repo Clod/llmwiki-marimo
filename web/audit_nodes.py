@@ -12,6 +12,7 @@ from web.i18n import N_, _
 NODE_TEXTS: dict[str, str] = {
     "C1": N_("History of the turn: refused exchanges removed, last turns kept"),
     "C2": N_("Mode of the turn"),
+    "C3": N_("Figure check: each figure of the prose is exact, rounded or without support"),
     "Q1": N_("The question enters pre-retrieval"),
     "Q2": N_("The question normalised (lowercase, no accents)"),
     "Q3": N_("Does the question name a blacklisted term?"),
@@ -51,7 +52,7 @@ NODE_TEXTS: dict[str, str] = {
     "T4": N_("Advisory table and citation added"),
     "T5": N_("The answer is shown"),
     "F1": N_("The model answers, calling the tools; the text is shown as it arrives"),
-    "F2": N_("The answer is complete, with no check"),
+    "F2": N_("The answer is complete, with no check but the figure check"),
     "K1": N_("Tool: read a wiki page"),
     "K2": N_("Tool: search the wiki pages"),
     "K3": N_("Tool: search the source documents"),

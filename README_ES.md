@@ -68,13 +68,13 @@ vivos y calcula asesoramiento con fundamento sobre ellos.*
 
 - **Datos dinámicos, no solo prosa** — un motor `datasets` agnóstico del dominio ingiere tablas estructuradas que se refrescan periódicamente (tasas/precios/estadísticas) como un carril separado de las páginas de concepto duraderas, expuesto al agente como una herramienta `query_dataset`; los valores se citan textualmente con su fecha `as_of`, nunca de memoria.
 - **Asesoría determinista y con fundamento** — el overlay de ejemplo `finance_argentina` calcula "cuánto ganaría" sobre esos datasets en Python puro (matemática de tasa efectiva, elegibilidad), lista cada opción ordenada y citada, y se niega a estimar lo no determinista (acciones, inflación, tipo de cambio) en lugar de fabricar un número.
-- **Fundamento exigible (citar o no responder)** — una verificación determinista posterior: si una respuesta no está respaldada por el resultado de una herramienta, se reemplaza por un rechazo honesto, así el modelo no recurre en silencio al conocimiento general. Un selector de modo en el chat alterna entre recuperación previa, agente con comprobación de evidencia (con buffer + filtrado) y sin verificación (en streaming).
+- **Fundamento exigible (citar o no responder)** — una verificación determinista posterior: si una respuesta no está respaldada por el resultado de una herramienta, se reemplaza por un rechazo honesto, así el modelo no recurre en silencio al conocimiento general. Un selector de modo en el chat alterna entre recuperación previa, agente con comprobación de evidencia (con buffer + filtrado) y sin verificación (en streaming). En todos los modos, una cifra de la respuesta que ningún pasaje, tabla ni pregunta respalda se marca en rojo (la comprobación de cifras); el texto nunca se edita ni se bloquea.
 - **RAG con prioridad a la wiki** — lee primero una enciclopedia curada e interconectada (`index.md` → FTS5 de la wiki → fragmentos de las fuentes en bruto como último recurso), de modo que el conocimiento se compila una vez y se acumula, en lugar de re-recuperarse en cada consulta.
 - **Idioma por wiki (en/es, extensible)** — elige el idioma al crear la wiki (queda guardado como `[wiki] language` en `wiki_config.toml`) y toda la wiki — páginas generadas, encabezados de sección *y* respuestas del chat — se produce en ese idioma, **sin importar el idioma de los documentos de origen**. Cada prompt que recibe el modelo es un archivo por idioma en `prompts/`, así que una wiki en español recibe las instrucciones en español. Ejecuta una wiki en inglés y otra en español en paralelo; agregar un tercer idioma es una entrada `Locale` y un archivo traducido por prompt.
 - **Paquete de evaluación con LLM-como-juez** — un comando reúne las preguntas, las propias respuestas del modelo, la evidencia citada y los pares página-fuente vs. página-generada contra una rúbrica *congelada* de 1–5, para puntuar la calidad del chat **y** de la ingesta (y comparar modelos).
 - **Comprobación de idoneidad del modelo** — un PASS/FAIL de un solo comando sobre si un modelo dado supera el umbral de rechazo fuera del corpus, citas y síntesis citada.
 - **Prompting basado en evidencia** — el prompt de sistema por defecto (`prompts/system_prompt.<idioma>.md`) incluye un ejemplo resuelto y completamente citado, porque las pruebas demostraron que eso es lo que hizo falta para una citación fiable entre documentos.
-- **Wiki que se auto-mantiene** — doce comprobaciones de lint (contradicciones, páginas obsoletas, huérfanas, conceptos faltantes, referencias cruzadas faltantes, vacíos de datos, vacíos ya cubiertos, deriva de vocabulario, páginas flacas, fuentes que no produjeron página, oraciones sin respaldo en las fuentes, páginas sin verificación válida) con auto-reparación de las seguras. Las dos últimas solo informan: listan las oraciones sin respaldo de una página verificada y las páginas que necesitan verificación, y nada reescribe el texto.
+- **Wiki que se auto-mantiene** — dieciséis comprobaciones de lint (contradicciones, páginas obsoletas, huérfanas, conceptos faltantes, referencias cruzadas faltantes, vacíos de datos, vacíos ya cubiertos, deriva de vocabulario, páginas flacas, fuentes que no produjeron página, imágenes faltantes, imágenes huérfanas, imágenes sin descripción, descripciones de imágenes desactualizadas, oraciones sin respaldo en las fuentes, páginas sin verificación válida) con auto-reparación de las seguras. Las dos últimas solo informan: listan las oraciones sin respaldo de una página verificada y las páginas que necesitan verificación, y nada reescribe el texto.
 - **Agnóstica del proveedor, con modelo dividido** — cualquier endpoint compatible con OpenAI; usa un modelo local barato para el chat y uno más potente para la ingesta, solo con `.env`.
 
 **Calidad de ingeniería**
@@ -555,7 +555,7 @@ idioma. Ver [`docs/manual/apps.md`](docs/manual/apps.md) §8.
 
 | Formato | Parser | Necesita |
 | ------- | ------ | -------- |
-| PDF | opendataloader-pdf | Un runtime de Java. Los PDFs con mucho texto funcionan bien |
+| PDF | opendataloader-pdf | Un runtime de Java. Los PDFs con mucho texto funcionan bien; un PDF escaneado necesita un motor de OCR (abajo) |
 | DOCX | LibreOffice → PDF → opendataloader-pdf | LibreOffice **y** un runtime de Java |
 | DOC | LibreOffice → PDF → opendataloader-pdf | LibreOffice **y** un runtime de Java |
 | ODT | LibreOffice → PDF → opendataloader-pdf | LibreOffice **y** un runtime de Java |
@@ -565,9 +565,40 @@ idioma. Ver [`docs/manual/apps.md`](docs/manual/apps.md) §8.
 
 La lista de formatos está en un solo lugar del código, `base/domain/ingestion/formats.py`. LibreOffice necesita su componente de procesador de texto (Writer) para convertir; la pestaña **Mantener** muestra si el LibreOffice instalado convierte un documento.
 
-**Solo PDFs basados en texto.** Los PDFs escaneados / solo-imagen aún no pasan por OCR —  
-se ingieren como texto vacío o ininteligible. El OCR para PDFs escaneados está en la hoja  
-de ruta (ver [`ROADMAP.md`](ROADMAP.md)).
+**Imágenes de un PDF.** opendataloader-pdf extrae las imágenes de un PDF mientras lo
+convierte. La ingesta las conserva en la carpeta de ingesta del documento,
+`.llmwiki/cache/local/<id del documento>/images/`, junto a `converted.pdf`. La carpeta
+se deriva de la fuente, así que queda fuera de `wiki/` y fuera de git. El texto
+almacenado enlaza cada imagen conservada con una ruta relativa a la raíz del workspace,
+`![Imagen, página 3](.llmwiki/cache/local/<id del documento>/images/imageFile4.png)`, y
+la página de resumen de una fuente con imágenes recibe una sección «Figuras», escrita por
+el código, con una miniatura por imagen, su número de página y su epígrafe. La
+aplicación web sirve las imágenes en `/w/{wiki_id}/images/{document_id}/{archivo}`. El
+modelo recibe solo el enlace; no ve la imagen. Un DOCX sigue el mismo camino, como PDF.
+Ingerir de nuevo una fuente cambiada reemplaza sus imágenes, y borrar una fuente las
+borra. Dos comprobaciones de lint cuidan las imágenes: `missing_image` (un enlace
+almacenado cuyo archivo no existe) y `orphan_image` (un archivo conservado que ningún
+enlace usa). Sus reparaciones no llaman a ningún modelo: la primera extrae las imágenes
+de nuevo cuando la fuente sigue en `sources/`, o reemplaza el enlace por «[Imagen no
+disponible, página N]» cuando ya no está; la segunda borra el archivo. Una reconstrucción
+del índice debe extraer las imágenes de nuevo.
+
+**PDFs escaneados (OCR).** Un PDF cuyas páginas casi no tienen texto (menos de 20
+caracteres en al menos una cuarta parte de sus páginas) se lee con el motor de OCR que
+`.env` fija en `OCR_ENGINE`:
+
+| `OCR_ENGINE` | Qué hace |
+| ------------ | -------- |
+| `none` (por defecto) | La ingesta falla con un mensaje que nombra el ajuste y los dos motores. |
+| `tesseract` | Local: `ocrmypdf` con Tesseract, ejecutados como programas externos. Se instalan con `brew install ocrmypdf tesseract tesseract-lang` (macOS) o `sudo apt-get install ocrmypdf tesseract-ocr tesseract-ocr-spa` (Debian, Ubuntu); en Windows, sigue las [instrucciones de ocrmypdf](https://ocrmypdf.readthedocs.io/en/latest/installation.html#windows). El idioma sigue al de la wiki (`spa` para `es`, `eng` para `en`). La copia con capa de texto queda como `ocr.pdf` en el directorio de caché del documento, y el visor de fuentes la muestra. |
+| `vision` | Un modelo con visión lee cada página mediante una API compatible con OpenAI: una llamada al modelo por página, y el texto puede variar entre ejecuciones. Define `OCR_MODEL`, `OCR_BASE_URL` y `OCR_API_KEY`; cada uno recurre a su valor `LLM_*`. |
+
+`quickstart.py` pregunta qué motor usar y escribe el ajuste. En un PDF mixto (unas páginas
+con texto, otras escaneadas), ambos motores leen solo las páginas escaneadas.
+Las imágenes de una página escaneada se conservan como las de cualquier otra página:
+la extracción las conserva primero, el OCR reemplaza después el texto de la página, y
+la página mantiene los enlaces a sus imágenes conservadas; así el manejo de imágenes
+(la sección «Figuras», las comprobaciones de lint, la descripción opcional) se aplica a ellas.
 
 ---
 
@@ -695,8 +726,9 @@ nuevo o modificado. Trata un documento de origen no confiable como tratarías c�
 su texto llega al agente de chat, que puede escribir páginas de wiki — ver [`SECURITY.md`](SECURITY.md).
 - **Sin manejo de imágenes / visión.** Ingesta solo de texto — las imágenes incrustadas en un  
 documento se omiten, no se describen ni resumen.
-- **Solo PDFs basados en texto.** Aún sin OCR, así que un PDF escaneado / solo-imagen se ingiere  
-como texto vacío o ininteligible. Usa un PDF basado en texto o convértelo primero.
+- **El OCR viene desactivado.** Un PDF escaneado / solo-imagen falla con un mensaje hasta que  
+definas `OCR_ENGINE` (ver el apartado de formatos). El motor `vision` cuesta una llamada al  
+modelo por página y su texto puede variar entre ejecuciones.
 - **La salida es solo markdown — sin formatos alternativos.** La wiki registra  
 un grafo completo de citas/enlaces en la base de datos (`document_references`: qué página cita qué  
 fuente, qué páginas enlazan con cuáles), y la pestaña **Ver relaciones** lo dibuja. No hay  

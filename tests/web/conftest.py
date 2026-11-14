@@ -103,6 +103,19 @@ def fake_agents(output, language: str = "en") -> chat.ChatAgents:
 
 
 @pytest.fixture(autouse=True)
+def restore_config_settings():
+    """Saving the models in the Settings screen assigns them to `config.settings`
+    (`config.apply_values`). Each field is put back after the test, so that one test does
+    not change the configuration of the tests that follow."""
+    import config
+
+    before = config.settings.model_dump()
+    yield
+    for key, value in before.items():
+        setattr(config.settings, key, value)
+
+
+@pytest.fixture(autouse=True)
 def no_libreoffice_probe(monkeypatch):
     """The ingestion screen probes LibreOffice; no web test runs it for real."""
     from domain.ingestion import extractor

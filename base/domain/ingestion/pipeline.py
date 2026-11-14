@@ -26,7 +26,13 @@ from .extractor import (
     check_java,
     check_libreoffice,
 )
-from .formats import OFFICE_EXTENSIONS, SUPPORTED_EXTENSIONS, TEXT_EXTENSIONS, sorted_extensions
+from .describe import Vision, default_vision, describe_images, effective_config
+from .images import load_figures
+from .text_extract import referenced_images
+from .formats import (
+    IMAGE_EXTENSIONS, OFFICE_EXTENSIONS, SUPPORTED_EXTENSIONS, TEXT_EXTENSIONS, sorted_extensions,
+    supported_extensions,
+)
 from .index_manager import update_index, remove_index_entry
 from .wiki_generator import (
     make_wiki_slug,
@@ -37,6 +43,7 @@ from .alias_generation import regenerate_dataset_aliases, update_generated_alias
 from domain import tracing
 from domain.text.stemming import stem_text
 from domain.i18n import get_locale
+from domain.wiki_settings import load_images_config
 from domain.tools.db import get_connection, open_db
 from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
 from domain.tools.references import update_references
@@ -109,8 +116,13 @@ def ingest_file(
     lint_after_ingest: bool = False,
     _batch_mode: bool = False,
     language: str = "en",
+    vision: Vision | None = None,
 ) -> IngestResult:
     """Run the full ingestion pipeline for a single file.
+
+    `vision` is the vision model that describes the images of the source when the wiki
+    sets `[images] describe = true`; without it the model of the environment
+    (`VISION_*`) is used, and none means the images stay undescribed.
 
     With WIKI_TRACE=1 the run is one `document` span, inside the `ingest` root
     span of the batch or scan that called it (or a root of its own). Each step
@@ -123,7 +135,7 @@ def ingest_file(
         result = _ingest_file(
             file_path, db_path, workspace, llm_client, model,
             progress_cb=progress_cb, lint_after_ingest=lint_after_ingest,
-            _batch_mode=_batch_mode, language=language, doc=doc,
+            _batch_mode=_batch_mode, language=language, doc=doc, vision=vision,
         )
         doc.set(status=result.status, message=result.message)
         if result.status == "failed" and result.doc_id is None:
@@ -135,16 +147,23 @@ def ingest_file(
         return result
 
 
-def _validation_error(file_path: Path) -> str | None:
-    """The reason `file_path` cannot be ingested, or None (node I1)."""
+def _validation_error(file_path: Path, *, images: bool = True) -> str | None:
+    """The reason `file_path` cannot be ingested, or None (node I1).
+
+    With `images` false (`[images] ignore = true`), an image file is refused.
+    """
     if not file_path.is_file():
         return f"File not found: {file_path}"
 
     ext = file_path.suffix.lower()
+    if not images and ext in IMAGE_EXTENSIONS:
+        return (f"Unsupported file type '{ext}': this wiki ignores images "
+                "([images] ignore = true in wiki_config.toml). "
+                f"Supported: {', '.join(sorted_extensions(supported_extensions(images)))}")
     if ext not in SUPPORTED_EXTENSIONS:
         return f"Unsupported file type '{ext}'. Supported: {', '.join(sorted_extensions())}"
 
-    if ext in TEXT_EXTENSIONS:
+    if ext in TEXT_EXTENSIONS or ext in IMAGE_EXTENSIONS:
         return None  # read directly: no Java, no LibreOffice
 
     if ext in OFFICE_EXTENSIONS and not check_libreoffice():
@@ -171,6 +190,7 @@ def _ingest_file(
     language: str = "en",
     *,
     doc: tracing.Node,
+    vision: Vision | None = None,
 ) -> IngestResult:
     """The body of `ingest_file`, inside the document's span `doc`.
 
@@ -193,7 +213,7 @@ def _ingest_file(
     _cb(f"🔍 Validating {file_path.name}")
 
     # ── Step 1: Validate ──────────────────────────────────────────────────────
-    error = _validation_error(file_path)
+    error = _validation_error(file_path, images=not load_images_config(workspace).ignore)
     tracing.mark("I1", W, answer=error is None, error=error)
     if error is not None:
         return IngestResult(file_path, "failed", error)
@@ -254,11 +274,23 @@ def _ingest_file(
             # ── Step 4: Extract text ──────────────────────────────────────────
             cache_dir = workspace / ".llmwiki" / "cache" / "local" / doc_id
             with tracing.node("I4", W) as i4:
-                page_contents, parser = extract(file_path, cache_dir)
+                images_config = effective_config(load_images_config(workspace), file_path.name)
+                page_contents, parser = extract(file_path, cache_dir, language, _cb,
+                                                keep_images=not images_config.ignore)
+                if images_config.describe and vision is None:
+                    vision = default_vision()
+                    if vision is None:
+                        logger.warning("[images] describe is on, but no vision model is configured")
+                image_pass = describe_images(
+                    page_contents, workspace=workspace, doc_id=doc_id, language=language,
+                    config=images_config, vision=vision)
+                page_contents = image_pass.pages
                 full_content = "\n\n---\n\n".join(md for _, md in page_contents)
                 # Trace intermediate data so the path can be followed end to end.
                 i4.payload("extracted_text", full_content, channel="extracted_text")
                 i4.set(page_count=len(page_contents), parser=parser)
+                if image_pass.images:
+                    i4.set(images=image_pass.images, images_described=image_pass.described)
             _cb(f"✅ Extracted {len(page_contents)} pages")
 
             # ── Step 5: Chunk source document ─────────────────────────────────
@@ -332,7 +364,8 @@ def _ingest_file(
                     existing_content = read_page(db_path, workspace, "/wiki/concepts/", slug)
                     _cb(f"💡 {'Updating' if existing_content else 'Creating'} concept: {concept.name}")
                     concept_md = build_concept_page(
-                        concept, file_path.name, existing_content, llm_client, model, language=language
+                        concept, file_path.name, existing_content, llm_client, model, language=language,
+                        image_descriptions=image_pass.described > 0,
                     )
                     prior = _snapshot_wiki_page(db_path, f"wiki/concepts/{slug}.md")
                     concept_result = create_page(
@@ -378,7 +411,11 @@ def _ingest_file(
             # ── Step 9: Create summary page ───────────────────────────────────
             _cb("📄 Writing summary page...")
             with tracing.node("I8", W) as i8:
-                summary_md = build_summary_page(doc_meta, extraction, language=language)
+                summary_md = build_summary_page(
+                    doc_meta, extraction, language=language,
+                    figures=load_figures(workspace, doc_id, with_descriptions=images_config.describe),
+                    doc_id=doc_id,
+                )
                 wiki_slug = make_wiki_slug(file_path.name)
                 prior_summary = _snapshot_wiki_page(db_path, f"wiki/summaries/{wiki_slug}.md")
                 summary_result = create_page(
@@ -418,11 +455,15 @@ def _ingest_file(
                     i10.payload("overview", new_overview, channel="markdown", ext="md")
 
                 # ── Step 11: Append to log ────────────────────────────────────
+                image_line = (get_locale(language).image_counts.format(
+                    images=image_pass.images, described=image_pass.described) + "\n"
+                    if image_pass.images else "")
                 timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
                 log_entry = (
                     f"## [{timestamp}] Ingested | {file_path.name}\n\n"
                     f"{extraction.document_summary[:200]}\n\n"
                     f"Concepts: {', '.join(c.name for c in extraction.concepts) or 'none'}\n"
+                    f"{image_line}"
                 )
                 with tracing.node("I11", W):
                     append_to_page(db_path, workspace, "/wiki/", "log", log_entry)
@@ -450,7 +491,9 @@ def _ingest_file(
                     )
                 _cb(f"🩺 Lint: {lint_report.summary()}")
 
-            _cb(f"✅ Done: {file_path.name} ({len(page_contents)} pages, {len(chunks)} chunks)")
+            counts = (", " + get_locale(language).image_counts.format(
+                images=image_pass.images, described=image_pass.described) if image_pass.images else "")
+            _cb(f"✅ Done: {file_path.name} ({len(page_contents)} pages, {len(chunks)} chunks{counts})")
             return IngestResult(file_path, "ingested", f"{len(page_contents)} pages", doc_id)
 
         except Exception as exc:
@@ -574,6 +617,7 @@ def scan_and_ingest(
     model: str,
     progress_cb: Callable[[str], None] | None = None,
     language: str = "en",
+    vision: Vision | None = None,
 ) -> list[IngestResult]:
     """Scan workspace/sources/ and ingest new or modified files."""
     def _cb(msg: str) -> None:
@@ -585,15 +629,20 @@ def scan_and_ingest(
     sources_dir.mkdir(parents=True, exist_ok=True)
     _cb("🔎 Scanning sources/...")
 
+    # A wiki that ignores images (`[images] ignore = true`) takes no image file as a source.
+    supported = supported_extensions(not load_images_config(workspace).ignore)
     candidates = [
         p for p in sorted(sources_dir.rglob("*"))
         if p.is_file()
-        and p.suffix.lower() in SUPPORTED_EXTENSIONS
+        and p.suffix.lower() in supported
         # Only consider the path *below* sources/ when skipping hidden entries —
         # otherwise a workspace under a dot-directory (e.g. ~/.local/share/ws)
         # would make every source look hidden and be skipped.
         and not any(part.startswith(".") for part in p.relative_to(sources_dir).parts)
     ]
+    # An image a Markdown source references is a figure of that source, not a source (D11).
+    referenced = referenced_images([p for p in candidates if p.suffix.lower() == ".md"])
+    candidates = [p for p in candidates if p.resolve() not in referenced]
     _cb(f"🔎 Found {len(candidates)} candidate file(s)")
 
     if not candidates:
@@ -605,7 +654,8 @@ def scan_and_ingest(
         results: list[IngestResult] = []
         for fp in candidates:
             results.append(
-                ingest_file(fp, db_path, workspace, llm_client, model, progress_cb, language=language)
+                ingest_file(fp, db_path, workspace, llm_client, model, progress_cb, language=language,
+                            vision=vision)
             )
 
         # ── Dataset-alias pass (Piece 4): aliases for the known data terms ────
@@ -828,7 +878,12 @@ def regenerate_wiki_pages(
                     c for c in extraction.concepts
                     if read_page(db_path, workspace, "/wiki/concepts/", make_wiki_slug(c.name))
                 ]
-                wiki_markdown = build_summary_page(doc_meta, extraction, language=language)
+                wiki_markdown = build_summary_page(
+                    doc_meta, extraction, language=language,
+                    figures=load_figures(workspace, doc_id, with_descriptions=effective_config(
+                        load_images_config(workspace), filename).describe),
+                    doc_id=doc_id,
+                )
                 wiki_slug = make_wiki_slug(filename)
                 create_page(
                     db_path, workspace, "/wiki/summaries/", wiki_slug,

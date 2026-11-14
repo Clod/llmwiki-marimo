@@ -253,3 +253,84 @@ def test_a_source_named_like_a_page_links_to_the_source_not_to_the_page():
 def test_without_a_source_of_that_name_a_bare_name_still_links_to_the_page():
     html = render_markdown("tales", "Fuente: notas.md", None, PAGES | {"notas"}, frozenset())
     assert f'<a href="{URL}notas">notas.md</a>' in html
+
+
+# ── render_marked: the red marks of the figures without support ──────────────
+
+from web.render import FIGURE_CLASS, SENTENCE_CLASS, figure_marks, render_marked  # noqa: E402
+
+
+def span(text, part):
+    start = text.index(part)
+    return start, start + len(part)
+
+
+def test_a_figure_mark_wraps_the_figure_with_its_own_title():
+    text = "Rinde 7.777 al año."
+    html = render_marked("tales", text, [(*span(text, "7.777"), FIGURE_CLASS, "Sin respaldo")], PAGES)
+    assert '<p>Rinde <mark class="unsupported-figure" title="Sin respaldo">7.777</mark> al año.</p>' in html
+
+
+def test_the_title_of_a_figure_mark_is_escaped_and_each_mark_has_its_own():
+    text = "Son 111 y 222."
+    marks = [(*span(text, "111"), FIGURE_CLASS, 'a "b" <i>'), (*span(text, "222"), FIGURE_CLASS, "otro")]
+    html = render_marked("tales", text, marks, PAGES)
+    assert 'title="a &quot;b&quot; &lt;i&gt;">111</mark>' in html
+    assert 'title="otro">222</mark>' in html and "<i>" not in html
+
+
+def test_a_figure_mark_nests_inside_a_sentence_mark_at_the_same_offsets():
+    text = "7.777 es el valor. Y 1.000"
+    sentence_end = text.index(" Y")
+    marks = [(0, 5, FIGURE_CLASS, "t"), (0, sentence_end, SENTENCE_CLASS, None),
+             (text.index("1.000"), len(text), FIGURE_CLASS, "t"),
+             (text.index("Y"), len(text), SENTENCE_CLASS, None)]
+    html = render_marked("tales", text, marks, PAGES)
+    assert html.startswith('<p><mark class="unsupported" title=')
+    assert '<mark class="unsupported-figure" title="t">7.777</mark> es el valor.</mark>' in html
+    assert html.endswith('<mark class="unsupported-figure" title="t">1.000</mark></mark></p>')
+    assert html.count("<mark") == html.count("</mark>") == 4
+
+
+def test_a_figure_inside_a_table_row_is_marked_inside_its_cell():
+    table = "| tasa | valor |\n|---|---|\n| plazo fijo | 7.777 |\n"
+    row = "| plazo fijo | 7.777 |"
+    marks = [(*span(table, row), SENTENCE_CLASS, None), (*span(table, "7.777"), FIGURE_CLASS, "t")]
+    html = render_marked("tales", table, marks, PAGES)
+    assert '<td><mark class="unsupported" title=' in html
+    assert '<mark class="unsupported-figure" title="t">7.777</mark></mark></td>' in html
+    assert html.count("<mark") == html.count("</mark>") == 3     # two cells of the row and the figure
+
+
+def test_a_figure_that_crosses_the_border_of_a_sentence_mark_is_left_unmarked():
+    text = "Hay 1.234 casos"
+    marks = [(0, text.index("1.2") + 3, SENTENCE_CLASS, None), (*span(text, "1.234"), FIGURE_CLASS, "t")]
+    html = render_marked("tales", text, marks, PAGES)
+    assert "unsupported-figure" not in html and html.count("<mark") == html.count("</mark>") == 1
+
+
+def test_the_text_of_the_answer_is_not_changed_by_the_marks():
+    text = "Rinde 7.777 al año."
+    html = render_marked("tales", text, [(*span(text, "7.777"), FIGURE_CLASS, "t")], PAGES)
+    plain = render_markdown("tales", text, None, PAGES)
+    assert plain.replace("7.777", '<mark class="unsupported-figure" title="t">7.777</mark>') == html
+
+
+def test_the_title_names_the_nearest_value_with_the_separators_of_the_language():
+    from decimal import Decimal
+
+    from domain.verify.figures import Authorised, Figure, FigureFinding, FigureReport
+    from web import i18n
+
+    figure = Figure(0, 5, "7.777", (Decimal(7777),))
+    finding = FigureFinding(figure, "unsupported", Authorised(Decimal("1187.5"), "datasets/tasas.md"))
+    bare = FigureFinding(figure, "unsupported", None)
+    ((_a, _b, css, title),) = figure_marks(FigureReport((finding,)))
+    assert css == FIGURE_CLASS
+    assert title == "Ningún dato respalda esta cifra; el valor más cercano es 1.187,5 (datasets/tasas.md)"
+    with i18n.use_language("en"):
+        assert figure_marks(FigureReport((finding,)))[0][3] == (
+            "No data supports this figure; the nearest value is 1,187.5 (datasets/tasas.md)")
+        assert figure_marks(FigureReport((bare,)))[0][3] == "No data supports this figure"
+    assert figure_marks(FigureReport((bare,)))[0][3] == "Ningún dato respalda esta cifra"
+    assert figure_marks(None) == []

@@ -1,9 +1,11 @@
 """Source deletion — removes a source document and cascades to DB children."""
 
 import logging
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from domain.ingestion.images import document_dir
 from domain.repair.report import RepairResult
 
 logger = logging.getLogger(__name__)
@@ -143,6 +145,11 @@ def delete_source(
         with get_connection(db_path) as conn:
             with conn:
                 conn.execute("DELETE FROM documents WHERE id=?", (doc_id,))
+
+        # The ingestion folder holds the converted PDF and the kept images.
+        ingestion_dir = document_dir(workspace, doc_id)
+        if ingestion_dir.is_dir():
+            shutil.rmtree(ingestion_dir, ignore_errors=True)
 
         file_removed = False
         if also_delete_file:

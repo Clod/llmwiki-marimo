@@ -201,3 +201,18 @@ def test_delete_source_also_removes_file(tmp_workspace: WorkspaceFixture) -> Non
         )
     assert result.success and result.file_removed
     assert not file_path.exists()
+
+
+def test_delete_source_deletes_its_ingestion_folder(tmp_workspace: WorkspaceFixture) -> None:
+    """The kept images go with the rest of the document's ingestion folder."""
+    doc_id = _insert_source(tmp_workspace.db_path, tmp_workspace.workspace, "paper.pdf")
+    folder = tmp_workspace.workspace / ".llmwiki" / "cache" / "local" / doc_id
+    (folder / "images").mkdir(parents=True)
+    (folder / "images" / "imageFile1.png").write_bytes(b"png")
+    other = tmp_workspace.workspace / ".llmwiki" / "cache" / "local" / "other-doc"
+    other.mkdir(parents=True)
+    with patch("domain.tools.git_ops.auto_commit"):
+        result = delete_source(tmp_workspace.db_path, tmp_workspace.workspace, doc_id)
+    assert result.success
+    assert not folder.exists()
+    assert other.exists()

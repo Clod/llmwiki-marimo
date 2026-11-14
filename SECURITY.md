@@ -40,6 +40,26 @@ LLM Wiki is **local-first** and designed to keep your data on your machine:
   against injection; the safeguard is that the chat assistant never writes on its own, the
   wiki is local, every change is a reviewable git commit, and you choose what to
   ingest and what to save.
+- **Prompt injection from the text inside an image.** With `[images] describe = true`
+  in `wiki_config.toml`, each kept image of a source is sent to the vision model
+  (`VISION_*` in `.env`), and the model's description enters the stored text of the
+  source. The text inside an image is untrusted input, like the text of any source
+  document, and it reaches a model twice: the vision model that describes the image,
+  and the ingestion model that reads the description. An image can carry an
+  instruction such as "ignore the previous instructions". Three measures apply.
+  The description prompt (`prompts/image_description.<lang>.md`) states that the text
+  of the image is data to transcribe. The description is delimited and labelled as
+  generated in the stored text (`<!-- image-description: … -->`), and the ingestion
+  prompts say that a delimited passage is not the author's text. The verification of
+  a wiki page and of a chat answer marks a sentence supported only by a description
+  with its own state ("supported by an image description"). These measures are
+  requests in a prompt, and a prompt guarantees nothing. The guarantee in code is the
+  same as for source text: the models have no file-writing tool, every page the
+  ingestion writes is in the git history of the wiki and can be reviewed and
+  reverted, and you choose what to ingest. The version ships no detection of
+  injection phrases in the text of an image. The images are sent to the provider
+  of the vision model: choose a provider that matches the sensitivity of the images,
+  or a local model.
 
 ## Reporting a vulnerability
 

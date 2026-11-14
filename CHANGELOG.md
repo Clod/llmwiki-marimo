@@ -32,6 +32,68 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   a saved key. The values are written to `.env` and apply from the next question
   and the next ingestion, without a restart.
 
+- **Figure check of chat answers** (`base/domain/verify/figures.py`,
+  `base/domain/chat/figure_check.py`). Every figure of the prose of an answer is
+  exact, rounded or unsupported against the numbers of the passages the model read,
+  the advisory table, the messages of the user and the earlier turns. The web
+  interface marks an unsupported figure in red, with a tooltip that names the
+  nearest value. A rounded figure appends a fixed note to the answer. The text is
+  never edited and the answer is never blocked. The figures of the note above the
+  advisory table are not checked, and the figures of the table are authorised
+  values. `[verify] number_tolerance` (default `0.05`) sets the largest relative
+  difference of a rounded figure; the Settings screen edits it.
+  `services.chat.ChatResult` gains `figures`. The check is node `C3`: a step of the
+  output workflow before `Q21` and `T5`, and in the streaming mode between `F1` and
+  `F2`.
+
+- **OCR for scanned PDFs, with the engine chosen at installation.** A PDF with no
+  text layer used to yield empty pages. `OCR_ENGINE` in `.env` now selects `none`
+  (default: the ingestion fails with a message that names the setting and the two
+  engines), `tesseract` (`ocrmypdf` run as an external program; the copy with a text
+  layer is kept as `ocr.pdf` in the document's cache directory and the source viewer
+  shows it) or `vision` (each page rendered with `pypdfium2` and read by a model with
+  vision through an OpenAI-compatible API; `OCR_BASE_URL`, `OCR_API_KEY` and
+  `OCR_MODEL` fall back to the `LLM_*` values). A page needs OCR below 20
+  characters; a document, from a quarter of its pages; a mixed PDF runs OCR only on
+  its scanned pages. `tool_status()` and the ingestion screen report the engine and
+  whether it can run, and `quickstart.py` asks which engine to use. A DOCX never goes
+  through OCR. `pypdfium2` and `pillow` are new dependencies.
+  An unchanged file whose last ingestion failed is now ingested again instead of
+  being skipped as up to date, so a fix to the setup (such as `OCR_ENGINE`) takes
+  effect on the next ingestion.
+
+- **The images of a PDF source are kept, linked, served and linted.**
+  opendataloader-pdf extracts the images of a PDF, but `extract_pdf` deleted them
+  with its temporary folder and left links such as
+  `![image](Snow White and the Seven Dwarfs_images/imageFile1.png)` in the stored
+  text, pointing to files that no longer existed. Now `extract_pdf` copies the images
+  to `.llmwiki/cache/local/<document id>/images/`, beside `converted.pdf`, and the
+  text links to the copy with a path relative to the workspace root
+  (`![Imagen, página 3](.llmwiki/cache/local/<id>/images/imageFile4.png)`). A DOCX
+  goes through the same path. Ingesting a changed source replaces the folder and
+  deleting a source deletes it. The web application serves an image at
+  `GET /w/{wiki_id}/images/{document_id}/{file}` (a document id of the index and a
+  plain file name, else 404) and `web/render.py` rewrites the stored links to it. The
+  summary page of a source with images gets a "Figures" section ("Figuras" in a
+  Spanish wiki), written by the code: one thumbnail per image with its page and caption.
+  Two lint checks, `missing_image` and `orphan_image`, with repairs that call no model
+  (extract the images again, or replace the link with "[Imagen no disponible, página
+  N]"; delete the file), run in the wiki-wide pass and in the pass after an ingestion.
+  The lint now has twelve checks.
+
+- **Descriptions of the images of the sources** (`base/domain/ingestion/describe.py`,
+  `docs/design_image_handling.md`). With `[images] describe = true` in `wiki_config.toml`,
+  a vision model (`VISION_BASE_URL`, `VISION_API_KEY`, `VISION_MODEL`) describes each kept
+  image; the description is a `.desc.json` file beside the image, reused while the image and
+  the prompt match, and a delimited block in the stored text of the source (searched,
+  chunked whole, read by the ingestion model). The verification gives a sentence supported
+  only by a description its own state, recorded as the fragment `#image:<file>` of
+  `best_source`. Two report-only lint checks (`image_without_description`,
+  `stale_image_description`), the panel "Images" and the action "Describe the images" in the
+  Maintain screen, and the four keys of `[images]` in the Settings screen. The local raster
+  images of a Markdown source are kept and described, and image files (`.png`, `.jpg`,
+  `.jpeg`, `.webp`, `.gif`) are accepted as sources. Nodes I17, I18 and I19 in the trace.
+
 ### Changed
 
 - **The NLI model download takes only the files the verifier loads.** The model

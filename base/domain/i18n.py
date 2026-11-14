@@ -34,14 +34,29 @@ class Locale:
     h_sources: str
     h_related_concepts: str
     h_see_also: str
+    h_figures: str
 
     # Inline field labels (WITHOUT trailing ":").
     lbl_source: str
     lbl_type: str
     lbl_pages: str
+    lbl_page: str
     lbl_ingested: str
     lbl_parser: str
     lbl_file: str
+
+    # Text the code writes about the images of a source (docs/design_image_handling.md, D5, D10-D12).
+    # The templates take `{page}`, `{model}`, `{images}` and `{described}` through str.format.
+    lbl_image_generated: str   # label of a description block
+    lbl_image_model: str       # the word before the model name: "(model gpt-4o)"
+    lbl_image_description: str
+    lbl_image_values: str
+    lbl_image_visible_text: str
+    lbl_image_generated_short: str   # label of the folded block of the Figures section
+    image_not_described: str   # marker of an image with no description
+    image_unavailable: str     # marker of a Markdown image that cannot be kept
+    image_source_notice: str   # notice of a summary page whose source is an image file
+    image_counts: str          # the ingestion log line
 
     # index.md / overview.md scaffold.
     index_title: str  # "Wiki Index" body, no "# "
@@ -55,6 +70,12 @@ class Locale:
 
     # Warning appended to an answer built from a raw source fragment (Tier 2).
     tier2_warning: str
+
+    # Note appended to an answer whose prose has rounded figures (domain/verify/figures.py).
+    # `%(pct)s` is the tolerance as a percentage. The first text holds when the answer has
+    # a table; the second one when it has none.
+    rounded_figures_note: str
+    rounded_figures_note_data: str
 
     @property
     def content_directive(self) -> str:
@@ -87,12 +108,24 @@ _EN = Locale(
     h_sources="Sources",
     h_related_concepts="Related Concepts",
     h_see_also="See also",
+    h_figures="Figures",
     lbl_source="Source",
     lbl_type="Type",
     lbl_pages="Pages",
+    lbl_page="Page",
     lbl_ingested="Ingested",
     lbl_parser="Parser",
     lbl_file="File",
+    lbl_image_generated="Generated description of the image on page {page}",
+    lbl_image_model="model",
+    lbl_image_description="Description",
+    lbl_image_values="Values",
+    lbl_image_visible_text="Visible text",
+    lbl_image_generated_short="Generated description",
+    image_not_described="[Image not described, page {page}]",
+    image_unavailable="[Image not available]",
+    image_source_notice="The text of this source is a generated description of an image",
+    image_counts="{images} images, {described} described",
     index_title="Wiki Index",
     index_section_summaries="Summaries",
     index_section_concepts="Concepts",
@@ -107,6 +140,15 @@ _EN = Locale(
     tier2_warning=(
         "> ⚠️ This answer comes from a source document with no curated wiki "
         "page; please verify it."
+    ),
+    rounded_figures_note=(
+        "> The figures in the text are approximations. The valid values are those of the "
+        "table; a figure in the text can differ from its value in the table by up to %(pct)s%."
+    ),
+    rounded_figures_note_data=(
+        "> The figures in the text are approximations. The valid values are those of the "
+        "data consulted; a figure in the text can differ from its value in the data consulted "
+        "by up to %(pct)s%."
     ),
 )
 
@@ -124,12 +166,24 @@ _ES = Locale(
     h_sources="Fuentes",
     h_related_concepts="Conceptos relacionados",
     h_see_also="Véase también",
+    h_figures="Figuras",
     lbl_source="Fuente",
     lbl_type="Tipo",
     lbl_pages="Páginas",
+    lbl_page="Página",
     lbl_ingested="Ingerido",
     lbl_parser="Analizador",
     lbl_file="Archivo",
+    lbl_image_generated="Descripción generada de la imagen de la página {page}",
+    lbl_image_model="modelo",
+    lbl_image_description="Descripción",
+    lbl_image_values="Valores",
+    lbl_image_visible_text="Texto visible",
+    lbl_image_generated_short="Descripción generada",
+    image_not_described="[Imagen sin describir, página {page}]",
+    image_unavailable="[Imagen no disponible]",
+    image_source_notice="El texto de esta fuente es una descripción generada de una imagen",
+    image_counts="{images} imágenes, {described} descritas",
     index_title="Índice del wiki",
     index_section_summaries="Resúmenes",
     index_section_concepts="Conceptos",
@@ -144,6 +198,15 @@ _ES = Locale(
     tier2_warning=(
         "> ⚠️ Esta respuesta proviene de un documento fuente sin página curada del "
         "wiki; verificá."
+    ),
+    rounded_figures_note=(
+        "> Las cifras del texto son aproximaciones. Los valores válidos son los de la "
+        "tabla; una cifra del texto puede diferir de su valor en la tabla hasta un %(pct)s %."
+    ),
+    rounded_figures_note_data=(
+        "> Las cifras del texto son aproximaciones. Los valores válidos son los de los "
+        "datos consultados; una cifra del texto puede diferir de su valor en los datos "
+        "consultados hasta un %(pct)s %."
     ),
 )
 

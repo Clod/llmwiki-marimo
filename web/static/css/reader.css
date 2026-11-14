@@ -86,6 +86,13 @@ body.chat-hidden .chat { display: none; }
 .verify-toggle { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--color-text-muted); cursor: pointer; }
 .verify-toggle.disabled { cursor: not-allowed; opacity: .6; }
 .a mark.unsupported, .prose mark.unsupported { background: var(--color-flag-soft); color: var(--color-text); border-bottom: 2px solid var(--color-flag); cursor: help; }
+/* The third state of the verification: supported only by the generated description of an image. */
+.prose span.described, .a span.described { border-bottom: 2px dotted var(--color-text-muted); cursor: help; }
+.prose a.image-link, .a a.image-link { margin-left: var(--space-1); font-size: var(--text-xs); text-decoration: none; }
+/* The generated description folded under a thumbnail of the Figures section. */
+.prose details { margin-top: var(--space-1); font-size: var(--text-sm); color: var(--color-text-muted); }
+.prose details > summary { cursor: pointer; font-weight: var(--weight-medium); }
+.a mark.unsupported-figure, .prose mark.unsupported-figure { background: var(--color-figure-flag-soft); color: var(--color-text); border-bottom: 2px solid var(--color-danger); cursor: help; }
 .verify-note { margin: var(--space-2) 0 0; font: var(--weight-regular) var(--text-xs)/var(--leading-normal) var(--font-sans); color: var(--color-text-muted); }
 .verify-note.failed { color: var(--color-text); }
 

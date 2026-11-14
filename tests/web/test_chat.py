@@ -394,3 +394,71 @@ def test_the_streaming_mode_reports_its_tokens(client, agents):
     assert "turno: 1.230 tokens (entrada 1.200, salida 30)" in meta_of([events[-2]])
 
 
+# ── the figure check: red marks, the summary line and the note ───────────────
+
+INVENTED = "Cinderella lost 7.777 glass slippers."
+RED_MARK = '<mark class="unsupported-figure" title="Ningún dato respalda esta cifra">7.777</mark>'
+FIGURE_LINE = '<p class="verify-note" role="status">1 cifra sin respaldo</p>'
+
+
+def answer_of(events):
+    """The rendered answer of the last `chunk` event of a stream."""
+    return [data for name, data in events if name == "chunk"][-1]
+
+
+@pytest.mark.parametrize("mode", ["pre-retrieval", "strict", "streaming"])
+def test_an_invented_figure_is_marked_in_red_in_every_mode_with_no_verifier(client, agents, mode):
+    agents.agent.output = agents.agent_pre_retrieval.output = INVENTED
+    agents.agent.grounded = True
+    final = answer_of(stream(client, ask(client, mode=mode)))
+    assert RED_MARK in final and FIGURE_LINE in final
+    assert 'class="unsupported"' not in final      # the yellow mark belongs to the sentence verification
+
+
+def test_an_answer_with_no_invented_figure_has_no_red_mark_and_no_line(client, agents):
+    agents.agent_pre_retrieval.output = "Cinderella lost a glass slipper."
+    final = answer_of(stream(client, ask(client)))
+    assert "unsupported-figure" not in final and "sin respaldo" not in final
+
+
+def test_the_tooltip_names_the_nearest_value_and_its_origin(client, agents):
+    agents.agent_pre_retrieval.output = INVENTED
+    final = answer_of(stream(client, ask(client, "Cinderella lost 7.700 slippers, right?")))
+    assert 'title="Ningún dato respalda esta cifra; el valor más cercano es 7.700 (tu pregunta)">7.777</mark>' in final
+
+
+def test_a_rounded_figure_is_not_red_and_the_note_ends_the_answer_in_every_mode(client, agents):
+    agents.agent.output = agents.agent_pre_retrieval.output = "Cinderella lost about 7.800 glass slippers."
+    agents.agent.grounded = True
+    for mode in ("pre-retrieval", "strict", "streaming"):
+        final = answer_of(stream(client, ask(client, "Cinderella lost 7.777 slippers, right?", mode=mode)))
+        assert "unsupported-figure" not in final and "sin respaldo" not in final
+        # The note is in the language of the wiki content (English here), not of the interface.
+        assert final.count("The figures in the text are approximations") == 1
+
+
+def test_the_streaming_mode_renders_the_final_answer_with_the_note_not_the_chunks(client, agents):
+    agents.agent.output = "Cinderella lost about 7.800 glass slippers."
+    events = stream(client, ask(client, "Cinderella lost 7.777 slippers, right?", mode="streaming"))
+    raw = events[0][1] + events[1][1]
+    assert "approximations" not in raw
+    assert "approximations" in events[2][1]
+
+
+def test_the_thread_keeps_the_red_mark_and_the_line_when_the_page_is_reloaded(client, agents):
+    agents.agent_pre_retrieval.output = INVENTED
+    stream(client, ask(client))
+    html = client.get(f"/w/{WIKI_ID}/chat/c1/thread").text
+    assert RED_MARK in html and FIGURE_LINE in html
+
+
+def test_a_refusal_of_the_code_has_no_red_mark(client, agents):
+    events = stream(client, ask(client, "Will it rain 7.777 days in Rosario?"))
+    assert "unsupported-figure" not in answer_of(events)
+
+
+def test_the_message_keeps_the_report(client, agents, app):
+    agents.agent_pre_retrieval.output = INVENTED
+    stream(client, ask(client))
+    answer = app.state.web.conversations[(WIKI_ID, "c1")][-1]
+    assert [f.figure.text for f in answer.figures.unsupported()] == ["7.777"]

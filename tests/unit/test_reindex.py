@@ -27,7 +27,7 @@ from tests.helpers.workspace import WorkspaceFixture
 TALES = ("Tale One.pdf", "Tale Two.pdf")
 
 
-def fake_extract(file_path: Path, cache_dir: Path):
+def fake_extract(file_path: Path, cache_dir: Path, *_args, **_kwargs):
     """Two pages per source, fixed by the file name."""
     stem = file_path.stem
     return [(1, f"# {stem}\n\nCinderella lost a glass slipper at the royal ball. {stem} page one."),
@@ -258,7 +258,7 @@ def test_a_page_whose_source_file_is_gone_is_registered_with_a_dangling_citation
 
 
 def test_a_source_the_extractor_cannot_read_is_registered_as_failed(original, monkeypatch):
-    def extract(path, cache_dir):
+    def extract(path, cache_dir, **_kwargs):
         if path.name == "Tale Two.pdf":
             raise RuntimeError("corrupt PDF")
         return fake_extract(path, cache_dir)
@@ -275,7 +275,7 @@ def test_a_source_the_extractor_cannot_read_is_registered_as_failed(original, mo
 @pytest.mark.parametrize("error", [extractor.JavaNotInstalledError("Tale One.pdf"),
                                    extractor.LibreOfficeNotInstalledError("Tale One.pdf")])
 def test_an_extractor_that_cannot_run_stops_the_rebuild_and_keeps_the_old_index(original, monkeypatch, error):
-    def extract(path, cache_dir):
+    def extract(path, cache_dir, **_kwargs):
         raise error
 
     monkeypatch.setattr(extractor, "extract", extract)
@@ -289,7 +289,7 @@ def test_an_extractor_that_cannot_run_stops_the_rebuild_and_keeps_the_old_index(
 def test_an_extractor_that_fails_on_every_source_keeps_the_old_index(original, monkeypatch):
     """No source extracted means the machine is at fault (no Writer filter in LibreOffice, say):
     replacing the index would drop every page of text."""
-    def extract(path, cache_dir):
+    def extract(path, cache_dir, **_kwargs):
         raise RuntimeError("LibreOffice produced no PDF output")
 
     monkeypatch.setattr(extractor, "extract", extract)

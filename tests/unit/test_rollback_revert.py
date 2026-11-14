@@ -167,7 +167,7 @@ def test_a_rebuild_that_fails_after_the_checkout_puts_pages_and_index_back(histo
     ws, shas = history
     snapshots._snapshot_file(ws.workspace, shas["A"]).unlink()
 
-    def broken(path, cache):
+    def broken(path, cache, **_kwargs):
         raise RuntimeError("cannot read this file")
 
     monkeypatch.setattr(extractor, "extract", broken)       # check_java still says yes
@@ -183,7 +183,7 @@ def test_a_java_that_vanishes_during_the_rebuild_also_undoes_the_checkout(histor
     ws, shas = history
     snapshots._snapshot_file(ws.workspace, shas["A"]).unlink()
 
-    def no_java(path, cache):
+    def no_java(path, cache, **_kwargs):
         raise extractor.JavaNotInstalledError(path.name)
 
     monkeypatch.setattr(extractor, "extract", no_java)

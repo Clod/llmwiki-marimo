@@ -18,6 +18,7 @@ from pathlib import Path
 
 from domain.verify import install as verifier_install
 from domain.verify import nli
+from domain.verify.figures import FigureReport
 from domain.verify.verifier import Verifier
 from domain.wiki_registry import discover_wikis, is_wiki_dir, load_recent, merge_options
 from services import chat as chat_service
@@ -43,6 +44,9 @@ class Message:
     # of an assistant message: the tokens of the turn, summed over its model calls
     input_tokens: int = 0
     output_tokens: int = 0
+    # of an assistant message: the figure check of its prose (`FigureReport`), or None; the
+    # thread marks the unsupported figures again from it when the page is reloaded
+    figures: FigureReport | None = None
 
     @property
     def tokens(self) -> int:
@@ -173,8 +177,12 @@ class AppState:
     def set_models(self, values: dict[str, str]) -> None:
         """Use the models of `values` (the `MODEL_KEYS` of `.env`) from the next question and
         the next ingestion: the settings change, and every open wiki drops its agents, which
-        were built with the old model."""
+        were built with the old model. `config.settings` takes the values too: the OCR engine
+        and the vision model of the ingestion read it at each call."""
+        import config
+
         self.settings = self.settings.with_models(values)
+        config.apply_values(values)
         for entry in self._open.values():
             entry.agents = None
 
@@ -222,6 +230,21 @@ class AppState:
         s = self.settings
         _require("LLM", BASE_URL=s.ingest_base_url, API_KEY=s.ingest_api_key, MODEL=s.ingest_model)
         return OpenAI(base_url=s.ingest_base_url, api_key=s.ingest_api_key), s.ingest_model, s.ingest_base_url
+
+    def vision_model(self) -> str:
+        """The vision model's name; no client is built."""
+        return self.settings.vision_model
+
+    def vision(self):
+        """The vision model that describes images (`domain.ingestion.describe.Vision`), or
+        None when its settings are blank. No request is made."""
+        from domain.ingestion.describe import Vision
+        from openai import OpenAI
+
+        s = self.settings
+        if not (s.vision_base_url.strip() and s.vision_api_key.strip() and s.vision_model.strip()):
+            return None
+        return Vision(OpenAI(base_url=s.vision_base_url, api_key=s.vision_api_key), s.vision_model)
 
     # ── Conversations ────────────────────────────────────────────────────────
 

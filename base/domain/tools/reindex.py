@@ -49,13 +49,14 @@ from pathlib import Path
 from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
 from domain.ingestion import extractor
 from domain.ingestion.chunker import chunk_pages
+from domain.ingestion.describe import describe_images, effective_config
 from domain.ingestion.detector import compute_file_hash
-from domain.ingestion.formats import sorted_extensions
+from domain.ingestion.formats import sorted_extensions, supported_extensions
 from domain.ingestion.wiki_generator import make_wiki_slug
 from domain.text.stemming import stem_text
 from domain.tools.db import open_db
 from domain.tools.references import update_references
-from domain.wiki_settings import load_wiki_language
+from domain.wiki_settings import load_images_config, load_wiki_language
 
 logger = logging.getLogger(__name__)
 
@@ -123,8 +124,12 @@ def _next_number(conn: sqlite3.Connection) -> int:
 
 def _index_sources(conn, workspace: Path, user_id: str, language: str, progress: Progress) -> tuple[int, list]:
     sources_dir = workspace / "sources"
+    # A wiki with `[images] ignore = true` keeps no image and takes no image file as a
+    # source, as in ingestion.
+    config = load_images_config(workspace)
+    suffixes = supported_extensions(not config.ignore)
     files = sorted(p for p in sources_dir.iterdir()
-                   if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in SOURCE_SUFFIXES
+                   if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in suffixes
                    ) if sources_dir.is_dir() else []
     indexed, failed = 0, []
     for path in files:
@@ -133,7 +138,12 @@ def _index_sources(conn, workspace: Path, user_id: str, language: str, progress:
         stat = path.stat()
         cache_dir = workspace / ".llmwiki" / "cache" / "local" / doc_id
         try:
-            page_contents, parser = extractor.extract(path, cache_dir)
+            page_contents, parser = extractor.extract(path, cache_dir, keep_images=not config.ignore)
+            # The descriptions come back from the files beside the images, or from the
+            # description of the same image in another document: no model is called.
+            page_contents = describe_images(
+                page_contents, workspace=workspace, doc_id=doc_id, language=language,
+                config=effective_config(config, path.name), vision=None).pages
         except (extractor.JavaNotInstalledError, extractor.LibreOfficeNotInstalledError):
             # The machine cannot extract: a rebuild would register every source as
             # failed. Stop, and leave the old index as it is.

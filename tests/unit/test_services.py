@@ -229,9 +229,9 @@ def test_tool_status_reports_libreoffice_and_java(monkeypatch):
     monkeypatch.setattr(extractor, "check_libreoffice", lambda: "/usr/bin/soffice")
     monkeypatch.setattr(extractor, "check_java", lambda: None)
     monkeypatch.setattr(extractor, "libreoffice_can_convert", lambda: True)
-    assert ingest.tool_status() == {
-        "libreoffice": "/usr/bin/soffice", "libreoffice_found": "/usr/bin/soffice", "java": None,
-    }
+    status = ingest.tool_status()
+    status.pop("ocr")  # covered in test_ocr.py
+    assert status == {"libreoffice": "/usr/bin/soffice", "libreoffice_found": "/usr/bin/soffice", "java": None}
 
 
 def test_tool_status_does_not_report_a_libreoffice_that_cannot_convert(monkeypatch):
@@ -249,7 +249,9 @@ def test_tool_status_with_no_libreoffice_does_not_probe(monkeypatch):
     monkeypatch.setattr(extractor, "check_libreoffice", lambda: None)
     monkeypatch.setattr(extractor, "libreoffice_can_convert", lambda: pytest.fail("probed"))
     monkeypatch.setattr(extractor, "check_java", lambda: None)
-    assert ingest.tool_status() == {"libreoffice": None, "libreoffice_found": None, "java": None}
+    status = ingest.tool_status()
+    status.pop("ocr")
+    assert status == {"libreoffice": None, "libreoffice_found": None, "java": None}
 
 
 # ── services.chat: save a conversation as a page ─────────────────────────────
@@ -357,6 +359,16 @@ def _source_row(wiki, doc_id, filename):
 def test_source_view_of_a_pdf_is_the_pdf(wiki):
     (wiki.sources_dir / "Tale.pdf").write_bytes(b"%PDF-1.4")
     assert source_view(wiki, "Tale.pdf") == wiki.sources_dir / "Tale.pdf"
+
+
+def test_source_view_of_a_pdf_with_an_ocr_copy_is_the_ocr_copy(wiki):
+    (wiki.sources_dir / "Tale.pdf").write_bytes(b"%PDF-1.4")
+    _source_row(wiki, "doc-2", "Tale.pdf")
+    assert source_view(wiki, "Tale.pdf") == wiki.sources_dir / "Tale.pdf"  # no OCR copy yet
+    ocr_copy = wiki.path / ".llmwiki" / "cache" / "local" / "doc-2" / "ocr.pdf"
+    ocr_copy.parent.mkdir(parents=True)
+    ocr_copy.write_bytes(b"%PDF-1.4")
+    assert source_view(wiki, "Tale.pdf") == ocr_copy
 
 
 def test_source_view_of_a_docx_is_the_pdf_ingestion_cached(wiki):
@@ -472,13 +484,46 @@ def test_ingest_uploads_cannot_write_outside_sources(wiki, monkeypatch, tmp_path
     assert seen == [wiki.sources_dir / "x.pdf"]
     assert (wiki.sources_dir / "x.pdf").read_bytes() == b"x"
     assert not (wiki.sources_dir.parent.parent / "x.pdf").exists()
+
+
+def test_the_scoped_pass_after_an_ingestion_repairs_the_images_of_the_ingested_source(wiki, monkeypatch):
+    """The image checks name a source by its path under sources/, so the scope
+    holds the ingested sources as well as their pages."""
+    import uuid
+
+    import domain.ingestion as ingestion
+    from domain.ingestion.images import image_link
+    from domain.tools.db import get_connection
+
+    doc_id = str(uuid.uuid4())
+    other_id = str(uuid.uuid4())
+    with get_connection(wiki.db_path) as conn:
+        user_id = conn.execute("SELECT user_id FROM workspace LIMIT 1").fetchone()["user_id"]
+        with conn:
+            for ident, name in ((doc_id, "a.pdf"), (other_id, "b.pdf")):
+                conn.execute(
+                    "INSERT INTO documents (id, user_id, filename, title, path, relative_path, source_kind, "
+                    "file_type, status, content, page_count) VALUES (?,?,?,?,'sources/',?,'source','pdf','ready','',1)",
+                    (ident, user_id, name, name, f"sources/{name}"))
+                conn.execute("INSERT INTO document_pages (id, document_id, page, content) VALUES (?,?,1,?)",
+                             (str(uuid.uuid4()), ident, image_link("gone", "imageFile1.png", 1)))
+    monkeypatch.setattr(ingestion, "ingest_file", lambda path, *a, **k: SimpleNamespace(
+        status="ingested", doc_id=doc_id))
+    ingest.ingest_uploads(wiki, [ingest.Upload("a.pdf", b"x")], None, "m")
+    with get_connection(wiki.db_path) as conn:
+        texts = {r["document_id"]: r["content"] for r in conn.execute("SELECT document_id, content FROM document_pages")}
+    assert texts[doc_id] == "[Imagen no disponible, página 1]"   # the ingested source is repaired
+    assert "gone" in texts[other_id]                              # the other one waits for the wiki-wide pass
+
+
 # ── services.wiki.reindex ────────────────────────────────────────────────────
 
 def test_reindex_rebuilds_the_index_of_the_wiki_from_its_files(wiki, monkeypatch):
     from domain.ingestion import extractor
     from services.wiki import reindex
 
-    monkeypatch.setattr(extractor, "extract", lambda path, cache_dir: ([(1, "Cinderella lost a slipper.")], "fake"))
+    monkeypatch.setattr(extractor, "extract",
+                        lambda path, cache_dir, **_kwargs: ([(1, "Cinderella lost a slipper.")], "fake"))
     (wiki.sources_dir / "Tale.pdf").write_bytes(b"%PDF-1.4")
     _page(wiki, "cinderella", "Cinderella")
     lines = []

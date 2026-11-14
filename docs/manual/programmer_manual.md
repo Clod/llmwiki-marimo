@@ -290,7 +290,8 @@ llmwiki/
 │       │   ├── extractor.py            # PDF/office/md/txt → list[(page, markdown)]
 │       │   ├── formats.py              # TEXT_/OFFICE_/SUPPORTED_EXTENSIONS, defined once
 │       │   ├── index_manager.py        # wiki/index.md upsert (deterministic)
-│       │   ├── pdf_extract.py          # opendataloader-pdf (text PDFs; no OCR yet)
+│       │   ├── pdf_extract.py          # opendataloader-pdf (text layer); keeps the images; ocr.py reads scanned PDFs
+│       │   ├── images.py               # where the kept images live; the form of their links
 │       │   ├── text_extract.py         # .md / .txt reader (no Java, no LibreOffice)
 │       │   └── wiki_generator.py       # page builders; their prompts are files in prompts/ (see §6)
 │       ├── lint/
@@ -450,7 +451,7 @@ lists — near-term work and aspirational features — and a third appeared when
 roadmap was written. Three lists of the same thing diverge; one does not.
 
 What moved there: deepening `data_gap`, giving scan and regenerate the same lint tail ingestion already has,
-the duplicate-upload warning, OCR — and, under *Not planned* with the reasoning
+the duplicate-upload warning — and, under *Not planned* with the reasoning
 intact, web search at query time and as an ingest loop, two-step reviewed
 ingestion, image handling, and output formats beyond markdown.
 

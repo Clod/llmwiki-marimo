@@ -10,13 +10,16 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from fastapi.templating import Jinja2Templates
 
 from domain.datasets.frontmatter import split_frontmatter
+from domain.ingestion.formats import IMAGE_EXTENSIONS
 from domain.ingestion.text_extract import decode_text
+from domain.verify.models import split_source
 from domain.verify.store import State
 from services import verification as verification_service
 from services.wiki import (
     FIXED_PAGES,
     PageConflict,
     delete_page,
+    kept_image,
     list_pages,
     page_version,
     read_page,
@@ -24,7 +27,7 @@ from services.wiki import (
     source_names,
     source_view,
 )
-from web.deps import BUSY, get_state, get_templates, page_context
+from web.deps import BUSY, get_state, get_templates, image_support, page_context
 from web.i18n import N_, _
 from web.render import page_title, page_url, render_markdown, render_page_verified, render_source_markdown
 from web.state import AppState
@@ -49,7 +52,7 @@ def _verification_view(wiki, page: str, text: str, wiki_id: str, pages: list[str
     the page against). A page outside the index has no status.
     """
     shown = verification_service.page_verification(wiki, page)
-    view: dict = {"status": None, "unsupported": 0, "checked": 0, "html": None}
+    view: dict = {"status": None, "unsupported": 0, "checked": 0, "described": 0, "html": None}
     if shown is None:
         return view
     if not shown.has_context:
@@ -58,12 +61,23 @@ def _verification_view(wiki, page: str, text: str, wiki_id: str, pages: list[str
         view["status"] = "valid"
         stored = shown.stored
         weak = {(s.start, s.end) for s in stored.unsupported(shown.threshold)}
-        marks = [(s.start, s.end, None if (s.start, s.end) in weak else PurePosixPath(s.source or "").name or None)
-                 for s in stored.sentences]
-        # A supported sentence with no recorded source cannot occur (a probability at or
-        # above the threshold comes from a passage); the guard keeps the tooltip honest.
+        marks, described = [], 0
+        for s in stored.sentences:
+            if (s.start, s.end) in weak:
+                marks.append((s.start, s.end, None))
+                continue
+            path, image = split_source(s.source)
+            # A supported sentence with no recorded source cannot occur (a probability at or
+            # above the threshold comes from a passage); the guard keeps the tooltip honest.
+            if not path:
+                continue
+            if image:
+                described += 1
+                marks.append((s.start, s.end, image_support(wiki, wiki_id, path, image)))
+            else:
+                marks.append((s.start, s.end, PurePosixPath(path).name or None))
         marks = [m for m in marks if m[2] is not None or (m[0], m[1]) in weak]
-        view.update(unsupported=len(weak), checked=stored.checked,
+        view.update(unsupported=len(weak), checked=stored.checked, described=described,
                     html=render_page_verified(wiki_id, text, page, marks, pages, source_names(wiki)))
     else:
         view["status"] = "outdated" if shown.state is State.OUTDATED else "none"
@@ -147,10 +161,24 @@ def source_file(request: Request, wiki_id: str, filename: str, state: AppState =
                        path_label=f"sources/{filename}",
                        html=render_source_markdown(text) or f'<p class="missing">{_("The document is empty.")}</p>')
         return templates.TemplateResponse(request, "page.html", context, headers=headers)
+    if suffix in IMAGE_EXTENSIONS:
+        return FileResponse(path, headers=headers)     # the media type follows the extension
     if suffix == ".pdf":
         return FileResponse(path, media_type="application/pdf", content_disposition_type="inline",
                             filename=Path(filename).with_suffix(".pdf").name, headers=headers)
     return FileResponse(path, media_type="application/octet-stream", filename=path.name, headers=headers)
+
+
+@router.get("/w/{wiki_id}/images/{document_id}/{file}")
+def kept_image_file(wiki_id: str, document_id: str, file: str, state: AppState = Depends(get_state)):
+    """An image kept from a PDF source (`services.wiki.kept_image`). A document id
+    that is not in the index, or a file that is not in that document's images
+    folder, is a 404."""
+    try:
+        path = kept_image(state.get_wiki(wiki_id).wiki, document_id, file)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="La imagen no existe.") from exc
+    return FileResponse(path, headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/w/{wiki_id}/edit/{page:path}", response_class=HTMLResponse)

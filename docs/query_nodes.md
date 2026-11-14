@@ -79,6 +79,7 @@ flowchart TD
 |---|---|---|---|---|
 | C1 | Builds the history that the model receives: removes every refused answer, with the question that the refused answer answered, then keeps the last turns. A refused first turn leaves the second turn with an empty history | `base/services/chat.py`, `model_history`; `base/domain/chat/guardrail.py`, `strip_refused_exchanges`; `base/domain/chat/history.py`, `trim_history` | `prior_messages`, `refused_dropped`, `history_messages` | code |
 | C2 | Sends the turn to the mode that the chat selected | `base/services/chat.py`, `chat_turn_with_context`, `chat_turn_stream_with_context` | `mode` | code |
+| C3 | The figure check: classifies every figure of the prose as exact, rounded or unsupported, against the numbers of the passages of the turn, the advisory table, the messages of the user and the passages of the earlier answers. The figures of the advisory table, of the note above it, of the citation lines and of the Tier-2 warning are not checked. When the prose has rounded figures, a fixed note is appended. The text of the model is not edited. It runs in the three modes: before Q21, before T5, and between F1 and F2. A refusal does not reach C3 | `base/domain/chat/figure_check.py`, `check_answer`, `appended_spans`; `base/domain/verify/figures.py`, `check_figures`; `base/domain/chat/workflow/output_checks.py`, `figures`; `base/services/chat.py`, `chat_turn_stream_with_context`, `check_turn_figures` | `figures_checked`, `figures_unsupported`, `figures_rounded`, `note_added` | code |
 
 ## 2. Pre-retrieval
 
@@ -127,6 +128,7 @@ flowchart TD
         WARN["Q18 · the Tier-2 warning is appended<br/>⚠️ Esta respuesta proviene de un documento fuente<br/>sin página curada del wiki; verificá."]
         GR{"Q19 · did a dataset tool return evidence?<br/>has_grounding"}
         FS{"Q20 · does the answer open with<br/>«No encontré la respuesta en el texto que recibí de la wiki.»?"}
+        FIG["C3 · the figure check, section 1<br/>every figure of the prose is exact, rounded or unsupported<br/>a note is appended when a figure is rounded"]
         OK["Q21 · the answer is shown<br/>ensure_citation adds the citation of the tools the model used<br/>for injected dataset rows, the code adds the dataset citation<br/>for injected pages the answer does not name, the code adds a Referencia line that lists them<br/>and says which ones the answer used cannot be determined"]
     end
 
@@ -160,7 +162,7 @@ flowchart TD
         M3 -->|sentence verifier off| V2
         M3 -->|sentence verifier on| WARN
         V2 -->|yes| WARN --> FS
-        FS -->|no| OK
+        FS -->|no| FIG --> OK
 
     subgraph X["Refusals"]
         R1["R1 · blacklist<br/>names the matched term, no suggestions<br/>¿Qué son los CEDEARs y conviene comprarlos?"]
@@ -205,7 +207,8 @@ Q1 to Q12 and Q7a to Q7d, and ends in a refusal (R1, R2a, R2b) or in the node
 that calls the agent (Q13 to Q16). `_pre_retrieval_turn`
 (`base/domain/chat/preretrieval.py`) calls the agent between the two workflows.
 The output workflow, `graph` in `base/domain/chat/workflow/output_checks.py`,
-runs the nodes Q17 to Q21 and ends in the answer or in a refusal (R3, R4, R5).
+runs the nodes Q17 to Q21 and the figure check C3 (section 1), and ends in the
+answer or in a refusal (R3, R4, R5).
 The input workflow reads and writes the `PreRetrievalTurn` of the turn
 (`base/domain/chat/preretrieval.py`). The state of the output workflow,
 `AnswerChecks` (`base/domain/chat/workflow/output_checks.py`), holds the answer
@@ -254,7 +257,7 @@ In the strict mode the model receives the question and the history, and decides
 which tools to call (section 5). After the model answers, the code checks that a
 tool returned evidence.
 
-The nodes T2 to T5 are steps of the output workflow, `graph` in
+The nodes T2 to T5, and the figure check C3 (section 1), are steps of the output workflow, `graph` in
 `base/domain/chat/workflow/output_checks.py`, the same graph that runs the checks
 of the answer of the pre-retrieval mode. `chat_turn_with_context`
 (`base/services/chat.py`) runs it after T1.
@@ -265,9 +268,10 @@ flowchart TD
     T2{"T2 · did a tool return evidence?<br/>has_grounding"}
     T3["T3 · the answer is replaced by the guardrail refusal<br/>«No pude respaldar esta respuesta con una consulta a la wiki en este turno.»"]
     T4["T4 · the advisory table and the citation are added<br/>answer_with_table, ensure_citation, mark_uncited"]
+    TF["C3 · the figure check, section 1"]
     T5["T5 · the answer is shown"]
     T1 --> T2
-    T2 -->|yes| T4 --> T5
+    T2 -->|yes| T4 --> TF --> T5
     T2 -->|no| T3 --> T5
     classDef llm fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1f2937
     class T1 llm
@@ -285,19 +289,22 @@ flowchart TD
 
 In the streaming mode the model receives the question and the history, decides
 which tools to call (section 5), and the answer is shown as the model writes the
-answer. No code checks the answer.
+answer. Of the checks of the answer, only the figure check C3 (section 1) runs,
+after the whole answer has arrived; its note, when there is one, is appended to the
+answer.
 
 ```mermaid
 flowchart TD
     F1["F1 · the model runs with the wiki tools and the data tools<br/>the tools of section 5<br/>the text is shown as the text arrives"]
-    F2["F2 · the answer is complete<br/>no check"]
-    F1 --> F2
+    FC["C3 · the figure check, section 1"]
+    F2["F2 · the answer is complete<br/>no other check"]
+    F1 --> FC --> F2
 ```
 
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
 | F1 | The model runs with the question, the history and the tools; each chunk of text is shown as the chunk arrives | `base/services/chat.py`, `chat_turn_stream_with_context`; `base/domain/chat/agent.py`, `create_agent` | `tools_called` | code |
-| F2 | The answer is complete; the answer is shown as the model wrote the answer | `base/services/chat.py`, `chat_turn_stream_with_context` | `final_answer` | code |
+| F2 | The answer is complete; the answer is shown as the model wrote the answer, with the note of C3 when there is one | `base/services/chat.py`, `chat_turn_stream_with_context` | `final_answer` | code |
 
 ## 5. Tools
 

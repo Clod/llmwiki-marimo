@@ -4,6 +4,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# A source that is a description of an image carries the image as a fragment:
+# `sources/x.pdf#image:imageFile4.png` (docs/design_image_handling.md, D7).
+IMAGE_FRAGMENT = "#image:"
+
+
+def image_source(path: str, file: str | None) -> str:
+    """`path` with the fragment that names the image, or `path` when `file` is None."""
+    return f"{path}{IMAGE_FRAGMENT}{file}" if file else path
+
+
+def split_source(source: str | None) -> tuple[str | None, str | None]:
+    """(path, image file) of a stored `best_source`: the image file is None when the
+    source has no `#image:` fragment. The only place that separates the fragment."""
+    if source is None:
+        return None, None
+    path, _, file = source.partition(IMAGE_FRAGMENT)
+    return path, (file or None)
+
 
 @dataclass(frozen=True)
 class ContextPassage:
@@ -35,6 +53,8 @@ class Passage:
 
     page: str
     text: str
+    # The file of the image when the passage is a generated description of it.
+    image: str | None = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +68,16 @@ class SentenceResult:
     probability: float
     page: str | None
     passage: str | None
+
+    @property
+    def image(self) -> str | None:
+        """The image file when the best passage is a generated description."""
+        return split_source(self.page)[1]
+
+    @property
+    def supported_by_image(self) -> bool:
+        """The third state: supported, and only by a generated description of an image."""
+        return self.supported and self.image is not None
 
 
 @dataclass(frozen=True)
@@ -74,5 +104,13 @@ class VerificationReport:
     def unsupported(self) -> int:
         return self.checked - self.supported
 
+    @property
+    def described(self) -> int:
+        """Sentences supported only by a generated description of an image."""
+        return sum(1 for s in self.sentences if s.supported_by_image)
+
     def unsupported_sentences(self) -> list[SentenceResult]:
         return [s for s in self.sentences if not s.supported]
+
+    def described_sentences(self) -> list[SentenceResult]:
+        return [s for s in self.sentences if s.supported_by_image]

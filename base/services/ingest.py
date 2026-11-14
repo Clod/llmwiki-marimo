@@ -21,7 +21,8 @@ Progress = Callable[[str], None]
 
 # `orphan`: a concept page this ingestion created may have no inbound link yet, and
 # its repair would delete it. The two verification checks are report only.
-_NOT_REPAIRED_ON_INGEST = {"orphan", "unsupported_sentences", "unverified_pages"}
+_NOT_REPAIRED_ON_INGEST = {"orphan", "unsupported_sentences", "unverified_pages",
+                           "image_without_description", "stale_image_description"}
 
 
 def _noop(_: str) -> None:
@@ -106,6 +107,7 @@ def related_pages(db_path: str, source_ids: Iterable[str]) -> set[str]:
 def ingest_uploads(
     wiki: Wiki, uploads: Iterable[Upload], client, model: str, *,
     full_repair: bool = False, verifier: Verifier | None = None, progress: Progress = _noop,
+    vision=None,
 ) -> list:
     """Ingest uploaded files, then reconcile and cross-link the pages they touched.
 
@@ -115,7 +117,9 @@ def ingest_uploads(
     `orphan` check is excluded: a concept page this ingestion created may have
     no inbound link yet, and its repair would delete it. With `verifier`, each
     page the ingestion wrote is verified against its sources at the end, after
-    the cross-links, which rewrite pages and delete their verification.
+    the cross-links, which rewrite pages and delete their verification. `vision` is the
+    vision model that describes the images of the sources when the wiki sets
+    `[images] describe = true` (`domain.ingestion.describe.Vision`).
     """
     from domain.ingestion import crosslink_wiki_pages, ingest_file
     from domain.lint.report import LintReport
@@ -130,7 +134,8 @@ def ingest_uploads(
             if not path.exists():
                 path.write_bytes(upload.contents)
             results.append(ingest_file(path, wiki.db_path, wiki.path, client, model,
-                                       progress, language=wiki.language))
+                                       progress, language=wiki.language,
+                                       **({"vision": vision} if vision is not None else {})))
 
         source_ids = [r.doc_id for r in results if r.status == "ingested" and getattr(r, "doc_id", None)]
         touched = related_pages(wiki.db_path, source_ids)
@@ -140,8 +145,10 @@ def ingest_uploads(
         with tracing.node("I15", tracing.WRITING, mode=mode, pages=len(touched)) as i15:
             report = lint_wiki(wiki.db_path, wiki.path, client=repair_client, model=model,
                                progress_cb=progress)
+            # The image checks report a source by its path under sources/.
+            scope = touched | _source_paths(wiki.db_path, source_ids)
             fixable = [i for i in report.issues
-                       if i.check not in _NOT_REPAIRED_ON_INGEST and i.page in touched]
+                       if i.check not in _NOT_REPAIRED_ON_INGEST and i.page in scope]
             i15.set(issues=len(report.issues), fixable=len(fixable))
             if fixable:
                 progress(f"🔧 {len(fixable)} issue(s) on ingested pages — repairing ({mode})…")
@@ -166,6 +173,17 @@ def ingest_uploads(
     return results
 
 
+def _source_paths(db_path: str, source_ids: list[str]) -> set[str]:
+    """The paths under sources/ of the given source documents."""
+    if not source_ids:
+        return set()
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            f"SELECT relative_path FROM documents WHERE id IN ({','.join('?' * len(source_ids))})",
+            source_ids).fetchall()
+    return {r["relative_path"] for r in rows}
+
+
 def _verify_written(wiki: Wiki, source_ids, verifier: Verifier, progress: Progress,
                     *, summaries_only: bool = False) -> None:
     from services.verification import verify_pages, written_pages
@@ -176,13 +194,16 @@ def _verify_written(wiki: Wiki, source_ids, verifier: Verifier, progress: Progre
 
 
 def scan_sources(wiki: Wiki, client, model: str, *, verifier: Verifier | None = None,
-                 progress: Progress = _noop) -> list:
+                 progress: Progress = _noop, vision=None) -> list:
     """Ingest the files of the sources folder that are new or changed since their
     last ingestion; return one result per file. Each ingested file commits the wiki.
-    With `verifier`, the pages written are verified afterwards."""
+    With `verifier`, the pages written are verified afterwards. `vision` describes
+    the images (see `ingest_uploads`)."""
     from domain.ingestion import scan_and_ingest
 
-    results = scan_and_ingest(wiki.path, wiki.db_path, client, model, progress, language=wiki.language)
+    extra = {"vision": vision} if vision is not None else {}
+    results = scan_and_ingest(wiki.path, wiki.db_path, client, model, progress, language=wiki.language,
+                              **extra)
     source_ids = [r.doc_id for r in results if r.status == "ingested" and getattr(r, "doc_id", None)]
     if verifier is not None and source_ids:
         _verify_written(wiki, source_ids, verifier, progress)
@@ -241,6 +262,37 @@ def lint_and_repair(wiki: Wiki, client, model: str, *, verifier: Verifier | None
         progress(f"🔎 Verifying {len(written)} page(s) the repairs wrote…")
         verify_pages(wiki, written, verifier, progress=progress)
     return len(report.issues)
+
+
+def images_ignored(wiki: Wiki) -> bool:
+    """True when the wiki sets `[images] ignore = true`, the default: the ingestion keeps
+    no image and takes no image file as a source."""
+    from domain.wiki_settings import load_images_config
+
+    return load_images_config(wiki.path).ignore
+
+
+def image_counts(wiki: Wiki):
+    """The images of the wiki for the Maintain screen: kept, described, skipped by
+    reason, without description, stale, and the calls "Describe the images" would make
+    (`domain.ingestion.describe_pass.ImageCounts`)."""
+    from domain.ingestion.describe_pass import image_counts as _image_counts
+
+    return _image_counts(wiki.path, wiki.db_path)
+
+
+def describe_images(wiki: Wiki, vision, *, progress: Progress = _noop):
+    """Describe the images that have no valid description (the action "Describe the images"
+    of the Maintain screen); return the `ImageCounts` afterwards. The summary pages and the
+    stored text change, so the wiki is committed. The caller holds the wiki's lock."""
+    from domain.ingestion.describe_pass import describe_wiki_images
+    from domain.tools.git_ops import auto_commit, init_wiki_repo
+
+    changed = describe_wiki_images(wiki.path, wiki.db_path, vision, progress)
+    if changed:
+        init_wiki_repo(wiki.path)
+        auto_commit(wiki.path, f"describe images: {changed} source(s)")
+    return image_counts(wiki)
 
 
 def delete_stale_pages(wiki: Wiki) -> tuple[int, list[str]]:
@@ -303,7 +355,7 @@ def remove_source(wiki: Wiki, doc_id: str, *, also_delete_file: bool = False):
     return _delete_source(wiki.db_path, wiki.path, doc_id, also_delete_file=also_delete_file)
 
 
-def tool_status() -> dict[str, str | bool | None]:
+def tool_status(language: str = "en") -> dict[str, object]:
     """The path of LibreOffice and of the Java runtime, or None when missing.
 
     Every ingestion needs Java: the text extractor runs a .jar. A DOCX also
@@ -312,8 +364,12 @@ def tool_status() -> dict[str, str | bool | None]:
     call runs it, the process caches the result). An executable that cannot
     convert shows as ``libreoffice`` None with ``libreoffice_found`` set to the
     path, so a screen can tell "not installed" from "installed, does not convert".
+
+    ``ocr`` is the OCR engine in force (``ocr.engine_status``): its ``label``,
+    ``usable`` and, when not usable, ``problem``. `language` is the wiki
+    language, which selects the Tesseract language pack to look for.
     """
-    from domain.ingestion import extractor
+    from domain.ingestion import extractor, ocr
 
     found = extractor.check_libreoffice()
     usable = extractor.libreoffice_can_convert() if found else False
@@ -321,6 +377,7 @@ def tool_status() -> dict[str, str | bool | None]:
         "libreoffice": found if usable else None,
         "libreoffice_found": found,
         "java": extractor.check_java(),
+        "ocr": ocr.engine_status(language),
     }
 
 

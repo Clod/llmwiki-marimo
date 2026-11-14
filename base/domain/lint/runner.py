@@ -17,6 +17,9 @@ from .checks import (
     unverified_pages_check,
     vocabulary_check,
 )
+from .image_checks import (
+    image_without_description_check, missing_image_check, orphan_image_check, stale_image_description_check,
+)
 from .report import LintReport
 
 
@@ -58,6 +61,14 @@ def lint_wiki(
     issues.extend(unsupported_sentences_check(db_path, workspace))
     _p("🔎 lint: unverified pages")
     issues.extend(unverified_pages_check(db_path, workspace))
+    _p("🔎 lint: missing images")
+    issues.extend(missing_image_check(db_path, workspace))
+    _p("🔎 lint: orphan images")
+    issues.extend(orphan_image_check(db_path, workspace))
+    _p("🔎 lint: images without description")
+    issues.extend(image_without_description_check(db_path, workspace))
+    _p("🔎 lint: stale image descriptions")
+    issues.extend(stale_image_description_check(db_path, workspace))
     if client:
         _p("🔎 lint: contradiction sweep (LLM, pairwise)…")
         issues.extend(contradiction_check(db_path, workspace, client, model, progress_cb))

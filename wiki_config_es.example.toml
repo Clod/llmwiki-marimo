@@ -172,6 +172,11 @@ suggested_prompts = [
 # oraciones sin respaldo. El valor por defecto es 0.5; calibralo con tu wiki.
 # Una página de la wiki se verifica contra sus fuentes; cada oración se compara solo
 # con las `candidates` pasajes más parecidos (ranking de texto completo). Por defecto 5.
+# La comprobación de cifras marca una cifra de la respuesta que ningún pasaje, tabla
+# ni pregunta respalda. Una cifra igual a un valor redondeado a la precisión que
+# escribió el modelo pasa si difiere del valor en no más de `number_tolerance`
+# (relativa, de 0 a 1). Por defecto 0.05.
 # [verify]
 # threshold = 0.5
 # candidates = 5
+# number_tolerance = 0.05

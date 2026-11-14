@@ -22,7 +22,7 @@ from tests.helpers.workspace import WorkspaceFixture
 TALES = ("Tale One.pdf", "Tale Two.pdf")
 
 
-def fake_extract(file_path: Path, cache_dir: Path):
+def fake_extract(file_path: Path, cache_dir: Path, *_args, **_kwargs):
     stem = file_path.stem
     return [(1, f"# {stem}\n\nCinderella lost a glass slipper at the royal ball. {stem} page one."),
             (2, f"The prince searched the kingdom for the owner of the slipper. {stem} page two.")], "fake-parser"

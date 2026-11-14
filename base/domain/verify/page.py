@@ -36,13 +36,14 @@ _FOOTNOTE = re.compile(r"^\[\^[^\]]+\]:.*$", re.MULTILINE)
 
 
 def _generated_headings() -> set[str]:
-    """Headings of the sections the code writes, in every locale."""
+    """Headings of the sections the code writes, in every locale (the Figures section
+    holds the generated descriptions of the images, which the code copies)."""
     names: set[str] = set()
     for language in SUPPORTED_LANGUAGES:
         locale = get_locale(language)
         names.update(n.casefold() for n in (
             locale.h_sources, locale.h_see_also, locale.h_related_concepts,
-            locale.h_source_information,
+            locale.h_source_information, locale.h_figures,
         ))
     return names
 

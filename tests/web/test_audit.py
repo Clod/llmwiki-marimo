@@ -138,6 +138,16 @@ def test_criterio_lists_the_path_and_each_node_with_its_text(client, agents):
     assert "Cinderella" in html     # the matched term, in the definition list of Q5
 
 
+def test_the_audit_of_one_question_shows_the_figure_check_c3_in_its_path(client, agents):
+    agents.agent_pre_retrieval.output = CITED
+    stream(client, ask(client))
+    html = audit(client).text
+    assert "C3 → Q21" in html
+    assert "Comprobación de cifras: cada cifra del texto es exacta, redondeada o sin respaldo" in html
+    overview, detail = diagrams(html)
+    assert "FIG" in visited(detail)         # the node C3 of the diagram of section 2
+
+
 def test_criterio_of_q5_shows_the_roster_when_nothing_matched(client, agents):
     stream(client, ask(client, "Will it rain tomorrow in Rosario?"))
     html = audit(client).text
@@ -205,7 +215,7 @@ def test_the_streaming_answer_has_a_page_too(client, agents):
     object.__setattr__(agents, "agent", StreamingAgent("A plain answer."))   # ChatAgents is frozen
     stream(client, ask(client, mode="streaming"))
     html = audit(client).text
-    assert "F1 → F2" in html and "A plain answer." in html
+    assert "F1 → C3 → F2" in html and "A plain answer." in html
 
 
 def test_a_node_without_a_path_says_so(client, agents, app):

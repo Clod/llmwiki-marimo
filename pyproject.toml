@@ -20,6 +20,8 @@ dependencies = [
     "traitlets>=5.15.0",
     "pyyaml>=6.0",
     "snowballstemmer>=3.0",
+    "pypdfium2>=5.14.0",
+    "pillow>=12.3.0",
     "tomlkit>=0.13",
 ]
 

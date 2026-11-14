@@ -37,7 +37,7 @@ schema (`SchemaMismatchError`; an index built before stemming is rebuilt instead
 | `chunks_fts`          | Virtual FTS5 table mirroring `document_chunks` via triggers                    |
 | `document_references` | Citation graph edges (`reference_type` ∈ {`cites`, `links_to`})                |
 | `page_verifications`  | The last sentence-level verification of a wiki page: one row per page          |
-| `verification_sentences` | Every sentence checked by that verification, with its probability and best passage |
+| `verification_sentences` | Every sentence checked by that verification, with its probability and best passage; the source of a sentence whose best passage is the generated description of an image carries the fragment `#image:<file>` (the third state: "supported by an image description"), and the source text wins over a description when both reach the threshold |
 
 ### The citation graph (nodes & edges)
 

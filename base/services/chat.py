@@ -13,7 +13,7 @@ model read (`ChatResult`), for the sentence verification; `chat_turn` and
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from pydantic_ai import AgentRunResultEvent
@@ -24,7 +24,8 @@ from pydantic_ai.messages import (
 
 from domain import tracing
 from domain.chat.agent import create_agent
-from domain.chat.config import WikiAssistantConfig, load_config
+from domain.chat import figure_check
+from domain.chat.config import DEFAULT_NUMBER_TOLERANCE, WikiAssistantConfig, load_config
 from domain.chat.guardrail import strip_refused_exchanges
 from domain.chat.history import data_origin, trim_history
 from domain.chat.postprocess import advisory_table
@@ -34,6 +35,7 @@ from domain.chat.preretrieval import pre_retrieval_answer, with_open_page
 from domain.chat.workflow import output_checks
 from domain.prompts import load_prompt
 from domain.verify.context import context_from_messages
+from domain.verify.figures import FigureReport
 from domain.verify.models import ContextPassage
 from services.wiki import Wiki
 
@@ -170,8 +172,10 @@ class ChatResult:
     context:   the passages of the turn: the pages and fragments the
                pre-retrieval mode injected, and the tool returns of the run. A
                refusal the code makes before the model runs has none.
-    generated: texts the code appended to the answer (the advisory table); the
-               verification skips them.
+    generated: texts the code appended to the answer (the advisory table, the note on
+               rounded figures); the verification skips them.
+    figures:   the figure check of the prose (`check_turn_figures`); None until the
+               check ran.
     """
 
     answer: str
@@ -187,6 +191,46 @@ class ChatResult:
     # each round of the agent loop). A refusal the code makes before the model runs has 0.
     input_tokens: int = 0
     output_tokens: int = 0
+    figures: FigureReport | None = None
+
+
+# ── figure check ─────────────────────────────────────────────────────────────
+
+def figure_counts(report: FigureReport | None) -> dict:
+    """The counts the node C3 records (`domain/chat/figure_check.py`)."""
+    return figure_check.counts(report)
+
+
+def check_turn_figures(result: ChatResult, messages: Sequence[Any], config: Any,
+                       *, refused: bool = False) -> ChatResult:
+    """Classify every figure of the prose of `result.answer` (`domain/chat/figure_check.py`).
+
+    Returns a new `ChatResult` with `figures`. When the prose has rounded figures, the
+    note of the locale is appended after every other appended text and added to
+    `generated`, so the sentence verification skips it. The text of the model is never
+    edited. A refusal of the code (`refused`) has an empty report: no model text was
+    written. The output workflow runs the same check as its node C3; the streaming mode
+    calls this function.
+    """
+    if refused:
+        check = figure_check.FigureCheck(FigureReport())
+    else:
+        check = figure_check.check_answer(
+            result.answer, result.context, result.generated, figure_check.conversation_sources(messages),
+            tolerance=getattr(config, "number_tolerance", DEFAULT_NUMBER_TOLERANCE),
+            language=getattr(config, "language", None))
+    return _with_figures(result, check, in_answer=False)
+
+
+def _with_figures(result: ChatResult, check: figure_check.FigureCheck | None, *, in_answer: bool) -> ChatResult:
+    """`result` with the report of `check`, and its note in `generated`; `in_answer` says
+    whether the answer already holds the note (C3 of the output workflow appended it).
+    A path that did not reach C3 (a refusal) has an empty report."""
+    if check is None:
+        return replace(result, figures=FigureReport())
+    generated = (*result.generated, check.note) if check.note else result.generated
+    answer = result.answer if in_answer else figure_check.with_note(result.answer, check)
+    return replace(result, answer=answer, generated=generated, figures=check.report)
 
 
 class _Tokens:
@@ -258,22 +302,29 @@ async def chat_turn_with_context(
             outputs.append(str(result.output))
             return result
 
-        with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes):
+        with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
             tracing.mark("C1", R, **_history_counts(messages, history))
             tracing.mark("C2", R, mode=mode)
+            checked: list[figure_check.FigureCheck] = []
             answer = await pre_retrieval_answer(
                 question, config=agents.config, db_path=wiki.db_path, workspace=wiki.path,
                 history=history, language=language, run_agent=run_agent, open_page=open_page,
                 on_context=injected.extend, condense=_condenser(agents, language, tokens),
+                conversation=figure_check.conversation_sources(messages), on_figures=checked.append,
                 sentence_verifier=sentence_verifier,
             )
-        run_messages = ran[-1] if ran else []
-        table = advisory_table(run_messages)
-        return ChatResult(
-            answer, (*injected, *context_from_messages(run_messages)), (table,) if table else (),
-            raw_answer=_raw_answer(outputs[-1], answer) if outputs else None, path=tuple(path),
-            input_tokens=tokens.input, output_tokens=tokens.output,
-        )
+            run_messages = ran[-1] if ran else []
+            table = advisory_table(run_messages)
+            raw_answer = _raw_answer(outputs[-1], answer) if outputs else None
+            result = ChatResult(
+                answer, (*injected, *context_from_messages(run_messages)), (table,) if table else (),
+                raw_answer=raw_answer, path=tuple(path),
+                input_tokens=tokens.input, output_tokens=tokens.output,
+            )
+            # C3 ran in the output workflow; a refusal did not reach it.
+            result = _with_figures(result, checked[-1] if checked else None, in_answer=True)
+            root.set(final_answer=result.answer, **figure_counts(result.figures))
+        return result
 
     if mode != STRICT:
         raise ValueError(f"chat_turn answers the pre-retrieval and strict modes, not {mode!r}")
@@ -290,14 +341,20 @@ async def chat_turn_with_context(
             messages_run = result.all_messages()
             t1.set(tools_called=_tools_called(messages_run), raw_output=raw)
         # The checks of the answer, T2 to T5: the output workflow of the strict mode.
-        checks = output_checks.AnswerChecks(raw, messages_run, language)
+        checks = output_checks.AnswerChecks(
+            raw, messages_run, language,
+            tolerance=getattr(agents.config, "number_tolerance", DEFAULT_NUMBER_TOLERANCE),
+            conversation=tuple(figure_check.conversation_sources(messages)),
+        )
         answer = await output_checks.graph.run(state=checks, inputs=checks)
         root.set(raw_output=raw, final_answer=answer, grounded=checks.grounded,
-                 refusal_substituted=checks.refusal_substituted)
+                 refusal_substituted=checks.refusal_substituted, **figure_counts(
+                     checks.figures.report if checks.figures else None))
     table = advisory_table(messages_run)
-    return ChatResult(answer, tuple(context_from_messages(messages_run)), (table,) if table else (),
-                      raw_answer=_raw_answer(raw, answer), path=tuple(path),
-                      input_tokens=tokens.input, output_tokens=tokens.output)
+    result = ChatResult(answer, tuple(context_from_messages(messages_run)), (table,) if table else (),
+                        raw_answer=_raw_answer(raw, answer), path=tuple(path),
+                        input_tokens=tokens.input, output_tokens=tokens.output)
+    return _with_figures(result, checks.figures, in_answer=True)
 
 
 async def chat_turn(
@@ -321,7 +378,8 @@ async def chat_turn_stream_with_context(
     """Answer the last message of `messages` in the streaming mode.
 
     Yields the text chunks as they arrive, then one `ChatResult` as the last
-    item, with the whole answer and the tool returns of the run.
+    item, with the whole answer (the note on rounded figures included) and the tool
+    returns of the run.
     """
     history = model_history(messages[:-1], agents.config.language)
     question = messages[-1].content
@@ -356,10 +414,14 @@ async def chat_turn_stream_with_context(
                     full_text += chunk
                     yield chunk
             f1.set(tools_called=_tools_called(run_messages))
-        tracing.mark("F2", R, final_answer=full_text)
-        root.set(raw_output=full_text, final_answer=full_text)
-    yield ChatResult(full_text, tuple(context_from_messages(run_messages)), path=tuple(path),
-                     input_tokens=tokens.input, output_tokens=tokens.output)
+        # C3, the figure check: the only check of the streaming mode.
+        final = check_turn_figures(ChatResult(full_text, tuple(context_from_messages(run_messages))),
+                                   messages, agents.config)
+        tracing.mark("C3", R, **figure_counts(final.figures),
+                     note_added=final.answer != full_text)
+        tracing.mark("F2", R, final_answer=final.answer)
+        root.set(raw_output=full_text, final_answer=final.answer, **figure_counts(final.figures))
+    yield replace(final, path=tuple(path), input_tokens=tokens.input, output_tokens=tokens.output)
 
 
 async def chat_turn_stream(
