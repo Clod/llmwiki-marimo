@@ -1,14 +1,25 @@
-"""Tests for the chat-model eval graders (scripts/eval_chat_model.py).
+"""Tests of `scripts/eval_chat_model.py`, with `services.model_test.run` replaced.
 
-These are the pure scoring functions behind `scripts/eval_chat_model.py`. They
-decide PASS/FAIL from an answer string, so they must reliably (a) spot a leaked
-off-corpus answer and (b) detect both wiki-page and source-PDF citation formats.
+No test calls a model or reads `.env`: `load_dotenv` is replaced by a function that does
+nothing, and `config.settings` by a `Settings` built from explicit values.
 """
 
 import importlib.util
 from pathlib import Path
 
+import pytest
+
+from domain.modeltest import Check, Report
+
 _MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "eval_chat_model.py"
+
+_LLM = {"LLM_BASE_URL": "http://chat.invalid/v1", "LLM_API_KEY": "chat-key", "LLM_MODEL": "chat/model"}
+_BLANK = {"WIKI_LLM_BASE_URL": "", "WIKI_LLM_API_KEY": "", "WIKI_LLM_MODEL": "",
+          "VISION_BASE_URL": "", "VISION_API_KEY": "", "VISION_MODEL": "", "OCR_ENGINE": "none"}
+
+# The checks of each kind of test (`domain.modeltest.runner`).
+_KEYS = {"reading": ("answers", "declines", "uses_tools"), "ingestion": ("ingests",),
+         "vision": ("reads_page", "describes")}
 
 
 def _load():
@@ -21,128 +32,171 @@ def _load():
 _eval = _load()
 
 
-def test_off_corpus_leak_detected() -> None:
-    assert _eval.answered_off_corpus("The capital of France is Paris.") is True
-    assert _eval.answered_off_corpus("PARIS is the capital.") is True  # case-insensitive
+class _FakeRun:
+    """Replaces `model_test.run`: records each call, reports each check to `progress`, and
+    returns a `Report` whose checks have the outcome of `outcome(kind, key)`."""
+
+    def __init__(self, outcome=lambda kind, key: Check(key, True, f"{key} passed")):
+        self.outcome = outcome
+        self.calls: list[tuple[str, str, str, str, str]] = []
+
+    def __call__(self, kind, base_url, api_key, model, language="en", progress=None):
+        self.calls.append((kind, base_url, api_key, model, language))
+        checks = tuple(self.outcome(kind, key) for key in _KEYS[kind])
+        for check in checks:
+            if progress is not None:
+                progress(check)
+        return Report(kind, model, checks, 1.5)
 
 
-def test_off_corpus_refusal_passes() -> None:
-    assert _eval.answered_off_corpus("I couldn't find anything about that in your wiki.") is False
+@pytest.fixture
+def setup(monkeypatch):
+    """Returns a function that sets the values of `.env` and replaces `model_test.run`."""
+    import dotenv
+
+    from services import model_test
+
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: False)
+
+    def _setup(values=None, run=None):
+        import config
+
+        fake_settings = config.Settings(_env_file=None, **{**_LLM, **_BLANK, **(values or {})})
+        monkeypatch.setattr(config, "settings", fake_settings)
+        fake_run = run or _FakeRun()
+        monkeypatch.setattr(model_test, "run", fake_run)
+        return fake_run
+
+    return _setup
 
 
-def test_citation_detected_for_wiki_page() -> None:
-    assert _eval.has_citation("She flees at midnight (wiki/summaries/cinderella.md).") is True
+# ── Exit codes ────────────────────────────────────────────────────────────────
+
+def test_exit_0_when_every_check_passes(setup, capsys):
+    setup()
+    assert _eval.main([]) == 0
+    out = capsys.readouterr().out
+    assert "✓ It answers from the page and cites it" in out
+    assert "VERDICT: ✓ the 4 checks passed" in out
 
 
-def test_citation_detected_for_source_pdf() -> None:
-    assert _eval.has_citation("The glass slipper (Cinderella.pdf, p. 3) is left behind.") is True
+def test_exit_1_when_a_check_that_ran_fails(setup, capsys):
+    def outcome(kind, key):
+        if key == "declines":
+            return Check(key, False, "the path ends in Q21, not R5")
+        return Check(key, True, "ok")
+
+    setup(run=_FakeRun(outcome))
+    assert _eval.main([]) == 1
+    out = capsys.readouterr().out
+    assert "✗ It declines when the page has no answer: the path ends in Q21, not R5" in out
+    assert "✗ The model failed 1 of 3 checks (1.5 s)." in out
+    assert "VERDICT: ✗ 1 of 4 checks failed." in out
 
 
-def test_no_citation_when_absent() -> None:
-    assert _eval.has_citation("She flees the ball at midnight.") is False
+def test_exit_1_when_a_check_fails_and_another_did_not_run(setup):
+    def outcome(kind, key):
+        if kind == "ingestion":
+            return Check(key, False, "Connection error.", ran=False)
+        return Check(key, key != "answers", "detail")
+
+    setup(run=_FakeRun(outcome))
+    assert _eval.main([]) == 1
 
 
-def test_citation_count_is_distinct() -> None:
-    text = (
-        "a (wiki/summaries/cinderella.md) b (wiki/summaries/snow-white.md) "
-        "c (wiki/summaries/cinderella.md)"
-    )
-    assert _eval.citation_count(text) == 2
+def test_exit_2_when_the_service_gives_no_answer(setup, capsys):
+    setup(run=_FakeRun(lambda kind, key: Check(key, False, "Connection error.", ran=False)))
+    assert _eval.main([]) == 2
+    out = capsys.readouterr().out
+    assert "? It answers from the page and cites it: no answer from the service (Connection error.)" in out
+    assert "? The tests could not run: the service gave no answer." in out
+    assert "VERDICT: ? the tests could not run" in out
 
 
-def test_synthesis_grader_requires_at_least_one_citation() -> None:
-    passed_none, _ = _eval._check_synthesis_cited("Both have a wicked stepmother.")
-    assert passed_none is False
-    passed_two, _ = _eval._check_synthesis_cited(
-        "Stepmother (wiki/summaries/cinderella.md); rescued by a prince "
-        "(wiki/summaries/snow-white.md)."
-    )
-    assert passed_two is True
+def test_exit_2_when_a_check_did_not_run_and_none_failed(setup):
+    def outcome(kind, key):
+        if kind == "ingestion":
+            return Check(key, False, "Connection error.", ran=False)
+        return Check(key, True, "ok")
+
+    setup(run=_FakeRun(outcome))
+    assert _eval.main([]) == 2
 
 
-# ── Retrieval check: a citation only counts if a tool was actually called ──────
-
-class _Part:
-    def __init__(self, kind: str) -> None:
-        self.part_kind = kind
-
-
-class _Msg:
-    def __init__(self, *kinds: str) -> None:
-        self.parts = [_Part(k) for k in kinds]
+def test_exit_2_when_a_value_is_missing_and_no_test_runs(setup, capsys):
+    fake_run = setup({"LLM_MODEL": ""})
+    assert _eval.main([]) == 2
+    assert fake_run.calls == []
+    assert "Model not configured for reading (LLM_*)" in capsys.readouterr().out
 
 
-class _Result:
-    def __init__(self, *messages: _Msg) -> None:
-        self._messages = messages
+# ── Which tests run ───────────────────────────────────────────────────────────
 
-    def all_messages(self) -> tuple[_Msg, ...]:
-        return self._messages
-
-
-def test_made_tool_call_true_when_a_tool_call_part_is_present() -> None:
-    result = _Result(_Msg("text"), _Msg("tool-call", "text"))
-    assert _eval._made_tool_call(result) is True
+def test_without_model_reading_and_ingestion_with_the_fallback_values(setup):
+    fake_run = setup({"WIKI_LLM_MODEL": "ingest/model"})
+    _eval.main([])
+    assert fake_run.calls == [
+        ("reading", "http://chat.invalid/v1", "chat-key", "chat/model", "en"),
+        ("ingestion", "http://chat.invalid/v1", "chat-key", "ingest/model", "en"),
+    ]
 
 
-def test_made_tool_call_false_when_only_text_parts() -> None:
-    # A model that answers (even with citation-shaped text) without any tool call
-    # never retrieved — the fabricated-citation case this whole check exists for.
-    result = _Result(_Msg("text"), _Msg("text"))
-    assert _eval._made_tool_call(result) is False
+def test_without_model_the_ingestion_test_uses_its_own_values(setup):
+    fake_run = setup({"WIKI_LLM_BASE_URL": "http://ingest.invalid/v1", "WIKI_LLM_API_KEY": "ingest-key",
+                      "WIKI_LLM_MODEL": "ingest/model"})
+    _eval.main([])
+    assert fake_run.calls[1] == ("ingestion", "http://ingest.invalid/v1", "ingest-key", "ingest/model", "en")
 
 
-def test_made_tool_call_defensive_when_introspection_raises() -> None:
-    class _Broken:
-        def all_messages(self):  # noqa: ANN202
-            raise RuntimeError("unexpected pydantic-ai shape")
-
-    assert _eval._made_tool_call(_Broken()) is False
-
-
-def test_count_tool_calls_counts_across_messages() -> None:
-    result = _Result(_Msg("tool-call", "text"), _Msg("text"), _Msg("tool-call"))
-    assert _eval._count_tool_calls(result) == 2
-    assert _eval._count_tool_calls(_Result(_Msg("text"))) == 0
+def test_the_vision_test_runs_when_a_vision_model_is_set(setup):
+    fake_run = setup({"WIKI_LLM_MODEL": "ingest/model", "VISION_MODEL": "vision/model"})
+    _eval.main([])
+    assert [c[0] for c in fake_run.calls] == ["reading", "ingestion", "vision"]
+    assert fake_run.calls[2] == ("vision", "http://chat.invalid/v1", "chat-key", "vision/model", "en")
 
 
-# ── Per-check system prompts: the off-topic check runs domain-blind ────────────
-
-def test_offtopic_check_uses_strict_search_prompt() -> None:
-    label, _q, _grader, requires, prompt = _eval._QUESTIONS[0]
-    assert label == "Refuses off-topic questions"
-    assert prompt is _eval._STRICT_SEARCH_PROMPT
-    assert requires is True
+def test_the_vision_test_runs_when_the_ocr_engine_is_vision(setup):
+    fake_run = setup({"WIKI_LLM_MODEL": "ingest/model", "OCR_ENGINE": "vision"})
+    _eval.main([])
+    # No VISION_MODEL: the vision test takes the ingestion model, as `settings.vision()` does.
+    assert fake_run.calls[2] == ("vision", "http://chat.invalid/v1", "chat-key", "ingest/model", "en")
 
 
-def test_citation_checks_use_the_production_default_prompt() -> None:
-    # system_prompt=None makes create_agent fall back to the system_prompt file,
-    # whose worked example is what makes cross-document citation reliable.
-    for label, _q, _grader, _req, prompt in _eval._QUESTIONS[1:]:
-        assert prompt is None, f"{label} should use the production default prompt"
+def test_the_vision_test_does_not_run_without_a_vision_model_or_engine(setup):
+    fake_run = setup({"OCR_ENGINE": "tesseract"})
+    _eval.main([])
+    assert [c[0] for c in fake_run.calls] == ["reading", "ingestion"]
 
 
-def test_strict_search_prompt_is_domain_blind() -> None:
-    # It must not name the wiki's subject — that leak is the whole reason a strong
-    # model can refuse "capital of France" without ever searching.
-    p = _eval._STRICT_SEARCH_PROMPT.lower()
-    for leak in ("cinderella", "snow white", "sleeping beauty", "fairy"):
-        assert leak not in p, f"strict prompt leaks the domain: {leak!r}"
+def test_model_runs_the_reading_test_with_the_service_of_llm(setup):
+    fake_run = setup({"WIKI_LLM_MODEL": "ingest/model", "VISION_MODEL": "vision/model"})
+    assert _eval.main(["--model", "a/one", "--model", "b/two"]) == 0
+    assert fake_run.calls == [
+        ("reading", "http://chat.invalid/v1", "chat-key", "a/one", "en"),
+        ("reading", "http://chat.invalid/v1", "chat-key", "b/two", "en"),
+    ]
 
 
-def test_strict_search_prompt_mandates_retrieval_before_declining() -> None:
-    # The differentiator from the production prompt: no "decline obvious trivia
-    # without searching" shortcut — a search is required even before a refusal.
-    p = _eval._STRICT_SEARCH_PROMPT.lower()
-    assert "before you decline" in p
-    assert "must retrieve" in p
+def test_language_is_passed_to_the_tests(setup):
+    fake_run = setup()
+    _eval.main(["--language", "es"])
+    assert {c[4] for c in fake_run.calls} == {"es"}
 
 
-def test_production_prompt_by_contrast_names_the_domain() -> None:
-    # Documents *why* the off-topic check needs its own prompt: the shipped prompt
-    # reveals the subject (fairy tales), so it can't test search-before-refuse.
-    from domain.prompts import load_prompt
+# ── Output ────────────────────────────────────────────────────────────────────
 
-    _DEFAULT_SYSTEM_PROMPT = load_prompt("system_prompt", "en")
+def test_brief_prints_no_detail_for_a_check_that_passed(setup, capsys):
+    setup()
+    _eval.main(["--brief"])
+    brief = capsys.readouterr().out
+    _eval.main([])
+    full = capsys.readouterr().out
+    assert "answers passed" not in brief
+    assert "answers passed" in full
+    assert brief.count("✓ It answers from the page and cites it") == 1
 
-    assert "cinderella" in _DEFAULT_SYSTEM_PROMPT.lower()
+
+def test_the_script_does_not_read_the_sample_wiki_of_the_tests():
+    source = _MODULE_PATH.read_text(encoding="utf-8")
+    assert "tests.helpers" not in source
+    assert "golden" not in source

@@ -13,6 +13,26 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **The Settings screen tests each model.** The only check of a model was
+  `scripts/eval_chat_model.py`: it asked three questions to the sample wiki of the
+  tests, in one mode of the chat, and needed a terminal. Each group of the block
+  "Models" (reading, ingestion, vision) now has three buttons: "Test", a help
+  button and "Save". "Test" runs the path of the product with the values of the
+  form, without writing `.env`, and the console shows one line per check. The
+  reading test asks three questions to a temporary wiki of two pages: one in the
+  pre-retrieval mode that the page answers, one that the page does not answer, and
+  the first one in the mode with tools. The ingestion test ingests a text of one
+  paragraph into a temporary wiki. The vision test reads a scanned page that ships
+  with the product (`base/domain/modeltest/assets/`) and describes it as an image.
+  A check that gets no answer from the service is reported as a check that did not
+  run, not as a failure of the model. "Save" writes only the keys of its group,
+  and asks for a confirmation when those values were not tested or failed their
+  last test. The button "Save the models" is gone, and the selector "OCR engine"
+  is saved with the vision group. `scripts/eval_chat_model.py` runs the same tests,
+  with a new option `--language`, and keeps `--model`, `--brief` and its exit
+  codes. Passing is necessary, not sufficient: a model gives different results in
+  two runs.
+
 - **The Maintain screen installs the sentence verifier.** The checkboxes and
   buttons that verify sentences were disabled with a help line that gave
   `python3 quickstart.py --with-verifier` or `uv sync --group verify`: an install

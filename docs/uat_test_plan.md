@@ -366,58 +366,83 @@ does two bad things: it **makes up answers** that aren't in your documents, and 
 **forgets to show where an answer came from**. This part lets you check a model
 *before* you rely on it — no deep technical knowledge needed.
 
-There are really **two jobs**, and you can use a different model for each:
+There are **three jobs**, and you can use a different model for each:
 
 - **The answering model** (`LLM_MODEL` in your `.env`) — chats with you and
   answers questions.
 - **The page-writing model** (`WIKI_LLM_MODEL`) — writes the wiki pages when you
-  add a document. If you don't set this one separately, it uses the answering
+  add a document. If you do not set this one separately, it uses the answering
   model.
+- **The vision model** (`VISION_MODEL`) — describes the images of the sources, and
+  reads scanned PDFs when the OCR engine is the vision model. If you do not set
+  this one separately, it uses the page-writing model.
 
-## Check the answering model — one command
+## Check the models — one button or one command
 
-You don't need to add any documents: this uses a small **sample wiki** (four fairy
-tales) that ships with the project. Put the model you want to try in your `.env`
-as `LLM_MODEL`, then run:
+You do not need to add any documents: each test brings its own material, builds a
+small temporary wiki and deletes it at the end. Your wiki is not read or changed.
 
-```bash
-uv run python scripts/eval_chat_model.py
-```
+- **In the web interface.** Open **Settings**. In the block "Models", each model
+  has a **Test** button. The test uses the values of the fields, without saving
+  them. The **?** button next to it explains what the test checks.
+- **In a terminal.** Put the models in your `.env`, then run:
 
-It asks the assistant three questions and checks the answers:
+  ```bash
+  uv run python scripts/eval_chat_model.py
+  ```
 
-1. **Does it refuse a question that isn't in the wiki?** We ask for the capital of
-   France — which is *not* in the fairy tales. A good model says it doesn't know;
-   a weak one blurts "Paris".
-2. **Does it show its source?** Every fact should come with a small reference like
-   `(wiki/summaries/cinderella.md)`.
-3. **Does it still show sources when comparing two things?** Weak models drop the
-   references exactly here.
+  The command tests the answering model and the page-writing model. It tests the
+  vision model when `VISION_MODEL` is set or `OCR_ENGINE` is `vision`.
+  `--model ID` tests the answering model with that model id, and `--language es`
+  uses the Spanish material.
 
-You get a ✓ or ✗ for each, then a verdict:
+What each test checks:
 
-- **✓ good enough** — it refuses off-topic questions and shows its sources. Safe
-  to use.
-- **✗ likely too weak** — it answered something it shouldn't, or gave facts with
-  no source. Pick a stronger model and run it again.
+1. **The answering model** gets three questions about a wiki of two pages. It must
+   answer a question the page answers, with the datum of the page and a citation
+   of the page. It must say it found no answer to a question the page does not
+   answer. In the mode with tools, it must search the wiki before it answers.
+2. **The page-writing model** ingests a text of one paragraph. It must write the
+   summary page and at least one concept page that names the source, and the lint
+   must find no error.
+3. **The vision model** reads a scanned page that ships with the product, with an
+   invented text and table. The fourteen data of the page (a code, dates, amounts,
+   the cells of the table) must be in what it reads. It must also describe the page
+   as an image, in the format the product asks for.
 
-> This is a quick check, not a full exam. If a result looks borderline, run it
-> once or twice more — the model words things a little differently each time.
+You get a line for each check, then a verdict:
+
+- **✓** — the check passed.
+- **✗** — the check failed: the model gave an answer that does not meet the check.
+  Pick a stronger model and run the test again.
+- **?** — the service gave no answer (a wrong URL, key or model id, or a service
+  that is not running). This is not a failure of the model. Fix the values and run
+  the test again.
+
+The command ends with exit code 0 when every check passed, 1 when a check failed,
+and 2 when the tests could not run.
+
+> Passing is necessary, not sufficient. The tests find a model that cannot do the
+> work. They do not show how a model handles a long document or your own questions.
+> A model gives different results in two runs: if a result looks doubtful, run the
+> test once or twice more.
 
 ## Check the page-writing model — by eye
 
-The page-writing model is judged by the pages it produces. Add the four sample
-PDFs (the [quick-start](#quick-start--reset--run) in Part B), open a generated
-summary, and ask: **does it read like a real encyclopedia page, or like a messy
-dump?** That's exactly **[B1](#b1-ingest-happy-path--content-quality)** above — if
-the summaries look good, the page-writing model is good enough.
+The test above uses one short text. The page-writing model is also judged by the
+pages it produces from your documents. Add the four sample PDFs (the
+[quick-start](#quick-start--reset--run) in Part B), open a generated summary, and
+ask: **does it read like a real encyclopedia page, or like a messy dump?** That is
+**[B1](#b1-ingest-happy-path--content-quality)** above. If the summaries look good,
+the page-writing model is good enough.
 
 ## Choosing between two models
 
-Run the command once with each model set as `LLM_MODEL`. The one that passes —
-and, on the comparison question, cites **both** stories — is the better pick for
-chat. For a worked example of a weak vs. a strong model, see the model-guidance
-note in the README.
+The tests do not rank two models that both pass. Run them with each model to
+discard the ones that fail. Between two models that pass, ask both the same
+questions about your own wiki (Part B) and compare the answers and their
+citations. For a worked example of a weak vs. a strong model, see the
+model-guidance note in the README.
 
 ---
 

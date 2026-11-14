@@ -508,8 +508,8 @@ def validate_model(venv_dir: Path) -> None:
     yet. Skip it entirely with --no-eval.
     """
     py = str(venv_python(venv_dir))
-    say("  A quick grounding check on your model — a few chat calls against a "
-        "built-in sample wiki.")
+    say("  A quick check of your models — a few questions and one ingestion on a "
+        "temporary wiki.")
     say("  (Advisory only; it won't block. Skip next time with --no-eval.)\n")
     try:
         result = subprocess.run([py, "scripts/eval_chat_model.py", "--brief"], cwd=REPO_ROOT)

@@ -6,7 +6,7 @@
   <h1 class="sr-only">{{ _("Settings") }}</h1>
   {% if message %}<p class="{{ message.kind }} settings-message" role="{{ 'alert' if message.kind == 'warn' else 'status' }}">{{ message.text }}</p>{% endif %}
   {% if models.editable %}
-  <form method="post" action="/w/{{ wiki_id }}/settings/models" class="settings-form" autocomplete="off">
+  <form class="settings-form models-form" autocomplete="off">
     <section class="panel settings-block" aria-labelledby="h-models">
       <div class="panel-head"><h2 id="h-models">{{ _("Models") }} <code>.env</code></h2></div>
       <p class="setting-help muted">{% trans path=models.env_file %}The models are the same for every wiki. They are saved in <code>{{ path }}</code>.{% endtrans %}</p>
@@ -16,10 +16,9 @@
       <h3 class="setting-group">{{ title }}</h3>
       <p class="setting-help muted">{{ help }}</p>
       {% set url = group ~ "_base_url" %}{% set key = group ~ "_api_key" %}{% set model = group ~ "_model" %}
-      <div class="setting{% if models.errors[url] %} invalid{% endif %}">
+      <div class="setting">
         <div class="setting-head"><label for="f-{{ url }}">{{ _("Endpoint URL") }}</label><code>{{ url | upper }}</code></div>
         <input class="field" id="f-{{ url }}" name="{{ url }}" type="text" inputmode="url" spellcheck="false" value="{{ models.fields[url] }}">
-        {% if models.errors[url] %}<p class="field-error" role="alert">{{ models.errors[url] }}</p>{% endif %}
       </div>
       <div class="setting">
         <div class="setting-head"><label for="f-{{ key }}">{{ _("API key") }}</label><code>{{ key | upper }}</code></div>
@@ -30,10 +29,9 @@
         <div class="setting-head"><label for="f-{{ model }}">{{ _("Model") }}</label><code>{{ model | upper }}</code></div>
         <input class="field" id="f-{{ model }}" name="{{ model }}" type="text" spellcheck="false" value="{{ models.fields[model] }}">
       </div>
-      {% endfor %}
-      <h3 class="setting-group">{{ _("OCR engine") }}</h3>
+      {% if group == "vision" %}
       <div class="setting">
-        <div class="setting-head"><label for="f-ocr_engine">{{ _("Engine") }}</label><code>OCR_ENGINE</code></div>
+        <div class="setting-head"><label for="f-ocr_engine">{{ _("OCR engine") }}</label><code>OCR_ENGINE</code></div>
         <select class="field" id="f-ocr_engine" name="ocr_engine">
           {% for value, label in [("none", _("None")), ("tesseract", "Tesseract"), ("vision", _("Vision model"))] %}
           <option value="{{ value }}"{% if models.fields.ocr_engine == value %} selected{% endif %}>{{ label }}</option>
@@ -41,8 +39,37 @@
         </select>
         <p class="setting-help muted">{{ _("The engine that reads a PDF with no text layer. With no engine, a scanned PDF is not ingested. Tesseract needs the programs ocrmypdf and tesseract installed in this computer. The vision model reads each page with the model above.") }}</p>
       </div>
+      {% endif %}
+      <div class="settings-actions model-actions">
+        <button class="btn" type="button" title="{{ _('Run the tests with the values of these fields, without saving them') }}"
+                hx-post="/w/{{ wiki_id }}/settings/models/{{ group }}/test" hx-include="closest form"
+                hx-target="#test-{{ group }}" hx-swap="innerHTML">{{ _("Test") }}</button>
+        <button class="btn help" type="button" aria-label="{{ _('What the test checks') }}"
+                title="{{ _('What the test checks') }}" data-help="help-{{ group }}">?</button>
+        <button class="btn btn-primary" type="button" title="{{ _('Write this model to .env. It applies from the next question') }}"
+                hx-post="/w/{{ wiki_id }}/settings/models/{{ group }}" hx-include="closest form"
+                hx-target="#test-{{ group }}" hx-swap="innerHTML">{{ _("Save") }}</button>
+      </div>
+      <div id="test-{{ group }}" class="model-test" aria-live="polite"></div>
+      {% endfor %}
+      {% for group, title, what, limits in [
+           ("llm", _("Test of the reading model"),
+            _("The test builds a small temporary wiki with two pages and asks three questions with the fields above. First: a question the page answers, in the mode that retrieves before asking; the model must answer with the datum of the page and cite the page. Second: a question the page does not answer; the model must say it found no answer. Third: the first question in the mode with tools; the model must search the wiki before it answers. The test takes about ten seconds and makes three calls to the model."),
+            _("Limits. Passing is necessary, not sufficient: the test finds a model that cannot do the work, and it does not compare two models that can. A model gives different answers in two runs: repeat a doubtful result. The temporary wiki is deleted at the end, and your wiki is not read.")),
+           ("wiki_llm", _("Test of the ingestion model"),
+            _("The test builds a small temporary wiki and ingests a text of one paragraph with the fields above, through the same steps as a real ingestion. The model must write the summary page and at least one concept page that names the source, and the review of the wiki must find no error. The test takes about twenty seconds and makes several calls to the model."),
+            _("Limits. Passing is necessary, not sufficient: one short text does not show how the model handles a long document. A model gives different results in two runs: repeat a doubtful result. The temporary wiki is deleted at the end, and your wiki is not changed.")),
+           ("vision", _("Test of the vision model"),
+            _("The test sends one scanned page that ships with the product, with a text and a table that are invented. First: the model reads the page as the OCR does; the fourteen data of the page (a code, dates, amounts, the cells of the table) must be in what it reads. Second: the model describes the same page as an image, in the format the product asks for. The test takes about ten seconds and makes two calls to the model."),
+            _("Limits. Passing is necessary, not sufficient: the page is clean and printed, and a photograph or handwriting is harder. A model gives different results in two runs: repeat a doubtful result. The test does not check Tesseract, which is not a model."))] %}
+      <dialog class="help" id="help-{{ group }}" aria-labelledby="help-{{ group }}-title">
+        <h2 id="help-{{ group }}-title">{{ title }}</h2>
+        <p>{{ what }}</p>
+        <p>{{ limits }}</p>
+        <div class="help-actions"><button class="btn" type="button" data-close>{{ _("Close") }}</button></div>
+      </dialog>
+      {% endfor %}
     </section>
-    <div class="settings-actions"><button class="btn btn-primary" title="{{ _('Write the models to .env. They apply from the next question') }}">{{ _("Save the models") }}</button></div>
   </form>
   {% endif %}
   <form method="post" action="/w/{{ wiki_id }}/settings" class="settings-form">
