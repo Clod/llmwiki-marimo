@@ -6,7 +6,8 @@ diagrams are Mermaid flowcharts converted from the text of the graphs
 (`graph.render()`, see `flowchart`), so they show the steps that run. Each step
 is a box with its short text (`audit_nodes.text`), each decision a diamond with
 its question, and each branch an arrow with its label, all in the interface
-language. The diagram of the call to the model is a chain built from the path
+language. The conversion is `domain.chat.workflow.flowchart`, which also writes
+the diagrams of `docs/workflow_diagrams.md`, in English. The diagram of the call to the model is a chain built from the path
 of the turn: the node of the call (Q13 to Q16, or T1) and each tool node (K1 to
 K10) in the order of the path.
 
@@ -21,9 +22,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from pydantic_graph import Step
-
+from domain.chat.workflow import flowchart as conversion
 from domain.chat.workflow import input_checks, output_checks
+from domain.chat.workflow.flowchart import END, START, steps  # noqa: F401 — END and START for the callers
 from web import audit_nodes
 from web.i18n import N_, _
 
@@ -50,15 +51,6 @@ _BLOCK = re.compile(r"^```mermaid\n(.*?)^```", re.S | re.M)
 # A node line: `    Q["Q1 · question"]`, `C2{"C2 · ..."}`, `IDX[("DB · ...")]`. The first group is
 # the id Mermaid uses, the second the id of the node in the path, which opens the label.
 _NODE = re.compile(r'^\s*(\w+)\s*(?:\[\(|\[|\{|\()\s*"([A-Za-z]\w*) ·', re.M)
-# The lines of `graph.render()`: a step (the identifier alone, indented), a decision
-# (`state after_Q3 <<choice>>`), the first line of the note that holds its question
-# (`note right of after_Q3`), and an edge (`after_Q3 --> R1: names a blacklisted term`).
-_STEP = re.compile(r"^\s+(\w+)$")
-_CHOICE = re.compile(r"^\s*state (\w+) <<choice>>$")
-_NOTE = re.compile(r"^\s*note right of (\w+)$")
-_EDGE = re.compile(r"^\s*(\S+) --> (\S+)(?:: (.+))?$")
-# The ids of the start and the end of a flowchart. `[*]` is their name in `graph.render()`.
-START, END = "wf_start", "wf_end"
 _TOOL = re.compile(r"K\d+")
 
 
@@ -93,54 +85,14 @@ def _with_style(text: str, marked) -> str:
 
 
 def _label(node_id: str) -> str:
-    """The label of a node: its identifier and its short text, without double quotes."""
-    text = audit_nodes.text(node_id).replace('"', "'")
-    return f"{node_id} · {text}" if text else node_id
-
-
-def steps(graph) -> list[str]:
-    """The identifiers of the steps of a graph, without its decisions."""
-    return [node_id for node_id, node in graph.nodes.items() if isinstance(node, Step)]
-
-
-def _quoted(text: str) -> str:
-    """A text as a quoted Mermaid label: double quotes become single quotes."""
-    return '"' + text.replace('"', "'") + '"'
+    """The label of a node: its identifier and its short text in the interface language."""
+    return conversion.label(node_id, audit_nodes.text)
 
 
 def flowchart(rendered: str) -> str:
-    """The Mermaid flowchart of the text of `graph.render()`, a `stateDiagram-v2`.
-
-    Each step becomes a box with its identifier and its short text, each decision a
-    diamond with its question (the note of the decision), and each edge an arrow with
-    its label. The start is a small filled circle, the end a framed circle. The texts,
-    the questions and the labels are in the interface language.
-    """
-    # Each node in the order of `graph.render()`: a step maps to None, a decision to its question.
-    nodes: dict[str, str | None] = {}
-    edges: list[str] = []
-    lines = iter(rendered.splitlines())
-    for line in lines:
-        if found := _NOTE.match(line):
-            nodes[found.group(1)] = next(lines).strip()
-            next(lines)                                     # the line `end note`
-        elif found := _CHOICE.match(line):
-            nodes[found.group(1)] = ""
-        elif found := _EDGE.match(line):
-            source, target, label = found.groups()
-            source = START if source == "[*]" else source
-            target = END if target == "[*]" else target
-            arrow = f"-->|{_quoted(_(label))}|" if label else "-->"
-            edges.append(f"  {source} {arrow} {target}")
-        elif found := _STEP.match(line):
-            nodes[found.group(1)] = None
-    shapes = [
-        f"  {node}[{_quoted(_label(node))}]" if question is None
-        else f"  {node}{{{_quoted(_(question) if question else '')}}}"
-        for node, question in nodes.items()
-    ]
-    head = ["flowchart TD", f"  {START}@{{ shape: sm-circ }}", f"  {END}@{{ shape: fr-circ }}"]
-    return "\n".join(head + shapes + [""] + edges)
+    """The Mermaid flowchart of the text of `graph.render()` (`conversion.flowchart`), with
+    the texts, the questions and the labels in the interface language."""
+    return conversion.flowchart(rendered, translate=_, node_text=audit_nodes.text)
 
 
 def workflow_diagram(graph, path_ids) -> str:

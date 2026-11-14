@@ -13,6 +13,23 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **`docs/workflow_diagrams.md` draws each chat workflow from the code.** The
+  file has one Mermaid flowchart per workflow: the input and the output
+  workflow of the pre-retrieval mode and of the strict mode. Each flowchart is
+  the one that the audit page draws, in English and without the marks of a
+  turn. `scripts/workflow_diagrams.py` writes the file, and a test fails when
+  the file differs from the graphs. Sections 2 and 3 of `docs/query_nodes.md`
+  lost their diagrams written by hand, which a test checked only for the names
+  of the nodes. The two sections now link to the generated diagrams and keep,
+  as prose, what the generated diagrams do not show: the values of an example
+  question, the calls to the model, the index, the suggestions node S and the
+  fixed texts. The FTS query of the example question is now the one that the
+  code builds, `"rind" OR "plaz" OR "fij"`. The diagram written by hand said
+  `cuant OR rind OR plaz OR fij`. The conversion of a graph into a flowchart,
+  and the short text of each node, moved from `web/` to
+  `base/domain/chat/workflow/` (`flowchart.py`, `node_texts.py`), so the script
+  runs without the web dependencies.
+
 - **The Settings screen tests each model.** The only check of a model was
   `scripts/eval_chat_model.py`: it asked three questions to the sample wiki of the
   tests, in one mode of the chat, and needed a terminal. Each group of the block

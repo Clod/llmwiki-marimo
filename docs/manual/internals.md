@@ -195,7 +195,9 @@ and repair are out of scope for v1.
 
 The trace records one [OpenTelemetry](https://opentelemetry.io/) span per step
 of the code, named by the identifier of its node in the diagrams of
-[`docs/query_nodes.md`](../query_nodes.md) and
+[`docs/query_nodes.md`](../query_nodes.md),
+[`docs/workflow_diagrams.md`](../workflow_diagrams.md) (the chat workflows,
+generated from the code) and
 [`docs/ingestion_nodes.md`](../ingestion_nodes.md) — `Q5` for the coverage-roster check, `I4` for text
 extraction, `W1` for chunking. The span names of one trace are therefore the
 path the run took through the diagram, and the path can be compared with the

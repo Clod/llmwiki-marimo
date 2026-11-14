@@ -9,5 +9,7 @@ mode has no workflows.
 Each node of the four workflows is a step function of the catalog (`catalog`),
 written once. Each workflow registers the functions that it uses and declares
 their codes (`PRE_RETRIEVAL_NODES`, `STRICT_NODES`). `table` writes, from those
-lists, the table of `docs/workflow_nodes.md`.
+lists, the table of `docs/workflow_nodes.md`. `flowchart` converts a graph into
+a Mermaid flowchart, and `diagrams` writes, with it, the flowcharts of
+`docs/workflow_diagrams.md`.
 """
