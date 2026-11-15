@@ -1498,8 +1498,8 @@ msgstr ""
 
 #: web/templates/_vocabulary_body.html
 msgid ""
-"Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node Q_IS_COLLECTION). An "
-"expression matches at the start of a word, without case nor accents"
+"Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node "
+"Q_IS_COLLECTION). An expression matches at the start of a word, without case nor accents"
 msgstr ""
 
 #: web/templates/_vocabulary_body.html
@@ -3309,6 +3309,10 @@ msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
 msgid "Note of the open page added to the question"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Sentences of the answer checked against the passages of the turn"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py

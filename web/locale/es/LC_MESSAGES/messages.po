@@ -1524,11 +1524,11 @@ msgstr "Pedidos de cálculo"
 
 #: web/templates/_vocabulary_body.html
 msgid ""
-"Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node Q_IS_COLLECTION). An "
-"expression matches at the start of a word, without case nor accents"
+"Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node "
+"Q_IS_COLLECTION). An expression matches at the start of a word, without case nor accents"
 msgstr ""
-"Expresiones de una pregunta sobre la wiki entera: esa pregunta recibe el resumen general y el índice (nodo Q_IS_COLLECTION). Una "
-"expresión coincide al comienzo de una palabra, sin mayúsculas ni tildes"
+"Expresiones de una pregunta sobre la wiki entera: esa pregunta recibe el resumen general y el índice (nodo "
+"Q_IS_COLLECTION). Una expresión coincide al comienzo de una palabra, sin mayúsculas ni tildes"
 
 #: web/templates/_vocabulary_body.html
 msgid ""
@@ -3447,6 +3447,10 @@ msgstr "Comprobación de cifras: cada cifra del texto es exacta, redondeada o si
 #: base/domain/chat/workflow/node_texts.py
 msgid "Note of the open page added to the question"
 msgstr "Se agrega a la pregunta la nota de la página abierta"
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Sentences of the answer checked against the passages of the turn"
+msgstr "Oraciones de la respuesta comprobadas contra los fragmentos del turno"
 
 #: base/domain/chat/workflow/node_texts.py
 msgid "The question enters pre-retrieval"

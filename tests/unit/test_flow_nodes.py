@@ -21,6 +21,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "base"
+# The web route records the sentence verification (C_VERIFY_SENTENCES, `web/routes/chat.py`).
+WEB = ROOT / "web"
 PRERETRIEVAL = "base/domain/chat/preretrieval.py"
 # The files whose `refuse("R…", ...)` and `preretrieval.refuse("R…", ...)` calls
 # record a refusal node: the pre-retrieval module, the catalog of the nodes of
@@ -82,9 +84,9 @@ def _str_literal(node: ast.expr) -> str | None:
 
 
 def _code_calls() -> list[tuple[str, str, str]]:
-    """Every (node id, diagram, repo-relative file) found in the code of ``base/``."""
+    """Every (node id, diagram, repo-relative file) found in the code of ``base/`` and ``web/``."""
     found = []
-    for path in sorted(BASE.rglob("*.py")):
+    for path in sorted([*BASE.rglob("*.py"), *WEB.rglob("*.py")]):
         rel = path.relative_to(ROOT).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"))
         aliases: dict[str, str] = {}
@@ -163,8 +165,8 @@ def test_traced_nodes_match_tracing_calls(diagram):
     missing_in_doc = sorted(code_ids - doc_ids)
     assert not (missing_in_code or missing_in_doc), (
         f"{diagram} diagram ({DOCS[diagram].name}):\n"
-        f"  in the document with a record, with no tracing call in base/: {missing_in_code}\n"
-        f"  with a tracing call in base/, not in the document (or marked 'none:'): {missing_in_doc}"
+        f"  in the document with a record, with no tracing call in base/ or web/: {missing_in_code}\n"
+        f"  with a tracing call in base/ or web/, not in the document (or marked 'none:'): {missing_in_doc}"
     )
 
 

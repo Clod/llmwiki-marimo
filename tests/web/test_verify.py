@@ -330,3 +330,53 @@ def test_a_failed_verification_of_a_tier2_answer_says_it_was_compared_with_nothi
     events = stream(client, ask_verified(client))
     assert ("No se pudo verificar. La respuesta no se comparó con los fragmentos de los "
             "documentos originales.") in events[1][1]
+
+
+# ── The node C_VERIFY_SENTENCES and the reload of the thread ──────────────────
+
+def _last_path(app):
+    return app.state.web.conversations[(WIKI_ID, "c1")][-1].path
+
+
+def test_the_verification_ends_the_path_with_its_node(client, app):
+    stream(client, ask_verified(client))
+    path = _last_path(app)
+    assert path[-2]["node"] == "Q_SHOWN"
+    node = path[-1]
+    assert node["node"] == "C_VERIFY_SENTENCES" and node["diagram"] == "reading"
+    attributes = node["attributes"]
+    assert (attributes["checked"], attributes["unsupported"]) == (2, 1)
+    assert attributes["used"] + attributes["not_used"]
+    assert attributes["reference"] == "replaced"
+
+
+def test_an_unchecked_box_records_no_verification_node(client, app):
+    stream(client, ask_verified(client, verify=""))
+    assert "C_VERIFY_SENTENCES" not in [step["node"] for step in _last_path(app)]
+
+
+def test_a_failed_verification_records_its_node_as_failed(settings, agents):
+    class Broken(FakeVerifier):
+        def entailment(self, pairs):
+            raise RuntimeError("model not loaded")
+
+    app = create_app(settings, agents_factory=lambda wiki: agents, verifier=Broken())
+    client = TestClient(app, cookies=SPANISH)
+    stream(client, ask_verified(client))
+    node = _last_path(app)[-1]
+    assert node["node"] == "C_VERIFY_SENTENCES" and node["attributes"] == {"failed": True}
+    assert "No se pudo verificar" in client.get(f"/w/{WIKI_ID}/chat/c1/thread").text
+
+
+def test_the_reloaded_thread_keeps_the_marks_and_the_summary_of_the_verification(client):
+    stream(client, ask_verified(client))
+    html = client.get(f"/w/{WIKI_ID}/chat/c1/thread").text
+    assert f'<mark class="unsupported" title="{UNSUPPORTED_TIP}">{INVENTED}</mark>' in html
+    assert "1 de 2 oraciones sin respaldo" in html
+
+
+def test_the_audit_page_lists_the_verification_node_with_its_text(client):
+    stream(client, ask_verified(client))
+    html = client.get(f"/w/{WIKI_ID}/audit/c1").text
+    assert "C_VERIFY_SENTENCES" in html
+    assert "Oraciones de la respuesta comprobadas contra los fragmentos del turno" in html
