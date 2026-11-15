@@ -3,7 +3,7 @@
 Self-contained: nothing else in `base/` depends on app wiring, so the pipeline
 and chat agent can be driven directly (tests, scripts) with just these settings.
 
-`.env` is resolved to an absolute path off the project root, so the apps read the
+`.env` is resolved to an absolute path off the project root, so the server reads the
 same config regardless of the working directory the server is launched from.
 
 No provider, model, or endpoint is hardcoded — every LLM value comes from the
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Default wiki opened on launch; the apps' picker can switch it at runtime.
+    # Default wiki opened on launch; the picker of the web interface can switch it at runtime.
     WIKI_PATH: str = "."
 
     # Chat LLM. Also the fallback for the WIKI_LLM_* group below.
@@ -85,7 +85,7 @@ def apply_values(values: dict[str, str]) -> None:
 def require_llm_config(base_url: str, api_key: str, model: str, *, purpose: str) -> None:
     """Fail fast with an actionable message if an LLM client can't be built.
 
-    Call this in the apps right before constructing an OpenAI/agent client —
+    Call this right before constructing an OpenAI/agent client —
     never at import time, so tests/CI (which don't build real clients) are
     unaffected. The message states exactly *where* (the .env path) and *what*
     (which variables) the user must fix.

@@ -84,7 +84,7 @@ class WikiAssistantConfig:
     # Pairs that are NOT synonyms -> filter the synonym-rescue step ("cedear" -> "accion").
     false_synonyms: dict[str, list[str]] = field(default_factory=dict)
 
-    # Opt-in: when true, the read app pre-retrieves (code-driven) instead of
+    # Opt-in: when true, the chat pre-retrieves (code-driven) instead of
     # letting the model search, and applies the tiered gate. Off by default so
     # other wikis' chat behavior is unchanged.
     pre_retrieval: bool = False

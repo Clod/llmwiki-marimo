@@ -108,7 +108,7 @@ def test_crosslink_touched_accepts_the_app_path_shape_and_empty_set(
     _concept(db, ws, "glass-slipper", "Glass Slipper", "A slipper made of glass.")
 
     assert crosslink_wiki_pages(ws, db, language="en", touched=set()) == 0
-    # The ingest app passes "/wiki/concepts/x.md" (path || filename); tolerated.
+    # A caller may pass "/wiki/concepts/x.md" (path || filename); tolerated.
     assert crosslink_wiki_pages(ws, db, language="en", touched={"/wiki/concepts/glass-slipper.md"}) == 1
 
 

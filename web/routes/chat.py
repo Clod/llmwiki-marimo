@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sse_starlette.sse import EventSourceResponse
 
+from domain import tracing
 from domain.chat.config import DEFAULT_VERIFY_THRESHOLD, load_config
 from domain.chat.postprocess import injected_pages, resolve_injected
 from domain.datasets.frontmatter import split_frontmatter
@@ -23,7 +24,7 @@ from web.i18n import N_, _, format_number, ngettext
 from web.render import (
     SENTENCE_CLASS, figure_marks, page_url, render_marked, render_markdown, render_verified,
 )
-from web.state import AppState, Message, Turn
+from web.state import AppState, Message, Turn, Verification
 
 router = APIRouter()
 
@@ -101,6 +102,20 @@ def _shifted(report, shifted):
     return replace(report, findings=tuple(
         replace(f, figure=replace(f.figure, start=shifted(f.figure.start), end=shifted(f.figure.end)))
         for f in report.findings))
+
+
+# What the verification did to the reference line, by the number of edits of
+# `resolve_injected`: none, the undetermined note replaced, or the model's line
+# labelled and the note added below it.
+_REFERENCE = {0: "unchanged", 1: "replaced", 2: "labelled"}
+
+
+def _verification_node(workspace, **attributes) -> dict:
+    """The node C_VERIFY_SENTENCES of the path, recorded as every node is: an entry of
+    the path and, with WIKI_TRACE=1, a span of its own trace."""
+    with tracing.collect() as path, tracing.root("verification", workspace):
+        tracing.mark("C_VERIFY_SENTENCES", tracing.READING, **attributes)
+    return path[0]
 
 
 def _error(text: str) -> str:
@@ -211,30 +226,54 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 injected = injected_pages(result.context)
                 used = {s.page.rsplit("/", 1)[-1] for s in report.sentences if s.supported and s.page}
                 text, edits = resolve_injected(full, injected, used, entry.wiki.language)
+                node = _verification_node(
+                    entry.wiki.path, checked=report.checked, unsupported=report.unsupported,
+                    described=report.described, used=[p for p in injected if p in used],
+                    not_used=[p for p in injected if p not in used],
+                    reference=_REFERENCE.get(len(edits), "unchanged"))
 
                 def shifted(offset: int) -> int:
                     return offset + sum(change for at, change in edits if at <= offset)
 
-                marks = [(shifted(s.start), shifted(s.end), SENTENCE_CLASS, None)
-                         for s in report.unsupported_sentences()]
-                marks += [(shifted(a), shifted(b), css, title) for a, b, css, title in red_marks]
-                if text != full:
-                    conversation[-1] = replace(answer, content=text, figures=_shifted(figures, shifted))
+                sentence_marks = [(shifted(s.start), shifted(s.end), SENTENCE_CLASS, None)
+                                  for s in report.unsupported_sentences()]
+                marks = sentence_marks + [(shifted(a), shifted(b), css, title) for a, b, css, title in red_marks]
                 described = [(shifted(a), shifted(b), support)
                              for a, b, support in described_marks(entry.wiki, wiki_id, report)]
+                summary = _summary(report.unsupported, report.checked, report.described)
+                conversation[-1] = replace(
+                    answer, content=text, figures=_shifted(figures, shifted), path=(*answer.path, node),
+                    verification=Verification(tuple(sentence_marks), tuple(described), summary))
                 marked = render_marked(wiki_id, text, marks, pages, sources, described=described)
-                body = marked + _summary(report.unsupported, report.checked, report.described) + figure_note
+                body = marked + summary + figure_note
             except Exception:  # noqa: BLE001 — the answer stays as it is
                 # A Tier-2 answer that skipped Q_IS_GROUNDED was compared with nothing.
                 note = (_("Could not verify. The answer was not compared with the fragments "
                           "of the original documents.") if _skipped_containment(path)
                         else _("Could not verify"))
-                body = rendered + figure_note + _verify_note(note, failed=True)
+                failure = _verify_note(note, failed=True)
+                conversation[-1] = replace(
+                    answer, path=(*answer.path, _verification_node(entry.wiki.path, failed=True)),
+                    verification=Verification(note=failure, failed=True))
+                body = rendered + figure_note + failure
             yield {"event": "verification",
                    "data": f'<div id="answer-{turn_id}" hx-swap-oob="innerHTML">{body}</div>'}
         yield {"event": "done", "data": ""}
 
     return EventSourceResponse(events())
+
+
+def _answer_html(wiki_id: str, message: Message, pages, sources) -> str:
+    """An answer of the thread as the stream left it: the figure marks and, when the
+    sentence verification ran, its sentence marks and its line."""
+    figure_note = _figure_summary(message.figures)
+    v = message.verification
+    if v is None or v.failed:
+        rendered = render_marked(wiki_id, message.content, figure_marks(message.figures), pages, sources)
+        return rendered + figure_note + (v.note if v else "")
+    marks = list(v.marks) + figure_marks(message.figures)
+    marked = render_marked(wiki_id, message.content, marks, pages, sources, described=list(v.described))
+    return marked + v.note + figure_note
 
 
 @router.get("/w/{wiki_id}/chat/{conversation_id}/thread", response_class=HTMLResponse)
@@ -252,10 +291,9 @@ def chat_thread(request: Request, wiki_id: str, conversation_id: str,
         if m.role == "user":
             messages.append({"role": "user", "html": m.content, "meta": ""})
             continue
-        rendered = render_marked(wiki_id, m.content, figure_marks(m.figures), pages, sources)
         running += m.tokens
         meta = answer_meta(templates, wiki_id, m, running) if m.mode else ""
-        messages.append({"role": m.role, "html": rendered + _figure_summary(m.figures), "meta": meta})
+        messages.append({"role": m.role, "html": _answer_html(wiki_id, m, pages, sources), "meta": meta})
     prompts = load_config(entry.wiki.path).suggested_prompts
     thread = templates.get_template("_chat_thread.html").render(
         request=request, messages=messages, prompts=prompts)

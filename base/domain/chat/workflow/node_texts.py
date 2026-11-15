@@ -21,6 +21,7 @@ NODE_TEXTS: dict[str, str] = {
     "C_ORIGIN_LINES": N_("Data-origin line added to the answers of the history that read data"),
     "C_FIGURES": N_("Figure check: each figure of the prose is exact, rounded or without support"),
     "C_OPEN_PAGE_NOTE": N_("Note of the open page added to the question"),
+    "C_VERIFY_SENTENCES": N_("Sentences of the answer checked against the passages of the turn"),
     "Q_QUESTION": N_("The question enters pre-retrieval"),
     "Q_NORMALIZE": N_("The question normalised (lowercase, no accents)"),
     "Q_IN_BLACKLIST": N_("Does the question name a blacklisted term?"),

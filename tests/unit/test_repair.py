@@ -532,7 +532,7 @@ def test_repair_genuinely_unknown_check_is_still_flagged(
 # ── the skip message speaks to the person reading it ────────────────────────
 
 def test_needs_llm_skip_message_names_the_two_buttons_that_supply_a_model() -> None:
-    """The message is read in the ingest app's Activity Log, not in a traceback.
+    """The message is read in the progress log of the web interface, not in a traceback.
 
     It used to say "pass llm_client" — accurate, and useless to the only audience
     that ever sees it: somebody looking at a log in an app, where there is no

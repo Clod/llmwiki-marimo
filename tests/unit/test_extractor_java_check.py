@@ -62,7 +62,7 @@ def test_unsupported_extension_still_reports_the_extension(monkeypatch, tmp_path
 
 
 def test_pipeline_reports_the_missing_runtime_as_a_failed_ingest(monkeypatch, tmp_path):
-    """The ingest app shows this message instead of a subprocess traceback."""
+    """The Ingest screen shows this message instead of a subprocess traceback."""
     from domain.ingestion import pipeline
 
     monkeypatch.setattr(pipeline, "check_java", lambda: None)

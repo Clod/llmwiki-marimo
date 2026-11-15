@@ -1,6 +1,6 @@
 """Deterministic post-processing of chat answers.
 
-Runs AFTER the guardrail in the read app's respond(). It provides two guarantees
+Runs AFTER the guardrail, in the output workflow of the chat (`chat/workflow/`). It provides two guarantees
 the system prompt alone could NOT hold under multi-turn history priming (gpt-4o,
 temp=0 still drifts to prose / drops citations once a conversation accumulates):
 

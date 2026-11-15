@@ -13,6 +13,17 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **The sentence verification is a node of the path.** With «Verificar las
+  oraciones» on, the web marks the unsupported sentences and splits the
+  injected pages in the reference line after the path of the turn closed in
+  `Q_SHOWN` or `T_SHOWN`, so the audit page showed a path that ended before the
+  answer changed. The verification now appends the node `C_VERIFY_SENTENCES`
+  to the path, with the counts of the report (`checked`, `unsupported`,
+  `described`), the injected pages it found used and not used, and what it did
+  to the reference line (`reference`: `replaced`, `labelled` or `unchanged`). A
+  failed verification records `failed`. With `WIKI_TRACE=1` the node is also a
+  span (`_verification_node`, `web/routes/chat.py`).
+
 - **`docs/workflow_diagrams.md` draws each chat workflow from the code.** The
   file has one Mermaid flowchart per workflow: the input and the output
   workflow of the pre-retrieval mode and of the strict mode. Each flowchart is
@@ -388,6 +399,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   one row: Q3, the blacklist, runs in the pre-retrieval input workflow only.
 
 ### Fixed
+
+- **A reload keeps the marks of the sentence verification.** After a
+  verification, reloading the page redrew the answer with its red figures but
+  without the yellow unsupported sentences and without the line «N de M
+  oraciones sin respaldo». The message now keeps the sentence marks, the
+  sentences supported by an image description and that line (`Verification`,
+  `web/state.py`), and the thread draws them again. They live in the memory of
+  the server: they survive a reload of the page, not a restart.
 
 - **The repair log names the controls of the web interface.** When the repair
   after an ingestion skipped a page because no model was supplied, the log said

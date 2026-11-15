@@ -29,6 +29,20 @@ from web.settings import WebSettings
 AgentsFactory = Callable[[Wiki], chat_service.ChatAgents]
 
 
+@dataclass(frozen=True)
+class Verification:
+    """The sentence verification of an answer, kept so that a reload of the thread
+    marks the answer as the streamed answer did. The offsets are in the stored text."""
+
+    # (start, end, css class, title) of each unsupported sentence
+    marks: tuple = ()
+    # (start, end, support) of each sentence supported by an image description
+    described: tuple = ()
+    # the line under the answer: the summary, or the note of a failed verification
+    note: str = ""
+    failed: bool = False
+
+
 @dataclass
 class Message:
     role: str
@@ -47,6 +61,8 @@ class Message:
     # of an assistant message: the figure check of its prose (`FigureReport`), or None; the
     # thread marks the unsupported figures again from it when the page is reloaded
     figures: FigureReport | None = None
+    # of an assistant message: the sentence verification, or None when it did not run
+    verification: Verification | None = None
 
     @property
     def tokens(self) -> int:
@@ -58,7 +74,7 @@ class OpenWiki:
     """A wiki opened by the application, with its agents and its lock.
 
     `busy` serializes the operations that write to the wiki: one runs at a time
-    per wiki, as in the ingest app.
+    per wiki.
     """
 
     wiki: Wiki
