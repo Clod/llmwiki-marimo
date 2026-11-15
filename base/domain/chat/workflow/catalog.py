@@ -778,8 +778,9 @@ def register(g: GraphBuilder, code: str) -> Step:
 
 
 def N_(label: str) -> str:
-    """Mark the label of a branch of a decision for translation, and return it
-    unchanged. The label is in English. `web/i18n_extract.py` extracts the
-    marked labels into the catalogs of the web interface, and the audit page
-    translates each label when it draws a diagram (`web/audit_diagram.py`)."""
+    """Mark a text of a diagram for translation, and return it unchanged: the
+    label of a branch, the question of a decision, or the short text of a node
+    (`node_texts.py`). The text is in English. `web/i18n_extract.py` extracts
+    the marked texts into the catalogs of the web interface, and the audit page
+    translates each text when it draws a diagram (`web/audit_diagram.py`)."""
     return label

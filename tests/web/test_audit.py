@@ -390,17 +390,6 @@ def test_every_step_of_a_graph_is_labelled_in_its_diagram():
         assert missing == [], f"{mode}, {('input', 'output')[side]}: steps without a labelled state"
 
 
-def test_the_hand_written_diagrams_name_every_node_of_their_mode():
-    """The diagrams of sections 2 and 3 of docs/query_nodes.md stay as documentation: each one
-    names every node of the two workflows of its mode, except C1 and C2 (section 1)."""
-    from web.audit_diagram import WORKFLOW_GRAPHS, _NODE, blocks, steps
-
-    for block, mode in ((1, "pre-retrieval"), (2, "strict")):
-        drawn = {code for _, code in _NODE.findall(blocks()[block])}
-        nodes = {s for graph in WORKFLOW_GRAPHS[mode] for s in steps(graph)} - {"C1", "C2"}
-        assert sorted(nodes - drawn) == [], f"block {block} ({mode}) misses nodes"
-
-
 def _branches(text):
     """The edges that leave a decision in a rendered graph: (decision, target, label or None)."""
     decisions = set(re.findall(r"^\s*state (\w+) <<choice>>$", text, re.M))

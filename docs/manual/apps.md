@@ -790,7 +790,8 @@ To add a domain:
 
 1. Create `base/domain/extensions/<domain>/__init__.py` with the four names above.
 2. Give each tool a trace node and record it in the tool body with `tracing.mark`.
-   Register the node in `web/audit_nodes.py` and in `docs/query_nodes.md`.
+   Register the node in `docs/query_nodes.md`, and give it a short text in
+   `NODE_TEXTS` (`base/domain/chat/workflow/node_texts.py`) for the audit page.
 3. Put the tool names whose result carries the `fuente` column of
    `format_rows_as_table` in `ROLES.evidence`; `ensure_citation` then cites them.
 4. Add the unit tests next to `tests/unit/test_domain_tools_registry.py`, and a web

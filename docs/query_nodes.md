@@ -8,7 +8,8 @@ put each fragment of text into the index.
 Each step is a node with an identifier, for example `Q6`. The identifier of a
 node appears in three places:
 
-1. In this document, in a diagram and in a node table.
+1. In this document, in a node table, and in a diagram of this document or of
+   [`workflow_diagrams.md`](workflow_diagrams.md).
 2. In the code, as the first argument of the tracing call that marks the node:
    `tracing.node("Q6", R, ...)` or `tracing.mark("Q5b", R, ...)`
    (`base/domain/tracing.py`).
@@ -39,8 +40,11 @@ The table [`workflow_nodes.md`](workflow_nodes.md) says, for each node of the
 catalog of the chat workflows, which of the four workflows runs the node. The
 table is generated from the code.
 
-In the diagrams, a blue node whose label ends in «🤖 model call» is a node
-where the code sends a request to the model. Every other node runs only code.
+The diagrams of the pre-retrieval and strict workflows are generated from the
+code, in [`workflow_diagrams.md`](workflow_diagrams.md). Sections 2 and 3 link
+to those diagrams. In the diagram of section 1, a blue node whose label ends in
+«🤖 model call» is a node where the code sends a request to the model. Every
+other node runs only code.
 
 ## The node tables
 
@@ -94,163 +98,79 @@ flowchart TD
 
 ## 2. Pre-retrieval
 
-One real question through the pre-retrieval mode: «¿Cuánto rinden los plazos
-fijos?». Every value was computed with the code: `_normalize` for the
-normalised question, the Spanish Snowball stemmer for the stems. A node
-inserted after another node carries the identifier of that node and a letter,
-for example Q5a to Q5g after Q5, so that the other identifiers stay the same. C2a
-to C2d and C4 are nodes of section 1. S is the suggestions node, DB the index, and
-each refusal node is named by the cause of the refusal (R1 to R5,
-`RefusalCause` in `base/domain/chat/refusal.py`).
+The diagrams of the two workflows of this mode are generated from the graphs,
+in [`workflow_diagrams.md`](workflow_diagrams.md): the input workflow in
+[Pre-retrieval, input](workflow_diagrams.md#pre-retrieval-input) and the output
+workflow in [Pre-retrieval, output](workflow_diagrams.md#pre-retrieval-output).
+A node inserted after another node carries the identifier of that node and a
+letter, for example Q5a to Q5g after Q5, so that the other identifiers stay the
+same. C1, C2, C2a to C2d, C4 and C3 are nodes of section 1. Each refusal node is
+named by the cause of the refusal (R1 to R5, `RefusalCause` in
+`base/domain/chat/refusal.py`).
 
-```mermaid
-flowchart TD
-    IDX[("DB · chunks_fts<br/>inverted index: each stem → the rows that contain the stem<br/>see ingestion_nodes.md")]
+The generated diagrams show the steps, the decisions and the branches. The
+generated diagrams do not show the values of a turn, the calls to the model, the
+index or the suggestions node S. The paragraphs below describe the values, the
+calls, the index and S.
 
-    subgraph IN["Input workflow · input_checks.py · runs before the model"]
-        HA["C2a · the refused exchanges are removed from the history<br/>C1 and C2, section 1, run first"]
-        HB["C2b · the advisory tables are removed from the history"]
-        HC["C2c · the history keeps the last 3 turns"]
-        HD["C2d · the data-origin line is added<br/>to the answers of the history that read data"]
-        Q["Q1 · question<br/>«¿Cuánto rinden los plazos fijos?»"]
-        N["Q2 · _normalize: lowercase, accents removed<br/>«¿cuanto rinden los plazos fijos?»"]
-        BL{"Q3 · does the question name a blacklist term?<br/>is_off_limits, whole words, NOT stemmed<br/>[fuera_de_alcance]:<br/>– cedear<br/>– cedears<br/>– cripto<br/>– bitcoin"}
-        ST["Q4 · stem_text on the question<br/>«cuant rind los plaz fij»"]
-        DD["Q4a · does the question name data?<br/>a dataset category, stemmed; a dataset key, exact;<br/>a data alias; or a request for investment advice"]
-        RO{"Q5 · is the question in the coverage roster?<br/>mentions_known_data compares:<br/>– the stemmed question with the stemmed<br/>dataset categories, concept-page titles and aliases<br/>– the normalised question with the dataset keys, exact<br/>in the example, yes: plazo_fijo → «plaz fij»"}
-        OP{"Q5a · is the user reading a wiki page?<br/>an open page makes the question covered"}
-        RW["Q5c · query condensation<br/>only with history, no data, no open page<br/>the model rewrites the follow-up so that the follow-up stands alone<br/>«¿Y qué riesgos tiene?» → «¿Qué riesgos tiene la caución bursátil?»<br/>🤖 model call"]
-        AC{"Q5d · is the rewrite accepted?<br/>one line, not empty, not too long"}
-        BR{"Q5e · does the rewrite name a blacklist term?"}
-        DF["Q5f · does the rewrite name data?"]
-        RG["Q5g · is the rewrite in the coverage roster?"]
-        CO{"Q5b · the result of the condensation<br/>the text that the gate and the search examine:<br/>the accepted rewrite, or the question"}
-        SQ["Q6 · wiki search, retrieve_wiki<br/>stop words removed, then stem_fts_query<br/>cuant OR rind OR plaz OR fij"]
-        DS["Q8 · source search, retrieve_source_chunks<br/>– same index, scope=sources<br/>– at most 4 fragments"]
-        CP["Q8a · for a question about the whole wiki,<br/>collection_intent, overview.md and index.md are read"]
-        CA{"Q8b · the overview and the index join the open page<br/>is the question in the coverage roster?"}
-        HITS{"Q7 · did the wiki search find a page?<br/>in the example, yes:<br/>– Plazo fijo tradicional<br/>– Plazo fijo UVA<br/>– …"}
-        DC{"Q7a · does the question name a dataset category?<br/>the category, one of its keys, or an alias<br/>stemmed match<br/>in the example, yes: plazo_fijo"}
-        DK{"Q7b · does the question name a key of that category?<br/>exact match<br/>in the example, no"}
-        DR["Q7c · the code reads the rows of the key<br/>LocalMarkdownSource.query(categoria, clave)<br/>with as_of and fuente"]
-        DN["Q7d · the code reads only the key names of the category<br/>in the example, the 8 names of the entidad column:<br/>Banco Nación … Brubank"]
-        CQ{"Q9 · is the question about the whole wiki?<br/>Q8a read overview.md or index.md"}
-        DQ{"Q10 · is the question a data question?<br/>– the question names a dataset category, stemmed<br/>– or a dataset key, exact<br/>– or a data alias from [alias_datos]<br/>– or asks for investment advice"}
-        FR{"Q11 · did the source search find a fragment,<br/>for a question in the coverage roster?"}
-        IR{"Q12 · is the question in the coverage roster?"}
-        ON["C4 · the note of the open page is added to the question<br/>only when Q5a found the page"]
-        SY["Q12a · the line of synonyms of the aliases of the question"]
-        PR{"Q12b · the prompt: the injected text, the synonyms line<br/>and the question, in the inject template"}
-    end
+The values below come from one real question, «¿Cuánto rinden los plazos
+fijos?», asked in the example wiki `examples/finanzas-argentinas`. Every value
+of Q2, Q4 and Q6 was computed with the code: `_normalize` for the normalised question, the Spanish Snowball stemmer
+for the stems, `_fts_query` and `stem_fts_query` for the query.
 
-    subgraph AG["The agent call · _pre_retrieval_turn · between the two workflows"]
-        M1["Q13 · Tier 1: the wiki pages are injected,<br/>with the dataset rows of Q7c or the key names of Q7d<br/>the model writes the answer<br/>🤖 model call"]
-        M4["Q14 · overview.md and index.md are injected<br/>the model writes the answer<br/>🤖 model call"]
-        M2["Q15 · no page is injected<br/>the model calls the data tools of section 5<br/>the model writes the answer<br/>🤖 model call"]
-        M3["Q16 · Tier 2: the source fragments are injected<br/>the model writes the answer<br/>🤖 model call"]
-    end
+- **Q2**: the normalised question is «¿cuanto rinden los plazos fijos?».
+- **Q3**: the question names no blacklist term. The blacklist is the
+  `[fuera_de_alcance]` list of `wiki_config.toml`: `cedear`, `cedears`,
+  `cripto` and `bitcoin` in the example wiki. `is_off_limits` compares whole
+  words of the normalised question, not stemmed.
+- **Q4**: the stems of the question are «cuant rind los plaz fij».
+- **Q5**: `mentions_known_data` compares the stemmed question with the stemmed
+  dataset categories, concept-page titles and aliases, and the normalised
+  question with the dataset keys, by exact match. The question is in the
+  coverage roster: the category `plazo_fijo` stems to «plaz fij».
+- **Q6**: the wiki search removes the stop words and stems the other words. The
+  FTS query is `"rind" OR "plaz" OR "fij"`. The search finds pages such as
+  «Plazo fijo tradicional» and «Plazo fijo UVA».
+- **Q7a and Q7b**: the question names the category `plazo_fijo` and no key of
+  the category. Q7d reads the 8 key names of the `entidad` column, from «Banco
+  Nación» to «Brubank».
 
-    subgraph OUT["Output workflow · output_checks.py · runs after the model"]
-        V2{"Q17 · is the answer grounded in the fragments?<br/>coverage:<br/>– removes the stop words of the wiki's language<br/>– stems the remaining words<br/>– requires coverage ≥ min_coverage, 0.2 by default"}
-        GR{"Q19 · did a dataset tool return evidence?<br/>has_grounding"}
-        FS{"Q20 · does the answer open with<br/>«No encontré la respuesta en el texto que recibí de la wiki.»?"}
-        TA["Q20a · the advisory table is appended<br/>when the advisory tool returned one"]
-        KO["Q20b · the keys with data are offered<br/>when the model asked for a key without data"]
-        CI["Q20c · ensure_citation adds the citation of the tools the model used<br/>for injected dataset rows, the code adds the dataset citation"]
-        RF{"Q20d · for injected pages the answer does not name,<br/>mark_injected adds a Referencia line that lists them<br/>and says which ones the answer used cannot be determined<br/>is the answer a Tier-2 answer?"}
-        WARN["Q18 · the Tier-2 warning is appended<br/>⚠️ Esta respuesta proviene de un documento fuente<br/>sin página curada del wiki; verificá."]
-        FIG["C3 · the figure check, section 1<br/>every figure of the prose is exact, rounded or unsupported<br/>a note is appended when a figure is rounded"]
-        OK["Q21 · the answer is shown"]
-    end
+The index is the table `chunks_fts`, an inverted index from each stem to the
+rows that contain the stem (see [`ingestion_nodes.md`](ingestion_nodes.md)).
+The wiki search Q6 reads the wiki rows of the index. The source search Q8 reads
+the source rows of the same index, and returns at most 4 fragments.
 
-        HA --> HB --> HC --> HD --> Q
-        Q --> N --> BL
-        BL -->|no| ST --> DD --> RO --> OP
-        OP -->|yes, or the question is in the roster| SQ
-        OP -->|follow-up, not covered| RW --> AC
-        OP -->|no| CP
-        AC -->|rewritten| BR
-        AC -->|no| CO
-        BR -->|no| DF --> RG --> CO
-        CO -->|in the roster| SQ
-        CO -->|no| CP
-        SQ -.- IDX
-        DS -.- IDX
-        SQ -->|page found| CP
-        SQ -->|no page| DS --> CP
-        CP --> CA
-        CA -->|in the roster| HITS
-        CA -->|no| CQ
-        HITS -->|yes| DC
-        HITS -->|no| CQ
-        DC -->|yes| DK
-        DC -->|no| ON
-        DK -->|yes| DR
-        DK -->|no| DN
-        DR -->|next category| DK
-        DN -->|next category| DK
-        DR --> ON
-        DN --> ON
-        CQ -->|yes| ON
-        CQ -->|no| DQ
-        DQ -->|yes| ON
-        DQ -->|no| FR
-        FR -->|yes| ON
-        FR -->|no| IR
-        ON --> SY --> PR
-        PR -->|wiki pages| M1
-        PR -->|overview| M4
-        PR -->|data| M2
-        PR -->|source fragments| M3
-        M1 --> FS
-        M4 --> FS
-        M2 --> GR
-        GR -->|yes| FS
-        M3 -->|sentence verifier off| V2
-        M3 -->|sentence verifier on| FS
-        V2 -->|yes| FS
-        FS -->|no| TA --> KO --> CI --> RF
-        RF -->|Tier 2| WARN --> FIG
-        RF -->|no| FIG
-        FIG --> OK
+Two kinds of node send a request to the model:
 
-    subgraph X["Refusals"]
-        R1["R1 · blacklist<br/>names the matched term, no suggestions<br/>¿Qué son los CEDEARs y conviene comprarlos?"]
-        R2a["R2a · not in the roster<br/>suggestions, or the wiki's index when there are none<br/>¿Va a llover mañana en Rosario?"]
-        R2b["R2b · in the roster, nothing found<br/>suggestions"]
-        R3["R3 · not grounded<br/>names the source document, suggestions"]
-        R4["R4 · no evidence behind the answer<br/>suggestions"]
-        R5["R5 · the model's own refusal<br/>keeps the model's text, adds the cause line and the suggestions"]
-        SUG["S · suggestions: the pages of the wiki search,<br/>run for the refusal when the wiki search has not run<br/>1. remove repeated pages<br/>2. concept pages whose title shares a root with the question<br/>3. the other concept pages<br/>4. summary pages<br/>5. keep the first five"]
-    end
+- **Q5c** rewrites a follow-up into a question that stands alone, for example
+  «¿Y qué riesgos tiene?» into «¿Qué riesgos tiene la caución bursátil?».
+- **Q13 to Q16** are the agent call. Each node injects a different text: the
+  wiki pages (Tier 1, with the dataset rows of Q7c or the key names of Q7d),
+  the overview and the index, nothing, or the source fragments (Tier 2). With
+  nothing injected (Q15), the model calls the data tools of section 5.
 
-    BL -->|yes| R1
-    BR -->|yes| R1
-    IR -->|no| R2a
-    IR -->|yes| R2b
-    V2 -->|no| R3
-    GR -->|no| R4
-    FS -->|yes| R5
-    SUG -.-> R2a
-    SUG -.-> R2b
-    SUG -.-> R3
-    SUG -.-> R4
-    SUG -.-> R5
+Three nodes of the output workflow use a fixed text or a threshold:
 
-    classDef db fill:#fde68a,stroke:#b45309,color:#1f2937
-    class IDX db
-    classDef ok fill:#bbf7d0,stroke:#15803d,color:#1f2937
-    class OK ok
-    classDef llm fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1f2937
-    class RW,M1,M2,M3,M4 llm
-```
+- **Q17** stems the content words of the answer and counts the fraction that
+  the fragments contain. The answer is grounded when the fraction is at least
+  `min_coverage`, 0.2 by default.
+- **Q20** looks for the fixed refusal sentence at the start of the answer:
+  «No encontré la respuesta en el texto que recibí de la wiki.» in Spanish.
+- **Q18** appends the Tier-2 warning: «⚠️ Esta respuesta proviene de un
+  documento fuente sin página curada del wiki; verificá.» in Spanish.
 
-A diamond is a decision: the next node depends on the answer. When the wiki
-search finds a page, Q7a and Q7b decide which dataset context joins the pages.
-When the wiki search finds no page, the four questions that follow — whole wiki
-(Q9), data question (Q10), source fragment (Q11), coverage roster (Q12) — decide
-between an answer from the overview, an answer from the data tools, a Tier-2
-answer and a refusal.
+The suggestions node S runs for every refusal but R1. R1 names the matched
+term and lists no suggestion. S takes the concept pages of the coverage roster
+for a question in the roster, and the pages of a wiki search otherwise. S then
+removes the repeated pages and orders the rest in three groups: the concept
+pages whose title shares a stem with the question, the other concept pages, and
+the summary pages. S keeps the first five. A refusal with no suggestion points
+to the index of the wiki, and R2a always points to the index.
+
+Example questions of two refusals: «¿Qué son los CEDEARs y conviene
+comprarlos?» ends in R1, and «¿Va a llover mañana en Rosario?» ends in R2a. R3
+names the source document. R5 keeps the text of the model and adds the cause
+line and the suggestions.
 
 Two workflows of pydantic-graph run the nodes of this section, one before the
 model and one after the model. Each node is a function of the catalog, `CATALOG`
@@ -351,35 +271,17 @@ them. `chat_turn_with_context` (`base/services/chat.py`) runs both workflows.
 C1, C2, C2a to C2d, C4 and C3 are the same functions of the catalog as in the
 pre-retrieval mode.
 
-```mermaid
-flowchart TD
-    subgraph IN["Input workflow · input_checks.py · runs before the model"]
-        HA["C2a · the refused exchanges are removed from the history<br/>C1 and C2, section 1, run first"]
-        HB["C2b · the advisory tables are removed from the history"]
-        HC["C2c · the history keeps the last 3 turns"]
-        HD["C2d · the data-origin line is added<br/>to the answers of the history that read data"]
-        ON["C4 · the note of the open page is added to the question"]
-    end
-    T1["T1 · the model runs with the wiki tools and the data tools<br/>the tools of section 5<br/>🤖 model call"]
-    subgraph OUT["Output workflow · output_checks.py · runs after the model"]
-        T2{"T2 · did a tool return evidence?<br/>has_grounding"}
-        T3["T3 · the answer is replaced by the guardrail refusal<br/>«No pude respaldar esta respuesta con una consulta a la wiki en este turno.»"]
-        T4a["T4a · the advisory table is appended<br/>answer_with_table"]
-        T4b["T4b · the citation of the tools is added<br/>ensure_citation"]
-        T4c{"T4c · does the answer cite nothing?<br/>mark_uncited adds «Referencia: ninguna (…)»<br/>a refusal is left as it is"}
-        TF["C3 · the figure check, section 1"]
-        T5["T5 · the answer is shown"]
-    end
-    HA --> HB --> HC --> HD --> ON --> T1
-    T1 --> T2
-    T2 -->|yes| T4a
-    T2 -->|no| T3 --> T4a
-    T4a --> T4b --> T4c
-    T4c -->|answer| TF --> T5
-    T4c -->|refusal| T5
-    classDef llm fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1f2937
-    class T1 llm
-```
+The diagrams of the two workflows of this mode are generated from the graphs:
+the input workflow in [Strict, input](workflow_diagrams.md#strict-input) and
+the output workflow in [Strict, output](workflow_diagrams.md#strict-output).
+The generated diagrams do not show T1, the call to the model, which runs
+between the two workflows. In T1 the model runs with the wiki tools and the data
+tools of section 5. Two nodes of the output workflow write a fixed text:
+
+- **T3** replaces the answer by the guardrail refusal: «No pude respaldar esta
+  respuesta con una consulta a la wiki en este turno.» in Spanish.
+- **T4c** adds the line «Referencia: ninguna (…)» to an answer that cites
+  nothing (`mark_uncited`). A refusal, of T3 or of the model, is left as it is.
 
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
