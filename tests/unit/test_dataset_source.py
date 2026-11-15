@@ -154,3 +154,20 @@ def test_query_rejects_path_traversal(tmp_path) -> None:
     assert source.query("../secret") == []        # parent-dir escape
     assert source.query("/etc/passwd") == []       # absolute path
     assert source.query("plazo_fijo")              # legitimate categoria still works
+
+
+def test_a_macos_appledouble_file_is_not_a_dataset(tmp_path) -> None:
+    """macOS writes `._name.md` (binary metadata) next to a copied file; the source
+    skips it, so the categories and the vocabulary do not fail on its bytes."""
+    datasets_dir = _make_datasets_dir(tmp_path)
+    before = LocalMarkdownSource(datasets_dir).categories()
+    (datasets_dir / "._plazo_fijo.md").write_bytes(b"\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X\xb0\xff")
+    assert LocalMarkdownSource(datasets_dir).categories() == before
+
+
+def test_an_unreadable_dataset_file_is_skipped_with_a_warning(tmp_path) -> None:
+    datasets_dir = _make_datasets_dir(tmp_path)
+    (datasets_dir / "binario.md").write_bytes(b"\xb0\xff\xfe not utf-8")
+    source = LocalMarkdownSource(datasets_dir)
+    assert "binario" not in source.categories()
+    assert source.attributes("binario") == {}

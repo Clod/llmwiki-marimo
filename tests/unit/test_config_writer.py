@@ -97,3 +97,14 @@ def test_a_missing_file_and_missing_sections_are_created(tmp_path):
     assert data(tmp_path) == {"fuera_de_alcance": {"terminos": ["cripto"]},
                               "falsos_sinonimos": {"CEDEAR": ["acciones"]}}
     assert load_config(tmp_path).blacklist == ["cripto"]
+
+
+def test_a_new_canonical_goes_above_the_comment_of_the_next_section(wiki):
+    """The comment «# FALSOS sinónimos…» introduces `[falsos_sinonimos]`; a new alias of
+    `[alias_datos]` is written above it, after the last alias, not below it."""
+    cw.add_alias(wiki, "plazo fijo", "pf")
+    lines = text(wiki).splitlines()
+    new = next(i for i, line in enumerate(lines) if line.startswith('"plazo fijo"') or line.startswith("'plazo fijo'") or line.startswith("plazo fijo"))
+    falsos = next(i for i, line in enumerate(lines) if line.startswith("# FALSOS"))
+    assert new < falsos
+    assert data(wiki)["alias_datos"]["plazo fijo"] == ["pf"]

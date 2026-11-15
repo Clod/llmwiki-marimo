@@ -86,10 +86,21 @@ def _index_of(array: Array, term: str) -> int | None:
     return next((i for i, item in enumerate(array) if normalize(str(item)) == wanted), None)
 
 
+def _new_key(table: Table, key: str, value) -> None:
+    """Add `key` to `table` right after its last key. `table[key] = value` writes it at
+    the end of the table's body, below the blank line and the comment that introduce the
+    next section: «# FALSOS sinónimos…» ended up above an alias of `[alias_datos]`."""
+    keys = [k for k, _ in table.value.body if k is not None]
+    if keys:
+        table.value._insert_after(keys[-1], key, value)
+    else:
+        table[key] = value
+
+
 def _add_to_list(table: Table, key: str, term: str) -> None:
     array = table.get(key)
     if array is None:
-        table[key] = tomlkit.array([term])
+        _new_key(table, key, tomlkit.array([term]))
         return
     if _index_of(array, term) is not None:
         raise VocabularyEditError("duplicate", term)
@@ -170,7 +181,7 @@ def unreject_alias(wiki_path: Path, canonical: str, alias: str) -> None:
 def _intent_list(table: Table, key: str, base: tuple[str, ...]) -> None:
     """Write `base` as the list of `key` when the section does not have the key."""
     if key not in table:
-        table[key] = tomlkit.array(list(base))
+        _new_key(table, key, tomlkit.array(list(base)))
 
 
 def add_intent_cue(wiki_path: Path, key: str, cue: str, base: tuple[str, ...]) -> str:

@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from domain.datasets.source import datasets_fingerprint
 from domain.verify import install as verifier_install
 from domain.verify import nli
 from domain.verify.figures import FigureReport
@@ -27,6 +28,7 @@ from web.i18n import _
 from web.settings import WebSettings
 
 AgentsFactory = Callable[[Wiki], chat_service.ChatAgents]
+
 
 
 @dataclass(frozen=True)
@@ -80,6 +82,8 @@ class OpenWiki:
     wiki: Wiki
     agents: chat_service.ChatAgents | None = None
     busy: threading.Lock = field(default_factory=threading.Lock)
+    # The files of `datasets/` when the agents were built (`datasets_fingerprint`).
+    datasets: tuple = ()
 
 
 @dataclass
@@ -184,9 +188,13 @@ class AppState:
         return entry
 
     def get_agents(self, entry: OpenWiki) -> chat_service.ChatAgents:
-        """The wiki's agents, built on first use and kept."""
-        if entry.agents is None:
+        """The wiki's agents, built on first use and kept until a file of `datasets/`
+        changes. A dataset added after the first question activates the extension of
+        its domain (`activate_all`, run when the agents are built) on the next question."""
+        datasets = datasets_fingerprint(Path(entry.wiki.path) / "datasets")
+        if entry.agents is None or datasets != entry.datasets:
             entry.agents = self._agents_factory(entry.wiki)
+            entry.datasets = datasets
         return entry.agents
 
     def reset_agents(self, wiki_id: str) -> None:

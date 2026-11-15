@@ -29,7 +29,7 @@ def test_the_graph_has_zoom_in_zoom_out_and_fit_buttons(client):
     assert 'id="zoom-fit"' in html and ">Encuadrar</button>" in html
     # They call the graph library's own zoom, not a CSS transform.
     script = (Path(__file__).resolve().parents[2] / "web" / "static" / "js" / "relations.js").read_text()
-    assert "fg.zoom(fg.zoom() * 1.5" in script and "fg.zoom(fg.zoom() / 1.5" in script and "fg.zoomToFit(" in script
+    assert "zoomBy(1.5)" in script and "zoomBy(1 / 1.5)" in script and "fg.zoom(zoomTarget" in script and "fg.zoomToFit(" in script
 
 
 def test_the_json_is_the_graph_of_the_wiki(client):

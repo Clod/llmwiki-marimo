@@ -53,6 +53,8 @@ _DISPATCH = {
 _ADVISORY_CHECKS = {"vocab_stale", "vocab_covered", "vocab_ambiguous", "thin_page",
                     "unpaged_source", "unsupported_sentences", "unverified_pages",
                     "image_without_description", "stale_image_description"}
+# The same set, for the callers that leave the advisory findings out of a repair.
+ADVISORY_CHECKS = frozenset(_ADVISORY_CHECKS)
 
 # Shown in the progress log of the Ingest and Maintain screens, which is where a human actually reads
 # it — so it names the two buttons that supply a model, not the keyword argument

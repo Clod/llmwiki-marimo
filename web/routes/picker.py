@@ -187,8 +187,14 @@ def recent_remove(path: str = Form(...), state: AppState = Depends(get_state)):
 
 @router.get("/w/{wiki_id}/")
 def wiki_home(wiki_id: str, state: AppState = Depends(get_state)):
-    """The wiki on its Home screen; a wiki without pages opens on Ingest."""
+    """The wiki on its Home screen; a wiki without pages opens on Ingest.
+
+    Every way of opening a wiki goes through this route (the picker, the wiki selector
+    of the header), so the wiki goes to the front of the recent list here: the tag
+    "last opened" follows the wiki last opened, not only the form "Open"."""
     pages = list_pages(state.get_wiki(wiki_id).wiki)
+    recent_file = state.settings.recent_file
+    push_recent(state.wiki_options()[wiki_id], load_recent(recent_file), recent_file=recent_file)
     if not pages:
         return RedirectResponse(f"/w/{quote(wiki_id)}/ingest", status_code=303)
     return RedirectResponse(f"/w/{quote(wiki_id)}/home", status_code=303)

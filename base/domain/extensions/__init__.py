@@ -94,13 +94,35 @@ def activate_all(workspace: Path) -> DomainTools | None:
     )
 
 
+# `advisory_base` by (workspace, language): the fingerprint of `datasets/` and the result.
+_advisory_cache: dict[tuple[str, str], tuple[tuple, tuple]] = {}
+
+
 def advisory_base(workspace: Path, language: str) -> tuple[tuple[str, ...], tuple]:
     """`(expressions, shapes)` of the advisory requests of the active domains of
     `workspace`, in `language`.
 
     A domain contributes the `advisory` list of its `intent.<language>.toml` and
     its `ADVISORY_SHAPES[language]`; a domain without them, or not active,
-    contributes nothing."""
+    contributes nothing.
+
+    The pre-retrieval mode asks on every question (`preretrieval.intent_lists`). The
+    activation of a domain reads `datasets/` and, in a wiki without its data, writes the
+    warnings of its validator: the result is kept while the files of `datasets/` do not
+    change (`datasets_fingerprint`)."""
+    from domain.datasets.source import datasets_fingerprint
+
+    key = (str(Path(workspace).resolve()), language)
+    fingerprint = datasets_fingerprint(Path(workspace) / "datasets")
+    cached = _advisory_cache.get(key)
+    if cached is not None and cached[0] == fingerprint:
+        return cached[1]
+    result = _advisory_base(workspace, language)
+    _advisory_cache[key] = (fingerprint, result)
+    return result
+
+
+def _advisory_base(workspace: Path, language: str) -> tuple[tuple[str, ...], tuple]:
     import tomllib
 
     cues: list[str] = []

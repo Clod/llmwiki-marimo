@@ -100,6 +100,7 @@ def test_the_maintain_screen_shows_the_ocr_engine_in_force(client, monkeypatch):
     monkeypatch.setattr(config.settings, "OCR_ENGINE", "tesseract")
     monkeypatch.setattr(ocr.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(ocr, "_tesseract_languages", lambda tesseract: {"eng", "spa"})
+    monkeypatch.setattr(ocr, "_ocrmypdf_error", lambda ocrmypdf: "")   # the fake ocrmypdf starts
     assert ">Tesseract</span>" in client.get(f"/w/{WIKI_ID}/maintain").text
 
     monkeypatch.setattr(config.settings, "OCR_ENGINE", "vision")

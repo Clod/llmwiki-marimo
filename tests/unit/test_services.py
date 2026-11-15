@@ -615,3 +615,26 @@ def test_graph_degree_counts_edges_and_a_page_without_links_still_appears(wiki):
     assert nodes["concepts/alpha"]["degree"] == 3
     assert nodes["concepts/beta"]["degree"] == 1
     assert nodes["concepts/lonely"]["degree"] == 0
+
+
+def test_ingest_uploads_does_not_send_the_advisory_findings_to_the_repair(wiki, monkeypatch):
+    """`thin_page` and `unpaged_source` have no repair: sent to it, each wrote a
+    "skipped" line in the log of every ingestion. Only a repairable finding goes."""
+    import domain.ingestion as ingestion
+    import domain.lint.runner as lint_runner
+    import domain.repair.runner as repair_runner
+    from domain.lint.report import LintIssue, LintReport
+    from services import ingest
+    from services.ingest import ADVISORY_CHECKS, _NOT_REPAIRED_ON_INGEST
+
+    assert ADVISORY_CHECKS <= _NOT_REPAIRED_ON_INGEST and "orphan" in _NOT_REPAIRED_ON_INGEST
+    page = "wiki/concepts/x.md"
+    issues = [LintIssue(check=c, severity="info", page=page, description=c, suggestion="")
+              for c in ("thin_page", "unpaged_source", "missing_xref")]
+    monkeypatch.setattr(ingestion, "ingest_file", lambda path, *a, **k: SimpleNamespace(status="ingested", doc_id="d"))
+    monkeypatch.setattr(ingest, "related_pages", lambda db, ids: {page})
+    monkeypatch.setattr(lint_runner, "lint_wiki", lambda *a, **k: LintReport(issues=issues, checked_at="now"))
+    sent = []
+    monkeypatch.setattr(repair_runner, "repair_wiki", lambda report, *a, **k: sent.extend(i.check for i in report.issues))
+    ingest.ingest_uploads(wiki, [ingest.Upload("a.pdf", b"x")], None, "m")
+    assert sent == ["missing_xref"]
