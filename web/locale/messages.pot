@@ -3208,7 +3208,11 @@ msgid "Does the question name a wiki topic, or is a page open?"
 msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py
-msgid "Was the overview or the index read?"
+msgid "Does the question name data, or was the overview or the index read?"
+msgstr ""
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names data"
 msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py
@@ -3221,10 +3225,6 @@ msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py
 msgid "Does the question name data?"
-msgstr ""
-
-#: base/domain/chat/workflow/input_checks.py
-msgid "names data"
 msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py

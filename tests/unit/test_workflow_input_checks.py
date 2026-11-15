@@ -185,6 +185,17 @@ def test_data_question_goes_to_q15(patched):
     assert path[-5:] == ["Q_IS_COLLECTION", "Q_IS_DATA"] + PROMPT
 
 
+def test_a_data_question_with_a_collection_expression_goes_to_the_data_tools(patched):
+    """«cada» is a collection expression, and the overview was read; the question names
+    data, so it goes to Q_IS_DATA and the data tools, not to the overview and the index."""
+    patched["collection"] = ["[wiki/overview.md]\nThe wiki has..."]
+    turn = _turn("¿cuánto vale el billete verde en cada banco?")
+    out, path = _run(turn)
+    assert out == AgentCall("Q_AGENT_TOOLS")
+    assert path[-5:] == ["Q_IS_COLLECTION", "Q_IS_DATA"] + PROMPT
+    assert turn.plan.tier is None
+
+
 def test_source_fragments_go_to_q16(patched):
     patched["concepts"] = ["caución bursátil"]
     patched["docs"] = ["[12 Cauciones.docx]\nLa caución bursátil es un préstamo."]

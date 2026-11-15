@@ -288,7 +288,10 @@ g.add(
         .branch(g.match(PreRetrievalTurn).label(N_("found no wiki page")).to(collection))
     ),
     g.edge_from(collection).to(
-        g.decision(node_id="after_Q_IS_COLLECTION", note=N_("Was the overview or the index read?"))
+        # A question that names data goes to the data tools even when it carries a collection
+        # expression: «¿cuánto ganaría con cada una?» names data and says «cada».
+        g.decision(node_id="after_Q_IS_COLLECTION", note=N_("Does the question name data, or was the overview or the index read?"))
+        .branch(g.match(PreRetrievalTurn, matches=_has_data).label(N_("names data")).to(data_question))
         .branch(g.match(PreRetrievalTurn, matches=_has_collection_hits).label(N_("overview or index read")).to(open_page_note))
         .branch(g.match(PreRetrievalTurn).label(N_("no overview or index read")).to(data_question))
     ),

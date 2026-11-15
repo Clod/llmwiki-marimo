@@ -3345,8 +3345,12 @@ msgid "Does the question name a wiki topic, or is a page open?"
 msgstr "¿La pregunta nombra un tema de la wiki o hay una página abierta?"
 
 #: base/domain/chat/workflow/input_checks.py
-msgid "Was the overview or the index read?"
-msgstr "¿Se leyó el resumen o el índice?"
+msgid "Does the question name data, or was the overview or the index read?"
+msgstr "¿La pregunta nombra datos, o se leyó el resumen o el índice?"
+
+#: base/domain/chat/workflow/input_checks.py
+msgid "names data"
+msgstr "nombra datos"
 
 #: base/domain/chat/workflow/input_checks.py
 msgid "overview or index read"
@@ -3359,10 +3363,6 @@ msgstr "no se leyó el resumen ni el índice"
 #: base/domain/chat/workflow/input_checks.py
 msgid "Does the question name data?"
 msgstr "¿La pregunta nombra datos?"
-
-#: base/domain/chat/workflow/input_checks.py
-msgid "names data"
-msgstr "nombra datos"
 
 #: base/domain/chat/workflow/input_checks.py
 msgid "names no data"
@@ -3845,4 +3845,7 @@ msgstr "respuesta no reemplazada por el rechazo del guardrail"
 
 #~ msgid "Advisory table and citation added"
 #~ msgstr "Se agregan la tabla de datos y la cita"
+
+#~ msgid "Was the overview or the index read?"
+#~ msgstr "¿Se leyó el resumen o el índice?"
 

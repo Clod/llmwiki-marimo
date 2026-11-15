@@ -410,6 +410,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A data question with a collection expression reaches the data tools.** The
+  investment question of the finance demo, «Tengo $1.000.000 que no voy a
+  necesitar por 3 meses, ¿qué alternativas tengo y cuánto ganaría con cada
+  una?», ended in `Q_AGENT_COLLECTION`: the model got the overview and the index
+  instead of the data tools. «cada» is a collection expression, and the decision
+  after `Q_IS_COLLECTION` sent the question to the collection before `Q_IS_DATA`
+  ran, although `Q_NAMES_DATA` had found data. The decision now sends a question
+  that names data to `Q_IS_DATA` first, and the question ends in `Q_AGENT_TOOLS`.
+
 - **A reload keeps the marks of the sentence verification.** After a
   verification, reloading the page redrew the answer with its red figures but
   without the yellow unsupported sentences and without the line «N de M
