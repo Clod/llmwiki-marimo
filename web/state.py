@@ -58,7 +58,7 @@ class OpenWiki:
     """A wiki opened by the application, with its agents and its lock.
 
     `busy` serializes the operations that write to the wiki: one runs at a time
-    per wiki, as in the ingest app.
+    per wiki.
     """
 
     wiki: Wiki

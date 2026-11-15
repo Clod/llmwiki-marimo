@@ -1,6 +1,6 @@
 """Ingestion and maintenance of a wiki, for any user interface.
 
-`ingest_uploads` is the upload path of the ingest app: it ingests each file,
+`ingest_uploads` is the upload path of the Ingest screen: it ingests each file,
 then reconciles the pages it touched (node I_UPLOAD_REPAIR) and refreshes their "See also"
 cross-links (node I_CROSSLINKS), all under one `ingest` root span. The other functions
 are the maintenance passes and the read-only views of the sources.

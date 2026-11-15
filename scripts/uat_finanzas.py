@@ -198,7 +198,7 @@ def _count_tool_calls(result) -> int:
 
 
 def _build_agent(workspace: Path):
-    """Compose the demo agent exactly as the read app does.
+    """Compose the demo agent as `services.chat` does.
 
     Returns (agent, db_path). Raises RuntimeError with a plain message when the
     workspace can't back the UAT (no finance overlay, or no built index).

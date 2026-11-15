@@ -8,7 +8,7 @@ git commits. It exists so `docs/ingestion_walkthrough.md` can be *regenerated*
 from a real run instead of hand-maintained (hand-written example output rots the
 moment the pipeline changes).
 
-It mirrors what the ingest app's runner actually does — `ingest_file`, then a
+It mirrors what `services.ingest.ingest_uploads` actually does — `ingest_file`, then a
 lint+repair pass scoped to the pages that ingest touched, then the cross-link
 pass — so the captured numbers match the product, not a simplified path.
 

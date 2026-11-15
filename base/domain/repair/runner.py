@@ -54,7 +54,7 @@ _ADVISORY_CHECKS = {"vocab_stale", "vocab_covered", "vocab_ambiguous", "thin_pag
                     "unpaged_source", "unsupported_sentences", "unverified_pages",
                     "image_without_description", "stale_image_description"}
 
-# Shown in the ingest app's Activity Log, which is where a human actually reads
+# Shown in the progress log of the Ingest and Maintain screens, which is where a human actually reads
 # it — so it names the two buttons that supply a model, not the keyword argument
 # that does. The previous wording ("pass llm_client") was accurate and useless:
 # nobody reading a log has an argument to pass. A skip message should name what
