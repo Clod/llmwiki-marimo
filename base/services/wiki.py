@@ -391,9 +391,16 @@ def changes_since(wiki: Wiki, sha: str) -> PageChanges:
 
 
 def uncommitted(wiki: Wiki) -> list[str]:
-    """The files of wiki/ that differ from the last commit. A revert is refused while there are any."""
-    from domain.rollback.revert import dirty_files
+    """The files of wiki/, wiki_config.toml and datasets/ that differ from the last commit.
+    A revert is refused while there are any.
 
+    The data files are edited by hand, outside the application: their pending changes
+    are committed here first (`commit_datasets`), so they become part of the history
+    instead of stopping every revert."""
+    from domain.rollback.revert import dirty_files
+    from domain.tools.git_ops import commit_datasets
+
+    commit_datasets(wiki.path)
     return dirty_files(wiki.path)
 
 

@@ -67,6 +67,23 @@ def test_create_page_creates_fts5_chunks(tmp_workspace: WorkspaceFixture) -> Non
     assert count > 0
 
 
+def test_a_one_sentence_page_is_indexed_whole_and_the_search_finds_it(tmp_workspace: WorkspaceFixture) -> None:
+    """A page shorter than the minimum fragment produced no fragment, and the search did
+    not find it. It is indexed whole, as one fragment."""
+    from domain.chat.wiki_tools import search_wiki_fts
+
+    result = create_page(
+        tmp_workspace.db_path, tmp_workspace.workspace,
+        "/wiki/concepts/", "quinoto", "Quinoto", "El quinoto es un cítrico pequeño.", [],
+    )
+    with get_connection(tmp_workspace.db_path) as conn:
+        rows = conn.execute("SELECT content FROM document_chunks WHERE document_id = ?",
+                            (result["id"],)).fetchall()
+    assert len(rows) == 1 and "quinoto es un cítrico" in rows[0]["content"]
+    found = search_wiki_fts(type("Ctx", (), {"deps": tmp_workspace.db_path})(), "quinoto")
+    assert "quinoto" in found.lower() and "no wiki pages found" not in found.lower()
+
+
 def test_create_page_returns_id_and_path(tmp_workspace: WorkspaceFixture) -> None:
     result = create_page(
         tmp_workspace.db_path, tmp_workspace.workspace,

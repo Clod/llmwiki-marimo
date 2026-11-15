@@ -86,9 +86,30 @@ def _query_dataset(
     if not rows:
         return f"No dataset rows found for categoria='{categoria}'" + (
             f", clave='{clave}'" if clave else ""
-        ) + (f", metrica='{metrica}'" if metrica else "") + "."
+        ) + (f", metrica='{metrica}'" if metrica else "") + "." + _existing_values(source, categoria, clave, metrica)
 
     return format_rows_as_table(categoria, rows)
+
+
+def _existing_values(source, categoria: str, clave: str | None, metrica: str | None) -> str:
+    """The values the category does have, for a filter that matched no row: a model that
+    asked for metrica='7_dias' learns the existing metricas and can ask again, instead of
+    answering with no evidence. '' when the category itself has no rows or no filter was
+    given."""
+    if not (clave or metrica):
+        return ""
+    try:
+        rows = source.query(categoria)
+    except Exception:   # noqa: BLE001 — the hint is optional; the "no rows" sentence stands
+        return ""
+    if not rows:
+        return ""
+    parts = []
+    if metrica:
+        parts.append("metrica: " + ", ".join(dict.fromkeys(r.metrica for r in rows)))
+    if clave:
+        parts.append("clave: " + ", ".join(dict.fromkeys(r.clave for r in rows)))
+    return " Existing values of the category — " + "; ".join(parts) + "."
 
 
 def format_rows_as_table(categoria: str, rows: list[DatasetRow]) -> str:
