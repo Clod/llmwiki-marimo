@@ -15,14 +15,17 @@ from pathlib import Path, PurePosixPath
 from domain import tracing
 from domain.tools.db import get_connection
 from domain.verify.verifier import Verifier
+from domain.repair.runner import ADVISORY_CHECKS
 from services.wiki import Wiki
 
 Progress = Callable[[str], None]
 
 # `orphan`: a concept page this ingestion created may have no inbound link yet, and
-# its repair would delete it. The two verification checks are report only.
-_NOT_REPAIRED_ON_INGEST = {"orphan", "unsupported_sentences", "unverified_pages",
-                           "image_without_description", "stale_image_description"}
+# its repair would delete it. The advisory checks (`thin_page`, `unpaged_source`, the
+# vocabulary, verification and image checks) have no automatic repair: sent to the
+# repair, each one only wrote a "skipped" line in the log of every ingestion. The lint
+# pass already reports them.
+_NOT_REPAIRED_ON_INGEST = {"orphan"} | ADVISORY_CHECKS
 
 
 def _noop(_: str) -> None:

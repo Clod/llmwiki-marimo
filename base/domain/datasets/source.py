@@ -37,7 +37,9 @@ class LocalMarkdownSource:
         if not self._datasets_dir.is_dir():
             return []
         slugs = []
-        for path in sorted(self._datasets_dir.glob("*.md")):
+        # A name that starts with a dot is not a dataset: macOS writes `._name.md`
+        # (AppleDouble metadata, binary) next to each file copied to some disks.
+        for path in sorted(p for p in self._datasets_dir.glob("*.md") if not p.name.startswith(".")):
             if self._rows_for_file(path):
                 slugs.append(path.stem)
         return slugs
@@ -82,7 +84,7 @@ class LocalMarkdownSource:
             return {}
         try:
             text = path.read_text(encoding="utf-8")
-        except OSError as exc:
+        except (OSError, UnicodeDecodeError) as exc:
             logger.warning("Could not read dataset file %s: %s", path, exc)
             return {}
         block, _body = split_frontmatter(text)
@@ -113,7 +115,7 @@ class LocalMarkdownSource:
             return []
         try:
             text = path.read_text(encoding="utf-8")
-        except OSError as exc:
+        except (OSError, UnicodeDecodeError) as exc:
             logger.warning("Could not read dataset file %s: %s", path, exc)
             return []
         return parse_dataset_markdown(text, filename_slug=path.stem)
@@ -130,3 +132,15 @@ def has_active_datasets(workspace: Path) -> bool:
     if not datasets_dir.is_dir():
         return False
     return bool(LocalMarkdownSource(datasets_dir).categories())
+
+
+def datasets_fingerprint(datasets_dir: Path) -> tuple:
+    """The name, size and modification time of each file of `datasets_dir`: it changes
+    when a dataset file is added, removed or edited. One directory listing, no file read.
+    The web rebuilds the agents of a wiki when it changes (`web/state.py`), and
+    `extensions.advisory_base` recomputes the advisory lists."""
+    folder = Path(datasets_dir)
+    if not folder.is_dir():
+        return ()
+    return tuple(sorted((p.name, p.stat().st_size, p.stat().st_mtime_ns)
+                        for p in folder.iterdir() if p.is_file()))

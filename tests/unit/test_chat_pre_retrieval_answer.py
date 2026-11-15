@@ -264,3 +264,21 @@ def test_tier2_warning_does_not_turn_an_answer_into_a_refusal():
         msgs = [SimpleNamespace(role="user", content="q"),
                 SimpleNamespace(role="assistant", content=answer)]
         assert strip_refused_exchanges(msgs) == msgs
+
+
+def test_the_advisory_lists_activate_the_domains_once_while_the_datasets_do_not_change(tmp_path, monkeypatch):
+    """The pre-retrieval mode asks for the advisory lists on every question; the domains
+    activate again only when a file of `datasets/` changes."""
+    from domain import extensions
+    from domain.extensions import advisory_base, finance_argentina
+
+    calls = []
+    monkeypatch.setattr(finance_argentina, "activate", lambda ws: calls.append(ws))
+    advisory_base(tmp_path, "es")
+    advisory_base(tmp_path, "es")
+    assert len(calls) == 1
+    (tmp_path / "datasets").mkdir()
+    (tmp_path / "datasets" / "dolar.md").write_text("x", encoding="utf-8")
+    advisory_base(tmp_path, "es")
+    assert len(calls) == 2
+    assert extensions._advisory_cache

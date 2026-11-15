@@ -318,6 +318,7 @@ def _installed(monkeypatch, *, programs=("ocrmypdf", "tesseract"), packs=("eng",
     monkeypatch.setattr(ocr.shutil, "which", lambda name: f"/usr/bin/{name}" if name in programs else None)
     listing = "List of available languages (3):\n" + "\n".join(packs) + "\n"
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: SimpleNamespace(stdout=listing, returncode=0))
+    monkeypatch.setattr(ocr, "_ocrmypdf_errors", {})
 
 
 def test_status_for_tesseract_when_everything_is_installed(monkeypatch):
@@ -330,6 +331,21 @@ def test_status_for_tesseract_names_the_missing_program(monkeypatch):
     _installed(monkeypatch, programs=("tesseract",))
     status = engine_status("es", settings(OCR_ENGINE="tesseract"))
     assert not status["usable"] and "ocrmypdf" in status["problem"] and "apt-get" in status["problem"]
+
+
+def test_status_for_tesseract_names_an_ocrmypdf_that_does_not_start(monkeypatch):
+    """`shutil.which` finds the program, and `ocrmypdf --version` fails: the status says
+    so instead of calling the engine usable and failing at the ingestion."""
+    _installed(monkeypatch)
+
+    def run(cmd, **kw):
+        if cmd[1:] == ["--version"]:
+            return SimpleNamespace(stdout="", stderr="ImportError: cannot import name 'x'", returncode=1)
+        return SimpleNamespace(stdout="List of available languages (1):\nspa\n", returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    status = engine_status("es", settings(OCR_ENGINE="tesseract"))
+    assert not status["usable"] and "does not start" in status["problem"] and "ImportError" in status["problem"]
 
 
 def test_status_for_tesseract_names_the_missing_language_pack_of_the_wiki_language(monkeypatch):

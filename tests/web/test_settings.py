@@ -332,3 +332,19 @@ def test_the_saved_models_apply_without_a_restart(client, env_file, app):
 def test_a_test_that_saves_the_models_leaves_config_settings_as_it_was():
     """Runs after the tests above that save the models: the fixture put every field back."""
     assert config.settings.model_dump() == _AT_IMPORT
+
+
+def test_a_dataset_added_after_the_first_question_rebuilds_the_agents(settings, wiki):
+    """The extensions activate when the agents are built; a dataset file added on disk
+    after the first question rebuilds them on the next one, without a restart."""
+    built = []
+    app = create_app(settings, agents_factory=lambda w: built.append(1) or object())
+    state = app.state.web
+    entry = state.get_wiki(WIKI_ID)
+    state.get_agents(entry)
+    state.get_agents(entry)
+    assert len(built) == 1                                   # kept while nothing changes
+    (entry.wiki.path / "datasets").mkdir(exist_ok=True)
+    (entry.wiki.path / "datasets" / "plazo_fijo.md").write_text("---\ntype: dataset\n---\n", encoding="utf-8")
+    state.get_agents(entry)
+    assert len(built) == 2

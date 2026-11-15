@@ -626,6 +626,23 @@ def test_the_zoom_buttons_change_the_zoom_and_fit_returns_to_the_whole_graph(pag
     page.wait_for_function(f"Math.abs(window.relationsGraph.fg.zoom() - {fitted}) < {fitted * 0.25}")
 
 
+def test_two_quick_zoom_clicks_add_up(page, live):
+    """The second click lands during the animation of the first; it multiplies the zoom
+    the first one aims at, so two clicks zoom by 1.5² and not by less."""
+    relations(page, live)
+    zoom = lambda: page.evaluate("window.relationsGraph.fg.zoom()")   # noqa: E731
+    fitted = zoom()
+    for _ in range(20):
+        page.wait_for_timeout(300)
+        if abs(zoom() - fitted) < 1e-6:
+            break
+        fitted = zoom()
+    button = page.get_by_role("button", name="Acercar")
+    button.click()
+    button.click()
+    page.wait_for_function(f"Math.abs(window.relationsGraph.fg.zoom() - {fitted * 2.25}) < {fitted * 0.05}")
+
+
 def test_the_relations_tab_search_and_click_open_the_reading_screen(page, live):
     goto(page, live)
     page.get_by_role("link", name="Ver relaciones").click()

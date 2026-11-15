@@ -328,6 +328,27 @@ def apply_ocr(
 
 # ── Status ────────────────────────────────────────────────────────────────────
 
+# The answer of `_ocrmypdf_error` for each executable path, kept for the life of the
+# process: the status line asks on every screen that shows it.
+_ocrmypdf_errors: dict[str, str] = {}
+
+
+def _ocrmypdf_error(ocrmypdf: str) -> str:
+    """Why the installed `ocrmypdf` does not start; '' when `ocrmypdf --version` runs.
+
+    `shutil.which` finds an executable whose Python environment is broken (a library
+    upgraded under it): the status line called it usable and the ingestion failed later.
+    """
+    if ocrmypdf not in _ocrmypdf_errors:
+        try:
+            result = subprocess.run([ocrmypdf, "--version"], capture_output=True, text=True, timeout=30)
+            error = "" if result.returncode == 0 else ((result.stderr or result.stdout).strip().splitlines() or ["?"])[-1]
+        except (OSError, subprocess.SubprocessError) as exc:
+            error = str(exc)
+        _ocrmypdf_errors[ocrmypdf] = error
+    return _ocrmypdf_errors[ocrmypdf]
+
+
 def _tesseract_languages(tesseract: str) -> set[str]:
     try:
         result = subprocess.run([tesseract, "--list-langs"], capture_output=True, text=True, timeout=30)
@@ -354,6 +375,9 @@ def engine_status(language: str = "en", settings=None) -> dict[str, str | bool]:
             absent = " and ".join(n for n, found in (("ocrmypdf", ocrmypdf), ("tesseract", tesseract)) if not found)
             problem = (f"{absent} not installed. macOS: brew install ocrmypdf tesseract tesseract-lang. "
                        "Debian and Ubuntu: sudo apt-get install ocrmypdf tesseract-ocr tesseract-ocr-spa.")
+        elif error := _ocrmypdf_error(ocrmypdf):
+            problem = (f"ocrmypdf is installed but does not start ({error}). Reinstall it: "
+                       "brew reinstall ocrmypdf, or sudo apt-get install --reinstall ocrmypdf.")
         elif pack not in _tesseract_languages(tesseract):
             problem = (f"The Tesseract language pack '{pack}' is not installed. "
                        f"Debian and Ubuntu: sudo apt-get install tesseract-ocr-{pack}. "

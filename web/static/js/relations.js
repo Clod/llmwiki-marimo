@@ -172,8 +172,18 @@
   });
   searchBox.addEventListener("input", () => { if (!searchBox.value) { pinned = null; refocus(); } });
   // The zoom buttons use the library's own zoom; once the user zooms the view stays put.
-  document.getElementById("zoom-in").addEventListener("click", () => { touched = true; fg.zoom(fg.zoom() * 1.5, 250); });
-  document.getElementById("zoom-out").addEventListener("click", () => { touched = true; fg.zoom(fg.zoom() / 1.5, 250); });
+  // A click during the 250 ms animation of the previous one multiplies the zoom it aims
+  // at, not the intermediate zoom of the animation: three quick clicks zoom by 1.5³.
+  let zoomTarget = null, zoomTimer = null;
+  function zoomBy(factor) {
+    touched = true;
+    zoomTarget = (zoomTarget ?? fg.zoom()) * factor;
+    fg.zoom(zoomTarget, 250);
+    clearTimeout(zoomTimer);
+    zoomTimer = setTimeout(() => { zoomTarget = null; }, 260);
+  }
+  document.getElementById("zoom-in").addEventListener("click", () => zoomBy(1.5));
+  document.getElementById("zoom-out").addEventListener("click", () => zoomBy(1 / 1.5));
   document.getElementById("zoom-fit").addEventListener("click", () => { touched = false; fg.zoomToFit(300, 80, () => true); });
   showSummary.addEventListener("change", update);
   showSource.addEventListener("change", update);

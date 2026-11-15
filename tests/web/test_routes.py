@@ -51,6 +51,19 @@ def test_picker_tags_the_most_recent_wiki_of_the_recent_list(client, settings, w
     assert "última abierta" not in html[html.index(f'href="/w/{WIKI_ID}/"'):].split("</tr>")[0]
 
 
+def test_opening_a_wiki_from_its_link_tags_it_as_the_last_opened(client, wiki, tmp_path):
+    """The picker link and the wiki selector of the header open `/w/<id>/`, not the
+    form "Open"; the tag follows them too."""
+    other = tmp_path / "other"
+    other.mkdir()
+    client.post("/open", data={"path": str(other), "create": "true"})
+    assert "última abierta" not in client.get("/").text.split(f'href="/w/{WIKI_ID}/"')[1].split("</tr>")[0]
+    client.get(f"/w/{WIKI_ID}/")
+    html = client.get("/").text
+    assert html.count("última abierta") == 1
+    assert "última abierta" in html[html.index(f'href="/w/{WIKI_ID}/"'):].split("</tr>")[0]
+
+
 def test_listing_the_wikis_creates_nothing_on_disk(client, tmp_path):
     folder = tmp_path / "bare"
     (folder / "wiki").mkdir(parents=True)

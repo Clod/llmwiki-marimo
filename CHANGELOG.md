@@ -450,6 +450,45 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A macOS `._*` file in `datasets/` no longer breaks the vocabulary.** macOS
+  writes binary `._name.md` files next to files copied to some disks; the
+  dataset source read them and `build_vocabulary` failed with
+  `UnicodeDecodeError`. Names that start with a dot are skipped, and a file that
+  is not UTF-8 is skipped with a warning (`base/domain/datasets/source.py`).
+- **The log of an ingestion no longer lists the advisory findings as
+  "skipped".** `thin_page`, `unpaged_source` and the vocabulary findings have no
+  automatic repair; the ingestion sent them to the repair and each wrote a
+  "skipped" line. They stay out of the repair of an ingestion
+  (`_NOT_REPAIRED_ON_INGEST`, `base/services/ingest.py`); the lint still reports
+  them.
+- **A broken `ocrmypdf` is no longer called usable.** The status line found the
+  program on the path and called the Tesseract engine usable; an `ocrmypdf`
+  whose Python environment is broken failed only at the ingestion. The status
+  now runs `ocrmypdf --version` once and names the error
+  (`base/domain/ingestion/ocr.py`).
+- **The Vocabulary tab writes a new alias above the comment of the next
+  section.** A new canonical of `[alias_datos]` was written below the comment
+  «# FALSOS sinónimos…» that introduces `[falsos_sinonimos]`. It now goes right
+  after the last key of its table (`base/domain/chat/config_writer.py`).
+- **The tag "last opened" follows the wiki last opened.** Only the form "Open"
+  moved a wiki to the front of the recent list; opening it from the picker or the
+  wiki selector of the header did not. Opening any wiki moves it now
+  (`wiki_home`, `web/routes/picker.py`).
+- **Quick clicks on the zoom buttons of the relations screen add up.** A click
+  during the animation of the previous one started from the intermediate zoom,
+  so three clicks zoomed out less than expected. Each click multiplies the zoom
+  the previous one aims at (`web/static/js/relations.js`).
+- **A dataset added after the first question activates its extension.** The
+  agents of a wiki were built with the first question and kept, so a dataset
+  file added later did not activate the finance extension until a restart. The
+  agents are rebuilt when a file of `datasets/` is added, removed or edited
+  (`datasets_fingerprint`, `web/state.py`).
+- **The domains no longer activate on every question.** In the pre-retrieval
+  mode, the advisory lists activated every domain on each question: in a wiki
+  without finance data the console got five validator warnings per question.
+  The lists are kept while the files of `datasets/` do not change
+  (`advisory_base`, `base/domain/extensions/__init__.py`).
+
 - **A follow-up after a refusal keeps its topic.** After a turn that ended in a
   refusal, a follow-up such as «¿Y la carroza?» ended in `R_NOT_IN_ROSTER`: the
   history lost the refusal and also the question that got it, so the rewrite of
