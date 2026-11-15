@@ -382,13 +382,14 @@ instrument_attrs.py,validator.py,requirements.py}`.
 **Capa 4 — Honestidad forzada (prompt + guardrail).** Dos mecanismos
 complementarios evitan que el modelo invente. El **system prompt** impone
 citar-o-abstenerse, no completar con conocimiento general, y mantenerse en el
-dominio. Como red de seguridad determinista, el **guardrail** `enforce_grounding`
-reemplaza por una abstención cualquier respuesta que **no** se apoye en un
-resultado de herramienta — así una cita fabricada de memoria no pasa. El guardrail
-corre en el modo «Agente con comprobación de evidencia»; el modo «Sin
-verificación» no lo aplica.
-→ `base/domain/chat/guardrail.py` (nodo `T_GUARDRAIL`, en
-`base/domain/chat/workflow/catalog.py`),
+dominio. Como red de seguridad determinista, el código comprueba que la respuesta
+se apoye en un resultado de herramienta (`has_grounding`). En el modo «Agente con
+comprobación de evidencia», una respuesta sin ese apoyo provoca un segundo intento
+del modelo, con la instrucción de consultar la wiki; si tampoco hay apoyo, la
+respuesta llega con un aviso: «Ninguna consulta a la wiki respalda esta respuesta».
+La negativa queda como último recurso. El modo «Sin verificación» no comprueba nada.
+→ `base/domain/chat/guardrail.py` (nodos `T_RETRY` y `T_NO_EVIDENCE_WARNING`, en
+`base/services/chat.py` y `base/domain/chat/workflow/catalog.py`),
 prompt en `examples/finanzas-argentinas/wiki_config.toml`.
 
 ### 4.2 Las nueve preguntas, una por una
@@ -476,13 +477,13 @@ ambas) y **las referencias** de código.
   lo estuvieran.
 - **Cómo se resuelve — _prompt_ + guardrail.** El prompt manda citar-o-abstenerse
   y "no completes con conocimiento general". Como red de seguridad determinista,
-  el guardrail `enforce_grounding` reemplaza por una abstención toda respuesta que
-  no se apoye en un resultado de herramienta (evita que una cita fabricada pase).
+  una respuesta que no se apoya en un resultado de herramienta provoca un segundo
+  intento del modelo y, si tampoco hay apoyo, llega con un aviso que lo dice.
   En la práctica el modelo busca, no encuentra, y lo admite; si agrega una
   explicación general, debe etiquetarla como tal.
 - **Referencias:** reglas en `wiki_config.toml`;
-  `chat/guardrail.py::enforce_grounding` / `has_grounding` (nodo
-  `T_GUARDRAIL`, en `chat/workflow/catalog.py`).
+  `chat/guardrail.py::has_grounding` (nodos `T_RETRY` y
+  `T_NO_EVIDENCE_WARNING`, en `services/chat.py` y `chat/workflow/catalog.py`).
 
 #### H — Un número que **no está** en los datos
 - **Desafío:** admitir que falta un dato puntual (la tasa del Banco Comafi) que

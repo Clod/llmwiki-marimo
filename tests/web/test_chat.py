@@ -88,10 +88,12 @@ def test_pre_retrieval_turn_refuses_an_off_scope_question_before_the_model(clien
     assert agents.agent_pre_retrieval.prompts == []
 
 
-def test_agent_turn_without_tool_evidence_is_replaced_by_the_refusal(client, agents):
+def test_agent_turn_without_tool_evidence_is_retried_and_shown_with_the_warning(client, agents):
     events = stream(client, ask(client, "capital of France?", mode="agent"))
-    assert REFUSAL_EN in events[0][1]
-    assert agents.agent.prompts and agents.agent_pre_retrieval.prompts == []
+    assert REFUSAL_EN not in events[0][1]
+    assert "Ninguna consulta a la wiki respalda esta respuesta" in events[0][1] or \
+        "No consultation of the wiki backs this answer" in events[0][1]
+    assert len(agents.agent.prompts) == 2 and agents.agent_pre_retrieval.prompts == []
 
 
 def test_streaming_turn_sends_raw_chunks_then_the_rendered_answer(client, agents):
@@ -105,6 +107,7 @@ def test_streaming_turn_sends_raw_chunks_then_the_rendered_answer(client, agents
 
 
 def test_the_open_page_follows_the_question_to_the_model(client, agents):
+    agents.agent.grounded = True     # one model call per turn: no retry
     stream(client, ask(client, mode="agent", open_page="concepts/prince"))
     assert "concepts/prince" in agents.agent.prompts[0] and QUESTION in agents.agent.prompts[0]
     stream(client, ask(client, mode="agent", open_page="", message="and then?"))
@@ -376,6 +379,7 @@ def test_the_meta_line_ends_with_the_tokens_of_the_turn_and_of_the_conversation(
 
 def test_the_tokens_use_the_separator_of_the_interface_language(en_client, agents):
     agents.agent.tokens = (3877, 40)
+    agents.agent.grounded = True     # one model call: no retry adds its tokens
     meta = meta_of(stream(en_client, ask(en_client, mode="agent")))
     assert 'turn: 3,917 tokens (input 3,877, output 40) · conversation: 3,917 tokens</span>' in meta
 

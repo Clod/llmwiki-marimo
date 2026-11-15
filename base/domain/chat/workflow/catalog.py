@@ -38,7 +38,7 @@ from domain.chat import figure_check, history, preretrieval
 from domain.chat.config import DEFAULT_NUMBER_TOLERANCE
 from domain.chat.figure_check import FigureCheck
 from domain.chat.guardrail import (
-    count_refused, enforce_grounding, has_grounding, mark_refused_exchanges, refusal_for,
+    count_refused, has_grounding, mark_refused_exchanges,
 )
 from domain.chat.overlap import coverage
 from domain.chat.postprocess import (
@@ -97,7 +97,8 @@ class AnswerChecks:
     grounded: bool = False
     # Q_MODEL_REFUSED: the answer opens with the fixed refusal sentence of the model.
     model_refused: bool = False
-    # T_GUARDRAIL: the guardrail refusal replaced the answer.
+    # The guardrail refusal replaced the answer. The agent mode no longer replaces it
+    # (T_NO_EVIDENCE_WARNING); the field stays False there and is kept for the trace.
     refusal_substituted: bool = False
     # The additions of the pre-retrieval mode: the answer after the table, and
     # after the keys line.
@@ -666,12 +667,13 @@ async def evidence(ctx: OutCtx) -> AnswerChecks:
     return checks
 
 
-async def guardrail(ctx: OutCtx) -> AnswerChecks:
+async def no_evidence_warning(ctx: OutCtx) -> AnswerChecks:
+    """No tool return backs the answer, after the retry (T_RETRY, `services/chat.py`):
+    the answer is shown with a warning, never replaced. The warning says what the code
+    knows: no consultation of the wiki backs the answer."""
     checks = ctx.state
-    checks.answer = enforce_grounding(checks.raw, checks.messages, refusal=refusal_for(checks.language))
-    checks.refusal_substituted = checks.answer != checks.raw
-    if checks.refusal_substituted:
-        tracing.mark("T_GUARDRAIL", R, final_answer=checks.answer)
+    checks.answer = f"{checks.answer}\n\n{get_locale(checks.language).no_evidence_warning}"
+    tracing.mark("T_NO_EVIDENCE_WARNING", R)
     return checks
 
 
@@ -698,7 +700,7 @@ async def agent_citation(ctx: OutCtx) -> AnswerChecks:
 
 async def uncited_mark(ctx: OutCtx) -> AnswerChecks:
     """An answer that still cites nothing is delivered with a note, not refused. A
-    refusal, of T_GUARDRAIL or of the model, is left as it is."""
+    refusal of the model is left as it is."""
     checks = ctx.state
     cited = checks.answer
     refused = checks.refusal_substituted or is_refusal(cited)
@@ -770,7 +772,7 @@ CATALOG = {
     "R_NO_EVIDENCE": refuse_ungrounded,
     "R_MODEL": refuse_model,
     "T_TOOL_EVIDENCE": evidence,
-    "T_GUARDRAIL": guardrail,
+    "T_NO_EVIDENCE_WARNING": no_evidence_warning,
     "T_ADVISORY_TABLE": agent_table,
     "T_CITE_TOOLS": agent_citation,
     "T_MARK_UNCITED": uncited_mark,

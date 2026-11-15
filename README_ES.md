@@ -575,6 +575,13 @@ idioma. Ver [`docs/manual/apps.md`](docs/manual/apps.md) §8.
 
 La lista de formatos está en un solo lugar del código, `base/domain/ingestion/formats.py`. LibreOffice necesita su componente de procesador de texto (Writer) para convertir; la pestaña **Mantener** muestra si el LibreOffice instalado convierte un documento.
 
+**Las imágenes se ignoran por defecto.** Con `ignore = true` en la sección `[images]`
+de `wiki_config.toml`, el valor por defecto, la ingesta no conserva ninguna imagen de
+las fuentes: no copia, no enlaza y no describe ninguna, la página de resumen no tiene
+sección «Figuras», y un archivo de imagen no se acepta como fuente. La pantalla
+Configuración edita la clave (casilla «Ignorar las imágenes»), y la clave vale para las
+fuentes que se ingieren después. Con `ignore = false` valen los dos párrafos que siguen.
+
 **Imágenes de un PDF.** opendataloader-pdf extrae las imágenes de un PDF mientras lo
 convierte. La ingesta las conserva en la carpeta de ingesta del documento,
 `.llmwiki/cache/local/<id del documento>/images/`, junto a `converted.pdf`. La carpeta
@@ -593,15 +600,33 @@ de nuevo cuando la fuente sigue en `sources/`, o reemplaza el enlace por «[Imag
 disponible, página N]» cuando ya no está; la segunda borra el archivo. Una reconstrucción
 del índice debe extraer las imágenes de nuevo.
 
+**Describir las imágenes (opcional).** Con `describe = true` en la sección `[images]`
+de `wiki_config.toml`, un modelo de visión describe cada imagen conservada. El modelo
+de visión se define en la pantalla Configuración o en `.env` (`VISION_BASE_URL`,
+`VISION_API_KEY`, `VISION_MODEL`). Cada valor vacío toma el del modelo de ingesta, y
+después el del modelo de chat. La clave `describe` actúa solo con `ignore = false`. La
+descripción es un archivo junto a la imagen (`<imagen>.desc.json`, fuera de git). La
+descripción entra en el texto almacenado de la fuente como un bloque delimitado por
+`<!-- image-description: … -->`, así que la búsqueda, el modelo de ingesta y la
+verificación la ven. La descripción aparece también en la sección «Figuras» de la
+página de resumen, en un bloque plegado con el rótulo «Descripción generada». La
+verificación marca con un estado propio (un subrayado de puntos) una oración que solo
+respalda una descripción. Las imágenes de una fuente Markdown (archivos raster locales
+dentro de `sources/`) se conservan y se describen igual. Un archivo de imagen (`.png`,
+`.jpg`, `.jpeg`, `.webp`, `.gif`) es una fuente cuyo texto es su descripción. El texto
+dentro de una imagen es una entrada no confiable: ver [`SECURITY.md`](SECURITY.md).
+Detalles: [`docs/design_image_handling.md`](docs/design_image_handling.md).
+
 **PDFs escaneados (OCR).** Un PDF cuyas páginas casi no tienen texto (menos de 20
-caracteres en al menos una cuarta parte de sus páginas) se lee con el motor de OCR que
-`.env` fija en `OCR_ENGINE`:
+caracteres en al menos una cuarta parte de sus páginas) se lee con el motor de OCR
+`OCR_ENGINE`, que se elige en la pantalla Configuración (bloque «Modelos», grupo «Modelo
+de visión») o en `.env`:
 
 | `OCR_ENGINE` | Qué hace |
 | ------------ | -------- |
 | `none` (por defecto) | La ingesta falla con un mensaje que nombra el ajuste y los dos motores. |
 | `tesseract` | Local: `ocrmypdf` con Tesseract, ejecutados como programas externos. Se instalan con `brew install ocrmypdf tesseract tesseract-lang` (macOS) o `sudo apt-get install ocrmypdf tesseract-ocr tesseract-ocr-spa` (Debian, Ubuntu); en Windows, sigue las [instrucciones de ocrmypdf](https://ocrmypdf.readthedocs.io/en/latest/installation.html#windows). El idioma sigue al de la wiki (`spa` para `es`, `eng` para `en`). La copia con capa de texto queda como `ocr.pdf` en el directorio de caché del documento, y el visor de fuentes la muestra. |
-| `vision` | Un modelo con visión lee cada página mediante una API compatible con OpenAI: una llamada al modelo por página, y el texto puede variar entre ejecuciones. Define `OCR_MODEL`, `OCR_BASE_URL` y `OCR_API_KEY`; cada uno recurre a su valor `LLM_*`. |
+| `vision` | Un modelo con visión lee cada página mediante una API compatible con OpenAI: una llamada al modelo por página, y el texto puede variar entre ejecuciones. Cada uno de `OCR_BASE_URL`, `OCR_API_KEY` y `OCR_MODEL` es el primer valor no vacío entre `OCR_*`, `VISION_*`, `WIKI_LLM_*` y `LLM_*`: el modelo de visión de la pantalla Configuración lee las páginas, salvo que `.env` defina `OCR_*`. |
 
 `quickstart.py` pregunta qué motor usar y escribe el ajuste. En un PDF mixto (unas páginas
 con texto, otras escaneadas), ambos motores leen solo las páginas escaneadas.
@@ -726,8 +751,9 @@ en el formulario de subida y haz clic en **Ingestar**, o (b) ponlo en
 `WIKI_PATH/sources/` y haz clic en **Escanear sources/**, que detecta e ingiere lo  
 nuevo o modificado. Trata un documento de origen no confiable como tratarías código no confiable:  
 su texto llega al agente de chat, que puede escribir páginas de wiki — ver [`SECURITY.md`](SECURITY.md).
-- **Sin manejo de imágenes / visión.** Ingesta solo de texto — las imágenes incrustadas en un  
-documento se omiten, no se describen ni resumen.
+- **Las imágenes se ignoran por defecto.** Con `[images] ignore = true`, el valor por  
+defecto, las imágenes incrustadas en un documento se omiten: no se conservan ni se  
+describen. Ver el apartado de formatos.
 - **El OCR viene desactivado.** Un PDF escaneado / solo-imagen falla con un mensaje hasta que  
 definas `OCR_ENGINE` (ver el apartado de formatos). El motor `vision` cuesta una llamada al  
 modelo por página y su texto puede variar entre ejecuciones.

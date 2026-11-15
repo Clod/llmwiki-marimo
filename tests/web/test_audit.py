@@ -177,14 +177,35 @@ def test_modelo_section_says_the_code_did_not_change_the_answer(client, agents):
     assert "El código no modificó la respuesta del modelo." in audit(client).text
 
 
-def test_modelo_section_shows_the_replaced_text_with_its_warning(client, agents):
-    agents.agent.output = "The deposit lasts 90 days."
-    agents.agent.grounded = False
-    stream(client, ask(client, "capital of France?", mode="agent"))
+def test_modelo_section_shows_the_replaced_text_with_its_warning(client, monkeypatch):
+    """A refusal of the pre-retrieval mode (R_UNSUPPORTED, R_NO_EVIDENCE) replaces the
+    answer; the audit shows what the model wrote, with its warning."""
+    from dataclasses import replace
+
+    from services import chat as chat_service
+
+    real = chat_service.chat_turn_with_context
+
+    async def replaced(*args, **kwargs):
+        result = await real(*args, **kwargs)
+        return replace(result, raw_answer="The deposit lasts 90 days.")
+
+    monkeypatch.setattr(chat_service, "chat_turn_with_context", replaced)
+    stream(client, ask(client))
     html = audit(client).text
     assert "Este texto no está verificado: el código lo reemplazó porque no pudo respaldarlo con la wiki." in html
     assert "The deposit lasts 90 days." in html
     assert "El código no modificó la respuesta del modelo." not in html
+
+
+def test_an_agent_answer_without_evidence_is_not_replaced(client, agents):
+    """The agent mode shows an answer no tool backs with a warning: nothing replaced it."""
+    agents.agent.output = "The deposit lasts 90 days."
+    agents.agent.grounded = False
+    stream(client, ask(client, "capital of France?", mode="agent"))
+    html = audit(client).text
+    assert "The deposit lasts 90 days." in html
+    assert "Este texto no está verificado" not in html
 
 
 class StreamingAgent:
@@ -307,9 +328,9 @@ def test_the_agent_mode_shows_its_own_graphs_and_the_call_t1(client, agents):
     stream(client, ask(client, "capital of France?", mode="agent"))
     entry, call, exit_ = diagrams(audit(client).text)
     assert "C_OPEN_PAGE_NOTE · " in entry and "Q_QUESTION · " not in entry
-    assert "T_AGENT · " in call and "Q_AGENT_PAGES" not in call
-    assert "T_GUARDRAIL · " in exit_ and "Q_SHOWN" not in exit_
-    assert {"T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_SHOWN"} <= visited(exit_)
+    assert "T_AGENT · " in call and "T_RETRY · " in call and "Q_AGENT_PAGES" not in call
+    assert "T_NO_EVIDENCE_WARNING · " in exit_ and "Q_SHOWN" not in exit_
+    assert {"T_TOOL_EVIDENCE", "T_NO_EVIDENCE_WARNING", "T_SHOWN"} <= visited(exit_)
 
 
 def test_a_refusal_of_the_input_says_the_model_was_not_called(client, agents):
@@ -336,8 +357,8 @@ def test_selecting_another_turn_returns_its_diagrams(client, agents):
     stream(client, ask(client, "capital of France?", mode="agent"))
     first = client.get(f"/w/{WIKI_ID}/audit/c1/diagram/1").text
     second = client.get(f"/w/{WIKI_ID}/audit/c1/diagram/2").text
-    assert "Q_AGENT_PAGES · " in first and "T_GUARDRAIL · " not in first
-    assert "T_GUARDRAIL · " in second and "Q_AGENT_PAGES" not in second
+    assert "Q_AGENT_PAGES · " in first and "T_NO_EVIDENCE_WARNING · " not in first
+    assert "T_NO_EVIDENCE_WARNING · " in second and "Q_AGENT_PAGES" not in second
     assert client.get(f"/w/{WIKI_ID}/audit/c1/diagram/3").status_code == 404
     page = audit(client).text
     assert 'hx-get="/w/tales/audit/c1/diagram/1"' in page and 'hx-get="/w/tales/audit/c1/diagram/2"' in page
@@ -413,7 +434,7 @@ def test_every_branch_of_every_decision_has_a_label():
             by_decision.setdefault(a, []).append(label)
         repeated = {a: labels for a, labels in by_decision.items() if len(labels) != len(set(labels))}
         assert repeated == {}, f"{mode}, {('input', 'output')[side]}: repeated labels"
-    assert counted == 54        # 36 and 2 branches in the input graphs, 12 and 4 in the output graphs
+    assert counted == 53        # 36 and 2 branches in the input graphs, 12 and 3 in the output graphs
 
 
 def test_the_branch_labels_are_translated_to_the_interface_language():

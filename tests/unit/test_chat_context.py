@@ -107,18 +107,18 @@ def test_agent_context_comes_from_the_tool_returns(wiki):
     assert result.answer.startswith("Cinderella lost a slipper.") and "| opción" in result.answer
 
 
-def test_a_agent_refusal_has_an_empty_context(wiki):
+def test_an_agent_answer_without_evidence_has_an_empty_context(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.AGENT))
-    assert result.answer == REFUSAL_EN and result.context == ()
+    assert "No consultation of the wiki backs this answer" in result.answer and result.context == ()
 
 
-def test_a_agent_refusal_keeps_what_the_model_wrote(wiki):
-    """The guardrail replaces an answer no tool supports; the model's text stays in
-    `raw_answer`, for the user to audit (the "unverified answer" button)."""
+def test_an_agent_answer_without_evidence_shows_what_the_model_wrote(wiki):
+    """The answer no tool supports is shown with the warning, not replaced, so there is
+    no separate `raw_answer` to audit."""
     result = run(chat.chat_turn_with_context(
         wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.AGENT))
-    assert result.raw_answer == "Paris."
+    assert result.answer.startswith("Paris.") and result.raw_answer is None
 
 
 def test_an_answer_shown_as_written_has_no_raw_answer(wiki):

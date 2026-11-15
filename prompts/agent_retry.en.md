@@ -1,0 +1,1 @@
+Your previous answer rested on no consultation of the wiki. Consult the wiki with your tools before you answer, and answer only with what they return. If the tools return nothing about the question, say so.

@@ -204,11 +204,12 @@ def test_agent_without_rounded_figures_adds_no_note(wiki):
     assert result.figures.rounded() == () and "approximations" not in result.answer
 
 
-def test_agent_refusal_has_an_empty_report(wiki):
+def test_an_agent_answer_without_evidence_has_its_figures_checked(wiki):
+    """The answer is no longer replaced by a refusal: it reaches C_FIGURES, and a figure
+    no passage backs is marked."""
     result = run(chat.chat_turn_with_context(
         wiki, agents("Paris has 2.100.000 people."), [msg("user", "capital of France?")], mode=chat.AGENT))
-    assert result.raw_answer is not None
-    assert result.figures.findings == ()
+    assert [f.figure.text for f in result.figures.unsupported()] == ["2.100.000"]
 
 
 def test_pre_retrieval_returns_the_report(wiki):

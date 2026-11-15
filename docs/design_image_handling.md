@@ -2,6 +2,7 @@
 
 > **Status:** design, 2026-10-12; built on `feat/image-handling` (phases 0 to 3 of
 > section 10). Every decision, D1 to D13, was accepted by the owner on 2026-10-12.
+> D14 and the change to D3 were decided by the owner on 2026-11-13.
 > The deviations of the build are listed in the report of the implementation, not here.
 
 ## 0. Scope
@@ -175,6 +176,12 @@ description would depend on that branch, the name would mislead, and OCR and
 description could not use two models. One shared group `VISION_*` for OCR and
 description: `feat/ocr` would have to rename its variables before merging, and the
 two tasks could not use two models.
+
+**Changed 2026-11-13 (owner).** The OCR engine `vision` takes each value from the
+first group that is not blank: `OCR_*`, then `VISION_*`, then `WIKI_LLM_*`, then
+`LLM_*` (`vision_config`, `base/domain/ingestion/ocr.py`). A user who sets the vision
+model in the Settings screen gets the same model for OCR and for the descriptions.
+`OCR_*` in `.env` still gives OCR a model of its own.
 
 ### D4 — Where a description lives
 
@@ -533,6 +540,39 @@ open.
 *Rejected.* The whole request: about 15 MB of duplicated images for one ingestion of
 the tales. No `prompts` channel for descriptions: it loses the text prompt, which is
 what serves most to understand a bad description.
+
+### D14 — The images are ignored by default
+
+**Decided 2026-11-13 (owner).** The key `ignore` of `[images]` is `true` by default
+(`ImagesConfig`, `base/domain/wiki_settings.py`). With `ignore = true` the ingestion
+keeps no image of the sources: it copies, links and describes none, writes no
+`figures.json`, adds no "Figures" section to the summary page, and accepts no image
+file as a source. The text of a PDF keeps no image link
+(`_element_to_markdown`, `base/domain/ingestion/pdf_extract.py`). The other keys of
+`[images]` apply only with `ignore = false` (`effective_config`,
+`base/domain/ingestion/describe.py`). The Settings screen shows the key as the
+checkbox "Ignore the images", ticked by default.
+
+Four paths read `ignore`:
+
+- **The ingestion of one source** (`_ingest_file`, `base/domain/ingestion/pipeline.py`):
+  the validation refuses an image file, and the extraction keeps no image.
+- **The scan of `sources/`** (`scan_and_ingest`, same file): an image file is not a
+  candidate.
+- **The upload of the web** (`web/routes/ingest.py`): the server refuses an image file
+  before it reaches `sources/`, and the ingestion screen names no image format.
+- **The reindex** (`base/domain/tools/reindex.py`): an image file is not a source, and
+  the extraction keeps no image.
+
+`ignore` acts only when a source is extracted. A document ingested earlier keeps its
+images, and they can be described. Ingesting its source again or rebuilding the index
+with `ignore = true` deletes its images folder and its `figures.json` (`drop_kept`,
+`base/domain/ingestion/images.py`).
+
+*Reasons.* With `ignore = true` the ingestion behaves as before the image handling,
+except for one difference: a PDF with images no longer leaves a link such as
+`![image](…_images/imageFile1.png)` to a temporary folder already deleted. The image
+handling and the OCR were not tested with a real model when they were integrated.
 
 ---
 

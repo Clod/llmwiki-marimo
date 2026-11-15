@@ -172,13 +172,18 @@ def _agents(output):
     return chat.ChatAgents(config=config, agent=_Agent(output), agent_pre_retrieval=_Agent(output))
 
 
-def test_agent_turn_without_tool_evidence_is_refused(wiki):
+def test_agent_turn_without_tool_evidence_retries_once_and_then_warns(wiki):
+    """No tool return backs the first answer: the model runs once more, told to consult
+    the wiki; without evidence again, the answer is shown with the warning, not refused."""
+    from domain.prompts import load_prompt
+
     agents = _agents("Paris.")
     answer = asyncio.run(chat.chat_turn(
         wiki, agents, [_msg("user", "capital of France?")], mode=chat.AGENT,
     ))
-    assert answer == REFUSAL_EN
-    assert agents.agent.prompts == ["capital of France?"]
+    assert answer.startswith("Paris.") and "No consultation of the wiki backs this answer" in answer and answer != REFUSAL_EN
+    assert agents.agent.prompts == ["capital of France?",
+                                    "capital of France?\n\n" + load_prompt("agent_retry", "en")]
 
 
 def test_pre_retrieval_turn_refuses_before_the_model(wiki):

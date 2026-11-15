@@ -70,7 +70,7 @@ mode has no workflows: it records C_COUNT_HISTORY, C_WHICH_MODE, F_AGENT and F_C
 | `R_NO_EVIDENCE` | no | yes | no | no |
 | `R_MODEL` | no | yes | no | no |
 | `T_TOOL_EVIDENCE` | no | no | no | yes |
-| `T_GUARDRAIL` | no | no | no | yes |
+| `T_NO_EVIDENCE_WARNING` | no | no | no | yes |
 | `T_ADVISORY_TABLE` | no | no | no | yes |
 | `T_CITE_TOOLS` | no | no | no | yes |
 | `T_MARK_UNCITED` | no | no | no | yes |

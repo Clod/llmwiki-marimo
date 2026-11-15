@@ -109,7 +109,7 @@ over SSE. The selector **Mode** has three values (`web/deps.py:MODES`):
 | Value | Label | Behaviour |
 | --- | --- | --- |
 | `pre-retrieval` | Pre-retrieval | Code searches the wiki before the model is called and hands over the pages it found. |
-| `agent` | Agent with evidence check | The model consults the wiki with tools; if it did not, the answer is replaced by a refusal (§15.3). |
+| `agent` | Agent with evidence check | The model consults the wiki with tools; if no tool returned evidence, the model is asked once more, and then the answer carries a warning (§15.3). |
 | `streaming` | No verification | The answer appears as the model writes it. Code does not check that it comes from the wiki. |
 
 Under each answer, one line names the mode and gives the tokens: "N / M tokens", the tokens of the turn and of the whole conversation, with the
@@ -333,7 +333,7 @@ lint and repair, and the messages `services` return.
 Routes: `web/routes/settings.py`, `base/services/settings.py`. `GET /w/{wiki_id}/settings`
 shows every scalar key of `wiki_config.toml` (§8) with its value, its default and a line
 of help: `[assistant] system_prompt`, `[pre_retrieval] enabled`, `min_coverage` and
-`condense_question`, `[verify] threshold`, `candidates` and `number_tolerance`, and the four keys of `[images]`. `[wiki] language` is shown
+`condense_question`, `[verify] threshold`, `candidates` and `number_tolerance`, and the five keys of `[images]`. `[wiki] language` is shown
 read only, because the index keeps the stems of that language. The field of the system
 prompt shows the file `prompts/system_prompt.<lang>.md` of the wiki's language when the
 wiki defines none. The button **Restore the default** fills the field with that file's
@@ -395,7 +395,10 @@ anyway**, which sends `confirm=1`. A save replaces the lines of those keys in `.
 adds the missing ones. The other lines and the comments stay, and a new `.env` is
 readable by its owner only (`web.settings.write_models`). `AppState.set_models` then
 drops the agents of every open wiki, so the next question and the next ingestion use the
-new models without a restart. The block is shown only when the application has a `.env`
+new models without a restart. `AppState.set_models` also assigns the values to
+`config.settings` (`config.apply_values`): the OCR engine and the vision model of the
+ingestion read `config.settings` at each call, so the vision model and `OCR_ENGINE`
+apply from the next ingestion. The block is shown only when the application has a `.env`
 to write (`WebSettings.env_file`, set by `from_env`).
 
 ---
@@ -419,19 +422,21 @@ WIKI_LLM_BASE_URL=
 WIKI_LLM_API_KEY=
 WIKI_LLM_MODEL=
 
-# Optional vision model that describes images (`[images] describe = true`);
-# each value falls back to WIKI_LLM_*, then to LLM_*
+# Optional vision model that describes images (`[images] describe = true`) and
+# reads scanned PDFs with OCR_ENGINE=vision; each value falls back to WIKI_LLM_*,
+# then to LLM_*. The Settings screen edits these keys (§7.12).
 VISION_BASE_URL=
 VISION_API_KEY=
 VISION_MODEL=
 ```
 
 PDF extraction uses opendataloader-pdf, which reads the text layer. A PDF with no
-text layer (a scan) is read by the OCR engine that `OCR_ENGINE` selects:
+text layer (a scan) is read by the OCR engine that `OCR_ENGINE` selects. The Settings
+screen edits `OCR_ENGINE` in the group **Vision model** (§7.12):
 
 ```bash
 OCR_ENGINE=none        # none (default), tesseract or vision
-OCR_BASE_URL=          # vision only; each OCR_* value falls back to its LLM_* value
+OCR_BASE_URL=          # vision only; each blank OCR_* value takes VISION_*, then WIKI_LLM_*, then LLM_*
 OCR_API_KEY=
 OCR_MODEL=
 ```
@@ -487,11 +492,15 @@ Vocabulary screen (§7.6) edits the lists.
   `number_tolerance` (default `0.05`): the largest relative difference a rounded
   figure of an answer may have from the value in the data it rounds
   (`domain/verify/figures.py`).
-- **`[images]`** — `describe` (default `false`): a vision model describes each image kept
+- **`[images]`** — `ignore` (default `true`): the ingestion keeps no image of the
+  sources, describes none, adds no "Figures" section to a summary page and accepts no
+  image file as a source. The ingestion, the scan of `sources/`, the upload of the web
+  and the reindex read it. The other keys apply only with `ignore = false`.
+  `describe` (default `false`): a vision model describes each image kept
   from a source (§6.3); `min_side_px` (default `64`) and `min_bytes` (default `5000`):
   smaller images are not described; `max_per_document` (default `40`): at most this many
   images are described for each source. The values `64` and `5000` are starting values,
-  not measured on a corpus with icons. The Settings screen edits the four keys.
+  not measured on a corpus with icons. The Settings screen edits the five keys.
 - **`[fuera_de_alcance] terminos`**, **`[alias_datos]`** and **`[falsos_sinonimos]`**
   — the blacklist, the hand-written aliases and the rejected aliases of the
   vocabulary (§7.6). The aliases generated at ingestion
@@ -669,20 +678,24 @@ byte-identical to before (guarded by `tests/unit/test_chat_agent_datasets.py::te
 ### 15.3 Grounding guardrail (`base/domain/chat/guardrail.py`)
 
 A deterministic post-check: a run is *grounded* iff some tool returned
-substantive content (`has_grounding`); otherwise `enforce_grounding` replaces the
-answer with a language-appropriate refusal (`REFUSAL_ES`/`REFUSAL_EN`: "I could not
-back this answer with a lookup in the wiki in this turn."). It catches answers the
-model leaks despite the system prompt (general knowledge on "related" topics). Wired in
-`services.chat.chat_turn` (mode `agent`, chosen with the **Mode** selector of the
-reading screen, §7.2):
+substantive content (`has_grounding`). It catches answers the model leaks despite the
+system prompt (general knowledge on "related" topics). In the agent mode the refusal is
+a last resort, and the answer is never replaced: an ungrounded run is retried once,
+with the instruction to consult the wiki (node `T_RETRY`), and an ungrounded retry is
+shown with the warning "No consultation of the wiki backs this answer: it may come from
+the general knowledge of the model." (node `T_NO_EVIDENCE_WARNING`). A refusal of the
+model (the fixed sentence) is shown as written. Wired in `services.chat.chat_turn` (mode
+`agent`, chosen with the **Mode** selector of the reading screen, §7.2):
 
-- **`agent`** → the agent runs to completion, then the gate applies (refuse if
-  ungrounded). The answer is not streamed, because text already shown cannot be
-  retracted.
+- **`agent`** → the agent runs to completion, then the check applies (retry, then
+  warning, if ungrounded). The answer is not streamed, because text already shown
+  cannot be changed.
 - **`streaming`** → the whole agent runs, tool calls included
   (`run_stream_events`), and the text reaches the screen as the model writes it;
   no gate applies.
-- **`pre-retrieval`** → code retrieves the wiki pages before the model is called.
+- **`pre-retrieval`** → code retrieves the wiki pages before the model is called. A
+  data question that no tool return backs still ends in the refusal `R_NO_EVIDENCE`
+  (`enforce_grounding`, `REFUSAL_ES`/`REFUSAL_EN`).
 
 The mode is chosen per question, so changing it never rebuilds the agents. Known limit: it catches *no-evidence* answers, not an answer that ignored
 evidence it did retrieve (that needs answer-vs-source verification — deferred).

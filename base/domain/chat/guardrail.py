@@ -5,9 +5,13 @@ A system prompt can ASK the model to answer only from the wiki, but it cannot
 GUARANTEE it — LLMs leak general knowledge on "related" topics (e.g. explaining
 an ETF, or a fruit). This is a deterministic guardrail that runs AFTER the agent
 finishes: if the run produced no substantive result from any tool, the answer
-cannot be grounded in the wiki/data, so we replace it with an honest refusal.
+cannot be grounded in the wiki/data.
 
-The model no longer gets to decide whether it stayed grounded — the code does.
+What follows depends on the mode. The pre-retrieval mode replaces the answer of a data
+question with a refusal (`enforce_grounding`, node R_NO_EVIDENCE). The agent mode keeps
+the refusal as a last resort: it retries the model once (T_RETRY, `services/chat.py`)
+and then shows the answer with a warning (T_NO_EVIDENCE_WARNING). The model no longer
+gets to decide whether it stayed grounded — the code does.
 
 Design notes:
 - Every tool the chat agent registers is a *grounding* tool (read a wiki page,

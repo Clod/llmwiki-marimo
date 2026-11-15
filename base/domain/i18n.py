@@ -71,6 +71,11 @@ class Locale:
     # Warning appended to an answer built from a raw source fragment (Tier 2).
     tier2_warning: str
 
+    # Warning appended to an answer of the agent mode that no tool return backs, after
+    # the retry (node T_NO_EVIDENCE_WARNING). It says what the code knows, not where
+    # the answer came from.
+    no_evidence_warning: str
+
     # Note appended to an answer whose prose has rounded figures (domain/verify/figures.py).
     # `%(pct)s` is the tolerance as a percentage. The first text holds when the answer has
     # a table; the second one when it has none.
@@ -141,6 +146,10 @@ _EN = Locale(
         "> ⚠️ This answer comes from a source document with no curated wiki "
         "page; please verify it."
     ),
+    no_evidence_warning=(
+        "> ⚠️ No consultation of the wiki backs this answer: it may come from the "
+        "general knowledge of the model."
+    ),
     rounded_figures_note=(
         "> The figures in the text are approximations. The valid values are those of the "
         "table; a figure in the text can differ from its value in the table by up to %(pct)s%."
@@ -198,6 +207,10 @@ _ES = Locale(
     tier2_warning=(
         "> ⚠️ Esta respuesta proviene de un documento fuente sin página curada del "
         "wiki; verificá."
+    ),
+    no_evidence_warning=(
+        "> ⚠️ Ninguna consulta a la wiki respalda esta respuesta: puede venir del "
+        "conocimiento general del modelo."
     ),
     rounded_figures_note=(
         "> Las cifras del texto son aproximaciones. Los valores válidos son los de la "
