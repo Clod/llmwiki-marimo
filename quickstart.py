@@ -334,14 +334,18 @@ def choose_ocr(preselected: str | None, provider: tuple[str, str, str]) -> dict[
 
 def _vision_wizard(provider: tuple[str, str, str]) -> dict[str, str]:
     say("  Each page costs one model call, and the text may vary between runs.")
+    say("  The Settings screen of the web can change the engine later. OCR_MODEL takes precedence")
+    say("  over the vision model of that screen (VISION_MODEL) for OCR.")
     model = ask("  Model with vision (OCR_MODEL)")
     while not model:
         say("  A model is required.")
         model = ask("  Model with vision (OCR_MODEL)")
     values = {"OCR_ENGINE": "vision", "OCR_MODEL": model}
     base, key, _ = provider
-    if base and key and confirm(f"  Reuse LLM_BASE_URL ({base}) and LLM_API_KEY?", assume_yes=False, default=True):
-        return values  # blank OCR_BASE_URL and OCR_API_KEY fall back to the LLM_* values
+    if base and key and confirm(f"  Leave OCR_BASE_URL and OCR_API_KEY blank? Each then takes the VISION_*, "
+                                f"WIKI_LLM_* or LLM_* value (LLM_BASE_URL is {base}).",
+                                assume_yes=False, default=True):
+        return values  # a blank OCR_* value takes VISION_*, then WIKI_LLM_*, then LLM_* (ocr.vision_config)
     values["OCR_BASE_URL"] = ask("  Base URL (OpenAI-compatible, OCR_BASE_URL)")
     values["OCR_API_KEY"] = (
         getpass.getpass("  API key (input hidden): ").strip() if sys.stdin.isatty() else ask("  API key (OCR_API_KEY)")

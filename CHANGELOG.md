@@ -95,13 +95,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   `F2`.
 
 - **OCR for scanned PDFs, with the engine chosen at installation.** A PDF with no
-  text layer used to yield empty pages. `OCR_ENGINE` in `.env` now selects `none`
+  text layer used to yield empty pages. `OCR_ENGINE` now selects `none`
   (default: the ingestion fails with a message that names the setting and the two
   engines), `tesseract` (`ocrmypdf` run as an external program; the copy with a text
   layer is kept as `ocr.pdf` in the document's cache directory and the source viewer
   shows it) or `vision` (each page rendered with `pypdfium2` and read by a model with
-  vision through an OpenAI-compatible API; `OCR_BASE_URL`, `OCR_API_KEY` and
-  `OCR_MODEL` fall back to the `LLM_*` values). A page needs OCR below 20
+  vision through an OpenAI-compatible API). The `vision` engine takes each of
+  `OCR_BASE_URL`, `OCR_API_KEY` and `OCR_MODEL` from the first group that is not
+  blank: `OCR_*`, then `VISION_*`, then `WIKI_LLM_*`, then `LLM_*`
+  (`vision_config`, `base/domain/ingestion/ocr.py`). The model that describes the
+  images therefore also reads the scanned pages. A page needs OCR below 20
   characters; a document, from a quarter of its pages; a mixed PDF runs OCR only on
   its scanned pages. `tool_status()` and the ingestion screen report the engine and
   whether it can run, and `quickstart.py` asks which engine to use. A DOCX never goes
@@ -110,7 +113,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   being skipped as up to date, so a fix to the setup (such as `OCR_ENGINE`) takes
   effect on the next ingestion.
 
-- **The images of a PDF source are kept, linked, served and linted.**
+- **The images of a PDF source are kept, linked, served and linted.** This
+  entry and the next one apply only with `[images] ignore = false` in
+  `wiki_config.toml`. The default, `ignore = true`, keeps no image: the stored text
+  has no image link, the summary page has no "Figures" section, and an image file
+  is not accepted as a source (`ImagesConfig`, `base/domain/wiki_settings.py`).
+  `ignore` acts when a source is ingested, ingested again or reindexed. A source
+  ingested earlier keeps its images until it is ingested again or the index is
+  rebuilt: with `ignore = true`, both delete the images folder and
+  `figures.json` of the document (`drop_kept`, `base/domain/ingestion/images.py`).
   opendataloader-pdf extracts the images of a PDF, but `extract_pdf` deleted them
   with its temporary folder and left links such as
   `![image](Snow White and the Seven Dwarfs_images/imageFile1.png)` in the stored
@@ -127,7 +138,8 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   Two lint checks, `missing_image` and `orphan_image`, with repairs that call no model
   (extract the images again, or replace the link with "[Imagen no disponible, página
   N]"; delete the file), run in the wiki-wide pass and in the pass after an ingestion.
-  The lint now has twelve checks.
+  The lint now has sixteen checks: fourteen that call no model and two that call
+  the model (`lint_wiki`, `base/domain/lint/runner.py`).
 
 - **Descriptions of the images of the sources** (`base/domain/ingestion/describe.py`,
   `docs/design_image_handling.md`). With `[images] describe = true` in `wiki_config.toml`,
@@ -138,9 +150,21 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   only by a description its own state, recorded as the fragment `#image:<file>` of
   `best_source`. Two report-only lint checks (`image_without_description`,
   `stale_image_description`), the panel "Images" and the action "Describe the images" in the
-  Maintain screen, and the four keys of `[images]` in the Settings screen. The local raster
+  Maintain screen, and the five keys of `[images]` in the Settings screen. The local raster
   images of a Markdown source are kept and described, and image files (`.png`, `.jpg`,
   `.jpeg`, `.webp`, `.gif`) are accepted as sources. Nodes I17, I18 and I19 in the trace.
+
+- **The Settings screen edits the vision model and the OCR engine.** The vision
+  model (`VISION_*`) and the OCR engine (`OCR_ENGINE`) were set only in `.env`,
+  and a change to `.env` applied after a restart of the server. The block
+  "Models" now has a third group, "Vision model", with the endpoint URL, the API
+  key, the model name and the selector "OCR engine" (`none`, `tesseract`, the
+  vision model). "Save" writes the four keys to `.env` (`MODEL_FIELDS`,
+  `web/routes/settings.py`). The next ingestion uses them without a restart: the
+  save assigns the values to `config.settings` (`apply_values`, `base/config.py`),
+  and the OCR engine and the vision model read `config.settings` at each call.
+  The keys `OCR_BASE_URL`, `OCR_API_KEY` and `OCR_MODEL` are not in the form. A
+  blank `OCR_*` value takes the value of the vision group.
 
 ### Changed
 

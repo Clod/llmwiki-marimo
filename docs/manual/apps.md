@@ -333,7 +333,7 @@ lint and repair, and the messages `services` return.
 Routes: `web/routes/settings.py`, `base/services/settings.py`. `GET /w/{wiki_id}/settings`
 shows every scalar key of `wiki_config.toml` (§8) with its value, its default and a line
 of help: `[assistant] system_prompt`, `[pre_retrieval] enabled`, `min_coverage` and
-`condense_question`, `[verify] threshold`, `candidates` and `number_tolerance`, and the four keys of `[images]`. `[wiki] language` is shown
+`condense_question`, `[verify] threshold`, `candidates` and `number_tolerance`, and the five keys of `[images]`. `[wiki] language` is shown
 read only, because the index keeps the stems of that language. The field of the system
 prompt shows the file `prompts/system_prompt.<lang>.md` of the wiki's language when the
 wiki defines none. The button **Restore the default** fills the field with that file's
@@ -395,7 +395,10 @@ anyway**, which sends `confirm=1`. A save replaces the lines of those keys in `.
 adds the missing ones. The other lines and the comments stay, and a new `.env` is
 readable by its owner only (`web.settings.write_models`). `AppState.set_models` then
 drops the agents of every open wiki, so the next question and the next ingestion use the
-new models without a restart. The block is shown only when the application has a `.env`
+new models without a restart. `AppState.set_models` also assigns the values to
+`config.settings` (`config.apply_values`): the OCR engine and the vision model of the
+ingestion read `config.settings` at each call, so the vision model and `OCR_ENGINE`
+apply from the next ingestion. The block is shown only when the application has a `.env`
 to write (`WebSettings.env_file`, set by `from_env`).
 
 ---
@@ -419,19 +422,21 @@ WIKI_LLM_BASE_URL=
 WIKI_LLM_API_KEY=
 WIKI_LLM_MODEL=
 
-# Optional vision model that describes images (`[images] describe = true`);
-# each value falls back to WIKI_LLM_*, then to LLM_*
+# Optional vision model that describes images (`[images] describe = true`) and
+# reads scanned PDFs with OCR_ENGINE=vision; each value falls back to WIKI_LLM_*,
+# then to LLM_*. The Settings screen edits these keys (§7.12).
 VISION_BASE_URL=
 VISION_API_KEY=
 VISION_MODEL=
 ```
 
 PDF extraction uses opendataloader-pdf, which reads the text layer. A PDF with no
-text layer (a scan) is read by the OCR engine that `OCR_ENGINE` selects:
+text layer (a scan) is read by the OCR engine that `OCR_ENGINE` selects. The Settings
+screen edits `OCR_ENGINE` in the group **Vision model** (§7.12):
 
 ```bash
 OCR_ENGINE=none        # none (default), tesseract or vision
-OCR_BASE_URL=          # vision only; each OCR_* value falls back to its LLM_* value
+OCR_BASE_URL=          # vision only; each blank OCR_* value takes VISION_*, then WIKI_LLM_*, then LLM_*
 OCR_API_KEY=
 OCR_MODEL=
 ```
@@ -487,11 +492,15 @@ Vocabulary screen (§7.6) edits the lists.
   `number_tolerance` (default `0.05`): the largest relative difference a rounded
   figure of an answer may have from the value in the data it rounds
   (`domain/verify/figures.py`).
-- **`[images]`** — `describe` (default `false`): a vision model describes each image kept
+- **`[images]`** — `ignore` (default `true`): the ingestion keeps no image of the
+  sources, describes none, adds no "Figures" section to a summary page and accepts no
+  image file as a source. The ingestion, the scan of `sources/`, the upload of the web
+  and the reindex read it. The other keys apply only with `ignore = false`.
+  `describe` (default `false`): a vision model describes each image kept
   from a source (§6.3); `min_side_px` (default `64`) and `min_bytes` (default `5000`):
   smaller images are not described; `max_per_document` (default `40`): at most this many
   images are described for each source. The values `64` and `5000` are starting values,
-  not measured on a corpus with icons. The Settings screen edits the four keys.
+  not measured on a corpus with icons. The Settings screen edits the five keys.
 - **`[fuera_de_alcance] terminos`**, **`[alias_datos]`** and **`[falsos_sinonimos]`**
   — the blacklist, the hand-written aliases and the rejected aliases of the
   vocabulary (§7.6). The aliases generated at ingestion

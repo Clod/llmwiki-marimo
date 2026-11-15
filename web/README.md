@@ -24,9 +24,9 @@ authentication: it is for one user on one machine.
 | `WIKI_HOME` | The folder the picker scans for wikis. Without it, the parent folder of `WIKI_PATH`; without both, the home folder of the user. | `domain/wiki_registry.py`, `resolve_wiki_home` |
 | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | The model of the chat. | `base/config.py` |
 | `WIKI_LLM_BASE_URL`, `WIKI_LLM_API_KEY`, `WIKI_LLM_MODEL` | The model of the ingestion. Each falls back to its `LLM_*` value. | `base/config.py` |
-| `VISION_BASE_URL`, `VISION_API_KEY`, `VISION_MODEL` | The vision model that describes images (`[images] describe = true`). Each falls back to its `WIKI_LLM_*` value, and that one to its `LLM_*` value. | `base/config.py`, `settings.py` |
-| `OCR_ENGINE` | The OCR engine for PDFs with no text layer: `none` (default), `tesseract` or `vision`. | `base/config.py` |
-| `OCR_BASE_URL`, `OCR_API_KEY`, `OCR_MODEL` | The model of the `vision` engine. Each falls back to its `LLM_*` value. | `base/config.py` |
+| `VISION_BASE_URL`, `VISION_API_KEY`, `VISION_MODEL` | The vision model that describes images (`[images] describe = true`) and reads scanned PDFs with the `vision` engine. Each falls back to its `WIKI_LLM_*` value, and that one to its `LLM_*` value. The Settings screen edits them. | `base/config.py`, `settings.py` |
+| `OCR_ENGINE` | The OCR engine for PDFs with no text layer: `none` (default), `tesseract` or `vision`. The Settings screen edits it. | `base/config.py` |
+| `OCR_BASE_URL`, `OCR_API_KEY`, `OCR_MODEL` | The model of the `vision` engine. Each blank value takes the `VISION_*` value, then the `WIKI_LLM_*` value, then the `LLM_*` value. | `base/domain/ingestion/ocr.py` (`vision_config`) |
 | `WIKI_TRACE=1` | Writes the spans of each chat turn and ingestion to `<wiki>/.llmwiki/traces/spans.jsonl`. | `domain/tracing.py` |
 
 The application reads the `.env` file at the repository root.
@@ -50,7 +50,7 @@ The application reads the `.env` file at the repository root.
 | `routes/ingest.py` | Two screens and their operations, streamed over SSE. Ingestar (`/w/{wiki_id}/ingest`): ingest, scan the `sources/` folder, delete a source. Mantener (`/w/{wiki_id}/maintain`): regenerate, verify every page (`/verify-all`), lint and repair, rebuild the index (`services.wiki.reindex`, no model call), delete stale pages. `GET /w/{wiki_id}/sources` returns the sources panel alone, which Ingestar asks for again when an operation ends. The panel "Images" of the Maintain screen counts the images and starts "Describe the images" (`POST /w/{wiki_id}/describe-images`), a streamed operation under the wiki's lock, after a confirmation that states the number of images and the vision model. |
 | `routes/history.py` | The history of the wiki and of each page: the list of commits, the revert as a streamed operation, the version of a page at a commit and its comparison with the current one. |
 | `routes/relations.py` | The relations screen and the graph it draws (`relations.json`). |
-| `routes/settings.py` | The Settings screen (`/w/{wiki_id}/settings`): the scalar keys of `wiki_config.toml` (`[assistant]`, `[pre_retrieval]`, `[verify]`), read with their defaults and saved through `services.settings` (one commit of the wiki). `[wiki] language` is shown read only. A save drops the cached agents of the wiki (`AppState.reset_agents`), as every change of the vocabulary does. The block Models edits the reading, ingestion and vision models of `.env` and the OCR engine, with the API keys as password fields that never show a saved key. Each group has three buttons. Test (`POST /w/{wiki_id}/settings/models/{group}/test`) runs the model test of the group (`services.model_test`) with the values of the form, as a streamed operation, one at a time in the server (`AppState.model_test_lock`), and writes nothing. The ? button opens a dialog with the explanation of the test (`static/js/settings.js`). Save (`POST /w/{wiki_id}/settings/models/{group}`) writes only the keys of its group (`web.settings.write_models`) and applies them to every open wiki (`AppState.set_models`). It asks for a confirmation when those values were not tested or failed their last test (`AppState.model_tests`, in memory). |
+| `routes/settings.py` | The Settings screen (`/w/{wiki_id}/settings`): the scalar keys of `wiki_config.toml` (`[assistant]`, `[pre_retrieval]`, `[verify]`, `[images]`), read with their defaults and saved through `services.settings` (one commit of the wiki). `[wiki] language` is shown read only. A save drops the cached agents of the wiki (`AppState.reset_agents`), as every change of the vocabulary does. The block Models edits the reading, ingestion and vision models of `.env` and the OCR engine, with the API keys as password fields that never show a saved key. Each group has three buttons. Test (`POST /w/{wiki_id}/settings/models/{group}/test`) runs the model test of the group (`services.model_test`) with the values of the form, as a streamed operation, one at a time in the server (`AppState.model_test_lock`), and writes nothing. The ? button opens a dialog with the explanation of the test (`static/js/settings.js`). Save (`POST /w/{wiki_id}/settings/models/{group}`) writes only the keys of its group (`web.settings.write_models`) and applies them to every open wiki without a restart (`AppState.set_models`). The vision group also writes `OCR_ENGINE`. `AppState.set_models` assigns the values to `config.settings` (`config.apply_values`), which the OCR engine and the vision model read at each ingestion. Save asks for a confirmation when those values were not tested or failed their last test (`AppState.model_tests`, in memory). |
 | `routes/vocabulary.py` | The Vocabulary screen: the roster, the aliases, the rejected aliases and the blacklist of a wiki (`services.vocabulary`), and one route per change (`POST …/vocabulary/{op}`). |
 | `render.py` | `render_markdown`: markdown to HTML with every internal reference rewritten to an application URL, including the links to kept images (`.llmwiki/cache/local/<id>/images/<file>` becomes the images route). No FastAPI import. |
 | `templates/` | The Jinja2 templates. |
@@ -141,9 +141,13 @@ running operations. The wikis on disk are not affected.
 
 The accepted formats come from `base/domain/ingestion/formats.py`
 (`SUPPORTED_EXTENSIONS`): `.pdf`; the office formats `.docx`, `.doc`, `.odt`,
-`.rtf` (LibreOffice converts each to PDF); and `.md`, `.txt` (read directly, no
-Java and no LibreOffice). The upload filter and the ingestion screen import the
-list. `/w/{wiki}/view/<file>` shows a PDF or an office file as a PDF, a `.txt`
+`.rtf` (LibreOffice converts each to PDF); `.md`, `.txt` (read directly, no
+Java and no LibreOffice); and the image files `.png`, `.jpg`, `.jpeg`, `.webp`,
+`.gif`. The upload filter and the ingestion screen import the list through
+`supported_extensions`. A wiki with `[images] ignore = true`, the default, takes
+no image file: the ingestion screen does not name the image formats, and the
+upload refuses an image file before it reaches `sources/`
+(`web/routes/ingest.py`). `/w/{wiki}/view/<file>` shows a PDF or an office file as a PDF, a `.txt`
 as `text/plain; charset=utf-8`, and a `.md` rendered inside the application
 layout, read-only.
 
