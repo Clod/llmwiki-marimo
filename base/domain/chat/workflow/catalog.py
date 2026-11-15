@@ -24,9 +24,13 @@ reaches the step. `stem_text` and `blacklist_term` come from their own modules.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from collections.abc import Callable
 from typing import Any, Protocol
 
 from pydantic_graph import GraphBuilder, Step, StepContext
+from pydantic_graph.decision import Decision, DecisionBranch
+from pydantic_graph.graph_builder import Graph
+from pydantic_graph.paths import LabelMarker
 
 from domain import tracing
 from domain.chat import condense as condensation
@@ -775,6 +779,33 @@ def register(g: GraphBuilder, code: str) -> Step:
     """Register in the graph `g` the step function of `code`, with `code` as its
     node id."""
     return g.step(CATALOG[code], node_id=code)
+
+
+def _recorded(decision: str, branch: DecisionBranch) -> Callable[[Any], bool]:
+    """The condition of `branch`, which records the decision in the trace when the
+    branch is chosen. A branch without a condition is chosen when the input has
+    the type of the branch, as `pydantic_graph` decides it."""
+    label = next((item.label for item in branch.path.items if isinstance(item, LabelMarker)), "")
+    condition = branch.matches
+
+    def matches(value: Any) -> bool:
+        chosen = condition(value) if condition else isinstance(value, branch.source)
+        if chosen:
+            tracing.mark(decision, R, branch=label)
+        return chosen
+
+    return matches
+
+
+def trace_decisions(graph: Graph) -> Graph:
+    """Make each decision of `graph` record a node in the trace, with the label of the
+    branch it chose. `pydantic_graph` calls the conditions of a decision directly,
+    so without this a decision leaves no node in the trace. Returns `graph`."""
+    for node in graph.nodes.values():
+        if isinstance(node, Decision):
+            for branch in node.branches:
+                branch.matches = _recorded(node.id, branch)
+    return graph
 
 
 def N_(label: str) -> str:

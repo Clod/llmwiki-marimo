@@ -27,7 +27,8 @@ each graph. The steps of the pre-retrieval mode call through the
 module `preretrieval` the functions that it defines (`refuse`, `suggestions`,
 `offer_available_keys`), as the steps of the input workflow do. Both graphs are
 built with `auto_instrument=False`: the steps record the same `tracing.mark`
-calls as before the graphs, and the graphs add no span.
+calls as before the graphs. Each decision records a node with the label of the
+branch it chose (`trace_decisions`, `catalog.py`).
 """
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ from pydantic_graph import GraphBuilder
 
 # `AnswerChecks` is the state of the graph; `_pre_retrieval_turn`, the service
 # and the tests import it from this module.
-from domain.chat.workflow.catalog import N_, AnswerChecks, register
+from domain.chat.workflow.catalog import N_, AnswerChecks, register, trace_decisions
 
 # The nodes of the catalog that each output workflow registers. Both workflows
 # have no step of their own. The test `tests/unit/test_workflow_nodes_doc.py`
@@ -115,17 +116,17 @@ g.add(
         .branch(g.match(AnswerChecks).label(N_("wiki pages or data injected")).to(model_refusal))
     ),
     g.edge_from(fragment_coverage).to(
-        g.decision(node_id="after_Q17", note=N_("Is the answer grounded in the fragments?"))
+        g.decision(node_id="after_Q_IS_GROUNDED", note=N_("Is the answer grounded in the fragments?"))
         .branch(g.match(AnswerChecks, matches=_ungrounded).label(N_("answer not grounded in the fragments")).to(refuse_unsupported))
         .branch(g.match(AnswerChecks).label(N_("answer grounded in the fragments")).to(model_refusal))
     ),
     g.edge_from(tool_evidence).to(
-        g.decision(node_id="after_Q19", note=N_("Did a data tool return evidence?"))
+        g.decision(node_id="after_Q_TOOL_EVIDENCE", note=N_("Did a data tool return evidence?"))
         .branch(g.match(AnswerChecks, matches=_ungrounded).label(N_("no data tool returned evidence")).to(refuse_ungrounded))
         .branch(g.match(AnswerChecks).label(N_("a data tool returned evidence")).to(model_refusal))
     ),
     g.edge_from(model_refusal).to(
-        g.decision(node_id="after_Q20", note=N_("Does the answer open with the fixed refusal sentence?"))
+        g.decision(node_id="after_Q_MODEL_REFUSED", note=N_("Does the answer open with the fixed refusal sentence?"))
         .branch(g.match(AnswerChecks, matches=lambda c: c.model_refused)
                 .label(N_("opens with the fixed refusal sentence")).to(refuse_model))
         .branch(g.match(AnswerChecks).label(N_("does not open with the fixed refusal sentence")).to(table))
@@ -134,7 +135,7 @@ g.add(
     g.edge_from(keys).to(citation),
     g.edge_from(citation).to(injected_reference),
     g.edge_from(injected_reference).to(
-        g.decision(node_id="after_Q20d", note=N_("Were fragments of the source documents injected?"))
+        g.decision(node_id="after_Q_CITE_PAGES", note=N_("Were fragments of the source documents injected?"))
         .branch(g.match(AnswerChecks, matches=_tier2).label(N_("fragments of the source documents injected")).to(tier2_warning))
         .branch(g.match(AnswerChecks).label(N_("no fragments of the source documents injected")).to(figures))
     ),
@@ -143,7 +144,7 @@ g.add(
     g.edge_from(refuse_unsupported, refuse_ungrounded, refuse_model, shown).to(g.end_node),
 )
 
-graph = g.build()
+graph = trace_decisions(g.build())
 
 
 # ── The output workflow of the strict mode ────────────────────────────────────
@@ -159,7 +160,7 @@ strict_answer = register(strict, "T_SHOWN")
 strict.add(
     strict.edge_from(strict.start_node).to(evidence),
     strict.edge_from(evidence).to(
-        strict.decision(node_id="after_T2", note=N_("Did a tool return evidence?"))
+        strict.decision(node_id="after_T_TOOL_EVIDENCE", note=N_("Did a tool return evidence?"))
         .branch(strict.match(AnswerChecks, matches=_ungrounded).label(N_("no tool returned evidence")).to(guardrail))
         .branch(strict.match(AnswerChecks).label(N_("a tool returned evidence")).to(strict_table))
     ),
@@ -167,7 +168,7 @@ strict.add(
     strict.edge_from(strict_table).to(strict_citation),
     strict.edge_from(strict_citation).to(uncited_mark),
     strict.edge_from(uncited_mark).to(
-        strict.decision(node_id="after_T4c", note=N_("Did the guardrail refusal replace the answer?"))
+        strict.decision(node_id="after_T_MARK_UNCITED", note=N_("Did the guardrail refusal replace the answer?"))
         .branch(strict.match(AnswerChecks, matches=lambda c: c.refusal_substituted)
                 .label(N_("answer replaced by the guardrail refusal")).to(strict_answer))
         .branch(strict.match(AnswerChecks)
@@ -177,4 +178,4 @@ strict.add(
     strict.edge_from(strict_answer).to(strict.end_node),
 )
 
-strict_graph = strict.build()
+strict_graph = trace_decisions(strict.build())

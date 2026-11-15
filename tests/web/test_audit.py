@@ -425,15 +425,15 @@ def test_the_branch_labels_are_translated_to_the_interface_language():
     with use_language("es"):
         entry = workflow_diagram(input_checks.graph, [])
         exit_ = workflow_diagram(output_checks.graph, [])
-    assert 'after_Q3 -->|"nombra un término excluido"| R_BLACKLIST' in entry
-    assert 'after_Q3 -->|"no nombra ningún término excluido"| Q_STEM' in entry
-    assert 'after_Q5e -->|"la reescritura nombra un término excluido"| R_BLACKLIST' in entry
+    assert 'after_Q_IN_BLACKLIST -->|"nombra un término excluido"| R_BLACKLIST' in entry
+    assert 'after_Q_IN_BLACKLIST -->|"no nombra ningún término excluido"| Q_STEM' in entry
+    assert 'after_Q_RW_IN_BLACKLIST -->|"la reescritura nombra un término excluido"| R_BLACKLIST' in entry
     assert 'tier -->|"páginas o datos inyectados"| Q_MODEL_REFUSED' in exit_
     assert "names a blacklisted term" not in entry
     with use_language("en"):
         entry = workflow_diagram(input_checks.graph, [])
-    assert 'after_Q3 -->|"names a blacklisted term"| R_BLACKLIST' in entry
-    assert 'after_Q3 -->|"names no blacklisted term"| Q_STEM' in entry
+    assert 'after_Q_IN_BLACKLIST -->|"names a blacklisted term"| R_BLACKLIST' in entry
+    assert 'after_Q_IN_BLACKLIST -->|"names no blacklisted term"| Q_STEM' in entry
 
 
 # The generated diagrams are flowcharts (owner, 2026-11-14): a box per step, a diamond with its

@@ -36,43 +36,43 @@ flowchart TD
   Q_QUESTION["Q_QUESTION · The question enters pre-retrieval"]
   Q_NORMALIZE["Q_NORMALIZE · The question normalised (lowercase, no accents)"]
   Q_IN_BLACKLIST["Q_IN_BLACKLIST · Does the question name a blacklisted term?"]
-  after_Q3{"Does the question name a blacklisted term?"}
+  after_Q_IN_BLACKLIST{"Does the question name a blacklisted term?"}
   Q_STEM["Q_STEM · The question reduced to stems"]
   R_BLACKLIST["R_BLACKLIST · Refusal: blacklisted term"]
   Q_NAMES_DATA["Q_NAMES_DATA · Does the question name data: a dataset term, an alias or an advice request?"]
   Q_IN_ROSTER["Q_IN_ROSTER · Does the question name a topic of the wiki (coverage roster)?"]
   Q_PAGE_OPEN["Q_PAGE_OPEN · Is the user reading a wiki page?"]
-  after_Q5a{"Is the question a follow-up to rewrite, does it name a wiki topic, or is a page open?"}
+  after_Q_PAGE_OPEN{"Is the question a follow-up to rewrite, does it name a wiki topic, or is a page open?"}
   Q_COLLECTION_PAGES["Q_COLLECTION_PAGES · Overview and index read, for a question about the whole wiki"]
   Q_REWRITE["Q_REWRITE · The model rewrites the follow-up"]
   Q_SEARCH_WIKI["Q_SEARCH_WIKI · Search in the wiki pages"]
   Q_COLLECTION_OPEN_PAGE["Q_COLLECTION_OPEN_PAGE · Overview and index added to the open page"]
   Q_RW_ACCEPTED["Q_RW_ACCEPTED · Is the rewrite accepted: one line, not empty, not too long?"]
-  after_Q6{"Did the wiki search find a page?"}
+  after_Q_SEARCH_WIKI{"Did the wiki search find a page?"}
   Q_SEARCH_SOURCES["Q_SEARCH_SOURCES · Search in the source documents"]
-  after_Q5d{"Was the rewrite accepted?"}
-  after_Q8b{"Does the question name a wiki topic, or is a page open?"}
+  after_Q_COLLECTION_OPEN_PAGE{"Does the question name a wiki topic, or is a page open?"}
+  after_Q_RW_ACCEPTED{"Was the rewrite accepted?"}
   Q_CONDENSED["Q_CONDENSED · Result of the condensation: the text that the search examines, and what the checks found on it"]
   Q_IS_COLLECTION["Q_IS_COLLECTION · Is the question about the whole wiki?"]
   Q_PAGE_FOUND["Q_PAGE_FOUND · Did the search find a page?"]
   Q_RW_IN_BLACKLIST["Q_RW_IN_BLACKLIST · Does the rewrite name a blacklisted term?"]
-  after_Q5b{"Does the examined text name a wiki topic?"}
-  after_Q5e{"Does the rewrite name a blacklisted term?"}
-  after_Q7{"Did the wiki search find a page?"}
-  after_Q9{"Was the overview or the index read?"}
+  after_Q_CONDENSED{"Does the examined text name a wiki topic?"}
+  after_Q_IS_COLLECTION{"Was the overview or the index read?"}
+  after_Q_PAGE_FOUND{"Did the wiki search find a page?"}
+  after_Q_RW_IN_BLACKLIST{"Does the rewrite name a blacklisted term?"}
   C_OPEN_PAGE_NOTE["C_OPEN_PAGE_NOTE · Note of the open page added to the question"]
   Q_IS_DATA["Q_IS_DATA · Is it a data question?"]
   Q_NAMES_CATEGORY["Q_NAMES_CATEGORY · Does the question name a dataset category?"]
   Q_RW_NAMES_DATA["Q_RW_NAMES_DATA · Does the rewrite name data?"]
   Q_RW_IN_ROSTER["Q_RW_IN_ROSTER · Does the rewrite name a topic of the wiki (coverage roster)?"]
   Q_SYNONYMS["Q_SYNONYMS · Line of synonyms added for the aliases of the question"]
-  after_Q10{"Does the question name data?"}
-  after_Q7a{"Does the question name a dataset category?"}
+  after_Q_IS_DATA{"Does the question name data?"}
+  after_Q_NAMES_CATEGORY{"Does the question name a dataset category?"}
   Q_FRAGMENT_FOUND["Q_FRAGMENT_FOUND · Did the source search find a fragment?"]
   Q_NAMES_KEY["Q_NAMES_KEY · Does the question name a key of that category?"]
   Q_PROMPT["Q_PROMPT · Prompt built from the injected text and the question"]
-  after_Q11{"Did the source search find a fragment, and does the question name a wiki topic?"}
-  after_Q7b{"Does the question name a key of that category?"}
+  after_Q_FRAGMENT_FOUND{"Did the source search find a fragment, and does the question name a wiki topic?"}
+  after_Q_NAMES_KEY{"Does the question name a key of that category?"}
   agent{"What text was injected into the prompt?"}
   Q_AGENT_COLLECTION["Q_AGENT_COLLECTION · Overview and index given to the model"]
   Q_AGENT_FRAGMENTS["Q_AGENT_FRAGMENTS · Source fragments given to the model"]
@@ -81,8 +81,8 @@ flowchart TD
   Q_KEY_NAMES["Q_KEY_NAMES · Key names of the category read from the dataset"]
   Q_KEY_ROWS["Q_KEY_ROWS · Rows of the key read from the dataset"]
   Q_ROSTER_REFUSAL["Q_ROSTER_REFUSAL · Refusal chosen by the coverage roster"]
-  after_Q12{"Does the question name a wiki topic, or is a page open?"}
-  after_Q7cd{"Is a named category left?"}
+  after_Q_KEY_LOOKUP{"Is a named category left?"}
+  after_Q_ROSTER_REFUSAL{"Does the question name a wiki topic, or is a page open?"}
   R_NOTHING_FOUND["R_NOTHING_FOUND · Refusal: a topic of the wiki, no text found"]
   R_NOT_IN_ROSTER["R_NOT_IN_ROSTER · Refusal: no information received from the wiki"]
 
@@ -95,58 +95,58 @@ flowchart TD
   C_ORIGIN_LINES --> Q_QUESTION
   Q_QUESTION --> Q_NORMALIZE
   Q_NORMALIZE --> Q_IN_BLACKLIST
-  Q_IN_BLACKLIST --> after_Q3
-  after_Q3 -->|"names no blacklisted term"| Q_STEM
-  after_Q3 -->|"names a blacklisted term"| R_BLACKLIST
+  Q_IN_BLACKLIST --> after_Q_IN_BLACKLIST
+  after_Q_IN_BLACKLIST -->|"names no blacklisted term"| Q_STEM
+  after_Q_IN_BLACKLIST -->|"names a blacklisted term"| R_BLACKLIST
   Q_STEM --> Q_NAMES_DATA
   R_BLACKLIST --> wf_end
   Q_NAMES_DATA --> Q_IN_ROSTER
   Q_IN_ROSTER --> Q_PAGE_OPEN
-  Q_PAGE_OPEN --> after_Q5a
-  after_Q5a -->|"names no wiki topic and no page is open"| Q_COLLECTION_PAGES
-  after_Q5a -->|"follow-up with no wiki topic, no data and no open page"| Q_REWRITE
-  after_Q5a -->|"names a wiki topic or a page is open"| Q_SEARCH_WIKI
+  Q_PAGE_OPEN --> after_Q_PAGE_OPEN
+  after_Q_PAGE_OPEN -->|"names no wiki topic and no page is open"| Q_COLLECTION_PAGES
+  after_Q_PAGE_OPEN -->|"follow-up with no wiki topic, no data and no open page"| Q_REWRITE
+  after_Q_PAGE_OPEN -->|"names a wiki topic or a page is open"| Q_SEARCH_WIKI
   Q_COLLECTION_PAGES --> Q_COLLECTION_OPEN_PAGE
   Q_REWRITE --> Q_RW_ACCEPTED
-  Q_SEARCH_WIKI --> after_Q6
-  after_Q6 -->|"found a wiki page"| Q_COLLECTION_PAGES
-  Q_COLLECTION_OPEN_PAGE --> after_Q8b
-  Q_RW_ACCEPTED --> after_Q5d
-  after_Q6 -->|"found no wiki page"| Q_SEARCH_SOURCES
+  Q_SEARCH_WIKI --> after_Q_SEARCH_WIKI
+  after_Q_SEARCH_WIKI -->|"found a wiki page"| Q_COLLECTION_PAGES
+  Q_COLLECTION_OPEN_PAGE --> after_Q_COLLECTION_OPEN_PAGE
+  Q_RW_ACCEPTED --> after_Q_RW_ACCEPTED
+  after_Q_SEARCH_WIKI -->|"found no wiki page"| Q_SEARCH_SOURCES
   Q_SEARCH_SOURCES --> Q_COLLECTION_PAGES
-  after_Q5d -->|"rewrite not accepted"| Q_CONDENSED
-  after_Q5d -->|"rewrite accepted"| Q_RW_IN_BLACKLIST
-  after_Q8b -->|"names no wiki topic and no page is open"| Q_IS_COLLECTION
-  after_Q8b -->|"names a wiki topic or a page is open"| Q_PAGE_FOUND
-  Q_CONDENSED --> after_Q5b
-  Q_IS_COLLECTION --> after_Q9
-  Q_PAGE_FOUND --> after_Q7
-  Q_RW_IN_BLACKLIST --> after_Q5e
-  after_Q5e -->|"rewrite names a blacklisted term"| R_BLACKLIST
-  after_Q5b -->|"the examined text names no wiki topic"| Q_COLLECTION_PAGES
-  after_Q5b -->|"the examined text names a wiki topic"| Q_SEARCH_WIKI
-  after_Q7 -->|"found no wiki page"| Q_IS_COLLECTION
-  after_Q5e -->|"rewrite names no blacklisted term"| Q_RW_NAMES_DATA
-  after_Q7 -->|"found a wiki page"| Q_NAMES_CATEGORY
-  after_Q9 -->|"overview or index read"| C_OPEN_PAGE_NOTE
-  after_Q9 -->|"no overview or index read"| Q_IS_DATA
+  after_Q_COLLECTION_OPEN_PAGE -->|"names no wiki topic and no page is open"| Q_IS_COLLECTION
+  after_Q_COLLECTION_OPEN_PAGE -->|"names a wiki topic or a page is open"| Q_PAGE_FOUND
+  after_Q_RW_ACCEPTED -->|"rewrite not accepted"| Q_CONDENSED
+  after_Q_RW_ACCEPTED -->|"rewrite accepted"| Q_RW_IN_BLACKLIST
+  Q_CONDENSED --> after_Q_CONDENSED
+  Q_IS_COLLECTION --> after_Q_IS_COLLECTION
+  Q_PAGE_FOUND --> after_Q_PAGE_FOUND
+  Q_RW_IN_BLACKLIST --> after_Q_RW_IN_BLACKLIST
+  after_Q_RW_IN_BLACKLIST -->|"rewrite names a blacklisted term"| R_BLACKLIST
+  after_Q_CONDENSED -->|"the examined text names no wiki topic"| Q_COLLECTION_PAGES
+  after_Q_CONDENSED -->|"the examined text names a wiki topic"| Q_SEARCH_WIKI
+  after_Q_PAGE_FOUND -->|"found no wiki page"| Q_IS_COLLECTION
+  after_Q_IS_COLLECTION -->|"overview or index read"| C_OPEN_PAGE_NOTE
+  after_Q_IS_COLLECTION -->|"no overview or index read"| Q_IS_DATA
+  after_Q_PAGE_FOUND -->|"found a wiki page"| Q_NAMES_CATEGORY
+  after_Q_RW_IN_BLACKLIST -->|"rewrite names no blacklisted term"| Q_RW_NAMES_DATA
   C_OPEN_PAGE_NOTE --> Q_SYNONYMS
-  Q_IS_DATA --> after_Q10
-  Q_NAMES_CATEGORY --> after_Q7a
+  Q_IS_DATA --> after_Q_IS_DATA
+  Q_NAMES_CATEGORY --> after_Q_NAMES_CATEGORY
   Q_RW_NAMES_DATA --> Q_RW_IN_ROSTER
   Q_RW_IN_ROSTER --> Q_CONDENSED
-  after_Q10 -->|"names data"| C_OPEN_PAGE_NOTE
-  after_Q7a -->|"names no dataset category"| C_OPEN_PAGE_NOTE
+  after_Q_IS_DATA -->|"names data"| C_OPEN_PAGE_NOTE
+  after_Q_NAMES_CATEGORY -->|"names no dataset category"| C_OPEN_PAGE_NOTE
   Q_SYNONYMS --> Q_PROMPT
-  after_Q10 -->|"names no data"| Q_FRAGMENT_FOUND
-  after_Q7a -->|"names a dataset category"| Q_NAMES_KEY
-  Q_FRAGMENT_FOUND --> after_Q11
-  Q_NAMES_KEY --> after_Q7b
+  after_Q_IS_DATA -->|"names no data"| Q_FRAGMENT_FOUND
+  after_Q_NAMES_CATEGORY -->|"names a dataset category"| Q_NAMES_KEY
+  Q_FRAGMENT_FOUND --> after_Q_FRAGMENT_FOUND
+  Q_NAMES_KEY --> after_Q_NAMES_KEY
   Q_PROMPT --> agent
-  after_Q11 -->|"found a source fragment and names a wiki topic"| C_OPEN_PAGE_NOTE
-  after_Q11 -->|"found no source fragment or names no wiki topic"| Q_ROSTER_REFUSAL
-  after_Q7b -->|"names no key of the category"| Q_KEY_NAMES
-  after_Q7b -->|"names a key of the category"| Q_KEY_ROWS
+  after_Q_FRAGMENT_FOUND -->|"found a source fragment and names a wiki topic"| C_OPEN_PAGE_NOTE
+  after_Q_FRAGMENT_FOUND -->|"found no source fragment or names no wiki topic"| Q_ROSTER_REFUSAL
+  after_Q_NAMES_KEY -->|"names no key of the category"| Q_KEY_NAMES
+  after_Q_NAMES_KEY -->|"names a key of the category"| Q_KEY_ROWS
   agent -->|"overview and index injected"| Q_AGENT_COLLECTION
   agent -->|"fragments of the source documents injected"| Q_AGENT_FRAGMENTS
   agent -->|"wiki pages injected"| Q_AGENT_PAGES
@@ -155,13 +155,13 @@ flowchart TD
   Q_AGENT_FRAGMENTS --> wf_end
   Q_AGENT_PAGES --> wf_end
   Q_AGENT_TOOLS --> wf_end
-  Q_KEY_NAMES --> after_Q7cd
-  Q_KEY_ROWS --> after_Q7cd
-  Q_ROSTER_REFUSAL --> after_Q12
-  after_Q7cd -->|"no named category is left"| C_OPEN_PAGE_NOTE
-  after_Q7cd -->|"a named category is left"| Q_NAMES_KEY
-  after_Q12 -->|"names a wiki topic or a page is open"| R_NOTHING_FOUND
-  after_Q12 -->|"names no wiki topic and no page is open"| R_NOT_IN_ROSTER
+  Q_KEY_NAMES --> after_Q_KEY_LOOKUP
+  Q_KEY_ROWS --> after_Q_KEY_LOOKUP
+  Q_ROSTER_REFUSAL --> after_Q_ROSTER_REFUSAL
+  after_Q_KEY_LOOKUP -->|"no named category is left"| C_OPEN_PAGE_NOTE
+  after_Q_KEY_LOOKUP -->|"a named category is left"| Q_NAMES_KEY
+  after_Q_ROSTER_REFUSAL -->|"names a wiki topic or a page is open"| R_NOTHING_FOUND
+  after_Q_ROSTER_REFUSAL -->|"names no wiki topic and no page is open"| R_NOT_IN_ROSTER
   R_NOTHING_FOUND --> wf_end
   R_NOT_IN_ROSTER --> wf_end
 ```
@@ -180,9 +180,9 @@ flowchart TD
   Q_IS_GROUNDED["Q_IS_GROUNDED · Is the answer grounded in the fragments?"]
   Q_MODEL_REFUSED["Q_MODEL_REFUSED · Does the answer open with the fixed refusal sentence?"]
   Q_TOOL_EVIDENCE["Q_TOOL_EVIDENCE · Did a data tool return evidence?"]
-  after_Q17{"Is the answer grounded in the fragments?"}
-  after_Q19{"Did a data tool return evidence?"}
-  after_Q20{"Does the answer open with the fixed refusal sentence?"}
+  after_Q_IS_GROUNDED{"Is the answer grounded in the fragments?"}
+  after_Q_MODEL_REFUSED{"Does the answer open with the fixed refusal sentence?"}
+  after_Q_TOOL_EVIDENCE{"Did a data tool return evidence?"}
   Q_ADVISORY_TABLE["Q_ADVISORY_TABLE · Advisory table appended, when the advisory tool returned one"]
   R_MODEL["R_MODEL · Refusal: the model did not find the answer"]
   R_NO_EVIDENCE["R_NO_EVIDENCE · Refusal: no evidence behind the answer"]
@@ -190,7 +190,7 @@ flowchart TD
   Q_OFFER_KEYS["Q_OFFER_KEYS · Keys with data offered, when the model asked for a key without data"]
   Q_CITE_TOOLS["Q_CITE_TOOLS · Citation of the tools and the injected data added"]
   Q_CITE_PAGES["Q_CITE_PAGES · Reference line of the injected pages added"]
-  after_Q20d{"Were fragments of the source documents injected?"}
+  after_Q_CITE_PAGES{"Were fragments of the source documents injected?"}
   C_FIGURES["C_FIGURES · Figure check: each figure of the prose is exact, rounded or without support"]
   Q_SOURCE_WARNING["Q_SOURCE_WARNING · Warning appended: the answer comes from a source document"]
   Q_SHOWN["Q_SHOWN · The answer is shown, with its citation"]
@@ -200,24 +200,24 @@ flowchart TD
   tier -->|"fragments of the source documents, with the sentence verifier later"| Q_MODEL_REFUSED
   tier -->|"wiki pages or data injected"| Q_MODEL_REFUSED
   tier -->|"nothing injected"| Q_TOOL_EVIDENCE
-  Q_IS_GROUNDED --> after_Q17
-  Q_MODEL_REFUSED --> after_Q20
-  Q_TOOL_EVIDENCE --> after_Q19
-  after_Q17 -->|"answer grounded in the fragments"| Q_MODEL_REFUSED
-  after_Q19 -->|"a data tool returned evidence"| Q_MODEL_REFUSED
-  after_Q17 -->|"answer not grounded in the fragments"| R_UNSUPPORTED
-  after_Q19 -->|"no data tool returned evidence"| R_NO_EVIDENCE
-  after_Q20 -->|"does not open with the fixed refusal sentence"| Q_ADVISORY_TABLE
-  after_Q20 -->|"opens with the fixed refusal sentence"| R_MODEL
+  Q_IS_GROUNDED --> after_Q_IS_GROUNDED
+  Q_MODEL_REFUSED --> after_Q_MODEL_REFUSED
+  Q_TOOL_EVIDENCE --> after_Q_TOOL_EVIDENCE
+  after_Q_IS_GROUNDED -->|"answer grounded in the fragments"| Q_MODEL_REFUSED
+  after_Q_TOOL_EVIDENCE -->|"a data tool returned evidence"| Q_MODEL_REFUSED
+  after_Q_IS_GROUNDED -->|"answer not grounded in the fragments"| R_UNSUPPORTED
+  after_Q_MODEL_REFUSED -->|"does not open with the fixed refusal sentence"| Q_ADVISORY_TABLE
+  after_Q_MODEL_REFUSED -->|"opens with the fixed refusal sentence"| R_MODEL
+  after_Q_TOOL_EVIDENCE -->|"no data tool returned evidence"| R_NO_EVIDENCE
   Q_ADVISORY_TABLE --> Q_OFFER_KEYS
   R_MODEL --> wf_end
   R_NO_EVIDENCE --> wf_end
   R_UNSUPPORTED --> wf_end
   Q_OFFER_KEYS --> Q_CITE_TOOLS
   Q_CITE_TOOLS --> Q_CITE_PAGES
-  Q_CITE_PAGES --> after_Q20d
-  after_Q20d -->|"no fragments of the source documents injected"| C_FIGURES
-  after_Q20d -->|"fragments of the source documents injected"| Q_SOURCE_WARNING
+  Q_CITE_PAGES --> after_Q_CITE_PAGES
+  after_Q_CITE_PAGES -->|"no fragments of the source documents injected"| C_FIGURES
+  after_Q_CITE_PAGES -->|"fragments of the source documents injected"| Q_SOURCE_WARNING
   Q_SOURCE_WARNING --> C_FIGURES
   C_FIGURES --> Q_SHOWN
   Q_SHOWN --> wf_end
@@ -260,25 +260,25 @@ flowchart TD
   wf_start@{ shape: sm-circ }
   wf_end@{ shape: fr-circ }
   T_TOOL_EVIDENCE["T_TOOL_EVIDENCE · Did a tool return evidence?"]
-  after_T2{"Did a tool return evidence?"}
+  after_T_TOOL_EVIDENCE{"Did a tool return evidence?"}
   T_ADVISORY_TABLE["T_ADVISORY_TABLE · Advisory table appended"]
   T_GUARDRAIL["T_GUARDRAIL · Refusal of the guardrail: the answer could not be backed"]
   T_CITE_TOOLS["T_CITE_TOOLS · Citation of the tools added"]
   T_MARK_UNCITED["T_MARK_UNCITED · Answer without citation marked"]
-  after_T4c{"Did the guardrail refusal replace the answer?"}
+  after_T_MARK_UNCITED{"Did the guardrail refusal replace the answer?"}
   C_FIGURES["C_FIGURES · Figure check: each figure of the prose is exact, rounded or without support"]
   T_SHOWN["T_SHOWN · The answer is shown"]
 
   wf_start --> T_TOOL_EVIDENCE
-  T_TOOL_EVIDENCE --> after_T2
-  after_T2 -->|"a tool returned evidence"| T_ADVISORY_TABLE
-  after_T2 -->|"no tool returned evidence"| T_GUARDRAIL
+  T_TOOL_EVIDENCE --> after_T_TOOL_EVIDENCE
+  after_T_TOOL_EVIDENCE -->|"a tool returned evidence"| T_ADVISORY_TABLE
+  after_T_TOOL_EVIDENCE -->|"no tool returned evidence"| T_GUARDRAIL
   T_GUARDRAIL --> T_ADVISORY_TABLE
   T_ADVISORY_TABLE --> T_CITE_TOOLS
   T_CITE_TOOLS --> T_MARK_UNCITED
-  T_MARK_UNCITED --> after_T4c
-  after_T4c -->|"answer not replaced by the guardrail refusal"| C_FIGURES
-  after_T4c -->|"answer replaced by the guardrail refusal"| T_SHOWN
+  T_MARK_UNCITED --> after_T_MARK_UNCITED
+  after_T_MARK_UNCITED -->|"answer not replaced by the guardrail refusal"| C_FIGURES
+  after_T_MARK_UNCITED -->|"answer replaced by the guardrail refusal"| T_SHOWN
   C_FIGURES --> T_SHOWN
   T_SHOWN --> wf_end
 ```
