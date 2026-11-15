@@ -57,7 +57,7 @@ flowchart TD
   Q_PAGE_FOUND["Q_PAGE_FOUND · Did the search find a page?"]
   Q_RW_IN_BLACKLIST["Q_RW_IN_BLACKLIST · Does the rewrite name a blacklisted term?"]
   after_Q_CONDENSED{"Does the examined text name a wiki topic?"}
-  after_Q_IS_COLLECTION{"Was the overview or the index read?"}
+  after_Q_IS_COLLECTION{"Does the question name data, or was the overview or the index read?"}
   after_Q_PAGE_FOUND{"Did the wiki search find a page?"}
   after_Q_RW_IN_BLACKLIST{"Does the rewrite name a blacklisted term?"}
   C_OPEN_PAGE_NOTE["C_OPEN_PAGE_NOTE · Note of the open page added to the question"]
@@ -127,6 +127,7 @@ flowchart TD
   after_Q_CONDENSED -->|"the examined text names a wiki topic"| Q_SEARCH_WIKI
   after_Q_PAGE_FOUND -->|"found no wiki page"| Q_IS_COLLECTION
   after_Q_IS_COLLECTION -->|"overview or index read"| C_OPEN_PAGE_NOTE
+  after_Q_IS_COLLECTION -->|"names data"| Q_IS_DATA
   after_Q_IS_COLLECTION -->|"no overview or index read"| Q_IS_DATA
   after_Q_PAGE_FOUND -->|"found a wiki page"| Q_NAMES_CATEGORY
   after_Q_RW_IN_BLACKLIST -->|"rewrite names no blacklisted term"| Q_RW_NAMES_DATA
