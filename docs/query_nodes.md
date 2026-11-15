@@ -320,19 +320,26 @@ answer. The code changes nothing between the user and the agent:
   reads a wiki page, the question is preceded by the note that names the page
   (`with_open_page`), as in the agent mode.
 - **The answer**: the user sees the text of the model. No check runs on the
-  answer: the figure check C_FIGURES does not run, and no line is appended.
+  answer: the figure check C_FIGURES does not run, and no line is appended. The one
+  addition is the table of the advisory tool, when the tool ran (F_ADVISORY_TABLE):
+  the prompt of the tool tells the model not to copy the table, because the code adds
+  it. The table goes below the text, as the tool returned it; the text is not changed.
 
 ```mermaid
 flowchart TD
     F_AGENT["F_AGENT · the model runs with the wiki tools and the data tools<br/>the tools of section 5<br/>the text is shown as the text arrives"]
+    F_ADVISORY_TABLE["F_ADVISORY_TABLE · the table of the advisory tool<br/>below the text"]
     F_COMPLETE["F_COMPLETE · the answer is complete<br/>no check"]
-    F_AGENT --> F_COMPLETE
+    F_AGENT -->|the advisory tool ran| F_ADVISORY_TABLE
+    F_AGENT -->|no advisory tool| F_COMPLETE
+    F_ADVISORY_TABLE --> F_COMPLETE
 ```
 
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
 | F_AGENT | The model runs with the question, the history and the tools; each chunk of text is shown as the chunk arrives | `base/services/chat.py`, `chat_turn_stream_with_context`; `base/domain/chat/agent.py`, `create_agent` | `tools_called` | code |
-| F_COMPLETE | The answer is complete. The answer is shown as the model wrote the answer, with no check and no appended line | `base/services/chat.py`, `chat_turn_stream_with_context` | `final_answer` | code |
+| F_ADVISORY_TABLE | Appends the table that the advisory tool returned, below the text, as the tool returned it; the text of the model is not changed. Only when the tool ran | `base/services/chat.py`, `chat_turn_stream_with_context`; `base/domain/chat/postprocess.py`, `advisory_table` | `table_added` | code |
+| F_COMPLETE | The answer is complete. The answer is shown as the model wrote the answer, with no check; the only appended text is the table of F_ADVISORY_TABLE | `base/services/chat.py`, `chat_turn_stream_with_context` | `final_answer` | code |
 
 ## 5. Tools
 
