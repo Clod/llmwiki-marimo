@@ -74,7 +74,7 @@ def test_disabled_writes_nothing(monkeypatch, tmp_path):
     monkeypatch.delenv(tracing.ENV_VAR, raising=False)
     assert tracing.enabled() is False
     with tracing.root("turn", tmp_path, question="hola"):
-        with tracing.node("Q2", tracing.READING):
+        with tracing.node("Q_NORMALIZE", tracing.READING):
             pass
     assert not (tmp_path / ".llmwiki" / "traces" / tracing.SPAN_FILE).exists()
 
@@ -98,11 +98,11 @@ def test_root_writes_to_workspace_span_file(monkeypatch, tmp_path):
 def test_child_span_shares_trace_id_and_names_parent(monkeypatch, tmp_path):
     monkeypatch.setenv(tracing.ENV_VAR, "1")
     with tracing.root("turn", tmp_path):
-        with tracing.node("Q2", tracing.READING):
+        with tracing.node("Q_NORMALIZE", tracing.READING):
             pass
     spans = _read_spans(tmp_path)
     root = _by_name(spans, "turn")
-    child = _by_name(spans, "Q2")
+    child = _by_name(spans, "Q_NORMALIZE")
     assert child["context"]["trace_id"] == root["context"]["trace_id"]
     assert child["parent_id"] == root["context"]["span_id"]
 
@@ -112,18 +112,18 @@ def test_child_span_shares_trace_id_and_names_parent(monkeypatch, tmp_path):
 def test_node_sets_node_and_diagram_attributes(monkeypatch, tmp_path):
     monkeypatch.setenv(tracing.ENV_VAR, "1")
     with tracing.root("ingest", tmp_path):
-        with tracing.node("I4", tracing.WRITING):
+        with tracing.node("I_EXTRACT", tracing.WRITING):
             pass
-    i4 = _by_name(_read_spans(tmp_path), "I4")
-    assert i4["attributes"]["llmwiki.node"] == "I4"
+    i4 = _by_name(_read_spans(tmp_path), "I_EXTRACT")
+    assert i4["attributes"]["llmwiki.node"] == "I_EXTRACT"
     assert i4["attributes"]["llmwiki.diagram"] == "writing"
 
 
 def test_mark_records_a_zero_work_decision(monkeypatch, tmp_path):
     monkeypatch.setenv(tracing.ENV_VAR, "1")
     with tracing.root("ingest", tmp_path):
-        tracing.mark("I9", tracing.WRITING, answer=True)
-    i9 = _by_name(_read_spans(tmp_path), "I9")
+        tracing.mark("I_IS_BATCH", tracing.WRITING, answer=True)
+    i9 = _by_name(_read_spans(tmp_path), "I_IS_BATCH")
     assert i9["attributes"]["llmwiki.answer"] is True
     assert i9["attributes"]["llmwiki.diagram"] == "writing"
 
@@ -133,9 +133,9 @@ def test_mark_records_a_zero_work_decision(monkeypatch, tmp_path):
 def test_node_set_converts_lists_and_dicts(monkeypatch, tmp_path):
     monkeypatch.setenv(tracing.ENV_VAR, "1")
     with tracing.root("turn", tmp_path):
-        with tracing.node("Q5", tracing.READING) as n:
+        with tracing.node("Q_IN_ROSTER", tracing.READING) as n:
             n.set(matched=["plazo_fijo", "uva"], plan={"tier": "curado", "verify": False})
-    q5 = _by_name(_read_spans(tmp_path), "Q5")
+    q5 = _by_name(_read_spans(tmp_path), "Q_IN_ROSTER")
     attrs = q5["attributes"]
     assert attrs["llmwiki.matched"] == ["plazo_fijo", "uva"]
     assert json.loads(attrs["llmwiki.plan"]) == {"tier": "curado", "verify": False}
@@ -147,9 +147,9 @@ def test_payload_writes_content_addressed_file(monkeypatch, tmp_path):
     monkeypatch.setenv(tracing.ENV_VAR, "1")
     monkeypatch.delenv(tracing.CAPTURE_ENV_VAR, raising=False)
     with tracing.root("ingest", tmp_path):
-        with tracing.node("I4", tracing.WRITING) as n:
+        with tracing.node("I_EXTRACT", tracing.WRITING) as n:
             n.payload("extracted_text", "hello world", channel="extracted_text", ext="txt")
-    i4 = _by_name(_read_spans(tmp_path), "I4")
+    i4 = _by_name(_read_spans(tmp_path), "I_EXTRACT")
     attrs = i4["attributes"]
     sha = hashlib.sha256(b"hello world").hexdigest()
     assert attrs["llmwiki.extracted_text.sha256"] == sha
@@ -163,9 +163,9 @@ def test_payload_channel_off_still_records_hash_and_size(monkeypatch, tmp_path):
     monkeypatch.setenv(tracing.ENV_VAR, "1")
     monkeypatch.setenv(tracing.CAPTURE_ENV_VAR, "none")
     with tracing.root("ingest", tmp_path):
-        with tracing.node("I4", tracing.WRITING) as n:
+        with tracing.node("I_EXTRACT", tracing.WRITING) as n:
             n.payload("extracted_text", "hello world", channel="extracted_text")
-    i4 = _by_name(_read_spans(tmp_path), "I4")
+    i4 = _by_name(_read_spans(tmp_path), "I_EXTRACT")
     attrs = i4["attributes"]
     sha = hashlib.sha256(b"hello world").hexdigest()
     assert attrs["llmwiki.extracted_text.sha256"] == sha

@@ -39,7 +39,7 @@ async def search_source_chunks(ctx: RunContext[str], query: str, limit: int = 10
         hierarchical section breadcrumbs, and the whole text of each matching fragment.
     """
     text, widened = await _search_source_chunks(ctx, query, limit)
-    tracing.mark("K3", tracing.READING, query=query, limit=limit, widened=widened,
+    tracing.mark("K_SEARCH_SOURCES", tracing.READING, query=query, limit=limit, widened=widened,
                  substantive=_is_substantive(text))
     return text
 
@@ -74,7 +74,7 @@ async def _source_rows(db_path: str, fts_query: str, limit: int) -> list:
 
 async def _search_source_chunks(ctx: RunContext[str], query: str, limit: int = 10) -> tuple[str, bool]:
     """The body of `search_source_chunks`: `(text, widened)`; `search_source_chunks`
-    records node K3 with them. `widened` is True when no fragment had every word of
+    records node K_SEARCH_SOURCES with them. `widened` is True when no fragment had every word of
     `query` and the results match some of its words (`any_word_query`)."""
     from domain.tools.search import any_word_query
     # 1. Retrieve the SQLite database path from the runtime context dependencies

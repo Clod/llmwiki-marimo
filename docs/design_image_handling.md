@@ -514,9 +514,9 @@ work on a touch screen.
 
 | Node | What it records |
 |---|---|
-| `I17` | The images kept for a document: count, total bytes |
-| `I18` | One image described: file, `image_sha256`, model, whether the description came from the cache, input and output tokens |
-| `I19` | One image skipped: file, reason |
+| `I_IMAGES_KEPT` | The images kept for a document: count, total bytes |
+| `I_IMAGE_DESCRIBED` | One image described: file, `image_sha256`, model, whether the description came from the cache, input and output tokens |
+| `I_IMAGE_SKIPPED` | One image skipped: file, reason |
 
 The ingestion log line of each document adds "N imágenes, K descritas".
 
@@ -544,11 +544,11 @@ For each page of a PDF or office source, with `describe = true`:
 2. The images are copied to the document's folder, and `figures.json` is
    written with `sha256`, `width` and `height` (built, plus the new fields).
 3. Each image is filtered: too small, duplicate within the document, or over
-   `max_per_document` → skip reason in `figures.json`, node `I19`.
+   `max_per_document` → skip reason in `figures.json`, node `I_IMAGE_SKIPPED`.
 4. For each remaining image: if a description file exists with the same
    `image_sha256` and `prompt_sha256`, reuse it; otherwise call the vision
    model with `prompts/image_description.<lang>.md` and write the file. Node
-   `I18`.
+   `I_IMAGE_DESCRIBED`.
 5. The link lines of the page text are replaced by the blocks of D5.
 6. The page text goes to `document_pages`, is chunked and indexed (built).
 7. The ingestion model reads the text with its descriptions (D6).
@@ -571,7 +571,7 @@ text of `document_pages` (D5). `figures.json` gains `sha256`, `width`,
 One vision call per described image. The fairy-tales demo has 10 images in
 `Snow White and the Seven Dwarfs.pdf`; the finance demo has none. The cost is
 not estimated here: it depends on the model and on the image size, and the
-project records tokens, not prices (each `I18` node carries the tokens). The
+project records tokens, not prices (each `I_IMAGE_DESCRIBED` node carries the tokens). The
 cache of D4 makes a re-ingestion of an unchanged source free for its images.
 
 ---

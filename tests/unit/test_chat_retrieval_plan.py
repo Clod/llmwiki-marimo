@@ -9,11 +9,11 @@ no injected context (a data/advisory question, tools only).
 from domain.chat.preretrieval import plan_retrieval
 
 
-def _plan(question="q", off_limits=(), wiki_hits=(), doc_hits=(), has_data=False,
+def _plan(question="q", blacklist=(), wiki_hits=(), doc_hits=(), has_data=False,
           in_roster=True, collection_hits=()):
     return plan_retrieval(
         question,
-        off_limits=off_limits,
+        blacklist=blacklist,
         wiki_hits=list(wiki_hits),
         doc_hits=list(doc_hits),
         has_data=has_data,
@@ -22,9 +22,9 @@ def _plan(question="q", off_limits=(), wiki_hits=(), doc_hits=(), has_data=False
     )
 
 
-def test_off_limits_refuses_even_with_hits():
+def test_blacklist_refuses_even_with_hits():
     # Blacklist wins over anything the search happened to return.
-    plan = _plan("¿qué son los cedears?", off_limits={"cedear", "cedears"},
+    plan = _plan("¿qué son los cedears?", blacklist={"cedear", "cedears"},
                  wiki_hits=["algo"], has_data=True)
     assert plan.action == "refuse"
 
@@ -122,10 +122,10 @@ def test_collection_hits_win_over_has_data():
     assert plan.context == "[wiki/overview.md]\nOverview text"
 
 
-def test_off_limits_refuses_even_when_collection_shaped():
+def test_blacklist_refuses_even_when_collection_shaped():
     # The blacklist check runs before the collection branch — a collection
     # question naming a blacklisted term stays refused.
     plan = _plan("what tales are in this wiki, cedears included?",
-                 off_limits={"cedear", "cedears"},
+                 blacklist={"cedear", "cedears"},
                  collection_hits=["[wiki/overview.md]\nOverview text"])
     assert plan.action == "refuse"

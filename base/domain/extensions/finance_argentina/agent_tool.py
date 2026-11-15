@@ -83,7 +83,7 @@ def estimar_alternativas(
         variabilidad). Nunca inventa un rendimiento.
     """
     text = _estimar_alternativas(ctx, monto, horizonte_meses, moneda)
-    tracing.mark("K5", tracing.READING, monto=monto, horizonte_meses=horizonte_meses,
+    tracing.mark("K_ALTERNATIVES", tracing.READING, monto=monto, horizonte_meses=horizonte_meses,
                  moneda=moneda, substantive=_is_substantive(text))
     return text
 
@@ -94,7 +94,7 @@ def _estimar_alternativas(
     horizonte_meses: float,
     moneda: str = "ARS",
 ) -> str:
-    """The body of `estimar_alternativas`; `estimar_alternativas` records node K5 with the returned text."""
+    """The body of `estimar_alternativas`; `estimar_alternativas` records node K_ALTERNATIVES with the returned text."""
     workspace = _workspace(ctx.deps)
     source = LocalMarkdownSource(workspace / "datasets")
     requirements = load_default_requirements()

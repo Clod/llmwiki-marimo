@@ -1,6 +1,6 @@
 """The expression lists of the two intent predicates of the pre-retrieval.
 
-`scope.collection_intent` (node Q9) and `scope.advisory_intent` (node Q5) look for
+`scope.collection_intent` (node Q_IS_COLLECTION) and `scope.advisory_intent` (node Q_IN_ROSTER) look for
 expressions in the question. The lists live in the `[intent]` section of
 `wiki_config.toml`, keys `collection` and `advisory`. A key that the section does
 not have takes the base list:

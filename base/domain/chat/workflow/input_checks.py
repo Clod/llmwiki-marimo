@@ -1,15 +1,15 @@
 """The input workflows: the history and the checks of the question.
 
-`graph`, the input workflow of the pre-retrieval mode, runs from node C1 to the
-node that calls the agent (Q13, Q14, Q15 or Q16), or to a refusal (R1, R2a,
-R2b). It does not call the agent: the graph ends in an `AgentCall`, and
+`graph`, the input workflow of the pre-retrieval mode, runs from node C_COUNT_HISTORY to the
+node that calls the agent (Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS), or to a refusal (R_BLACKLIST, R_NOT_IN_ROSTER,
+R_NOTHING_FOUND). It does not call the agent: the graph ends in an `AgentCall`, and
 `_pre_retrieval_turn` (`domain/chat/preretrieval.py`) calls the agent. Its
 state is the `PreRetrievalTurn` of the turn.
 
-`strict_graph`, the input workflow of the strict mode, runs the nodes C1 to C2d
-and C4: it builds the history and the question that the model receives, and
+`strict_graph`, the input workflow of the strict mode, runs the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES
+and C_OPEN_PAGE_NOTE: it builds the history and the question that the model receives, and
 checks nothing in the question. Its state is a `StrictTurn`. `chat_turn_with_context`
-(`services/chat.py`) runs it before node T1.
+(`services/chat.py`) runs it before node T_AGENT.
 
 Each step returns the state, so that each decision reads the field that its
 condition names. The steps of the nodes are functions of the catalog
@@ -17,8 +17,8 @@ condition names. The steps of the nodes are functions of the catalog
 call `preretrieval`.
 
 `PRE_RETRIEVAL_NODES` and `STRICT_NODES` list the catalog nodes of each graph,
-and `OWN_STEPS` the steps of this module that are not in the catalog (Q13 to
-Q16).
+and `OWN_STEPS` the steps of this module that are not in the catalog (Q_AGENT_PAGES to
+Q_AGENT_FRAGMENTS).
 
 Both graphs are built with `auto_instrument=False`: the steps record the same
 `tracing.mark` and `tracing.node` calls as before the graphs, and the graphs add
@@ -45,9 +45,9 @@ class StrictTurn:
     """The state of the input workflow of the strict mode.
 
     prior:   the prior messages of the chat (`.role`, `.content`).
-    kept:    the history between C2a and C2d, as chat messages.
-    history: the history that the model receives (C2d).
-    asked:   the question that the model receives, with the open-page note (C4).
+    kept:    the history between C_DROP_REFUSED and C_ORIGIN_LINES, as chat messages.
+    history: the history that the model receives (C_ORIGIN_LINES).
+    asked:   the question that the model receives, with the open-page note (C_OPEN_PAGE_NOTE).
     """
 
     question: str
@@ -61,7 +61,7 @@ class StrictTurn:
 
     @property
     def noted_page(self) -> str | None:
-        """The page that the note of C4 names: the open page, whether or not the
+        """The page that the note of C_OPEN_PAGE_NOTE names: the open page, whether or not the
         page exists."""
         return self.open_page
 
@@ -74,12 +74,12 @@ g = GraphBuilder(
 
 # ── The conditions of the decisions ───────────────────────────────────────────
 
-def _off_limits(turn: PreRetrievalTurn) -> bool:
-    return turn.off_limits
+def _blacklisted(turn: PreRetrievalTurn) -> bool:
+    return turn.blacklisted
 
 
 def _condenses(turn: PreRetrievalTurn) -> bool:
-    """The condensation (Q5c to Q5b) runs only with a condenser and a history,
+    """The condensation (Q_REWRITE, Q_RW_ACCEPTED, Q_RW_IN_BLACKLIST, Q_RW_NAMES_DATA, Q_RW_IN_ROSTER and Q_CONDENSED) runs only with a condenser and a history,
     for a question that is not in the roster, names no data and has no open
     page."""
     return bool(turn.condense is not None and turn.history
@@ -87,7 +87,7 @@ def _condenses(turn: PreRetrievalTurn) -> bool:
 
 
 def _rewritten(turn: PreRetrievalTurn) -> bool:
-    """Q5d accepted a rewrite that differs from the question."""
+    """Q_RW_ACCEPTED accepted a rewrite that differs from the question."""
     return turn.search != turn.question
 
 
@@ -104,12 +104,12 @@ def _has_wiki_hits(turn: PreRetrievalTurn) -> bool:
 
 
 def _categories_left(turn: PreRetrievalTurn) -> bool:
-    """A category that the question names is not yet read (Q7b to Q7d)."""
+    """A category that the question names is not yet read (Q_NAMES_KEY, Q_KEY_ROWS and Q_KEY_NAMES)."""
     return bool(turn.named)
 
 
 def _keys_named(turn: PreRetrievalTurn) -> bool:
-    """The question names keys of the category in course (Q7b)."""
+    """The question names keys of the category in course (Q_NAMES_KEY)."""
     return bool(turn.category[2])
 
 
@@ -136,53 +136,53 @@ def _calls(node: str):
 # the steps of this module that are not in the catalog. The test
 # `tests/unit/test_workflow_nodes_doc.py` compares each list with its graph, and
 # `docs/workflow_nodes.md` is generated from the lists (`table.py`).
-HISTORY_NODES = ("C1", "C2", "C2a", "C2b", "C2c", "C2d")
+HISTORY_NODES = ("C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES")
 PRE_RETRIEVAL_NODES = (
-    *HISTORY_NODES, "Q1", "Q2", "Q3", "Q4", "Q4a", "Q5", "Q5a", "Q5c", "Q5d", "Q5e", "Q5f", "Q5g", "Q5b",
-    "Q6", "Q8", "Q8a", "Q8b", "Q7", "Q7a", "Q7b", "Q7c", "Q7d", "Q9", "Q10", "Q11", "Q12", "C4", "Q12a",
-    "Q12b", "R1", "R2a", "R2b",
+    *HISTORY_NODES, "Q_QUESTION", "Q_NORMALIZE", "Q_IN_BLACKLIST", "Q_STEM", "Q_NAMES_DATA", "Q_IN_ROSTER", "Q_PAGE_OPEN", "Q_REWRITE", "Q_RW_ACCEPTED", "Q_RW_IN_BLACKLIST", "Q_RW_NAMES_DATA", "Q_RW_IN_ROSTER", "Q_CONDENSED",
+    "Q_SEARCH_WIKI", "Q_SEARCH_SOURCES", "Q_COLLECTION_PAGES", "Q_COLLECTION_OPEN_PAGE", "Q_PAGE_FOUND", "Q_NAMES_CATEGORY", "Q_NAMES_KEY", "Q_KEY_ROWS", "Q_KEY_NAMES", "Q_IS_COLLECTION", "Q_IS_DATA", "Q_FRAGMENT_FOUND", "Q_ROSTER_REFUSAL", "C_OPEN_PAGE_NOTE", "Q_SYNONYMS",
+    "Q_PROMPT", "R_BLACKLIST", "R_NOT_IN_ROSTER", "R_NOTHING_FOUND",
 )
-STRICT_NODES = (*HISTORY_NODES, "C4")
-AGENT_NODES = ("Q13", "Q14", "Q15", "Q16")
+STRICT_NODES = (*HISTORY_NODES, "C_OPEN_PAGE_NOTE")
+AGENT_NODES = ("Q_AGENT_PAGES", "Q_AGENT_COLLECTION", "Q_AGENT_TOOLS", "Q_AGENT_FRAGMENTS")
 OWN_STEPS = AGENT_NODES
 
 history_steps = [register(g, code) for code in HISTORY_NODES]
-question = register(g, "Q1")
-normalize = register(g, "Q2")
-blacklist = register(g, "Q3")
-stem = register(g, "Q4")
-data_detection = register(g, "Q4a")
-roster = register(g, "Q5")
-open_page = register(g, "Q5a")
-rewrite = register(g, "Q5c")
-accept_rewrite = register(g, "Q5d")
-blacklist_rewrite = register(g, "Q5e")
-data_detection_rewrite = register(g, "Q5f")
-roster_rewrite = register(g, "Q5g")
-condense = register(g, "Q5b")
-wiki_search = register(g, "Q6")
-source_search = register(g, "Q8")
-collection_pages = register(g, "Q8a")
-collection_with_open_page = register(g, "Q8b")
-wiki_pages = register(g, "Q7")
-dataset_categories = register(g, "Q7a")
-dataset_keys = register(g, "Q7b")
-dataset_rows = register(g, "Q7c")
-dataset_key_names = register(g, "Q7d")
-collection = register(g, "Q9")
-data_question = register(g, "Q10")
-source_fragments = register(g, "Q11")
-roster_refusal = register(g, "Q12")
-open_page_note = register(g, "C4")
-synonyms = register(g, "Q12a")
-prompt = register(g, "Q12b")
-refuse_blacklist = register(g, "R1")
-refuse_not_in_roster = register(g, "R2a")
-refuse_nothing_found = register(g, "R2b")
+question = register(g, "Q_QUESTION")
+normalize = register(g, "Q_NORMALIZE")
+blacklist = register(g, "Q_IN_BLACKLIST")
+stem = register(g, "Q_STEM")
+data_detection = register(g, "Q_NAMES_DATA")
+roster = register(g, "Q_IN_ROSTER")
+open_page = register(g, "Q_PAGE_OPEN")
+rewrite = register(g, "Q_REWRITE")
+accept_rewrite = register(g, "Q_RW_ACCEPTED")
+blacklist_rewrite = register(g, "Q_RW_IN_BLACKLIST")
+data_detection_rewrite = register(g, "Q_RW_NAMES_DATA")
+roster_rewrite = register(g, "Q_RW_IN_ROSTER")
+condense = register(g, "Q_CONDENSED")
+wiki_search = register(g, "Q_SEARCH_WIKI")
+source_search = register(g, "Q_SEARCH_SOURCES")
+collection_pages = register(g, "Q_COLLECTION_PAGES")
+collection_with_open_page = register(g, "Q_COLLECTION_OPEN_PAGE")
+wiki_pages = register(g, "Q_PAGE_FOUND")
+dataset_categories = register(g, "Q_NAMES_CATEGORY")
+dataset_keys = register(g, "Q_NAMES_KEY")
+dataset_rows = register(g, "Q_KEY_ROWS")
+dataset_key_names = register(g, "Q_KEY_NAMES")
+collection = register(g, "Q_IS_COLLECTION")
+data_question = register(g, "Q_IS_DATA")
+source_fragments = register(g, "Q_FRAGMENT_FOUND")
+roster_refusal = register(g, "Q_ROSTER_REFUSAL")
+open_page_note = register(g, "C_OPEN_PAGE_NOTE")
+synonyms = register(g, "Q_SYNONYMS")
+prompt = register(g, "Q_PROMPT")
+refuse_blacklist = register(g, "R_BLACKLIST")
+refuse_not_in_roster = register(g, "R_NOT_IN_ROSTER")
+refuse_nothing_found = register(g, "R_NOTHING_FOUND")
 
 
 def _agent_call(node: str):
-    """The final step `node` (Q13 to Q16): the turn goes on to the agent.
+    """The final step `node` (Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS): the turn goes on to the agent.
     `_pre_retrieval_turn` records the node when it calls the agent."""
     async def call(ctx: Ctx) -> AgentCall:
         return AgentCall(node)
@@ -208,7 +208,7 @@ AGENT_LABELS = (
 # language (`web/audit_diagram.py`).
 
 # The decision that chooses the node that calls the agent. Every branch that
-# ends the checks with a plan goes to C4, Q12a and Q12b, which build the prompt,
+# ends the checks with a plan goes to C_OPEN_PAGE_NOTE, Q_SYNONYMS and Q_PROMPT, which build the prompt,
 # and then here.
 agent = g.decision(node_id="agent", note=N_("What text was injected into the prompt?"))
 for _node, _label in zip(AGENT_NODES, AGENT_LABELS):
@@ -222,7 +222,7 @@ g.add(
     g.edge_from(normalize).to(blacklist),
     g.edge_from(blacklist).to(
         g.decision(node_id="after_Q3", note=N_("Does the question name a blacklisted term?"))
-        .branch(g.match(PreRetrievalTurn, matches=_off_limits).label(N_("names a blacklisted term")).to(refuse_blacklist))
+        .branch(g.match(PreRetrievalTurn, matches=_blacklisted).label(N_("names a blacklisted term")).to(refuse_blacklist))
         .branch(g.match(PreRetrievalTurn).label(N_("names no blacklisted term")).to(stem))
     ),
     g.edge_from(stem).to(data_detection),
@@ -243,7 +243,7 @@ g.add(
     ),
     g.edge_from(blacklist_rewrite).to(
         g.decision(node_id="after_Q5e", note=N_("Does the rewrite name a blacklisted term?"))
-        .branch(g.match(PreRetrievalTurn, matches=_off_limits).label(N_("rewrite names a blacklisted term")).to(refuse_blacklist))
+        .branch(g.match(PreRetrievalTurn, matches=_blacklisted).label(N_("rewrite names a blacklisted term")).to(refuse_blacklist))
         .branch(g.match(PreRetrievalTurn).label(N_("rewrite names no blacklisted term")).to(data_detection_rewrite))
     ),
     g.edge_from(data_detection_rewrite).to(roster_rewrite),

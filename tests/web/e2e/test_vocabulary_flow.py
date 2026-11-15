@@ -40,7 +40,7 @@ def test_search_the_roster_reject_an_alias_and_blacklist_a_term(page, live):
     page.locator("section:has(#h-blacklist)").get_by_role("button", name="Agregar").click()
     settled(page)
     expect(page.locator("#h-blacklist")).to_contain_text("Lista negra · 5")
-    assert "futuros" in load_config(live.wiki_dir).off_limits
+    assert "futuros" in load_config(live.wiki_dir).blacklist
 
     page.get_by_label("Término nuevo de la lista negra").fill("acciones")
     page.locator("section:has(#h-blacklist)").get_by_role("button", name="Agregar").click()

@@ -2,8 +2,8 @@
 
 One trace records one run from beginning to end: one chat turn, or one
 ingestion (a single file or a batch). Each step of the code writes one span
-named by the identifier of its node in the design diagrams — ``Q5`` for the
-coverage-roster check, ``I4`` for text extraction, ``W1`` for chunking — so the
+named by the identifier of its node in the design diagrams — ``Q_IN_ROSTER`` for the
+coverage-roster check, ``I_EXTRACT`` for text extraction, ``W_CHUNK`` for chunking — so the
 span names of one trace are the path the run took through the diagram.
 
 Enabled with ``WIKI_TRACE=1``; a no-op otherwise. Spans are appended to

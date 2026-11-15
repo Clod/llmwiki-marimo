@@ -46,12 +46,12 @@ def read_wiki_page(ctx: RunContext[str], path: str) -> str:
         Full markdown content of the page, or a 'not found' message.
     """
     text = _read_wiki_page(ctx, path)
-    tracing.mark("K1", tracing.READING, path=path, substantive=_is_substantive(text))
+    tracing.mark("K_READ_PAGE", tracing.READING, path=path, substantive=_is_substantive(text))
     return text
 
 
 def _read_wiki_page(ctx: RunContext[str], path: str) -> str:
-    """The body of `read_wiki_page`; `read_wiki_page` records node K1 with the returned text."""
+    """The body of `read_wiki_page`; `read_wiki_page` records node K_READ_PAGE with the returned text."""
     # 1. Retrieve the SQLite database path from the agent's context dependencies
     db_path = ctx.deps
 
@@ -102,14 +102,14 @@ def search_wiki_fts(ctx: RunContext[str], query: str, limit: int = 10) -> str:
         Formatted results with page path, section details, and a content snippet.
     """
     text, widened = _search_wiki_fts(ctx, query, limit)
-    tracing.mark("K2", tracing.READING, query=query, limit=limit, widened=widened,
+    tracing.mark("K_SEARCH_WIKI", tracing.READING, query=query, limit=limit, widened=widened,
                  substantive=_is_substantive(text))
     return text
 
 
 def _search_wiki_fts(ctx: RunContext[str], query: str, limit: int = 10) -> tuple[str, bool]:
     """The body of `search_wiki_fts`: `(text, widened)`; `search_wiki_fts` records
-    node K2 with them. `widened` is True when no page had every word of `query`
+    node K_SEARCH_WIKI with them. `widened` is True when no page had every word of `query`
     and the results match some of its words (`any_word_query`)."""
     # Import the specialized search function dynamically to keep startup times fast
     from domain.tools.search import any_word_query, search_chunks

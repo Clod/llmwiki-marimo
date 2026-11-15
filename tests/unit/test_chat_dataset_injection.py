@@ -1,5 +1,5 @@
 """Tests for decision 16 of design_stemming.md: in pre-retrieval Tier 1, the code
-injects the dataset the question names next to the wiki pages (nodes Q7a–Q7d).
+injects the dataset the question names next to the wiki pages (nodes Q_NAMES_CATEGORY, Q_NAMES_KEY, Q_KEY_ROWS, Q_KEY_NAMES).
 
 `dataset_injection` runs against the real datasets of the finance demo, so the
 cases are the measured ones: Banco Galicia (a key, its rows are injected), Banco
@@ -105,7 +105,7 @@ def _run_turn(question, output, monkeypatch):
                         lambda db, q, **k: ["[/wiki/concepts/plazo-fijo-tradicional.md]\nUn plazo fijo..."])
     monkeypatch.setattr(preretrieval, "concept_page_names", lambda db: ["plazo fijo tradicional"])
     monkeypatch.setattr(preretrieval, "LocalMarkdownSource", lambda p: SOURCE)
-    cfg = SimpleNamespace(off_limits=[], data_aliases=ALIASES)
+    cfg = SimpleNamespace(blacklist=[], data_aliases=ALIASES)
     answer = asyncio.run(pre_retrieval_answer(
         question, config=cfg, db_path="db", workspace=Path("/tmp/wp"),
         history=[], language="es", run_agent=run_agent,
@@ -119,7 +119,7 @@ def test_tier1_prompt_carries_pages_and_rows_and_answer_is_cited(monkeypatch):
         "El Banco Galicia paga 32,5% a 30 días.", monkeypatch,
     )
     assert "plazo-fijo-tradicional.md" in prompts[0]     # the page
-    assert "5 dataset row(s)" in prompts[0]              # the rows (Q7c)
+    assert "5 dataset row(s)" in prompts[0]              # the rows (Q_KEY_ROWS)
     assert "Referencia: plazo_fijo.md" in answer
     assert "Fuente: bcra.gob.ar" in answer
 
@@ -129,7 +129,7 @@ def test_tier1_prompt_carries_key_names_for_an_unknown_bank(monkeypatch):
         "¿Qué tasa de plazo fijo ofrece el Banco Comafi?",
         "Banco Comafi no figura en los datos.", monkeypatch,
     )
-    assert "Brubank" in prompts[0]                       # the key names (Q7d)
+    assert "Brubank" in prompts[0]                       # the key names (Q_KEY_NAMES)
     assert "Referencia: plazo_fijo.md" not in answer     # no rows were injected
 
 

@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from domain.chat.config import load_config
-from domain.chat.scope import is_off_limits
+from domain.chat.scope import is_blacklisted
 from services import vocabulary as vocab
 from services.wiki import open_wiki
 
@@ -55,7 +55,7 @@ def test_the_lists_and_the_findings(wiki):
 
 def test_a_blacklist_term_is_committed_and_refuses_the_next_question(wiki):
     vocab.add_blacklist_term(wiki, "futuros")
-    assert is_off_limits("¿Conviene operar futuros?", load_config(wiki.path).off_limits)
+    assert is_blacklisted("¿Conviene operar futuros?", load_config(wiki.path).blacklist)
     message, files = last_commit(wiki)
     assert message == 'vocabulary: blacklist "futuros"' and "wiki_config.toml" in files
 

@@ -26,7 +26,7 @@ def _prompt(workspace, question, data_aliases):
         prompts.append(prompt)
         return SimpleNamespace(output="El billete verde es el dólar.", all_messages=lambda: [])
 
-    cfg = SimpleNamespace(off_limits=[], data_aliases=data_aliases)
+    cfg = SimpleNamespace(blacklist=[], data_aliases=data_aliases)
     asyncio.run(pre_retrieval_answer(
         question, config=cfg, db_path=str(workspace / ".llmwiki" / "index.db"),
         workspace=workspace, history=[], language="es", run_agent=run_agent,

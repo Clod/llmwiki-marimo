@@ -1,7 +1,7 @@
 """Tests for domain/chat/workflow/output_checks.py — the output workflow, run on
 its own with answers written by hand, with no agent and no database.
 
-Pre-retrieval: each refusal of the answer (R3, R4, R5) and each answer that is
+Pre-retrieval: each refusal of the answer (R_UNSUPPORTED, R_NO_EVIDENCE, R_MODEL) and each answer that is
 shown (Tier 1, Tier 2 with the warning, a data question with evidence). Strict:
 an answer with evidence and an answer without.
 """
@@ -21,7 +21,7 @@ from domain.chat.refusal import fixed_sentence
 from domain.chat.workflow import output_checks
 from domain.chat.workflow.output_checks import AnswerChecks
 
-CFG = SimpleNamespace(off_limits=[], data_aliases={})
+CFG = SimpleNamespace(blacklist=[], data_aliases={})
 FRAGMENT = "[12 Cauciones.docx]\nLa caución bursátil es un préstamo de corto plazo garantizado con títulos."
 
 
@@ -73,7 +73,7 @@ def test_tier1_answer_is_shown():
     traced = []
     out, path = _run(AnswerChecks("Respuesta.", [], "es", turn=_turn(TIER1, traced=traced)))
     assert out == "Respuesta."
-    assert path == ["Q20", "Q20a", "Q20b", "Q20c", "Q20d", "C3", "Q21"]
+    assert path == ["Q_MODEL_REFUSED", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "C_FIGURES", "Q_SHOWN"]
     assert traced[0]["refusal_substituted"] is False and traced[0]["final"] == out
 
 
@@ -83,7 +83,7 @@ def test_tier2_unsupported_ends_in_r3():
                           turn=_turn(TIER2, doc_hits=[FRAGMENT], traced=traced))
     out, path = _run(checks)
     assert out.startswith("Encontré el documento «12 Cauciones.docx»")
-    assert path == ["Q17", "R3"]
+    assert path == ["Q_IS_GROUNDED", "R_UNSUPPORTED"]
     assert traced[0]["refusal_substituted"] is True
 
 
@@ -92,49 +92,49 @@ def test_tier2_supported_gets_the_warning():
                           [], "es", turn=_turn(TIER2, doc_hits=[FRAGMENT]))
     out, path = _run(checks)
     assert "documento fuente" in out.lower()
-    assert path == ["Q17", "Q20", "Q20a", "Q20b", "Q20c", "Q20d", "Q18", "C3", "Q21"]
+    assert path == ["Q_IS_GROUNDED", "Q_MODEL_REFUSED", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "Q_SOURCE_WARNING", "C_FIGURES", "Q_SHOWN"]
 
 
 def test_tier2_checked_by_the_sentence_verifier_skips_q17():
-    # The answer that Q17 refuses (test_tier2_unsupported_ends_in_r3) is shown, with
+    # The answer that Q_IS_GROUNDED refuses (test_tier2_unsupported_ends_in_r3) is shown, with
     # the warning: the sentence verifier checks it after it is shown.
     turn = _turn(TIER2, doc_hits=[FRAGMENT])
     turn.sentence_verifier = True
     out, path = _run(AnswerChecks("Los CEDEARs permiten invertir en Apple.", [], "es", turn=turn))
     assert out.startswith("Los CEDEARs permiten invertir en Apple.")
     assert "documento fuente" in out.lower()
-    assert path == ["Q20", "Q20a", "Q20b", "Q20c", "Q20d", "Q18", "C3", "Q21"]
+    assert path == ["Q_MODEL_REFUSED", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "Q_SOURCE_WARNING", "C_FIGURES", "Q_SHOWN"]
 
 
 def test_the_sentence_verifier_changes_no_path_outside_tier2():
     turn = _turn(TIER1)
     turn.sentence_verifier = True
-    assert _run(AnswerChecks("Respuesta.", [], "es", turn=turn))[1] == ["Q20", "Q20a", "Q20b", "Q20c", "Q20d", "C3", "Q21"]
+    assert _run(AnswerChecks("Respuesta.", [], "es", turn=turn))[1] == ["Q_MODEL_REFUSED", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "C_FIGURES", "Q_SHOWN"]
 
 
 def test_data_answer_without_evidence_ends_in_r4():
     out, path = _run(AnswerChecks("El dólar está a 1200.", [], "es", turn=_turn(DATA)))
-    assert path == ["Q19", "R4"]
+    assert path == ["Q_TOOL_EVIDENCE", "R_NO_EVIDENCE"]
     assert out != "El dólar está a 1200."
 
 
 def test_data_answer_with_evidence_is_shown():
     out, path = _run(AnswerChecks("El dólar blue está a 1200.", _evidence(), "es", turn=_turn(DATA)))
-    assert path == ["Q19", "Q20", "Q20a", "Q20b", "Q20c", "Q20d", "C3", "Q21"]
+    assert path == ["Q_TOOL_EVIDENCE", "Q_MODEL_REFUSED", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "C_FIGURES", "Q_SHOWN"]
     assert out.startswith("El dólar blue está a 1200.")
 
 
 def test_model_refusal_ends_in_r5():
     raw = f"{fixed_sentence('es')} No hay datos."
     out, path = _run(AnswerChecks(raw, [], "es", turn=_turn(TIER1)))
-    assert path == ["Q20", "R5"]
+    assert path == ["Q_MODEL_REFUSED", "R_MODEL"]
     assert raw in out
 
 
 def test_strict_answer_with_evidence():
     checks = AnswerChecks("El dólar blue está a 1200.", _evidence(), "es")
     out, path = _run(checks)
-    assert path == ["T2", "T4a", "T4b", "T4c", "C3", "T5"]
+    assert path == ["T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
     assert checks.grounded is True and checks.refusal_substituted is False
     assert out.startswith("El dólar blue está a 1200.")
 
@@ -142,14 +142,14 @@ def test_strict_answer_with_evidence():
 def test_strict_answer_without_evidence_is_replaced():
     checks = AnswerChecks("Inventado.", [], "es")
     out, path = _run(checks)
-    assert path == ["T2", "T3", "T4a", "T4b", "T4c", "T5"]
+    assert path == ["T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "T_SHOWN"]
     assert out == REFUSAL_ES
     assert checks.grounded is False and checks.refusal_substituted is True
 
 
 def test_render_names_the_nodes():
     diagram = output_checks.graph.render() + output_checks.strict_graph.render()
-    for node in ("Q17", "Q18", "Q19", "Q20", "Q21", "R3", "R4", "R5", "T2", "T3", "T4a", "T5", "C3"):
+    for node in ("Q_IS_GROUNDED", "Q_SOURCE_WARNING", "Q_TOOL_EVIDENCE", "Q_MODEL_REFUSED", "Q_SHOWN", "R_UNSUPPORTED", "R_NO_EVIDENCE", "R_MODEL", "T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_ADVISORY_TABLE", "T_SHOWN", "C_FIGURES"):
         assert node in diagram
 
 
@@ -164,11 +164,11 @@ READ = "[wiki page: wiki/concepts/cauciones-bursatiles.md]\n\n# Cauciones\nUna c
 
 
 def test_strict_answer_from_a_search_only_is_marked_uncited():
-    """A search result counts as evidence (T2) but is not cited (buscar ≠ usar):
+    """A search result counts as evidence (T_TOOL_EVIDENCE) but is not cited (buscar ≠ usar):
     the answer is delivered with the note, not refused."""
     checks = AnswerChecks("Una caución es un préstamo.", _returns("search_wiki_fts", SEARCH), "es")
     out, path = _run(checks)
-    assert path == ["T2", "T4a", "T4b", "T4c", "C3", "T5"]
+    assert path == ["T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
     assert out.startswith("Una caución es un préstamo.")
     assert out.endswith("Referencia: ninguna (la respuesta no se apoya en ninguna página "
                         "leída ni en ningún dato consultado)")

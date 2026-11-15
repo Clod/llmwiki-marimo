@@ -20,11 +20,11 @@ ENV = ("OTHER=1\nLLM_BASE_URL=http://saved.invalid/v1\nLLM_API_KEY=saved-key\nLL
 FORM = {"llm_base_url": "https://read.invalid/v1", "llm_api_key": "", "llm_model": "read-model",
         "wiki_llm_base_url": "", "wiki_llm_api_key": "", "wiki_llm_model": "",
         "vision_base_url": "", "vision_api_key": "", "vision_model": "", "ocr_engine": "none"}
-PASSED = (Check("answers", True, "the path ends in Q21"), Check("declines", True, "the path ends in R5"),
-          Check("uses_tools", True, "the path ends in T5"))
-FAILED = (Check("answers", True, "the path ends in Q21"),
-          Check("declines", False, "the path ends in Q21, not in R5"),
-          Check("uses_tools", True, "the path ends in T5"))
+PASSED = (Check("answers", True, "the path ends in Q_SHOWN"), Check("declines", True, "the path ends in R_MODEL"),
+          Check("uses_tools", True, "the path ends in T_SHOWN"))
+FAILED = (Check("answers", True, "the path ends in Q_SHOWN"),
+          Check("declines", False, "the path ends in Q_SHOWN, not in R_MODEL"),
+          Check("uses_tools", True, "the path ends in T_SHOWN"))
 NOT_RUN = (Check("answers", False, "Connection error.", ran=False),
            Check("declines", False, "Connection error.", ran=False),
            Check("uses_tools", False, "Connection error.", ran=False))
@@ -164,7 +164,7 @@ def test_the_console_of_a_passed_test(client, env_file, runs):
 def test_the_console_of_a_failed_test(client, env_file, runs):
     runs.checks = FAILED
     lines = run_test(client, "llm", FORM)
-    assert lines[1] == "✗ Se niega cuando la página no tiene la respuesta: the path ends in Q21, not in R5"
+    assert lines[1] == "✗ Se niega cuando la página no tiene la respuesta: the path ends in Q_SHOWN, not in R_MODEL"
     assert lines[-1] == "✗ El modelo falló 1 de 3 comprobaciones (12,5 s)."
 
 

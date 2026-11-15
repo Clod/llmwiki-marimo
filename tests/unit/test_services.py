@@ -149,7 +149,7 @@ class _Agent:
 
 
 def _agents(output):
-    config = SimpleNamespace(language="en", off_limits=[], data_aliases={},
+    config = SimpleNamespace(language="en", blacklist=[], data_aliases={},
                              system_prompt="", suggested_prompts=[])
     return chat.ChatAgents(config=config, agent=_Agent(output), agent_pre_retrieval=_Agent(output))
 

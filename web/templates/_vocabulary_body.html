@@ -98,7 +98,7 @@
     <div class="vocab-stack">
       {% for il in v.intent %}
       {% set head = _("Questions about the whole wiki") if il.key == "collection" else _("Calculation requests") %}
-      {% set tip = _("Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node Q9). An expression matches at the start of a word, without case nor accents") if il.key == "collection" else _("Expressions of a request for an investment calculation: with a money amount or a time horizon, the question goes to the data tools (node Q5). An expression matches at the start of a word, without case nor accents") %}
+      {% set tip = _("Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node Q_IS_COLLECTION). An expression matches at the start of a word, without case nor accents") if il.key == "collection" else _("Expressions of a request for an investment calculation: with a money amount or a time horizon, the question goes to the data tools (node Q_IN_ROSTER). An expression matches at the start of a word, without case nor accents") %}
       <section class="panel vocab-panel" aria-labelledby="h-intent-{{ il.key }}">
         <div class="panel-head"><h2 id="h-intent-{{ il.key }}" title="{{ tip }}">{{ head }} · {{ il.cues|length }}</h2></div>
         <p class="muted vocab-origin">{% if il.written %}{{ _("The list of this wiki, in wiki_config.toml.") }}{% elif il.key == "collection" %}{{ _("The base list of the language of the wiki. The first change writes it into wiki_config.toml.") }}{% else %}{{ _("The base list of the active domains. The first change writes it into wiki_config.toml.") }}{% endif %}</p>

@@ -1,8 +1,8 @@
 """Tests for domain/chat/workflow/input_checks.py — the input workflow of the
 pre-retrieval mode, run on its own, with no agent and no database.
 
-Each refusal that ends the workflow (R1 at Q3, R1 at Q5e on the rewrite, R2a,
-R2b) has a test, and so has each node that calls the agent (Q13 to Q16). The
+Each refusal that ends the workflow (R_BLACKLIST at Q_IN_BLACKLIST, R_BLACKLIST at Q_RW_IN_BLACKLIST on the rewrite, R_NOT_IN_ROSTER,
+R_NOTHING_FOUND) has a test, and so has each node that calls the agent (Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS). The
 retrieval and the vocabulary are patched on the module `preretrieval`, the
 module through which the steps call them.
 """
@@ -22,13 +22,13 @@ from domain.chat.workflow import input_checks
 from domain.chat.workflow.input_checks import AgentCall, Refused
 from domain.datasets.models import DatasetRow
 
-CFG = SimpleNamespace(off_limits=["cedear", "cedears"], data_aliases={"dolar": ["billete verde"]})
+CFG = SimpleNamespace(blacklist=["cedear", "cedears"], data_aliases={"dolar": ["billete verde"]})
 
 
 # The nodes of the history, first in every path of the input workflow.
-HISTORY = ["C1", "C2", "C2a", "C2b", "C2c", "C2d"]
+HISTORY = ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES"]
 # The nodes that build the prompt, last in every path that reaches the agent.
-PROMPT = ["C4", "Q12a", "Q12b"]
+PROMPT = ["C_OPEN_PAGE_NOTE", "Q_SYNONYMS", "Q_PROMPT"]
 
 
 class _NoDatasets:
@@ -75,11 +75,11 @@ def test_blacklist_ends_after_q3(patched):
     out, path = _run(_turn("¿qué son los cedears?"))
     assert isinstance(out, Refused)
     assert out.text.startswith("No puedo responder esta pregunta: menciona «cedears»")
-    assert path == HISTORY + ["Q1", "Q2", "Q3", "R1"]
+    assert path == HISTORY + ["Q_QUESTION", "Q_NORMALIZE", "Q_IN_BLACKLIST", "R_BLACKLIST"]
 
 
 def test_blacklisted_rewrite_ends_in_r1(patched):
-    """A rewrite that names a blacklisted term is refused at Q5e. The refusal
+    """A rewrite that names a blacklisted term is refused at Q_RW_IN_BLACKLIST. The refusal
     names the term that the rewrite matched."""
     async def condense(question, history):
         return "¿Conviene comprar CEDEARs?"
@@ -90,21 +90,21 @@ def test_blacklisted_rewrite_ends_in_r1(patched):
         "No puedo responder esta pregunta: menciona «cedears», que está en la lista de temas"
         " sobre los que esta wiki no tiene permitido responder."
     )
-    assert path == HISTORY + ["Q1", "Q2", "Q3", "Q4", "Q4a", "Q5", "Q5a", "Q5c", "Q5d", "Q5e", "R1"]
+    assert path == HISTORY + ["Q_QUESTION", "Q_NORMALIZE", "Q_IN_BLACKLIST", "Q_STEM", "Q_NAMES_DATA", "Q_IN_ROSTER", "Q_PAGE_OPEN", "Q_REWRITE", "Q_RW_ACCEPTED", "Q_RW_IN_BLACKLIST", "R_BLACKLIST"]
 
 
 def test_not_in_roster_ends_in_r2a(patched):
     out, path = _run(_turn("¿va a llover mañana en Rosario?"))
     assert isinstance(out, Refused)
     assert out.text.startswith("No recibí de la wiki información relacionada")
-    assert path == HISTORY + ["Q1", "Q2", "Q3", "Q4", "Q4a", "Q5", "Q5a", "Q8a", "Q8b", "Q9", "Q10", "Q11", "Q12", "R2a"]
+    assert path == HISTORY + ["Q_QUESTION", "Q_NORMALIZE", "Q_IN_BLACKLIST", "Q_STEM", "Q_NAMES_DATA", "Q_IN_ROSTER", "Q_PAGE_OPEN", "Q_COLLECTION_PAGES", "Q_COLLECTION_OPEN_PAGE", "Q_IS_COLLECTION", "Q_IS_DATA", "Q_FRAGMENT_FOUND", "Q_ROSTER_REFUSAL", "R_NOT_IN_ROSTER"]
 
 
 def test_in_roster_nothing_found_ends_in_r2b(patched):
     patched["concepts"] = ["caución bursátil"]
     out, path = _run(_turn("¿qué es una caución bursátil?"))
     assert isinstance(out, Refused)
-    assert path == HISTORY + ["Q1", "Q2", "Q3", "Q4", "Q4a", "Q5", "Q5a", "Q6", "Q8", "Q8a", "Q8b", "Q7", "Q9", "Q10", "Q11", "Q12", "R2b"]
+    assert path == HISTORY + ["Q_QUESTION", "Q_NORMALIZE", "Q_IN_BLACKLIST", "Q_STEM", "Q_NAMES_DATA", "Q_IN_ROSTER", "Q_PAGE_OPEN", "Q_SEARCH_WIKI", "Q_SEARCH_SOURCES", "Q_COLLECTION_PAGES", "Q_COLLECTION_OPEN_PAGE", "Q_PAGE_FOUND", "Q_IS_COLLECTION", "Q_IS_DATA", "Q_FRAGMENT_FOUND", "Q_ROSTER_REFUSAL", "R_NOTHING_FOUND"]
 
 
 def test_wiki_pages_go_to_q13(patched):
@@ -112,8 +112,8 @@ def test_wiki_pages_go_to_q13(patched):
     patched["wiki"] = ["[/wiki/concepts/caucion.md]\nUna caución es..."]
     turn = _turn("¿qué es una caución bursátil?")
     out, path = _run(turn)
-    assert out == AgentCall("Q13")
-    assert path == HISTORY + ["Q1", "Q2", "Q3", "Q4", "Q4a", "Q5", "Q5a", "Q6", "Q8a", "Q8b", "Q7", "Q7a"] + PROMPT
+    assert out == AgentCall("Q_AGENT_PAGES")
+    assert path == HISTORY + ["Q_QUESTION", "Q_NORMALIZE", "Q_IN_BLACKLIST", "Q_STEM", "Q_NAMES_DATA", "Q_IN_ROSTER", "Q_PAGE_OPEN", "Q_SEARCH_WIKI", "Q_COLLECTION_PAGES", "Q_COLLECTION_OPEN_PAGE", "Q_PAGE_FOUND", "Q_NAMES_CATEGORY"] + PROMPT
     assert turn.plan.tier == "curado"
 
 
@@ -142,7 +142,7 @@ class _TwoCategories:
 
 def test_two_named_categories_loop_over_q7b(patched):
     """A question that names a key of `plazo_fijo` and the category `dolar`:
-    Q7b runs once per category, Q7c injects the rows, Q7d the key names."""
+    Q_NAMES_KEY runs once per category, Q_KEY_ROWS injects the rows, Q_KEY_NAMES the key names."""
     page = "[/wiki/concepts/plazo-fijo.md]\nUn plazo fijo es..."
     patched["concepts"] = ["plazo fijo"]
     patched["wiki"] = [page]
@@ -150,8 +150,8 @@ def test_two_named_categories_loop_over_q7b(patched):
     source = _TwoCategories()
     turn = PreRetrievalTurn(question, CFG, "db", Path("/tmp/wp"), [], "es", stem_language="es", source=source)
     out, path = _run(turn)
-    assert out == AgentCall("Q13")
-    assert path[path.index("Q7a"):] == ["Q7a", "Q7b", "Q7c", "Q7b", "Q7d"] + PROMPT
+    assert out == AgentCall("Q_AGENT_PAGES")
+    assert path[path.index("Q_NAMES_CATEGORY"):] == ["Q_NAMES_CATEGORY", "Q_NAMES_KEY", "Q_KEY_ROWS", "Q_NAMES_KEY", "Q_KEY_NAMES"] + PROMPT
     injection = preretrieval.dataset_injection(question, source, CFG.data_aliases, "es")
     assert turn.plan.context == "\n\n".join([page, *injection.blocks])
     assert turn.injection == injection and len(injection.blocks) == 2
@@ -160,14 +160,14 @@ def test_two_named_categories_loop_over_q7b(patched):
 def test_collection_question_goes_to_q14(patched):
     patched["collection"] = ["[wiki/overview.md]\nThe wiki has..."]
     out, path = _run(_turn("¿qué temas tiene esta wiki?"))
-    assert out == AgentCall("Q14")
-    assert path[-4:] == ["Q9"] + PROMPT
+    assert out == AgentCall("Q_AGENT_COLLECTION")
+    assert path[-4:] == ["Q_IS_COLLECTION"] + PROMPT
 
 
 def test_data_question_goes_to_q15(patched):
     out, path = _run(_turn("¿a cuánto está el billete verde?"))
-    assert out == AgentCall("Q15")
-    assert path[-5:] == ["Q9", "Q10"] + PROMPT
+    assert out == AgentCall("Q_AGENT_TOOLS")
+    assert path[-5:] == ["Q_IS_COLLECTION", "Q_IS_DATA"] + PROMPT
 
 
 def test_source_fragments_go_to_q16(patched):
@@ -175,33 +175,33 @@ def test_source_fragments_go_to_q16(patched):
     patched["docs"] = ["[12 Cauciones.docx]\nLa caución bursátil es un préstamo."]
     turn = _turn("¿qué es una caución bursátil?")
     out, path = _run(turn)
-    assert out == AgentCall("Q16")
-    assert path[-4:] == ["Q11"] + PROMPT
+    assert out == AgentCall("Q_AGENT_FRAGMENTS")
+    assert path[-4:] == ["Q_FRAGMENT_FOUND"] + PROMPT
     assert turn.plan.verify is True
 
 
 def test_collection_intent_is_read_through_preretrieval(patched):
-    """The workshop replaces the predicate of Q9 on the module `preretrieval`;
+    """The workshop replaces the predicate of Q_IS_COLLECTION on the module `preretrieval`;
     the input workflow reads it there, so the path changes."""
     patched["collection"] = ["[wiki/overview.md]\nThe wiki has..."]
     question = "¿va a llover mañana en Rosario?"
     out, path = _run(_turn(question))
-    assert isinstance(out, Refused) and path[-1] == "R2a"
+    assert isinstance(out, Refused) and path[-1] == "R_NOT_IN_ROSTER"
     with mock.patch.object(preretrieval, "collection_intent", lambda q, cues, language: True):
         out, path = _run(_turn(question))
-    assert out == AgentCall("Q14")
-    assert path[-4:] == ["Q9"] + PROMPT
+    assert out == AgentCall("Q_AGENT_COLLECTION")
+    assert path[-4:] == ["Q_IS_COLLECTION"] + PROMPT
 
 
 def test_render_names_the_nodes():
     diagram = input_checks.graph.render()
-    for node in ("Q1", "Q3", "Q5b", "Q6", "Q8", "R1", "R2a", "R2b", "agent"):
+    for node in ("Q_QUESTION", "Q_IN_BLACKLIST", "Q_CONDENSED", "Q_SEARCH_WIKI", "Q_SEARCH_SOURCES", "R_BLACKLIST", "R_NOT_IN_ROSTER", "R_NOTHING_FOUND", "agent"):
         assert node in diagram
 
 
 def test_workshop_patch_of_collection_intent_changes_the_path(patched):
     """As `workshop/apoyo.py` does: `pre_retrieval_answer` with a stand-in
-    `run_agent`, and the predicate of Q9 replaced on the module `preretrieval`."""
+    `run_agent`, and the predicate of Q_IS_COLLECTION replaced on the module `preretrieval`."""
     patched["collection"] = ["[wiki/overview.md]\nThe wiki has..."]
     calls = []
 
@@ -222,16 +222,16 @@ def test_workshop_patch_of_collection_intent_changes_the_path(patched):
     _, before = answer()
     with mock.patch.object(preretrieval, "collection_intent", lambda q, cues, language: False):
         _, kept = answer()
-    assert before == kept and before[-1] == "R2a" and calls == []
+    assert before == kept and before[-1] == "R_NOT_IN_ROSTER" and calls == []
     with mock.patch.object(preretrieval, "collection_intent", lambda q, cues, language: True):
         out, after = answer()
     assert len(calls) == 1
-    assert after == HISTORY + ["Q1", "Q2", "Q3", "Q4", "Q4a", "Q5", "Q5a", "Q8a", "Q8b", "Q9"] + PROMPT + ["Q14", "Q20", "Q20a", "Q20b", "Q20c", "Q20d", "C3", "Q21"]
+    assert after == HISTORY + ["Q_QUESTION", "Q_NORMALIZE", "Q_IN_BLACKLIST", "Q_STEM", "Q_NAMES_DATA", "Q_IN_ROSTER", "Q_PAGE_OPEN", "Q_COLLECTION_PAGES", "Q_COLLECTION_OPEN_PAGE", "Q_IS_COLLECTION"] + PROMPT + ["Q_AGENT_COLLECTION", "Q_MODEL_REFUSED", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "C_FIGURES", "Q_SHOWN"]
     assert out.startswith("Esta wiki trata de finanzas.")
 
 
 def test_strict_input_builds_the_history_of_model_history():
-    """The nodes C2a to C2d build the history that `model_history` builds: the
+    """The nodes C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history that `model_history` builds: the
     refused exchange removed, the origin line on the answer that read data."""
     from domain.chat.history import model_history
     from domain.chat.refusal import fixed_sentence
@@ -253,9 +253,9 @@ def test_strict_input_builds_the_history_of_model_history():
         return path
     path = asyncio.run(go())
 
-    assert [entry["node"] for entry in path] == HISTORY + ["C4"]
+    assert [entry["node"] for entry in path] == HISTORY + ["C_OPEN_PAGE_NOTE"]
     assert [m.parts[0].content for m in turn.history] == [m.parts[0].content for m in model_history(prior, "es")]
     by_node = {entry["node"]: entry["attributes"] for entry in path}
-    assert by_node["C2a"]["refused_dropped"] == 2
-    assert by_node["C2d"] == {"origin_lines": 1, "history_messages": 2}
-    assert by_node["C2"]["mode"] == "strict"
+    assert by_node["C_DROP_REFUSED"]["refused_dropped"] == 2
+    assert by_node["C_ORIGIN_LINES"] == {"origin_lines": 1, "history_messages": 2}
+    assert by_node["C_WHICH_MODE"]["mode"] == "strict"

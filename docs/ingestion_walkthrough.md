@@ -339,7 +339,7 @@ Loading the shipped demo's own configuration and printing the result gives:
 "dolar"          = ['billete verde', 'divisa']       ← hand-written
 "Bonos CER/UVA"  = ['Bonos ajustables por inflación', 'Bonos CER', 'Bonos UVA']
                                                       ← generated
-off_limits       = ['cedear', 'cedears', 'cripto', 'bitcoin']
+blacklist        = ['cedear', 'cedears', 'cripto', 'bitcoin']
 false_synonyms   = {'cedear': ['accion', 'acciones']}
 ```
 
@@ -357,8 +357,8 @@ The last row is the one worth studying, and it is the reason this section shows
 the lists together rather than one at a time. Measured on the shipped demo:
 
 ```text
-"¿conviene comprar cedears?"    off_limits=True   in_roster=False
-"¿qué es una criptomoneda?"     off_limits=False  in_roster=False
+"¿conviene comprar cedears?"    blacklisted=True  in_roster=False
+"¿qué es una criptomoneda?"     blacklisted=False in_roster=False
 ```
 
 The blacklist **missed** the second one — `cripto` is listed, matching is

@@ -37,7 +37,7 @@ DOCS = {
     "writing": ROOT / "docs" / "ingestion_nodes.md",
 }
 STRUCTURE = {"turn", "ingest", "document"}
-_ID = re.compile(r"^[A-Z]{1,2}\d*[a-z]?$")
+_ID = re.compile(r"^[A-Z]_[A-Z_]+$|^[A-Z]{1,2}$")
 
 
 # ── The documents ─────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ def _code_calls() -> list[tuple[str, str, str]]:
                 if isinstance(fn, ast.FunctionDef) and fn.name == "_answer_node":
                     for r in ast.walk(fn):
                         if isinstance(r, ast.Return) and r.value is not None:
-                            # A return value may be a conditional: "Q13" if ... else "Q14".
+                            # A return value may be a conditional: "Q_AGENT_PAGES" if ... else "Q_AGENT_COLLECTION".
                             for leaf in ast.walk(r.value):
                                 node_id = _str_literal(leaf)
                                 if node_id:

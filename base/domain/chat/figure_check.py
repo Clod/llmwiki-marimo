@@ -1,10 +1,10 @@
-"""The figure check of one chat turn: node C3.
+"""The figure check of one chat turn: node C_FIGURES.
 
 `domain/verify/figures.py` classifies the figures of a text against authorised
 values. This module gives it the material of one turn: the prose of the answer, the
 passages of the turn, the texts the code appended, and the messages of the
 conversation. The output workflow (`workflow/output_checks.py`) runs it as the step
-`C3` in the pre-retrieval and the strict modes. The streaming mode does not run it
+`C_FIGURES` in the pre-retrieval and the strict modes. The streaming mode does not run it
 (`services/chat.py`).
 
 The text of the model is never edited. When the prose has rounded figures, a fixed
@@ -90,7 +90,7 @@ def conversation_sources(messages: Iterable[Any]) -> list[tuple[str, str]]:
 
 
 def counts(report: FigureReport | None) -> dict[str, int]:
-    """The counts the node C3 records."""
+    """The counts the node C_FIGURES records."""
     if report is None:
         return dict(figures_checked=0, figures_unsupported=0, figures_rounded=0)
     return dict(figures_checked=len(report.findings), figures_unsupported=len(report.unsupported()),

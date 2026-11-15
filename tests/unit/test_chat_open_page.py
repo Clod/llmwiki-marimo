@@ -1,4 +1,4 @@
-"""The page the user is reading reaches the chat turn (node Q5a). No LLM."""
+"""The page the user is reading reaches the chat turn (node Q_PAGE_OPEN). No LLM."""
 
 import asyncio
 import shutil
@@ -28,7 +28,7 @@ def _turn(workspace, question, open_page):
         return SimpleNamespace(output="Un plazo fijo UVA rinde inflación más una tasa.",
                                all_messages=lambda: [])
 
-    cfg = SimpleNamespace(off_limits=["cedear"], data_aliases={})
+    cfg = SimpleNamespace(blacklist=["cedear"], data_aliases={})
     answer = asyncio.run(pre_retrieval_answer(
         question, config=cfg, db_path=str(workspace / ".llmwiki" / "index.db"),
         workspace=workspace, history=[], language="es", run_agent=run_agent,

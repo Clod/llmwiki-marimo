@@ -96,4 +96,4 @@ def test_a_missing_file_and_missing_sections_are_created(tmp_path):
     cw.reject_alias(tmp_path, "CEDEAR", "acciones")
     assert data(tmp_path) == {"fuera_de_alcance": {"terminos": ["cripto"]},
                               "falsos_sinonimos": {"CEDEAR": ["acciones"]}}
-    assert load_config(tmp_path).off_limits == ["cripto"]
+    assert load_config(tmp_path).blacklist == ["cripto"]

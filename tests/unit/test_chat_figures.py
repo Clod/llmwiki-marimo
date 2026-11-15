@@ -40,7 +40,7 @@ def msg(role, content, context=()):
 
 
 def config(language="en", tolerance=0.05):
-    return SimpleNamespace(language=language, number_tolerance=tolerance, off_limits=[], data_aliases={},
+    return SimpleNamespace(language=language, number_tolerance=tolerance, blacklist=[], data_aliases={},
                            system_prompt="", suggested_prompts=[])
 
 
@@ -166,9 +166,9 @@ def test_a_refusal_of_the_code_has_an_empty_report():
 
 
 def test_check_turn_figures_leaves_the_path_as_it_is():
-    # The counts are the attributes of the node C3, which the caller records.
-    path = ({"node": "C1", "diagram": "reading", "attributes": {}},
-            {"node": "T5", "diagram": "reading", "attributes": {"final_answer": "x"}})
+    # The counts are the attributes of the node C_FIGURES, which the caller records.
+    path = ({"node": "C_COUNT_HISTORY", "diagram": "reading", "attributes": {}},
+            {"node": "T_SHOWN", "diagram": "reading", "attributes": {"final_answer": "x"}})
     result = chat.ChatResult("Rinde 1.200 y 7.777.", (ContextPassage("datasets/tasas.md", DATASET),), path=path)
     checked = chat.check_turn_figures(result, [msg("user", "q")], config())
     assert checked.path == path
@@ -176,8 +176,8 @@ def test_check_turn_figures_leaves_the_path_as_it_is():
 
 
 def c3(result):
-    """The attributes of the node C3 in the path of a turn."""
-    (node,) = [n for n in result.path if n["node"] == "C3"]
+    """The attributes of the node C_FIGURES in the path of a turn."""
+    (node,) = [n for n in result.path if n["node"] == "C_FIGURES"]
     return node["attributes"]
 
 
@@ -193,7 +193,7 @@ def test_strict_returns_the_report_and_appends_the_note_once_after_the_table_and
     assert result.answer.index(ADVISORY.strip()) < result.answer.index("Referencia:") < result.answer.index(note)
     assert [f.figure.text for f in result.figures.unsupported()] == ["7.777"]
     assert [f.figure.text for f in result.figures.rounded()] == ["1.200"]
-    assert [n["node"] for n in result.path][-2:] == ["C3", "T5"] and c3(result)["figures_unsupported"] == 1
+    assert [n["node"] for n in result.path][-2:] == ["C_FIGURES", "T_SHOWN"] and c3(result)["figures_unsupported"] == 1
     assert chat.figure_counts(result.figures) == dict(figures_checked=2, figures_unsupported=1, figures_rounded=1)
 
 
@@ -218,7 +218,7 @@ def test_pre_retrieval_returns_the_report(wiki):
     assert [f.figure.text for f in result.figures.unsupported()] == ["7.777"]
     assert [f.figure.text for f in result.figures.rounded()] == ["1.200"]
     assert result.answer.endswith(get_locale("en").rounded_figures_note_data.replace("%(pct)s", "5"))
-    assert [n["node"] for n in result.path][-2:] == ["C3", "Q21"] and c3(result)["figures_checked"] == 3
+    assert [n["node"] for n in result.path][-2:] == ["C_FIGURES", "Q_SHOWN"] and c3(result)["figures_checked"] == 3
 
 
 def test_pre_retrieval_refusal_has_an_empty_report(wiki):
@@ -232,7 +232,7 @@ def test_streaming_returns_the_text_of_the_agent_with_no_report_and_no_note(wiki
     result = stream_result(wiki, agents(written), [msg("user", "How many slippers, 1187,5?")])
     assert result.answer == written
     assert result.figures is None and result.generated == ()
-    assert "C3" not in [n["node"] for n in result.path]
+    assert "C_FIGURES" not in [n["node"] for n in result.path]
 
 
 def test_chat_turn_returns_the_answer_with_the_note(wiki):

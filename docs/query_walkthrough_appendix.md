@@ -9,12 +9,12 @@ uv run python scripts/capture_query_walkthrough.py
 
 ## The routing decision (deterministic — no model involved)
 
-`off_limits` and `roster` come from the wiki's own vocabulary; `wiki`/`docs`
+`blacklisted` and `roster` come from the wiki's own vocabulary; `wiki`/`docs`
 are FTS hit counts; `plan` is what `plan_retrieval` returned. Every column
 here is computed by code before the model is consulted — and for the last two
 rows, instead of consulting it.
 
-| # | Question | off_limits | data | roster | wiki | docs | plan |
+| # | Question | blacklisted | data | roster | wiki | docs | plan |
 |---|---|---|---|---|---|---|---|
 | 1 | ¿Qué es una caución bursátil y por qué se la considera de… | False | True | True | 6 | 0 | **invoke** (curado) |
 | 2 | ¿Qué es un ETF? | False | False | False | 0 | 0 | **refuse** |

@@ -303,7 +303,7 @@ def test_the_pre_retrieval_mode_states_why_it_refuses(page, live):
 
 
 def test_a_question_outside_the_topics_of_the_wiki_is_refused_with_no_page_open(page, live):
-    """A page in view makes the question covered (`preretrieval.py`, node Q5a), so the
+    """A page in view makes the question covered (`preretrieval.py`, node Q_PAGE_OPEN), so the
     out-of-scope refusal of the test plan, §3.5.2, shows only with no page open: here,
     on the screen of a page that does not exist."""
     goto(page, live, "pages/concepts/no-existe")

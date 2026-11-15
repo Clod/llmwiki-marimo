@@ -19,7 +19,7 @@ compacted turns are returned as small immutable stand-ins.
 
 `model_history` builds the history that the model receives in the pre-retrieval
 and strict modes from three helpers, `compact_tables`, `cap_turns` and
-`with_origin_lines`, after `strip_refused_exchanges`. The nodes C2a to C2d of
+`with_origin_lines`, after `strip_refused_exchanges`. The nodes C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES of
 the input workflows (`domain/chat/workflow/catalog.py`) run the same four steps,
 one per node.
 """
@@ -158,7 +158,7 @@ def model_history(messages: Sequence[Any], language: str | None = None) -> list:
 
 
 def history_counts(prior: Sequence[Any], language: str | None = None) -> dict:
-    """The counts that node C1 records: the prior messages, the refused ones
+    """The counts that node C_COUNT_HISTORY records: the prior messages, the refused ones
     `strip_refused_exchanges` removed, and the messages the model receives."""
     prior = list(prior)
     return dict(

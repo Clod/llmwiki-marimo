@@ -154,7 +154,7 @@ def tasa_plazo_fijo(
         fila. Nunca inventa un valor.
     """
     text, rejected = _read(ctx, "plazo_fijo", "entidad", entidad, plazo_dias, True)
-    tracing.mark("K6", tracing.READING, entidad=entidad, plazo_dias=plazo_dias,
+    tracing.mark("K_PLAZO_FIJO", tracing.READING, entidad=entidad, plazo_dias=plazo_dias,
                  **_outcome(text, rejected))
     if rejected:
         raise ModelRetry(rejected)
@@ -182,7 +182,7 @@ def tasa_caucion(
         fila. Nunca inventa un valor.
     """
     text, rejected = _read(ctx, "caucion", "mercado", mercado, plazo_dias, True)
-    tracing.mark("K7", tracing.READING, mercado=mercado, plazo_dias=plazo_dias,
+    tracing.mark("K_CAUCION", tracing.READING, mercado=mercado, plazo_dias=plazo_dias,
                  **_outcome(text, rejected))
     if rejected:
         raise ModelRetry(rejected)
@@ -205,7 +205,7 @@ def cotizacion_dolar(ctx: RunContext[str], tipo: str | None = None) -> str:
         fuente. Nunca inventa un valor.
     """
     text, rejected = _read(ctx, "dolar", "tipo", tipo, None, False)
-    tracing.mark("K8", tracing.READING, tipo=tipo, **_outcome(text, rejected))
+    tracing.mark("K_DOLLAR", tracing.READING, tipo=tipo, **_outcome(text, rejected))
     if rejected:
         raise ModelRetry(rejected)
     return text
@@ -226,7 +226,7 @@ def precio_accion(ctx: RunContext[str], ticker: str | None = None) -> str:
         cada fila. Nunca inventa un valor ni estima una ganancia.
     """
     text, rejected = _read(ctx, "acciones", "ticker", ticker, None, False)
-    tracing.mark("K9", tracing.READING, ticker=ticker, **_outcome(text, rejected))
+    tracing.mark("K_SHARE_PRICE", tracing.READING, ticker=ticker, **_outcome(text, rejected))
     if rejected:
         raise ModelRetry(rejected)
     return text
@@ -247,7 +247,7 @@ def rendimiento_fci(ctx: RunContext[str], fondo: str | None = None) -> str:
         de cada fila. Nunca inventa un valor.
     """
     text, rejected = _read(ctx, "fci_money_market", "fondo", fondo, None, False)
-    tracing.mark("K10", tracing.READING, fondo=fondo, **_outcome(text, rejected))
+    tracing.mark("K_MONEY_MARKET", tracing.READING, fondo=fondo, **_outcome(text, rejected))
     if rejected:
         raise ModelRetry(rejected)
     return text

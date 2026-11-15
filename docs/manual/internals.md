@@ -198,8 +198,8 @@ of the code, named by the identifier of its node in the diagrams of
 [`docs/query_nodes.md`](../query_nodes.md),
 [`docs/workflow_diagrams.md`](../workflow_diagrams.md) (the chat workflows,
 generated from the code) and
-[`docs/ingestion_nodes.md`](../ingestion_nodes.md) — `Q5` for the coverage-roster check, `I4` for text
-extraction, `W1` for chunking. The span names of one trace are therefore the
+[`docs/ingestion_nodes.md`](../ingestion_nodes.md) — `Q_IN_ROSTER` for the coverage-roster check, `I_EXTRACT` for text
+extraction, `W_CHUNK` for chunking. The span names of one trace are therefore the
 path the run took through the diagram, and the path can be compared with the
 diagram node by node. Model calls are spans too: Pydantic AI's own
 instrumentation for the chat agent, and a proxied OpenAI client
@@ -260,7 +260,7 @@ Our own attributes carry the prefix `llmwiki.`:
 | `llmwiki.diagram` | every node span | `reading` or `writing` |
 | `llmwiki.workspace` | the root span only | the workspace path; read by the file processor to route the span to its `spans.jsonl` |
 | `llmwiki.conversation_id`, `llmwiki.turn`, `llmwiki.mode` | the `turn` root | which conversation and turn, and the chat mode |
-| `llmwiki.<name>` | any node | the values that node computed, e.g. `llmwiki.answer` and `llmwiki.roster_size` on `Q5` |
+| `llmwiki.<name>` | any node | the values that node computed, e.g. `llmwiki.answer` and `llmwiki.roster_size` on `Q_IN_ROSTER` |
 | `llmwiki.<name>.sha256`, `llmwiki.<name>.bytes`, `llmwiki.<name>.ref` | a node with a heavy payload | written by `Node.payload`; `ref` is relative to `.llmwiki/traces/` |
 
 Model calls are spans with `gen_ai.*` attributes: Pydantic AI's own spans for
@@ -307,8 +307,8 @@ sidecar was never written. So `WIKI_TRACE_CAPTURE=none` still lets you verify
 - **One span per diagram node.** `tracing.node(node_id, diagram, **attrs)` opens
   the span of a node that does work; `tracing.mark(node_id, diagram, **attrs)`
   records a decision or a value as a zero-duration span. Both are called
-  throughout `chat/preretrieval.py` (e.g. `:363` for `Q5`, `:394` for a refusal)
-  and `ingestion/pipeline.py` (e.g. `:252` for `I4`, `:300` for `W3`).
+  throughout `chat/preretrieval.py` (e.g. `:363` for `Q_IN_ROSTER`, `:394` for a refusal)
+  and `ingestion/pipeline.py` (e.g. `:252` for `I_EXTRACT`, `:300` for `W_INSERT_CHUNKS`).
 - **Transparent client proxy.** `tracing.wrap_openai(client)`
   (`base/domain/tracing.py:345`) returns a client whose `chat.completions.create`
   is a span and whose real response object is returned untouched. It is
@@ -328,10 +328,11 @@ sidecar was never written. So `WIKI_TRACE_CAPTURE=none` still lets you verify
 ### 14.6 What each node covers
 
 The node identifiers of one ingestion and one chat turn are the ones tabulated
-in [`docs/ingestion_nodes.md`](../ingestion_nodes.md) (writing: I1–I16 with I9a,
-E1–E4, W1–W4, and M1–M4) and [`docs/query_nodes.md`](../query_nodes.md) (reading:
-C1–C2, Q1–Q21 with Q5a, Q5b and Q7a–Q7d, F1–F2, T1–T5, the tools K1–K10, and the
-refusal causes R1, R2a, R2b, R3, R4 and R5). Those tables are the reference for which
+in [`docs/ingestion_nodes.md`](../ingestion_nodes.md) (writing: the
+ingestion steps I_…, the end states E_…, the fragment path W_… and the
+maintenance nodes M_…) and [`docs/query_nodes.md`](../query_nodes.md) (reading:
+the checks C_…, the pre-retrieval nodes Q_…, the streaming nodes F_…, the
+strict nodes T_…, the tools K_… and the refusal causes R_…). Those tables are the reference for which
 node covers which function; this section does not repeat them.
 
 ### 14.7 Rendering — `scripts/render_trace.py`
@@ -360,9 +361,9 @@ python scripts/render_trace.py <workspace> --show prompts,responses
 
 The intended audit: the `document` span's `llmwiki.document_id` and
 `llmwiki.relative_path` should match a row of `documents`, and the fragment
-count `W3` records (`fragments=len(chunks)`, `ingestion/pipeline.py:300`)
+count `W_INSERT_CHUNKS` records (`fragments=len(chunks)`, `ingestion/pipeline.py:300`)
 should equal the rows of `document_chunks` for that document. Since every span
-that touches a document carries the same `document_id` — set once on `I3`
+that touches a document carries the same `document_id` — set once on `I_DOCUMENT_ROW`
 (`ingestion/pipeline.py:241`) and again on the `document` span — filtering
 `spans.jsonl` by that value and joining on `documents.id` recovers the same
 audit the ingestion trace's former `db_join_map` header gave directly. Hand

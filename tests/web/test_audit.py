@@ -133,19 +133,19 @@ def test_criterio_lists_the_path_and_each_node_with_its_text(client, agents):
     agents.agent_pre_retrieval.output = CITED
     stream(client, ask(client))
     html = audit(client).text
-    assert "C1 → C2 → C2a" in html
-    assert "Q5" in html and "¿La pregunta nombra un tema de la wiki (padrón de cobertura)?" in html
-    assert "Cinderella" in html     # the matched term, in the definition list of Q5
+    assert "C_COUNT_HISTORY → C_WHICH_MODE → C_DROP_REFUSED" in html
+    assert "Q_IN_ROSTER" in html and "¿La pregunta nombra un tema de la wiki (padrón de cobertura)?" in html
+    assert "Cinderella" in html     # the matched term, in the definition list of Q_IN_ROSTER
 
 
 def test_the_audit_of_one_question_shows_the_figure_check_c3_in_its_path(client, agents):
     agents.agent_pre_retrieval.output = CITED
     stream(client, ask(client))
     html = audit(client).text
-    assert "C3 → Q21" in html
+    assert "C_FIGURES → Q_SHOWN" in html
     assert "Comprobación de cifras: cada cifra del texto es exacta, redondeada o sin respaldo" in html
     entry, call, exit_ = diagrams(html)
-    assert "C3" in visited(exit_)           # the node C3 of the output workflow
+    assert "C_FIGURES" in visited(exit_)           # the node C_FIGURES of the output workflow
 
 
 def test_criterio_of_q5_shows_the_roster_when_nothing_matched(client, agents):
@@ -215,8 +215,8 @@ def test_the_streaming_answer_has_a_page_too(client, agents):
     object.__setattr__(agents, "agent", StreamingAgent("A plain answer."))   # ChatAgents is frozen
     stream(client, ask(client, mode="streaming"))
     html = audit(client).text
-    assert "F1 → F2" in html and "A plain answer." in html
-    assert "→ C3" not in html            # the streaming mode runs no figure check
+    assert "F_AGENT → F_COMPLETE" in html and "A plain answer." in html
+    assert "→ C_FIGURES" not in html            # the streaming mode runs no figure check
 
 
 def test_a_node_without_a_path_says_so(client, agents, app):
@@ -286,8 +286,8 @@ def test_a_pre_retrieval_turn_shows_the_input_the_model_call_and_the_output(clie
     html = audit(client).text
     entry, call, exit_ = diagrams(html)
     assert titles(html) == ["Workflow de entrada", "Llamada al modelo", "Workflow de salida"]
-    assert entry.startswith("flowchart TD") and "C2a · Se quitan del historial" in entry
-    assert "Q13 · " in call and "Q21 · " in exit_
+    assert entry.startswith("flowchart TD") and "C_DROP_REFUSED · Se quitan del historial" in entry
+    assert "Q_AGENT_PAGES · " in call and "Q_SHOWN · " in exit_
     assert '/static/js/mermaid.min.js' in html and "cdn" not in html.split("<body")[1].lower()
 
 
@@ -296,9 +296,9 @@ def test_the_nodes_of_the_path_are_marked_visited_in_each_diagram(client, agents
     stream(client, ask(client))
     entry, call, exit_ = diagrams(audit(client).text)
     assert "classDef visited" in entry and "classDef visited" in exit_
-    assert {"C1", "C2", "C2a", "Q1", "Q3", "Q12b", "Q13"} <= visited(entry) and "R1" not in visited(entry)
-    assert visited(call) == {"n0"}                              # Q13; the fake agent calls no tool
-    assert {"Q20", "C3", "Q21"} <= visited(exit_) and "R5" not in visited(exit_)
+    assert {"C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "Q_QUESTION", "Q_IN_BLACKLIST", "Q_PROMPT", "Q_AGENT_PAGES"} <= visited(entry) and "R_BLACKLIST" not in visited(entry)
+    assert visited(call) == {"n0"}                              # Q_AGENT_PAGES; the fake agent calls no tool
+    assert {"Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"} <= visited(exit_) and "R_MODEL" not in visited(exit_)
 
 
 def test_the_strict_mode_shows_its_own_graphs_and_the_call_t1(client, agents):
@@ -306,10 +306,10 @@ def test_the_strict_mode_shows_its_own_graphs_and_the_call_t1(client, agents):
     agents.agent.grounded = False
     stream(client, ask(client, "capital of France?", mode="strict"))
     entry, call, exit_ = diagrams(audit(client).text)
-    assert "C4 · " in entry and "Q1 · " not in entry
-    assert "T1 · " in call and "Q13" not in call
-    assert "T3 · " in exit_ and "Q21" not in exit_
-    assert {"T2", "T3", "T5"} <= visited(exit_)
+    assert "C_OPEN_PAGE_NOTE · " in entry and "Q_QUESTION · " not in entry
+    assert "T_AGENT · " in call and "Q_AGENT_PAGES" not in call
+    assert "T_GUARDRAIL · " in exit_ and "Q_SHOWN" not in exit_
+    assert {"T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_SHOWN"} <= visited(exit_)
 
 
 def test_a_refusal_of_the_input_says_the_model_was_not_called(client, agents):
@@ -324,8 +324,8 @@ def test_a_streaming_turn_shows_only_the_overview(client, agents):
     stream(client, ask(client, mode="streaming"))
     html = audit(client).text
     shown = diagrams(html)
-    assert len(shown) == 1 and "C2 · the mode of the turn" in shown[0] and titles(html) == []
-    assert visited(shown[0]) >= {"C1", "C2", "F"}
+    assert len(shown) == 1 and "C_WHICH_MODE · the mode of the turn" in shown[0] and titles(html) == []
+    assert visited(shown[0]) >= {"C_COUNT_HISTORY", "C_WHICH_MODE", "F"}
 
 
 def test_selecting_another_turn_returns_its_diagrams(client, agents):
@@ -336,8 +336,8 @@ def test_selecting_another_turn_returns_its_diagrams(client, agents):
     stream(client, ask(client, "capital of France?", mode="strict"))
     first = client.get(f"/w/{WIKI_ID}/audit/c1/diagram/1").text
     second = client.get(f"/w/{WIKI_ID}/audit/c1/diagram/2").text
-    assert "Q13 · " in first and "T3 · " not in first
-    assert "T3 · " in second and "Q13" not in second
+    assert "Q_AGENT_PAGES · " in first and "T_GUARDRAIL · " not in first
+    assert "T_GUARDRAIL · " in second and "Q_AGENT_PAGES" not in second
     assert client.get(f"/w/{WIKI_ID}/audit/c1/diagram/3").status_code == 404
     page = audit(client).text
     assert 'hx-get="/w/tales/audit/c1/diagram/1"' in page and 'hx-get="/w/tales/audit/c1/diagram/2"' in page
@@ -347,13 +347,13 @@ def test_a_change_in_the_markdown_source_changes_the_streaming_page(client, agen
     from web import audit_diagram
 
     source = tmp_path / "query_nodes.md"
-    source.write_text("```mermaid\nflowchart TD\n    C1[\"C1 · edited overview\"]\n```\n", encoding="utf-8")
+    source.write_text("```mermaid\nflowchart TD\n    C_COUNT_HISTORY[\"C_COUNT_HISTORY · edited overview\"]\n```\n", encoding="utf-8")
     monkeypatch.setattr(audit_diagram, "SOURCE", source)
     object.__setattr__(agents, "agent", StreamingAgent("A plain answer."))
     stream(client, ask(client, mode="streaming"))
     (overview,) = diagrams(audit(client).text)
     assert "edited overview" in overview
-    assert visited(overview) == {"C1"}          # the ids missing from the block are skipped
+    assert visited(overview) == {"C_COUNT_HISTORY"}          # the ids missing from the block are skipped
 
 
 def test_a_missing_source_leaves_the_streaming_page_without_diagrams(client, agents, tmp_path, monkeypatch):
@@ -369,11 +369,11 @@ def test_a_missing_source_leaves_the_streaming_page_without_diagrams(client, age
 def test_the_model_call_chain_keeps_each_tool_call_in_order():
     from web.audit_diagram import model_call_chain, model_call_diagram
 
-    path = ["C1", "C2", "C2a", "C2b", "C2c", "C2d", "C4", "T1", "K1", "K3", "K1", "T2", "T4a", "T5"]
-    assert model_call_chain(path) == ["T1", "K1", "K3", "K1"]
+    path = ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES", "C_OPEN_PAGE_NOTE", "T_AGENT", "K_READ_PAGE", "K_SEARCH_SOURCES", "K_READ_PAGE", "T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_SHOWN"]
+    assert model_call_chain(path) == ["T_AGENT", "K_READ_PAGE", "K_SEARCH_SOURCES", "K_READ_PAGE"]
     text = model_call_diagram(path)
     assert "n0 --> n1" in text and "n2 --> n3" in text and visited(text) == {"n0", "n1", "n2", "n3"}
-    assert model_call_chain(["C1", "Q1", "Q3", "R1"]) == [] and model_call_diagram(["R1"]) == ""
+    assert model_call_chain(["C_COUNT_HISTORY", "Q_QUESTION", "Q_IN_BLACKLIST", "R_BLACKLIST"]) == [] and model_call_diagram(["R_BLACKLIST"]) == ""
 
 
 GRAPHS = [("pre-retrieval", 0), ("pre-retrieval", 1), ("strict", 0), ("strict", 1)]
@@ -425,15 +425,15 @@ def test_the_branch_labels_are_translated_to_the_interface_language():
     with use_language("es"):
         entry = workflow_diagram(input_checks.graph, [])
         exit_ = workflow_diagram(output_checks.graph, [])
-    assert 'after_Q3 -->|"nombra un término excluido"| R1' in entry
-    assert 'after_Q3 -->|"no nombra ningún término excluido"| Q4' in entry
-    assert 'after_Q5e -->|"la reescritura nombra un término excluido"| R1' in entry
-    assert 'tier -->|"páginas o datos inyectados"| Q20' in exit_
+    assert 'after_Q3 -->|"nombra un término excluido"| R_BLACKLIST' in entry
+    assert 'after_Q3 -->|"no nombra ningún término excluido"| Q_STEM' in entry
+    assert 'after_Q5e -->|"la reescritura nombra un término excluido"| R_BLACKLIST' in entry
+    assert 'tier -->|"páginas o datos inyectados"| Q_MODEL_REFUSED' in exit_
     assert "names a blacklisted term" not in entry
     with use_language("en"):
         entry = workflow_diagram(input_checks.graph, [])
-    assert 'after_Q3 -->|"names a blacklisted term"| R1' in entry
-    assert 'after_Q3 -->|"names no blacklisted term"| Q4' in entry
+    assert 'after_Q3 -->|"names a blacklisted term"| R_BLACKLIST' in entry
+    assert 'after_Q3 -->|"names no blacklisted term"| Q_STEM' in entry
 
 
 # The generated diagrams are flowcharts (owner, 2026-11-14): a box per step, a diamond with its

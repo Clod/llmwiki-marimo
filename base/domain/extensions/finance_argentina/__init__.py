@@ -57,8 +57,8 @@ ADVISORY_SHAPES: dict[str, tuple[re.Pattern, ...]] = {
 
 # The trace node of each tool (docs/query_nodes.md, the K nodes).
 NODES = {
-    "estimar_alternativas": "K5", "tasa_plazo_fijo": "K6", "tasa_caucion": "K7",
-    "cotizacion_dolar": "K8", "precio_accion": "K9", "rendimiento_fci": "K10",
+    "estimar_alternativas": "K_ALTERNATIVES", "tasa_plazo_fijo": "K_PLAZO_FIJO", "tasa_caucion": "K_CAUCION",
+    "cotizacion_dolar": "K_DOLLAR", "precio_accion": "K_SHARE_PRICE", "rendimiento_fci": "K_MONEY_MARKET",
 }
 
 

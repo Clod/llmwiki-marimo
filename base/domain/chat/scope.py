@@ -2,7 +2,7 @@
 
 Pure, config-driven word matching — no LLM, no I/O — used to decide, before (or
 instead of) invoking the model:
-  - `is_off_limits`: does the question mention a term we know we never cover
+  - `is_blacklisted`: does the question mention a term we know we never cover
     (blacklist / "fuera de alcance")? Checked at the top of the flow so such a
     term is refused immediately, before any document search.
   - `mentions_known_data`: does the question mention data we actually have
@@ -41,15 +41,15 @@ def _mentions(question_norm: str, term: str) -> bool:
     return re.search(rf"\b{re.escape(normalized_term)}\b", question_norm) is not None
 
 
-def is_off_limits(question: str, off_limits: Iterable[str]) -> bool:
+def is_blacklisted(question: str, blacklist: Iterable[str]) -> bool:
     """True if the question mentions a blacklisted (never-covered) term."""
-    return off_limits_term(question, off_limits) is not None
+    return blacklist_term(question, blacklist) is not None
 
 
-def off_limits_term(question: str, off_limits: Iterable[str]) -> str | None:
+def blacklist_term(question: str, blacklist: Iterable[str]) -> str | None:
     """The first blacklisted term the question mentions, by whole word, or None."""
     q = _normalize(question)
-    return next((term for term in off_limits if _mentions(q, term)), None)
+    return next((term for term in blacklist if _mentions(q, term)), None)
 
 
 def _mentions_stem(question_stemmed: str, term: str, language: str) -> bool:

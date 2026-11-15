@@ -83,13 +83,13 @@ def test_exit_0_when_every_check_passes(setup, capsys):
 def test_exit_1_when_a_check_that_ran_fails(setup, capsys):
     def outcome(kind, key):
         if key == "declines":
-            return Check(key, False, "the path ends in Q21, not R5")
+            return Check(key, False, "the path ends in Q_SHOWN, not R_MODEL")
         return Check(key, True, "ok")
 
     setup(run=_FakeRun(outcome))
     assert _eval.main([]) == 1
     out = capsys.readouterr().out
-    assert "✗ It declines when the page has no answer: the path ends in Q21, not R5" in out
+    assert "✗ It declines when the page has no answer: the path ends in Q_SHOWN, not R_MODEL" in out
     assert "✗ The model failed 1 of 3 checks (1.5 s)." in out
     assert "VERDICT: ✗ 1 of 4 checks failed." in out
 

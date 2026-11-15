@@ -182,7 +182,7 @@ def _turn(question, output, demo_db):
     async def run_agent(prompt, history):
         return _Result(output)
 
-    cfg = SimpleNamespace(off_limits=["cedear", "cedears"], data_aliases={})
+    cfg = SimpleNamespace(blacklist=["cedear", "cedears"], data_aliases={})
     return asyncio.run(pre_retrieval_answer(
         question, config=cfg, db_path=db_path, workspace=workspace,
         history=[], language="es", run_agent=run_agent,
