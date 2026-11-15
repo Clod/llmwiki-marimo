@@ -158,7 +158,7 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
     """
     # 0. Resolve this wiki's content language once — the single source of truth
     #    for both the localized default suggested_prompts below and the value
-    #    callers (e.g. read_app.py) forward to create_agent() for the chat
+    #    callers (e.g. services/chat.py) forward to create_agent() for the chat
     #    answer-language directive. Handles a missing file/section/key (→ "en")
     #    and malformed TOML (→ "en" + warning) internally.
     language = load_wiki_language(wiki_path)

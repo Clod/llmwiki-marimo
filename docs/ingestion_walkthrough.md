@@ -478,16 +478,14 @@ file directly, which is exactly what the [query
 walkthrough](query_walkthrough.md#what-ticking-the-box-would-cost-here) describes
 happening for questions about the collection as a whole.
 
-### The two applications
+### The web interface
 
-Everything described so far is driven from one of two applications, both built
-with [marimo](https://marimo.io) (a Python notebook framework whose cells re-run
-automatically when their inputs change):
+Everything described so far is driven from the web interface (`web/`):
 
-- **the ingest app** (`marimo/ingest_app.py`) — put documents in, watch pages
-  come out. Everything in this document happens here.
-- **the read app** (`marimo/read_app_tabs.py`) — browse the wiki and chat with
-  it. Everything in the [query walkthrough](query_walkthrough.md) happens there.
+- **the Ingest screen** — put documents in, watch pages come out. Everything in
+  this document happens here.
+- **the reading screen** — browse the wiki and chat with it. Everything in the
+  [query walkthrough](query_walkthrough.md) happens there.
 
 You never have to touch SQLite or git yourself. This document explains them
 anyway, because to judge whether the system can be trusted you have to see what
@@ -636,8 +634,8 @@ Three words from these passes are used throughout the acts:
   it is the call the post-ingest pass makes by default. It is not that the model
   failed or was unavailable — it was deliberately not handed over, so the
   pipeline cannot spend tokens you did not ask it to spend. Asking is one tick:
-  the ingest form carries a checkbox, *"Also run full LLM lint & repair after
-  ingest (slower, uses tokens)"*, and with it ticked that same post-ingest pass
+  the Ingest screen carries a checkbox, *"Full repair with the model,
+  slower"*, and with it ticked that same post-ingest pass
   runs with a model. Two repairs need one (`stale` and `missing_concept`); the
   rest are plain code and run either way. Act 3b shows what the default looks
   like in the log, and covers the other way to supply a model — the wiki-wide
@@ -1261,8 +1259,8 @@ All five skips carry the same message:
 
 ```text
 ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix
-   these: tick "Also run full LLM lint & repair after ingest" before ingesting,
-   or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
+   these: tick "Full repair with the model, slower" before ingesting, or press
+   "Run Wiki Lint & Repair" in Maintain to sweep the whole wiki now.
 ```
 
 Repairing a stale page means rewriting prose, and rewriting prose needs a model —
@@ -1515,11 +1513,6 @@ Everything above is reproducible, not just re-readable:
   sequence — ingest, ingest, re-ingest unchanged, edit and re-ingest, delete —
   against a fresh temporary workspace and regenerates
   [`docs/ingestion_walkthrough_appendix.md`](ingestion_walkthrough_appendix.md).
-- `tests/e2e/test_ingest_app_v2.py` asserts the same sequence end-to-end by
-  driving the real ingest app in a browser (wiki picker, ingest form, Activity
-  Log, vocabulary lint lines, scan idempotency, cross-links) rather than by
-  calling the pipeline functions directly — so it fails if the machinery works
-  but the interface to it does not.
 
 ## Wikis whose facts change
 

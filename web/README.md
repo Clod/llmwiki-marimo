@@ -5,9 +5,6 @@ and streams the chat answers and the progress of long operations as
 Server-Sent Events (SSE). The routes call `base/services/` (`wiki.py`,
 `chat.py`, `ingest.py`) and hold no application logic.
 
-The application replaces the marimo apps as the user interface. `marimo/` stays
-in the repository until its removal is decided separately.
-
 ## Launch
 
 ```
@@ -32,7 +29,7 @@ authentication: it is for one user on one machine.
 | `OCR_BASE_URL`, `OCR_API_KEY`, `OCR_MODEL` | The model of the `vision` engine. Each falls back to its `LLM_*` value. | `base/config.py` |
 | `WIKI_TRACE=1` | Writes the spans of each chat turn and ingestion to `<wiki>/.llmwiki/traces/spans.jsonl`. | `domain/tracing.py` |
 
-The `.env` file at the repository root is read as in the marimo apps.
+The application reads the `.env` file at the repository root.
 
 ## Layout
 

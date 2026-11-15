@@ -58,8 +58,6 @@ uv export --no-dev --no-emit-project -o requirements.txt
 uv run --group web uvicorn web.app:app --port 8765   # then open http://localhost:8765
 ```
 
-The marimo apps in `marimo/` are being retired; new work goes to `web/` (see [`web/README.md`](web/README.md)).
-
 ## Tests
 
 Unit tests use a `FakeLLM` and make **no network calls**; the regression suite replays a frozen golden corpus, also offline — run both before every PR:
@@ -73,8 +71,7 @@ uv run ruff check .
 
 The web tests simulate the model and need no network. The exception is
 `tests/web/e2e/test_lint_live.py`, which calls the model of `.env` and runs only with
-`E2E_FULL=1 uv run --group web pytest -q tests/web/e2e/test_lint_live.py`. The end-to-end tests of the marimo
-apps (`tests/e2e/`) require a real LLM endpoint and are not part of CI.
+`E2E_FULL=1 uv run --group web pytest -q tests/web/e2e/test_lint_live.py`.
 
 CI runs two jobs on every push and PR to `master`: `unit` (the unit and regression suites and
 `ruff`) and `web` (`tests/web`, with Chromium).
@@ -82,15 +79,8 @@ CI runs two jobs on every push and PR to `master`: `unit` (the unit and regressi
 ## Conventions
 
 - **Many small files over few large ones.** Target 200–400 lines, ~800 as a
-  soft ceiling for library/domain modules. The Marimo app files (`marimo/*.py`)
-  are the pragmatic exception — a notebook app is a single cohesive cell graph
-  that doesn't split cleanly across files, so `ingest_app.py` / `read_app.py`
-  run longer by design.
+  soft ceiling for library/domain modules.
 - **Immutability.** Return new objects; don't mutate in place.
-- **Marimo cell granularity.** One concern per cell. Do **not** stack many UI
-  elements in a single cell — marimo re-runs the whole cell on any interaction,
-  which resets sibling widgets and hurts responsiveness. Split UI by interaction
-  concern and use `@app.cell(column=N)` for side-by-side layout.
 - **Handle errors explicitly** and validate input at system boundaries.
 - Keep the developer reference in [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md)
   in sync when you change a workflow.

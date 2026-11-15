@@ -121,9 +121,9 @@ def snapshot(act: str, workspace: Path, db_path: str, log: list[str]) -> Snapsho
 
 def _ingest_like_the_app(fp: Path, workspace: Path, db_path: str, client, model,
                          cb) -> list[str]:
-    """One ingest exactly as `ingest_app.py:ingest_runner` performs it.
+    """One ingest as `services.ingest.ingest_uploads` performs it.
 
-    ingest_file alone is NOT what the product does: the runner follows it with a
+    ingest_file alone is NOT what the product does: the service follows it with a
     lint+repair pass **scoped to the pages this ingest touched** (orphan excluded,
     deterministic — no LLM) and then the cross-link pass. Act 2's cross-references
     only appear because of that tail, so the capture must include it.

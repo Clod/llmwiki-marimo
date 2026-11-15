@@ -129,13 +129,12 @@ no van a ningún servidor del proyecto. 🏷️ *La salvedad honesta: para redac
 *ese texto viaja a la API del proveedor del modelo. Es "local-first", no "100%*  
 *aislado".*
 
-### 13. ¿Por qué una wiki (y notebooks marimo) y no una app cerrada?
+### 13. ¿Por qué una wiki y no una app cerrada?
 
 Porque el valor está en el **conocimiento portable**, no en la interfaz. Las páginas  
 son markdown en git: las leés, buscás, versionás y te las llevás sin depender de  
-nadie. Y la interfaz son notebooks marimo, así que **la abrís y la reordenás**  
-—columnas, celdas— sin tocar código de frontend. Una app cerrada te ata a su forma;  
-esto no.
+nadie. La interfaz web lee esos mismos archivos, así que si dejás de usarla las  
+páginas siguen ahí. Una app cerrada te ata a su forma; esto no.
 
 ---
 

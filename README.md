@@ -236,11 +236,6 @@ web/                    # The web interface: FastAPI + Jinja2 + HTMX (see web/RE
 base/services/          # The calls the web routes make: wiki, chat, ingest, verification, vocabulary, settings
 
 
-marimo/                 # Marimo notebook apps — being retired, kept until their removal
-├── ingest_app.py
-├── read_app_tabs.py
-└── read_app.py
-
 database/
 └── sqlite_schema.sql      # Canonical DB schema
 
@@ -267,7 +262,6 @@ tests/
 ├── regression/            # Frozen golden-corpus tests (real ingest, no live model)
 ├── web/                   # Web interface: routes, rendering, design, Playwright flows (in CI)
 │   └── e2e/               # Playwright flows over a copy of the finance example
-├── e2e/                   # Playwright E2E on the marimo apps (live model; not in CI)
 └── fixtures/              # Test PDFs + wiki config + golden corpus
 
 quickstart.py           # One-command console installer (Python-only; see Quick start)
@@ -639,21 +633,12 @@ uv run --group web pytest -q tests/web                # everything, with the bro
 uv run --group web pytest -q tests/web --ignore=tests/web/e2e   # without a browser
 ```
 
-**3. End-to-end on the marimo apps (live model)** — drives the marimo apps with
-Playwright and needs a configured model. It is not in CI, and it goes away with the
-marimo apps:
-
-```bash
-HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s  # ingest pipeline
-HEADLESS=1 uv run pytest tests/e2e/test_read_app_tabs.py -v -s  # read app (uses the step-1 workspace)
-```
-
 **What CI runs.** `.github/workflows/test.yml` has two jobs on every push and pull request to `master`:
 `unit` runs suite 1 and `ruff check .`; `web` installs the `web` and `dev` groups and Chromium and runs suite 2.
 CI has no LibreOffice, so the tests that convert an office document skip there
 (`tests/unit/test_office_conversion.py`).
 
-**4. Acceptance & model check (manual)** — the human-judgment pass for the things
+**3. Acceptance & model check (manual)** — the human-judgment pass for the things
 assertions can't grade. The full plan is **[`docs/uat_test_plan.md`](docs/uat_test_plan.md)**,
 a user-acceptance test in three parts:
 

@@ -1,5 +1,9 @@
 # Acceptance & Regression Test Plan
 
+> **This document describes the marimo interface of v0.4.0.** The web interface
+> works differently: the mode selector replaces the two checkboxes. The document
+> will be rewritten after the planned changes to the chat.
+
 This is the **user-acceptance test (UAT)** for the wiki, split into two tiers so
 the parts that *can* be regressioned are separated from the parts that need a
 human:

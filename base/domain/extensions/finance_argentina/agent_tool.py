@@ -2,9 +2,10 @@
 
 Composition glue, deliberately kept out of `advisory.py` so the advisory logic
 stays free of PydanticAI. The engine (`domain/chat/agent.py`, `domain/datasets/`)
-never imports this module — the composition root (`read_app.py`) calls
-`activate()` and passes the result through `create_agent(extra_tools=...,
-extra_prompt=...)`. That keeps the engine domain-agnostic.
+never imports this module — the composition root (`services/chat.py`, through
+`domain.extensions.activate_all`) calls `activate()` and passes the result
+through `create_agent(extra_tools=..., extra_prompt=...)`. That keeps the engine
+domain-agnostic.
 
 The tool, its description, and the prompt addendum are all in Spanish: this is an
 Argentine-finance overlay (see docs/design_finance_argentina.md).

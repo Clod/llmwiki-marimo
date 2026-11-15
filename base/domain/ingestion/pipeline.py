@@ -5,7 +5,7 @@ Three public entry points:
   scan_and_ingest()      — scan sources/ for new/modified files
   regenerate_wiki_pages() — regenerate wiki pages without re-extracting
 
-All functions are synchronous — safe to call directly from Marimo cells.
+All functions are synchronous.
 """
 
 import json

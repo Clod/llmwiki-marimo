@@ -1,5 +1,9 @@
 # Query Walkthrough
 
+> **This document describes the marimo interface of v0.4.0.** The web interface
+> works differently: the mode selector replaces the two checkboxes. The document
+> will be rewritten after the planned changes to the chat.
+
 **Read [`ingestion_walkthrough.md`](ingestion_walkthrough.md) first.** It
 explains what a workspace is, how a wiki gets built out of your documents, and
 why a fragment of text is stored the way it is. This document assumes you have

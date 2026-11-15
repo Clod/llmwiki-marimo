@@ -6,11 +6,11 @@ Licensed under the Apache License, Version 2.0 (see LICENSE).
 This project implements the "LLM Wiki" pattern proposed by Andrej Karpathy
 (https://x.com/karpathy/status/2039805659525644595).
 
-It is an independent, local-first implementation built on Marimo + SQLite/FTS5.
+It is an independent, local-first implementation built on a FastAPI web interface + SQLite/FTS5.
 It is not a fork or a port of an existing application: the design and the large
 majority of the code are original to this project, including the chat agent, the
 ingestion-pipeline orchestration, wiki generation, the lint and repair
-subsystems, the ingestion trace, the multi-wiki registry, and the Marimo apps.
+subsystems, the ingestion trace, the multi-wiki registry, and the web interface.
 
 
 Attribution

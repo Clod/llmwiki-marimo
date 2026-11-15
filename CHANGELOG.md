@@ -387,6 +387,28 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   workflows differ. A node that runs in one mode and not in the other shows in
   one row: Q3, the blacklist, runs in the pre-retrieval input workflow only.
 
+### Fixed
+
+- **The repair log names the controls of the web interface.** When the repair
+  after an ingestion skipped a page because no model was supplied, the log said
+  to tick "Also run full LLM lint & repair after ingest". That checkbox exists
+  only in the marimo ingest app. The log now says to tick "Full repair with the
+  model, slower" on the Ingest screen, or to press "Run Wiki Lint & Repair" in
+  Maintain (`base/domain/repair/runner.py`). The test that compared the message
+  with the marimo app now compares it with the templates of the web interface.
+
+### Removed
+
+- **The marimo apps.** `marimo/` (the ingest app, the two read apps, the grid
+  layout and the delete widget), their end-to-end tests in `tests/e2e/`,
+  `scripts/capture_screenshots.py` (screenshots of the marimo read app) and
+  `docs/read_app_tabs_flow.md` (the flow of the marimo read app). The
+  dependencies `marimo`, `anywidget` and `traitlets`, which only `marimo/`
+  imported, left `pyproject.toml`, `uv.lock` and `requirements.txt`. The
+  documents, the docstrings and the issue templates stop describing marimo as
+  current. `v0.4.0` remains the last release with the marimo interface; the
+  note of the README that sends to it stays.
+
 ## [0.6.5] - 2026-11-06
 
 ### Fixed

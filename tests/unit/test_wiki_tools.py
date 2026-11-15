@@ -202,7 +202,7 @@ def test_agent_has_only_read_tools_no_autonomous_save() -> None:
     """The agent is built with read-only tools and CANNOT write wiki pages itself.
 
     Product decision — creating/updating a wiki page is the user's explicit action
-    via the "Save to wiki" form (read_app.py → save_to_wiki). This guards against
+    via "Save to wiki" in the web interface (services/chat.py → save_to_wiki). This guards against
     re-registering an autonomous write tool (e.g. file_to_wiki) on the agent.
     """
     from domain.chat.agent import create_agent
@@ -232,7 +232,7 @@ def test_system_prompt_contains_routing_instructions() -> None:
 def test_system_prompt_directs_save_to_the_form_not_autonomous() -> None:
     """Contract: on a save request the agent proposes a title/category and points the
     user at the Save form — it never claims to write pages itself. Guards the
-    user-controlled save flow (read_app.py 'Save last response to wiki' form)."""
+    user-controlled save flow ("Save to wiki" in the web interface)."""
     from domain.prompts import load_prompt
 
     _DEFAULT_SYSTEM_PROMPT = load_prompt("system_prompt", "en")

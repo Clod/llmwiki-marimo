@@ -22,4 +22,4 @@ What you expected instead.
 - llmwiki commit (`git rev-parse --short HEAD`):
 
 **Logs / output**
-Run with `WIKI_DEBUG=1` and paste the relevant output. **Redact any API keys.**
+Paste the relevant output of the server console. **Redact any API keys.**

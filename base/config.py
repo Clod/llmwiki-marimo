@@ -1,10 +1,10 @@
-"""Standalone settings for the marimo apps and the ingestion/chat domain.
+"""Standalone settings for the web interface and the ingestion/chat domain.
 
 Self-contained: nothing else in `base/` depends on app wiring, so the pipeline
 and chat agent can be driven directly (tests, scripts) with just these settings.
 
 `.env` is resolved to an absolute path off the project root, so the apps read the
-same config regardless of the working directory marimo is launched from.
+same config regardless of the working directory the server is launched from.
 
 No provider, model, or endpoint is hardcoded — every LLM value comes from the
 environment (see `.env.example`). Blanks are left blank on purpose; the caller
@@ -29,13 +29,13 @@ class Settings(BaseSettings):
     # Default wiki opened on launch; the apps' picker can switch it at runtime.
     WIKI_PATH: str = "."
 
-    # Chat LLM (read_app). Also the fallback for the WIKI_LLM_* group below.
+    # Chat LLM. Also the fallback for the WIKI_LLM_* group below.
     LLM_BASE_URL: str = ""
     LLM_API_KEY: str = ""
     LLM_MODEL: str = ""
 
-    # Wiki-generation LLM (ingest_app). Each value falls back to its LLM_*
-    # counterpart when blank — see ingest_app's setup cell.
+    # Wiki-generation LLM (ingestion). Each value falls back to its LLM_*
+    # counterpart when blank (`WebSettings.from_env`, web/settings.py).
     WIKI_LLM_BASE_URL: str = ""
     WIKI_LLM_API_KEY: str = ""
     WIKI_LLM_MODEL: str = ""
@@ -63,10 +63,10 @@ class Settings(BaseSettings):
     OCR_MODEL: str = ""
 
     # Note: a few runtime toggles documented in .env.example — WIKI_HOME,
-    # WIKI_AUTOCOMMIT, WIKI_DEBUG, WIKI_TRACE — are intentionally NOT modelled
-    # here. The marimo apps read them ad hoc via os.environ.get() (workspace
-    # discovery, autocommit, debug logging, trace capture) rather than through
-    # pydantic-settings, so they live outside this Settings class by design.
+    # WIKI_AUTOCOMMIT, WIKI_TRACE — are not modelled here. The code that uses
+    # each one reads it with os.environ.get() (workspace discovery in
+    # domain/wiki_registry.py, autocommit in domain/tools/git_ops.py, trace
+    # capture in domain/tracing.py), so they live outside this Settings class.
 
 
 settings = Settings()

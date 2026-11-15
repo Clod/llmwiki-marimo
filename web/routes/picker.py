@@ -156,7 +156,7 @@ def browse_mkdir(request: Request, parent: str = Form(...), name: str = Form("")
 @router.post("/open")
 def open_path(path: str = Form(...), create: bool = Form(False), language: str = Form(""),
               state: AppState = Depends(get_state)):
-    """Add a wiki folder to the recent list the marimo apps share, then open it.
+    """Add a wiki folder to the recent list, then open it.
 
     A folder without a wiki (`is_wiki_dir`) is turned into one only with `create`,
     the confirmation of the folder browser: the wiki is created here, before the

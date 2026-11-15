@@ -1,1 +1,1 @@
-"""Application services: the logic every user interface calls (marimo apps, web)."""
+"""Application services: the logic the web interface and the scripts call."""

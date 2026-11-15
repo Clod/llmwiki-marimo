@@ -238,11 +238,6 @@ web/                    # La interfaz web: FastAPI + Jinja2 + HTMX (ver web/READ
 base/services/          # Las llamadas que hacen las rutas web: wiki, chat, ingest, verification, vocabulary, settings
 
 
-marimo/                 # Apps de marimo — en retirada, se conservan hasta su eliminación
-├── ingest_app.py
-├── read_app_tabs.py
-└── read_app.py
-
 database/
 └── sqlite_schema.sql      # Esquema canónico de la BD
 
@@ -269,7 +264,6 @@ tests/
 ├── regression/            # Pruebas congeladas de corpus dorado (ingesta real, sin modelo en vivo)
 ├── web/                   # Interfaz web: rutas, renderizado, diseño, flujos con Playwright (en CI)
 │   └── e2e/               # Flujos con Playwright sobre una copia del ejemplo de finanzas
-├── e2e/                   # E2E con Playwright sobre las apps de marimo (modelo en vivo; no en CI)
 └── fixtures/              # PDFs de prueba + config de wiki + corpus dorado
 
 quickstart.py           # Instalador de consola de un comando (solo Python; ver Inicio rápido)
@@ -644,21 +638,12 @@ uv run --group web pytest -q tests/web                # todo, con los flujos del
 uv run --group web pytest -q tests/web --ignore=tests/web/e2e   # sin navegador
 ```
 
-**3. Extremo a extremo sobre las apps de marimo (modelo en vivo)** — maneja las apps de marimo con
-Playwright y necesita un modelo configurado. No está en CI y desaparece con las
-apps de marimo:
-
-```bash
-HEADLESS=1 uv run pytest tests/e2e/test_ingest_app_v2.py -v -s  # pipeline de ingesta
-HEADLESS=1 uv run pytest tests/e2e/test_read_app_tabs.py -v -s  # app de lectura (usa el workspace del paso 1)
-```
-
 **Qué ejecuta CI.** `.github/workflows/test.yml` tiene dos trabajos en cada push y pull request hacia `master`:
 `unit` ejecuta la suite 1 y `ruff check .`; `web` instala los grupos `web` y `dev` y Chromium, y ejecuta la suite 2.
 CI no tiene LibreOffice, así que las pruebas que convierten un documento de office se omiten ahí
 (`tests/unit/test_office_conversion.py`).
 
-**4. Aceptación y comprobación del modelo (manual)** — la pasada de juicio humano para lo
+**3. Aceptación y comprobación del modelo (manual)** — la pasada de juicio humano para lo
 que las aserciones no pueden calificar. El plan completo es **[`docs/uat_test_plan.md`](docs/uat_test_plan.md)**,
 una prueba de aceptación de usuario en tres partes:
 

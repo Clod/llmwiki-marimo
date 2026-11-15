@@ -15,4 +15,4 @@ What you'd like to see.
 Other approaches you thought about.
 
 **Scope**
-Which part does this touch — ingestion, chat, the wiki format, lint/repair, or the Marimo apps?
+Which part does this touch — ingestion, chat, the wiki format, lint/repair, or the web interface?

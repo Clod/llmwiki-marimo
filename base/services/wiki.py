@@ -1,6 +1,6 @@
 """Opening a wiki and working with its pages, for any user interface.
 
-The marimo apps and the web application call these functions; neither holds
+The web application and the scripts call these functions; neither holds
 this logic itself. A `Wiki` is the resolved, validated handle every other
 service takes.
 """
