@@ -18,8 +18,8 @@ from domain.chat.workflow import catalog, input_checks, output_checks
 WORKFLOWS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Input, pre-retrieval", input_checks.PRE_RETRIEVAL_NODES),
     ("Output, pre-retrieval", output_checks.PRE_RETRIEVAL_NODES),
-    ("Input, strict", input_checks.STRICT_NODES),
-    ("Output, strict", output_checks.STRICT_NODES),
+    ("Input, agent", input_checks.AGENT_NODES),
+    ("Output, agent", output_checks.AGENT_NODES),
 )
 
 _HEADER = """\
@@ -30,7 +30,7 @@ each workflow declares (`base/domain/chat/workflow/table.py`). Do not edit it by
 hand: the test `tests/unit/test_workflow_nodes_doc.py` fails when the file
 differs from the lists.
 
-The chat runs four workflows. The pre-retrieval mode and the strict mode each
+The chat runs four workflows. The pre-retrieval mode and the agent mode each
 have an input workflow, which builds the history and checks the question, and an
 output workflow, which checks the answer. Each row is a node of the catalog
 (`base/domain/chat/workflow/catalog.py`), and each column says whether the
@@ -38,7 +38,7 @@ workflow runs the node. What each node does is in
 [`query_nodes.md`](query_nodes.md).
 
 The calls to the model run between the two workflows of a mode, outside both:
-T_AGENT in the strict mode, and Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS in the pre-retrieval mode. The streaming
+T_AGENT in the agent mode, and Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS in the pre-retrieval mode. The streaming
 mode has no workflows: it records C_COUNT_HISTORY, C_WHICH_MODE, F_AGENT and F_COMPLETE and runs no check.
 """
 

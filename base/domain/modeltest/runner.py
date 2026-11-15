@@ -125,7 +125,7 @@ def test_reading(base_url: str, api_key: str, model: str, language: str = "en",
     answers:    a question the first page answers, in the pre-retrieval mode. The path
                 ends in Q_SHOWN, and the answer holds the datum and cites the page.
     declines:   a question no page answers, in the pre-retrieval mode. The path ends in R_MODEL.
-    uses_tools: the first question, in the strict mode. The path ends in T_SHOWN and has a K
+    uses_tools: the first question, in the agent mode. The path ends in T_SHOWN and has a K
                 node (a call to a tool), and the answer holds the datum.
     """
     start = time.monotonic()
@@ -153,7 +153,7 @@ async def _reading_checks(wiki: Wiki, m: Material, base_url: str, api_key: str, 
     cases = (
         ("answers", m.answerable, chat_service.PRE_RETRIEVAL),
         ("declines", m.unanswerable, chat_service.PRE_RETRIEVAL),
-        ("uses_tools", m.answerable, chat_service.STRICT),
+        ("uses_tools", m.answerable, chat_service.AGENT),
     )
     checks = []
     for key, question, mode in cases:

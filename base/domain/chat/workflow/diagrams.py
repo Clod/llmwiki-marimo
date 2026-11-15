@@ -24,11 +24,11 @@ WORKFLOWS = (
     ("Pre-retrieval, output", output_checks.graph,
      "The output workflow of the pre-retrieval mode checks the answer of the model, adds the table, "
      "the citations and the warning, and ends in the answer or in a refusal."),
-    ("Strict, input", input_checks.strict_graph,
-     "The input workflow of the strict mode builds the history and the question that the model "
+    ("Agent, input", input_checks.agent_graph,
+     "The input workflow of the agent mode builds the history and the question that the model "
      "receives, and checks nothing in the question."),
-    ("Strict, output", output_checks.strict_graph,
-     "The output workflow of the strict mode checks that a tool returned evidence, adds the table "
+    ("Agent, output", output_checks.agent_graph,
+     "The output workflow of the agent mode checks that a tool returned evidence, adds the table "
      "and the citation, and shows the answer."),
 )
 

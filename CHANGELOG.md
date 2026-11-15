@@ -133,6 +133,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The mode «Agent with evidence check» is named `agent` in the code.** The
+  interface showed «Agent with evidence check», and the code, the trace and the
+  documents called the mode `strict`, a name the interface never shows. In this
+  mode the model searches the wiki with tools. In the pre-retrieval mode, the
+  code searches the wiki before it calls the model. The mode value is now `agent` (`AGENT`,
+  `base/services/chat.py`). The selector sends `agent`, and the trace writes
+  `mode="agent"`. The graphs, the types and the functions follow:
+  `agent_graph`, `AgentTurn`, `AGENT_NODES`, `agent_answer`. The list of the
+  nodes that call the model in the pre-retrieval mode, which was `AGENT_NODES`,
+  is now `AGENT_CALL_NODES`. The node codes do not change: a node can run in
+  more than one mode, so its code names no mode. Traces written before this
+  change keep `mode="strict"`.
+
 - **Each decision of the chat records a node in the trace.** A decision is
   the diamond of a diagram that chooses the next node: after `Q_IN_BLACKLIST`,
   it goes to `R_BLACKLIST` or to `Q_STEM`. `pydantic_graph` calls the

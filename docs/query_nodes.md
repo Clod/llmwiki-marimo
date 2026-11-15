@@ -27,7 +27,7 @@ answer is built from:
 
 - **pre-retrieval**: the code retrieves the text, before the model is called,
   and the code decides whether the question is answered at all (section 2).
-- **strict**: the model retrieves the text, by calling tools, and the code
+- **agent**: the model retrieves the text, by calling tools, and the code
   replaces an answer that no tool supports (section 3).
 - **streaming**: the model retrieves the text, by calling tools, and the answer
   is shown as the model writes the answer. The code changes nothing between the
@@ -40,7 +40,7 @@ The table [`workflow_nodes.md`](workflow_nodes.md) says, for each node of the
 catalog of the chat workflows, which of the four workflows runs the node. The
 table is generated from the code.
 
-The diagrams of the pre-retrieval and strict workflows are generated from the
+The diagrams of the pre-retrieval and agent workflows are generated from the
 code, in [`workflow_diagrams.md`](workflow_diagrams.md). Sections 2 and 3 link
 to those diagrams. In the diagram of section 1, a blue node whose label ends in
 «🤖 model call» is a node where the code sends a request to the model. Every
@@ -72,14 +72,14 @@ position of the question in the conversation), `mode`, `question` and
 ```mermaid
 flowchart TD
     START["a question arrives in the chat"]
-    C_COUNT_HISTORY["C_COUNT_HISTORY · the history of the turn, counted<br/>pre-retrieval and strict: C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history,<br/>nodes of the input workflow<br/>streaming: plain_history, every message as written"]
+    C_COUNT_HISTORY["C_COUNT_HISTORY · the history of the turn, counted<br/>pre-retrieval and agent: C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history,<br/>nodes of the input workflow<br/>streaming: plain_history, every message as written"]
     C_WHICH_MODE{"C_WHICH_MODE · the mode of the turn"}
     P["Q_QUESTION · pre-retrieval, section 2"]
-    S["T_AGENT · strict, section 3<br/>🤖 model call"]
+    S["T_AGENT · agent, section 3<br/>🤖 model call"]
     F["F_AGENT · streaming, section 4<br/>🤖 model call"]
     START --> C_COUNT_HISTORY --> C_WHICH_MODE
     C_WHICH_MODE -->|pre-retrieval| P
-    C_WHICH_MODE -->|strict| S
+    C_WHICH_MODE -->|agent| S
     C_WHICH_MODE -->|streaming| F
     classDef llm fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1f2937
     class S,F llm
@@ -87,14 +87,14 @@ flowchart TD
 
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
-| C_COUNT_HISTORY | Counts the history of the turn: the prior messages, the refused ones that C_DROP_REFUSED removes, and the messages that the model receives. In the pre-retrieval and strict modes, C_COUNT_HISTORY is the first node of the input workflow and counts the history as `model_history` builds the history; C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history, one step per node. In the streaming mode, the model receives every prior message as written (`plain_history`), with no message removed and no line added, and `refused_dropped` is 0 | `base/domain/chat/workflow/catalog.py`, `history_counts`; `base/domain/chat/history.py`, `history_counts`, `model_history`; `base/services/chat.py`, `chat_turn_stream_with_context`, `plain_history` | `prior_messages`, `refused_dropped`, `history_messages` | code |
-| C_WHICH_MODE | Records the mode of the turn. In the pre-retrieval and strict modes, C_WHICH_MODE is the second node of the input workflow; in the streaming mode, `chat_turn_stream_with_context` records C_WHICH_MODE | `base/domain/chat/workflow/catalog.py`, `mode`; `base/services/chat.py`, `chat_turn_with_context`, `chat_turn_stream_with_context` | `mode` | code |
-| C_DROP_REFUSED | Removes from the history every refused answer, with the question that the refused answer answered. A refused first turn leaves the second turn with an empty history. Runs in the input workflows of the pre-retrieval and strict modes | `base/domain/chat/guardrail.py`, `strip_refused_exchanges`; `base/domain/chat/workflow/catalog.py`, `strip_refused` | `refused_dropped` | code |
-| C_DROP_TABLES | Replaces the advisory table of each answer of the history with a placeholder line; the model can call the advisory tool again. Runs in the input workflows of the pre-retrieval and strict modes | `base/domain/chat/history.py`, `compact_tables`; `base/domain/chat/workflow/catalog.py`, `compact_tables` | `compacted` | code |
-| C_TRIM_TURNS | Keeps the last `max_turns` turns of the history, 3 by default. Runs in the input workflows of the pre-retrieval and strict modes | `base/domain/chat/history.py`, `cap_turns`, `DEFAULT_MAX_TURNS`; `base/domain/chat/workflow/catalog.py`, `trim_turns` | `trimmed`, `max_turns` | code |
-| C_ORIGIN_LINES | Builds the history that the model receives; an answer that read data ends with its origin line, which names the dataset or the tool that the figures came from. Runs in the input workflows of the pre-retrieval and strict modes | `base/domain/chat/history.py`, `with_origin_lines`, `data_origin`; `base/domain/chat/workflow/catalog.py`, `origin_lines` | `origin_lines`, `history_messages` | code |
-| C_FIGURES | The figure check: classifies every figure of the prose as exact, rounded or unsupported, against the numbers of the passages of the turn, the advisory table, the messages of the user and the passages of the earlier answers. The figures of the advisory table, of the note above it, of the citation lines and of the Tier-2 warning are not checked. When the prose has rounded figures, a fixed note is appended. The text of the model is not edited. C_FIGURES runs in the pre-retrieval mode, before Q_SHOWN, and in the strict mode, before T_SHOWN. C_FIGURES does not run in the streaming mode. A refusal does not reach C_FIGURES | `base/domain/chat/figure_check.py`, `check_answer`, `appended_spans`; `base/domain/verify/figures.py`, `check_figures`; `base/domain/chat/workflow/catalog.py`, `figures`; `base/services/chat.py`, `check_turn_figures` | `figures_checked`, `figures_unsupported`, `figures_rounded`, `note_added` | code |
-| C_OPEN_PAGE_NOTE | Precedes the question with a note that names the page the user is reading, so that a question that names no topic is read as a question about that page. In the pre-retrieval mode, the note names the page only when Q_PAGE_OPEN found the page; in the strict mode, the note names the open page without checking that the page exists. Runs in the input workflows of the pre-retrieval and strict modes; the streaming mode adds the same note with no node | `base/domain/chat/preretrieval.py`, `with_open_page`; `base/domain/chat/workflow/catalog.py`, `open_page_note` | `answer`, `page` | code |
+| C_COUNT_HISTORY | Counts the history of the turn: the prior messages, the refused ones that C_DROP_REFUSED removes, and the messages that the model receives. In the pre-retrieval and agent modes, C_COUNT_HISTORY is the first node of the input workflow and counts the history as `model_history` builds the history; C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history, one step per node. In the streaming mode, the model receives every prior message as written (`plain_history`), with no message removed and no line added, and `refused_dropped` is 0 | `base/domain/chat/workflow/catalog.py`, `history_counts`; `base/domain/chat/history.py`, `history_counts`, `model_history`; `base/services/chat.py`, `chat_turn_stream_with_context`, `plain_history` | `prior_messages`, `refused_dropped`, `history_messages` | code |
+| C_WHICH_MODE | Records the mode of the turn. In the pre-retrieval and agent modes, C_WHICH_MODE is the second node of the input workflow; in the streaming mode, `chat_turn_stream_with_context` records C_WHICH_MODE | `base/domain/chat/workflow/catalog.py`, `mode`; `base/services/chat.py`, `chat_turn_with_context`, `chat_turn_stream_with_context` | `mode` | code |
+| C_DROP_REFUSED | Removes from the history every refused answer, with the question that the refused answer answered. A refused first turn leaves the second turn with an empty history. Runs in the input workflows of the pre-retrieval and agent modes | `base/domain/chat/guardrail.py`, `strip_refused_exchanges`; `base/domain/chat/workflow/catalog.py`, `strip_refused` | `refused_dropped` | code |
+| C_DROP_TABLES | Replaces the advisory table of each answer of the history with a placeholder line; the model can call the advisory tool again. Runs in the input workflows of the pre-retrieval and agent modes | `base/domain/chat/history.py`, `compact_tables`; `base/domain/chat/workflow/catalog.py`, `compact_tables` | `compacted` | code |
+| C_TRIM_TURNS | Keeps the last `max_turns` turns of the history, 3 by default. Runs in the input workflows of the pre-retrieval and agent modes | `base/domain/chat/history.py`, `cap_turns`, `DEFAULT_MAX_TURNS`; `base/domain/chat/workflow/catalog.py`, `trim_turns` | `trimmed`, `max_turns` | code |
+| C_ORIGIN_LINES | Builds the history that the model receives; an answer that read data ends with its origin line, which names the dataset or the tool that the figures came from. Runs in the input workflows of the pre-retrieval and agent modes | `base/domain/chat/history.py`, `with_origin_lines`, `data_origin`; `base/domain/chat/workflow/catalog.py`, `origin_lines` | `origin_lines`, `history_messages` | code |
+| C_FIGURES | The figure check: classifies every figure of the prose as exact, rounded or unsupported, against the numbers of the passages of the turn, the advisory table, the messages of the user and the passages of the earlier answers. The figures of the advisory table, of the note above it, of the citation lines and of the Tier-2 warning are not checked. When the prose has rounded figures, a fixed note is appended. The text of the model is not edited. C_FIGURES runs in the pre-retrieval mode, before Q_SHOWN, and in the agent mode, before T_SHOWN. C_FIGURES does not run in the streaming mode. A refusal does not reach C_FIGURES | `base/domain/chat/figure_check.py`, `check_answer`, `appended_spans`; `base/domain/verify/figures.py`, `check_figures`; `base/domain/chat/workflow/catalog.py`, `figures`; `base/services/chat.py`, `check_turn_figures` | `figures_checked`, `figures_unsupported`, `figures_rounded`, `note_added` | code |
+| C_OPEN_PAGE_NOTE | Precedes the question with a note that names the page the user is reading, so that a question that names no topic is read as a question about that page. In the pre-retrieval mode, the note names the page only when Q_PAGE_OPEN found the page; in the agent mode, the note names the open page without checking that the page exists. Runs in the input workflows of the pre-retrieval and agent modes; the streaming mode adds the same note with no node | `base/domain/chat/preretrieval.py`, `with_open_page`; `base/domain/chat/workflow/catalog.py`, `open_page_note` | `answer`, `page` | code |
 
 ## 2. Pre-retrieval
 
@@ -197,7 +197,7 @@ node that two workflows use is the same function in both workflows.
   `PreRetrievalTurn` of the input workflow.
 
 Each workflow declares the list of the catalog nodes that the workflow runs
-(`PRE_RETRIEVAL_NODES`, `STRICT_NODES`). The table
+(`PRE_RETRIEVAL_NODES`, `AGENT_NODES`). The table
 [`workflow_nodes.md`](workflow_nodes.md) is generated from those lists.
 
 | ID | What it does | Code | Trace | Status |
@@ -251,21 +251,21 @@ Each workflow declares the list of the catalog nodes that the workflow runs
 | R_MODEL | Refusal of cause 5: the model refused with the fixed sentence; the refusal keeps the text of the model, which states the cause, and adds the suggestions | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/catalog.py`, `refuse_model` | `cause`, `final_answer`, `suggestions` | code |
 | S | Builds the suggestions of a refusal from the coverage roster or from the wiki search | `base/domain/chat/refusal.py`, `roster_suggestions`, `search_suggestions` | none: the result of S is the `suggestions` attribute of the R record | code |
 
-## 3. Strict
+## 3. Agent
 
-In the strict mode the model receives the question and the history, and decides
+In the agent mode the model receives the question and the history, and decides
 which tools to call (section 5). After the model answers, the code checks that a
 tool returned evidence.
 
-The strict mode has two workflows too, with the call to the model, T_AGENT, between
+The agent mode has two workflows too, with the call to the model, T_AGENT, between
 them. `chat_turn_with_context` (`base/services/chat.py`) runs both workflows.
 
-- **The input workflow**, `strict_graph` in
+- **The input workflow**, `agent_graph` in
   `base/domain/chat/workflow/input_checks.py`, runs C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES and C_OPEN_PAGE_NOTE
   (section 1). The input workflow builds the history and the question that the
   model receives, and checks nothing in the question. Its state is a
-  `StrictTurn`.
-- **The output workflow**, `strict_graph` in
+  `AgentTurn`.
+- **The output workflow**, `agent_graph` in
   `base/domain/chat/workflow/output_checks.py`, runs T_TOOL_EVIDENCE, T_GUARDRAIL, the additions T_ADVISORY_TABLE
   to T_MARK_UNCITED, the figure check C_FIGURES and T_SHOWN. Its state is the `AnswerChecks` of the
   answer, with no `PreRetrievalTurn`.
@@ -274,8 +274,8 @@ C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_OR
 pre-retrieval mode.
 
 The diagrams of the two workflows of this mode are generated from the graphs:
-the input workflow in [Strict, input](workflow_diagrams.md#strict-input) and
-the output workflow in [Strict, output](workflow_diagrams.md#strict-output).
+the input workflow in [Agent, input](workflow_diagrams.md#agent-input) and
+the output workflow in [Agent, output](workflow_diagrams.md#agent-output).
 The generated diagrams do not show T_AGENT, the call to the model, which runs
 between the two workflows. In T_AGENT the model runs with the wiki tools and the data
 tools of section 5. Two nodes of the output workflow write a fixed text:
@@ -290,10 +290,10 @@ tools of section 5. Two nodes of the output workflow write a fixed text:
 | T_AGENT | The model runs with the question, the history and the tools, and writes the answer | `base/services/chat.py`, `chat_turn_with_context`; `base/domain/chat/agent.py`, `create_agent` | `tools_called`, `raw_output` | code |
 | T_TOOL_EVIDENCE | Asks whether a tool return of the run carries evidence: a return that is not empty and is not one of the "nothing found" sentences of the tools | `base/domain/chat/guardrail.py`, `has_grounding`, `_is_substantive`; `base/domain/chat/workflow/catalog.py`, `evidence` | `answer` | code |
 | T_GUARDRAIL | Replaces the answer by the guardrail refusal of the wiki's language | `base/domain/chat/guardrail.py`, `enforce_grounding`, `refusal_for`; `base/domain/chat/workflow/catalog.py`, `guardrail` | `final_answer` | code |
-| T_ADVISORY_TABLE | Appends the advisory table when the advisory tool returned one; no change on a refusal | `base/domain/chat/postprocess.py`, `answer_with_table`; `base/domain/chat/workflow/catalog.py`, `strict_table` | `table_added` | code |
-| T_CITE_TOOLS | Adds the citation of the tools that the model used. The index and the overview of the wiki are not cited: the model reads them to find the page that answers | `base/domain/chat/postprocess.py`, `ensure_citation`; `base/domain/chat/workflow/catalog.py`, `strict_citation` | `citation_added` | code |
+| T_ADVISORY_TABLE | Appends the advisory table when the advisory tool returned one; no change on a refusal | `base/domain/chat/postprocess.py`, `answer_with_table`; `base/domain/chat/workflow/catalog.py`, `agent_table` | `table_added` | code |
+| T_CITE_TOOLS | Adds the citation of the tools that the model used. The index and the overview of the wiki are not cited: the model reads them to find the page that answers | `base/domain/chat/postprocess.py`, `ensure_citation`; `base/domain/chat/workflow/catalog.py`, `agent_citation` | `citation_added` | code |
 | T_MARK_UNCITED | An answer that still cites nothing (no page read, no data queried, no source named) gets the line `Referencia: ninguna (…)`. A refusal, of T_GUARDRAIL or of the model, is left as it is | `base/domain/chat/postprocess.py`, `mark_uncited`; `base/domain/chat/refusal.py`, `is_refusal`; `base/domain/chat/workflow/catalog.py`, `uncited_mark` | `uncited_marked` | code |
-| T_SHOWN | Shows the answer | `base/services/chat.py`, `chat_turn_with_context`; `base/domain/chat/workflow/catalog.py`, `strict_answer` | `final_answer`, `refusal_substituted` | code |
+| T_SHOWN | Shows the answer | `base/services/chat.py`, `chat_turn_with_context`; `base/domain/chat/workflow/catalog.py`, `agent_answer` | `final_answer`, `refusal_substituted` | code |
 
 ## 4. Streaming
 
@@ -307,7 +307,7 @@ answer. The code changes nothing between the user and the agent:
   token limit of the model.
 - **The question**: the model receives the question as written. When the user
   reads a wiki page, the question is preceded by the note that names the page
-  (`with_open_page`), as in the strict mode.
+  (`with_open_page`), as in the agent mode.
 - **The answer**: the user sees the text of the model. No check runs on the
   answer: the figure check C_FIGURES does not run, and no line is appended.
 
@@ -325,7 +325,7 @@ flowchart TD
 
 ## 5. Tools
 
-The tools that the model calls. The strict mode (T_AGENT) and the streaming mode (F_AGENT)
+The tools that the model calls. The agent mode (T_AGENT) and the streaming mode (F_AGENT)
 register the wiki tools (K_READ_PAGE, K_SEARCH_WIKI and K_SEARCH_SOURCES) and the data tools; the pre-retrieval mode
 (Q_AGENT_TOOLS) registers only the data tools, because in the pre-retrieval mode the code
 searches the wiki.

@@ -1,6 +1,6 @@
 """The passages a chat run read, taken from the tool returns of its messages.
 
-The strict and streaming modes give the model tools. Each `ToolReturnPart` of
+The agent and streaming modes give the model tools. Each `ToolReturnPart` of
 `result.all_messages()` whose call succeeded (`guardrail.is_tool_result`) is
 text the model read. This module turns those parts into `ContextPassage` values
 with the page each comes from. It does not read the trace.

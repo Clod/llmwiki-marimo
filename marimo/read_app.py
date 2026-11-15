@@ -352,12 +352,12 @@ def chat_panel(chat_agents, grounding_flag, wiki, wiki_chat_config):
         #   OFF -> normal: stream token-by-token (original UX), no gating.
         # Strict+streaming is incoherent, so the two move together by necessity.
         # The turn itself runs in services/chat.py; this cell only picks the mode.
-        from services.chat import PRE_RETRIEVAL, STRICT, chat_turn, chat_turn_stream
+        from services.chat import AGENT, PRE_RETRIEVAL, chat_turn, chat_turn_stream
 
         if grounding_flag.get("pre_retrieval"):
             _mode = PRE_RETRIEVAL
         elif grounding_flag["strict"]:
-            _mode = STRICT
+            _mode = AGENT
         else:
             _mode = None
         if _mode is not None:

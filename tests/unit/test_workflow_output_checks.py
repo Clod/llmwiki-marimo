@@ -2,7 +2,7 @@
 its own with answers written by hand, with no agent and no database.
 
 Pre-retrieval: each refusal of the answer (R_UNSUPPORTED, R_NO_EVIDENCE, R_MODEL) and each answer that is
-shown (Tier 1, Tier 2 with the warning, a data question with evidence). Strict:
+shown (Tier 1, Tier 2 with the warning, a data question with evidence). Agent:
 an answer with evidence and an answer without.
 """
 
@@ -54,9 +54,9 @@ DATA = RetrievalPlan("invoke", None, None, False)
 
 
 def _run(checks):
-    """Run the output workflow of the mode (strict when the state carries no turn);
+    """Run the output workflow of the mode (agent when the state carries no turn);
     return the final answer and the nodes it recorded."""
-    graph = output_checks.strict_graph if checks.turn is None else output_checks.graph
+    graph = output_checks.agent_graph if checks.turn is None else output_checks.graph
 
     async def go():
         with tracing.collect() as path:
@@ -67,7 +67,7 @@ def _run(checks):
 
 def test_graph_has_no_instrumentation():
     assert output_checks.graph.auto_instrument is False
-    assert output_checks.strict_graph.auto_instrument is False
+    assert output_checks.agent_graph.auto_instrument is False
 
 
 def test_tier1_answer_is_shown():
@@ -149,7 +149,7 @@ def test_model_refusal_ends_in_r5():
     assert raw in out
 
 
-def test_strict_answer_with_evidence():
+def test_agent_answer_with_evidence():
     checks = AnswerChecks("El dólar blue está a 1200.", _evidence(), "es")
     out, path = _run(checks)
     assert path == ["T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
@@ -157,7 +157,7 @@ def test_strict_answer_with_evidence():
     assert out.startswith("El dólar blue está a 1200.")
 
 
-def test_strict_answer_without_evidence_is_replaced():
+def test_agent_answer_without_evidence_is_replaced():
     checks = AnswerChecks("Inventado.", [], "es")
     out, path = _run(checks)
     assert path == ["T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "T_SHOWN"]
@@ -166,7 +166,7 @@ def test_strict_answer_without_evidence_is_replaced():
 
 
 def test_render_names_the_nodes():
-    diagram = output_checks.graph.render() + output_checks.strict_graph.render()
+    diagram = output_checks.graph.render() + output_checks.agent_graph.render()
     for node in ("Q_IS_GROUNDED", "Q_SOURCE_WARNING", "Q_TOOL_EVIDENCE", "Q_MODEL_REFUSED", "Q_SHOWN", "R_UNSUPPORTED", "R_NO_EVIDENCE", "R_MODEL", "T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_ADVISORY_TABLE", "T_SHOWN", "C_FIGURES"):
         assert node in diagram
 
@@ -181,7 +181,7 @@ SEARCH = "[wiki/concepts/cauciones-bursatiles.md] Cauciones\nUna caución es un 
 READ = "[wiki page: wiki/concepts/cauciones-bursatiles.md]\n\n# Cauciones\nUna caución es un préstamo."
 
 
-def test_strict_answer_from_a_search_only_is_marked_uncited():
+def test_agent_answer_from_a_search_only_is_marked_uncited():
     """A search result counts as evidence (T_TOOL_EVIDENCE) but is not cited (buscar ≠ usar):
     the answer is delivered with the note, not refused."""
     checks = AnswerChecks("Una caución es un préstamo.", _returns("search_wiki_fts", SEARCH), "es")
@@ -192,14 +192,14 @@ def test_strict_answer_from_a_search_only_is_marked_uncited():
                         "leída ni en ningún dato consultado)")
 
 
-def test_strict_answer_from_a_read_page_is_cited_not_marked():
+def test_agent_answer_from_a_read_page_is_cited_not_marked():
     checks = AnswerChecks("Una caución es un préstamo.", _returns("read_wiki_page", READ), "es")
     out, _ = _run(checks)
     assert out.endswith("Referencia: cauciones-bursatiles.md")
     assert "Referencia: ninguna" not in out
 
 
-def test_strict_refusal_is_not_marked():
+def test_agent_refusal_is_not_marked():
     checks = AnswerChecks("Inventado.", [], "es")
     out, _ = _run(checks)
     assert out == REFUSAL_ES

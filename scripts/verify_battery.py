@@ -43,7 +43,7 @@ from domain.verify import FakeVerifier, verify_answer  # noqa: E402
 from domain.verify.core import DEFAULT_THRESHOLD  # noqa: E402
 from services import chat  # noqa: E402
 
-MODES = (chat.PRE_RETRIEVAL, chat.STRICT, chat.STREAMING)
+MODES = (chat.PRE_RETRIEVAL, chat.AGENT, chat.STREAMING)
 
 
 def read_questions(path: Path) -> list[str]:

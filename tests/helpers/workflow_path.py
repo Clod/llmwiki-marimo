@@ -14,7 +14,7 @@ from domain.chat.workflow import input_checks, output_checks
 
 DECISIONS = frozenset(
     node.id
-    for graph in (input_checks.graph, output_checks.graph, output_checks.strict_graph)
+    for graph in (input_checks.graph, output_checks.graph, output_checks.agent_graph)
     for node in graph.nodes.values()
     if isinstance(node, Decision)
 )

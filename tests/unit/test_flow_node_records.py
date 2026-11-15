@@ -85,14 +85,14 @@ def agents(output, messages=()):
                            agent_pre_retrieval=Agent(output, messages))
 
 
-def test_a_strict_turn_writes_the_nodes_of_the_strict_mode(wiki):
+def test_a_agent_turn_writes_the_nodes_of_the_agent_mode(wiki):
     history = [msg("user", "hi"), msg("assistant", "hello"), msg("user", "Who is Cinderella?")]
     asyncio.run(chat.chat_turn_with_context(
-        wiki, agents("Cinderella lost a slipper.", evidence()), history, mode=chat.STRICT))
+        wiki, agents("Cinderella lost a slipper.", evidence()), history, mode=chat.AGENT))
     rec = records(wiki)
     assert rec["C_COUNT_HISTORY"] == {"node": "C_COUNT_HISTORY", "diagram": "reading", "prior_messages": 2,
                          "refused_dropped": 0, "history_messages": 2}
-    assert rec["C_WHICH_MODE"]["mode"] == "strict"
+    assert rec["C_WHICH_MODE"]["mode"] == "agent"
     assert rec["T_AGENT"]["tools_called"] == ["read_wiki_page"]
     assert rec["T_AGENT"]["raw_output"] == "Cinderella lost a slipper."
     assert rec["T_TOOL_EVIDENCE"]["answer"] is True
@@ -102,9 +102,9 @@ def test_a_strict_turn_writes_the_nodes_of_the_strict_mode(wiki):
     assert rec["T_SHOWN"]["final_answer"].startswith("Cinderella lost a slipper.")
 
 
-def test_a_strict_turn_without_evidence_writes_t3(wiki):
+def test_a_agent_turn_without_evidence_writes_t3(wiki):
     asyncio.run(chat.chat_turn_with_context(
-        wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.STRICT))
+        wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.AGENT))
     rec = records(wiki)
     assert rec["T_TOOL_EVIDENCE"]["answer"] is False
     assert rec["T_GUARDRAIL"]["final_answer"] == rec["T_SHOWN"]["final_answer"]
@@ -117,7 +117,7 @@ def test_c1_counts_the_refused_exchanges_it_dropped(wiki):
     history = [msg("user", "weather?"), msg("assistant", refused),
                msg("user", "a"), msg("assistant", "b"), msg("user", "Who is Cinderella?")]
     asyncio.run(chat.chat_turn_with_context(
-        wiki, agents("Paris."), history, mode=chat.STRICT))
+        wiki, agents("Paris."), history, mode=chat.AGENT))
     c1 = records(wiki)["C_COUNT_HISTORY"]
     assert (c1["prior_messages"], c1["history_messages"]) == (4, c1["prior_messages"] - c1["refused_dropped"])
 

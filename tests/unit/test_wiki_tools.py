@@ -246,7 +246,7 @@ def test_system_prompt_directs_save_to_the_form_not_autonomous() -> None:
     assert "never write to the wiki yourself" in prompt
 
 
-def test_system_prompt_enforces_strict_grounding_and_citations() -> None:
+def test_system_prompt_enforces_agent_grounding_and_citations() -> None:
     """Contract: the default agent is corpus-only and traceable.
 
     Product decision — answers must come from the user's knowledge base (never

@@ -61,7 +61,7 @@ def test_empty_source_is_not_supported():
 
 
 def test_threshold_is_tunable():
-    # With a strict threshold even the faithful answer can fail; with a lenient
+    # With an agent threshold even the faithful answer can fail; with a lenient
     # one it passes — the caller controls how aggressive verification is.
     cov = coverage(CAUCION_ANSWER, CAUCION_SOURCE)
     assert is_supported(CAUCION_ANSWER, CAUCION_SOURCE, min_coverage=cov + 0.01) is False

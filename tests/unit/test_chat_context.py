@@ -98,33 +98,33 @@ def test_a_refusal_made_before_the_model_has_an_empty_context(wiki):
     assert result.context == () and result.generated == ()
 
 
-def test_strict_context_comes_from_the_tool_returns(wiki):
+def test_agent_context_comes_from_the_tool_returns(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper.", tool_messages()), [msg("user", "Who is Cinderella?")],
-        mode=chat.STRICT))
+        mode=chat.AGENT))
     assert [(p.page, p.tool) for p in result.context] == [
         ("/wiki/concepts/cinderella.md", "read_wiki_page"), ("estimar_alternativas", "estimar_alternativas")]
     assert result.answer.startswith("Cinderella lost a slipper.") and "| opción" in result.answer
 
 
-def test_a_strict_refusal_has_an_empty_context(wiki):
+def test_a_agent_refusal_has_an_empty_context(wiki):
     result = run(chat.chat_turn_with_context(
-        wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.STRICT))
+        wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.AGENT))
     assert result.answer == REFUSAL_EN and result.context == ()
 
 
-def test_a_strict_refusal_keeps_what_the_model_wrote(wiki):
+def test_a_agent_refusal_keeps_what_the_model_wrote(wiki):
     """The guardrail replaces an answer no tool supports; the model's text stays in
     `raw_answer`, for the user to audit (the "unverified answer" button)."""
     result = run(chat.chat_turn_with_context(
-        wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.STRICT))
+        wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.AGENT))
     assert result.raw_answer == "Paris."
 
 
 def test_an_answer_shown_as_written_has_no_raw_answer(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper.", tool_messages()), [msg("user", "Who is Cinderella?")],
-        mode=chat.STRICT))
+        mode=chat.AGENT))
     assert result.raw_answer is None
 
 
@@ -171,10 +171,10 @@ def test_pre_retrieval_sums_the_condensation_and_the_answer(wiki):
     assert (result.input_tokens, result.output_tokens) == (300, 25)
 
 
-def test_a_strict_run_reports_its_usage(wiki):
+def test_a_agent_run_reports_its_usage(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper.", tool_messages(), usage=(900, 40)),
-        [msg("user", "Who is Cinderella?")], mode=chat.STRICT))
+        [msg("user", "Who is Cinderella?")], mode=chat.AGENT))
     assert (result.input_tokens, result.output_tokens) == (900, 40)
 
 

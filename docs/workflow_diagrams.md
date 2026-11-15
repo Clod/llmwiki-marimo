@@ -223,9 +223,9 @@ flowchart TD
   Q_SHOWN --> wf_end
 ```
 
-## Strict, input
+## Agent, input
 
-The input workflow of the strict mode builds the history and the question that
+The input workflow of the agent mode builds the history and the question that
 the model receives, and checks nothing in the question.
 
 ```mermaid
@@ -250,9 +250,9 @@ flowchart TD
   C_OPEN_PAGE_NOTE --> wf_end
 ```
 
-## Strict, output
+## Agent, output
 
-The output workflow of the strict mode checks that a tool returned evidence,
+The output workflow of the agent mode checks that a tool returned evidence,
 adds the table and the citation, and shows the answer.
 
 ```mermaid

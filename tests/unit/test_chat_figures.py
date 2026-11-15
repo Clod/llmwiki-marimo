@@ -1,4 +1,4 @@
-"""The figure check in the chat service: `check_turn_figures`, the pre-retrieval and strict
+"""The figure check in the chat service: `check_turn_figures`, the pre-retrieval and agent
 modes, and its absence in the streaming mode.
 The agents are stand-ins; no model is called."""
 
@@ -183,11 +183,11 @@ def c3(result):
 
 # ── the three modes ──────────────────────────────────────────────────────────
 
-def test_strict_returns_the_report_and_appends_the_note_once_after_the_table_and_the_citation(wiki):
+def test_agent_returns_the_report_and_appends_the_note_once_after_the_table_and_the_citation(wiki):
     run_messages = returns(("query_dataset", DATASET), ("estimar_alternativas", ADVISORY))
     result = run(chat.chat_turn_with_context(
         wiki, agents("La tasa ronda 1.200 y no 7.777.", run_messages, "es"),
-        [msg("user", "¿Cuánto rinde el plazo fijo?")], mode=chat.STRICT))
+        [msg("user", "¿Cuánto rinde el plazo fijo?")], mode=chat.AGENT))
     note = get_locale("es").rounded_figures_note.replace("%(pct)s", "5")
     assert result.answer.count(note) == 1 and result.answer.endswith(note)
     assert result.answer.index(ADVISORY.strip()) < result.answer.index("Referencia:") < result.answer.index(note)
@@ -197,16 +197,16 @@ def test_strict_returns_the_report_and_appends_the_note_once_after_the_table_and
     assert chat.figure_counts(result.figures) == dict(figures_checked=2, figures_unsupported=1, figures_rounded=1)
 
 
-def test_strict_without_rounded_figures_adds_no_note(wiki):
+def test_agent_without_rounded_figures_adds_no_note(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("La tasa es 1.187,5.", returns(("query_dataset", DATASET))),
-        [msg("user", "rate?")], mode=chat.STRICT))
+        [msg("user", "rate?")], mode=chat.AGENT))
     assert result.figures.rounded() == () and "approximations" not in result.answer
 
 
-def test_strict_refusal_has_an_empty_report(wiki):
+def test_agent_refusal_has_an_empty_report(wiki):
     result = run(chat.chat_turn_with_context(
-        wiki, agents("Paris has 2.100.000 people."), [msg("user", "capital of France?")], mode=chat.STRICT))
+        wiki, agents("Paris has 2.100.000 people."), [msg("user", "capital of France?")], mode=chat.AGENT))
     assert result.raw_answer is not None
     assert result.figures.findings == ()
 
@@ -238,7 +238,7 @@ def test_streaming_returns_the_text_of_the_agent_with_no_report_and_no_note(wiki
 def test_chat_turn_returns_the_answer_with_the_note(wiki):
     answer = run(chat.chat_turn(
         wiki, agents("About 1.200.", returns(("query_dataset", DATASET))), [msg("user", "rate?")],
-        mode=chat.STRICT))
+        mode=chat.AGENT))
     assert answer.endswith(get_locale("en").rounded_figures_note.replace("%(pct)s", "5"))
 
 
@@ -250,7 +250,7 @@ def test_an_answer_with_the_table_note_marks_no_figure_of_the_note_nor_of_the_ta
     run_messages = returns(("query_dataset", DATASET), ("estimar_alternativas", ADVISORY))
     result = run(chat.chat_turn_with_context(
         wiki, agents("La TEA del plazo fijo es 12.34% y la ganancia ronda $9,500.", run_messages, "es"),
-        [msg("user", "¿Cuánto rinde el plazo fijo?")], mode=chat.STRICT))
+        [msg("user", "¿Cuánto rinde el plazo fijo?")], mode=chat.AGENT))
     unchecked, computed = TABLE_NOTE["es"]
     note_at, table_at = result.answer.index(f"{unchecked} {computed}"), result.answer.index(ADVISORY.strip())
     assert result.answer.index("La TEA") < note_at < table_at         # prose, note, table

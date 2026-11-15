@@ -46,7 +46,7 @@ def test_the_shipped_question_file_has_about_ten_questions(battery):
     assert "DRAFT" in (REPO_ROOT / "scripts" / "verify_battery" / "finanzas-argentinas.txt").read_text(encoding="utf-8")
 
 
-@pytest.mark.parametrize("mode", [chat.PRE_RETRIEVAL, chat.STRICT, chat.STREAMING])
+@pytest.mark.parametrize("mode", [chat.PRE_RETRIEVAL, chat.AGENT, chat.STREAMING])
 async def test_every_mode_is_asked_runs_times_and_verified(battery, wiki, mode):
     agents = make_agents(ANSWER, tool_messages())
     results = await battery.run_battery(
@@ -66,7 +66,7 @@ async def test_a_failing_question_is_recorded_and_the_battery_goes_on(battery, w
             raise RuntimeError("boom")
 
     results = await battery.run_battery(wiki, make_agents(ANSWER, tool_messages()), Broken(),
-                                        ["Who is Cinderella?", "Who is the prince?"], mode=chat.STRICT, runs=1)
+                                        ["Who is Cinderella?", "Who is the prince?"], mode=chat.AGENT, runs=1)
     assert [r["error"] for r in results] == ["RuntimeError: boom"] * 2
 
 

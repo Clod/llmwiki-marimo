@@ -33,7 +33,7 @@ def stream(client, turn_id):
 
 
 @pytest.mark.parametrize("mode, label", [("pre-retrieval", "Recuperación previa"),
-                                         ("strict", "Agente con comprobación de evidencia"),
+                                         ("agent", "Agente con comprobación de evidencia"),
                                          ("streaming", "Sin verificación")])
 def test_the_muted_line_under_an_answer_names_its_mode_and_no_page(client, agents, mode, label):
     # The page the answer cites is a link in the answer; the line under it repeats no page.
@@ -51,7 +51,7 @@ def test_the_muted_line_under_an_answer_names_its_mode_and_no_page(client, agent
 def test_the_line_names_the_mode_used_and_has_no_link_when_nothing_is_cited(client, agents):
     agents.agent.output = "Nothing in the wiki."
     agents.agent.grounded = True
-    final = stream(client, ask(client, mode="strict"))[0][1]
+    final = stream(client, ask(client, mode="agent"))[0][1]
     meta = re.search(r'<div id="meta-\w+" hx-swap-oob="innerHTML">(.*?)</div>', final, re.S).group(1)
     assert meta.strip().startswith("Agente con comprobación de evidencia") and "tokens" in meta
     final = stream(client, ask(client, mode="streaming"))[-2][1]
@@ -59,7 +59,7 @@ def test_the_line_names_the_mode_used_and_has_no_link_when_nothing_is_cited(clie
 
 
 def test_the_answer_bubble_is_followed_by_an_empty_line_for_the_meta(client):
-    response = client.post(f"/w/{WIKI_ID}/chat", data={"message": QUESTION, "mode": "strict", "conversation_id": "c1"})
+    response = client.post(f"/w/{WIKI_ID}/chat", data={"message": QUESTION, "mode": "agent", "conversation_id": "c1"})
     turn = re.search(r'id="answer-(\w+)"', response.text).group(1)
     assert f'<div class="meta" id="meta-{turn}"></div>' in response.text
 
@@ -88,8 +88,8 @@ def test_pre_retrieval_turn_refuses_an_off_scope_question_before_the_model(clien
     assert agents.agent_pre_retrieval.prompts == []
 
 
-def test_strict_turn_without_tool_evidence_is_replaced_by_the_refusal(client, agents):
-    events = stream(client, ask(client, "capital of France?", mode="strict"))
+def test_agent_turn_without_tool_evidence_is_replaced_by_the_refusal(client, agents):
+    events = stream(client, ask(client, "capital of France?", mode="agent"))
     assert REFUSAL_EN in events[0][1]
     assert agents.agent.prompts and agents.agent_pre_retrieval.prompts == []
 
@@ -105,9 +105,9 @@ def test_streaming_turn_sends_raw_chunks_then_the_rendered_answer(client, agents
 
 
 def test_the_open_page_follows_the_question_to_the_model(client, agents):
-    stream(client, ask(client, mode="strict", open_page="concepts/prince"))
+    stream(client, ask(client, mode="agent", open_page="concepts/prince"))
     assert "concepts/prince" in agents.agent.prompts[0] and QUESTION in agents.agent.prompts[0]
-    stream(client, ask(client, mode="strict", open_page="", message="and then?"))
+    stream(client, ask(client, mode="agent", open_page="", message="and then?"))
     assert agents.agent.prompts[1] == "and then?"
 
 
@@ -376,7 +376,7 @@ def test_the_meta_line_ends_with_the_tokens_of_the_turn_and_of_the_conversation(
 
 def test_the_tokens_use_the_separator_of_the_interface_language(en_client, agents):
     agents.agent.tokens = (3877, 40)
-    meta = meta_of(stream(en_client, ask(en_client, mode="strict")))
+    meta = meta_of(stream(en_client, ask(en_client, mode="agent")))
     assert 'turn: 3,917 tokens (input 3,877, output 40) · conversation: 3,917 tokens</span>' in meta
 
 
@@ -406,7 +406,7 @@ def answer_of(events):
     return [data for name, data in events if name == "chunk"][-1]
 
 
-@pytest.mark.parametrize("mode", ["pre-retrieval", "strict"])
+@pytest.mark.parametrize("mode", ["pre-retrieval", "agent"])
 def test_an_invented_figure_is_marked_in_red_with_no_verifier(client, agents, mode):
     agents.agent.output = agents.agent_pre_retrieval.output = INVENTED
     agents.agent.grounded = True
@@ -430,7 +430,7 @@ def test_the_tooltip_names_the_nearest_value_and_its_origin(client, agents):
 def test_a_rounded_figure_is_not_red_and_the_note_ends_the_answer(client, agents):
     agents.agent.output = agents.agent_pre_retrieval.output = "Cinderella lost about 7.800 glass slippers."
     agents.agent.grounded = True
-    for mode in ("pre-retrieval", "strict"):
+    for mode in ("pre-retrieval", "agent"):
         final = answer_of(stream(client, ask(client, "Cinderella lost 7.777 slippers, right?", mode=mode)))
         assert "unsupported-figure" not in final and "sin respaldo" not in final
         # The note is in the language of the wiki content (English here), not of the interface.

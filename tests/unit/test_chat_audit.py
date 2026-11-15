@@ -169,12 +169,12 @@ async def _async(value):
     return value
 
 
-def test_strict_returns_its_path(wiki):
+def test_agent_returns_its_path(wiki):
     result = run(chat.chat_turn_with_context(
-        wiki, agents("Cinderella lost a slipper.", grounded()), [msg("user", "Who is Cinderella?")], mode=chat.STRICT))
+        wiki, agents("Cinderella lost a slipper.", grounded()), [msg("user", "Who is Cinderella?")], mode=chat.AGENT))
     assert ids(result) == ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES", "C_OPEN_PAGE_NOTE", "T_AGENT", "T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
     refused = run(chat.chat_turn_with_context(
-        wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.STRICT))
+        wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.AGENT))
     assert "T_GUARDRAIL" in ids(refused)
 
 
@@ -191,7 +191,7 @@ def test_streaming_returns_its_path(wiki):
 
 def test_two_turns_keep_separate_paths(wiki):
     one = run(chat.chat_turn_with_context(wiki, agents("a", grounded()), [msg("user", "Who is Cinderella?")],
-                                          mode=chat.STRICT))
+                                          mode=chat.AGENT))
     two = run(chat.chat_turn_with_context(wiki, agents("a", grounded()), [msg("user", "Who is Cinderella?")],
-                                          mode=chat.STRICT))
+                                          mode=chat.AGENT))
     assert len(steps(one.path)) == len(steps(two.path)) == 14

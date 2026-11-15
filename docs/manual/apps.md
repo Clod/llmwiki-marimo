@@ -113,7 +113,7 @@ over SSE. The selector **Mode** has three values (`web/deps.py:MODES`):
 | Value | Label | Behaviour |
 | --- | --- | --- |
 | `pre-retrieval` | Pre-retrieval | Code searches the wiki before the model is called and hands over the pages it found. |
-| `strict` | Strict | The model consults the wiki with tools; if it did not, the answer is replaced by a refusal (§15.3). |
+| `agent` | Agent with evidence check | The model consults the wiki with tools; if it did not, the answer is replaced by a refusal (§15.3). |
 | `streaming` | No verification | The answer appears as the model writes it. Code does not check that it comes from the wiki. |
 
 Under each answer, one line names the mode and gives the tokens: "N / M tokens", the tokens of the turn and of the whole conversation, with the
@@ -374,7 +374,7 @@ and run the path of the product on material that ships with the code:
 - **Reading** (`answers`, `declines`, `uses_tools`): three chat turns on a temporary wiki
   of two pages. The first question, in the pre-retrieval mode, must end in node `Q_SHOWN`
   with the datum of the page (`ZK-4471`) and the slug of the page. The second, which no
-  page answers, must end in `R_MODEL`. The first question again, in the strict mode, must
+  page answers, must end in `R_MODEL`. The first question again, in the agent mode, must
   end in `T_SHOWN`, with a node `K` (a call to a tool) in the path and the datum in the
   answer.
 - **Ingestion** (`ingests`): the ingestion of a `.md` of one paragraph into a temporary
@@ -707,10 +707,10 @@ substantive content (`has_grounding`); otherwise `enforce_grounding` replaces th
 answer with a language-appropriate refusal (`REFUSAL_ES`/`REFUSAL_EN`: "I could not
 back this answer with a lookup in the wiki in this turn."). It catches answers the
 model leaks despite the system prompt (general knowledge on "related" topics). Wired in
-`services.chat.chat_turn` (mode `strict`, chosen with the **Mode** selector of the
+`services.chat.chat_turn` (mode `agent`, chosen with the **Mode** selector of the
 reading screen, §7.2):
 
-- **`strict`** → the agent runs to completion, then the gate applies (refuse if
+- **`agent`** → the agent runs to completion, then the gate applies (refuse if
   ungrounded). The answer is not streamed, because text already shown cannot be
   retracted.
 - **`streaming`** → the whole agent runs, tool calls included
