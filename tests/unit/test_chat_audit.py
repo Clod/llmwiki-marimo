@@ -17,6 +17,7 @@ from domain.chat.scope import matched_terms, mentions_known_data
 from domain.tools.wiki_fs import create_page
 from services import chat
 from services.wiki import open_wiki, save_page
+from tests.helpers.workflow_path import steps
 
 BODY = "Cinderella lost a glass slipper at the royal ball and the prince searched the kingdom. " * 3
 
@@ -130,7 +131,7 @@ def grounded():
 
 
 def ids(result):
-    return [step["node"] for step in result.path]
+    return steps(result.path)
 
 
 def run(coro):
@@ -193,4 +194,4 @@ def test_two_turns_keep_separate_paths(wiki):
                                           mode=chat.STRICT))
     two = run(chat.chat_turn_with_context(wiki, agents("a", grounded()), [msg("user", "Who is Cinderella?")],
                                           mode=chat.STRICT))
-    assert len(one.path) == len(two.path) == 14
+    assert len(steps(one.path)) == len(steps(two.path)) == 14

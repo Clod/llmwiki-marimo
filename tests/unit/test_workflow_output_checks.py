@@ -20,6 +20,7 @@ from domain.chat.preretrieval import PreRetrievalTurn, RetrievalPlan
 from domain.chat.refusal import fixed_sentence
 from domain.chat.workflow import output_checks
 from domain.chat.workflow.output_checks import AnswerChecks
+from tests.helpers.workflow_path import steps
 
 CFG = SimpleNamespace(blacklist=[], data_aliases={})
 FRAGMENT = "[12 Cauciones.docx]\nLa caución bursátil es un préstamo de corto plazo garantizado con títulos."
@@ -60,7 +61,7 @@ def _run(checks):
     async def go():
         with tracing.collect() as path:
             out = await graph.run(state=checks, inputs=checks)
-        return out, [entry["node"] for entry in path]
+        return out, steps(path)
     return asyncio.run(go())
 
 
@@ -75,6 +76,23 @@ def test_tier1_answer_is_shown():
     assert out == "Respuesta."
     assert path == ["Q_MODEL_REFUSED", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "C_FIGURES", "Q_SHOWN"]
     assert traced[0]["refusal_substituted"] is False and traced[0]["final"] == out
+
+
+def test_the_first_decision_records_the_branch_it_chose():
+    """The decision `tier` reads the plan and the sentence verifier; the trace records
+    the branch it chose, and each later decision records its own."""
+    checks = AnswerChecks("Respuesta.", [], "es", turn=_turn(TIER1))
+
+    async def go():
+        with tracing.collect() as path:
+            await output_checks.graph.run(state=checks, inputs=checks)
+        return path
+    decisions = [(e["node"], e["attributes"]["branch"]) for e in asyncio.run(go()) if "branch" in e["attributes"]]
+    assert decisions == [
+        ("tier", "wiki pages or data injected"),
+        ("after_Q_MODEL_REFUSED", "does not open with the fixed refusal sentence"),
+        ("after_Q_CITE_PAGES", "no fragments of the source documents injected"),
+    ]
 
 
 def test_tier2_unsupported_ends_in_r3():

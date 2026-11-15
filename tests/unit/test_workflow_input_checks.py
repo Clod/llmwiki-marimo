@@ -21,6 +21,7 @@ from domain.chat.preretrieval import PreRetrievalTurn
 from domain.chat.workflow import input_checks
 from domain.chat.workflow.input_checks import AgentCall, Refused
 from domain.datasets.models import DatasetRow
+from tests.helpers.workflow_path import steps
 
 CFG = SimpleNamespace(blacklist=["cedear", "cedears"], data_aliases={"dolar": ["billete verde"]})
 
@@ -63,7 +64,7 @@ def _run(turn):
     async def go():
         with tracing.collect() as path:
             out = await input_checks.graph.run(state=turn, inputs=turn)
-        return out, [entry["node"] for entry in path]
+        return out, steps(path)
     return asyncio.run(go())
 
 
@@ -76,6 +77,20 @@ def test_blacklist_ends_after_q3(patched):
     assert isinstance(out, Refused)
     assert out.text.startswith("No puedo responder esta pregunta: menciona «cedears»")
     assert path == HISTORY + ["Q_QUESTION", "Q_NORMALIZE", "Q_IN_BLACKLIST", "R_BLACKLIST"]
+
+
+def test_each_decision_records_the_branch_it_chose(patched):
+    """A decision records a node after the step it follows, with the label of the
+    branch it chose; the audit page shows it as a node of the path."""
+    async def go():
+        with tracing.collect() as path:
+            await input_checks.graph.run(state=turn, inputs=turn)
+        return path
+    turn = _turn("¿qué son los cedears?")
+    path = asyncio.run(go())
+    nodes = [entry["node"] for entry in path]
+    assert nodes[-3:] == ["Q_IN_BLACKLIST", "after_Q_IN_BLACKLIST", "R_BLACKLIST"]
+    assert path[-2]["attributes"] == {"branch": "names a blacklisted term"}
 
 
 def test_blacklisted_rewrite_ends_in_r1(patched):
@@ -216,7 +231,7 @@ def test_workshop_patch_of_collection_intent_changes_the_path(patched):
                     "¿va a llover mañana en Rosario?", config=CFG, db_path="db",
                     workspace=Path("/tmp/wp"), history=[], language="es", run_agent=run_agent,
                 )
-            return out, [entry["node"] for entry in path]
+            return out, steps(path)
         return asyncio.run(go())
 
     _, before = answer()

@@ -47,7 +47,8 @@ def criterion_nodes(path, topics) -> list[dict]:
     for step in path:
         attributes = step["attributes"]
         entry = {"id": step["node"], "text": audit_nodes.text(step["node"]),
-                 "attributes": [(k, _display(v)) for k, v in attributes.items()],
+                 # The branch a decision chose is a label of the diagram, translated as the diagram translates it.
+                 "attributes": [(k, _(v) if k == "branch" else _display(v)) for k, v in attributes.items()],
                  "stemmed": None, "topics": None}
         if step["node"] == "Q_IN_ROSTER":
             entry["stemmed"] = stemmed

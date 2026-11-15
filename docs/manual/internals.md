@@ -309,6 +309,9 @@ sidecar was never written. So `WIKI_TRACE_CAPTURE=none` still lets you verify
   records a decision or a value as a zero-duration span. Both are called
   throughout `chat/preretrieval.py` (e.g. `:363` for `Q_IN_ROSTER`, `:394` for a refusal)
   and `ingestion/pipeline.py` (e.g. `:252` for `I_EXTRACT`, `:300` for `W_INSERT_CHUNKS`).
+  Each decision of the chat graphs calls `tracing.mark` with its id and the
+  label of the branch it chose (`branch="names a blacklisted term"`), through
+  `trace_decisions` (`chat/workflow/catalog.py`).
 - **Transparent client proxy.** `tracing.wrap_openai(client)`
   (`base/domain/tracing.py:345`) returns a client whose `chat.completions.create`
   is a span and whose real response object is returned untouched. It is

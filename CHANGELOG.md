@@ -133,6 +133,47 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **Each decision of the chat records a node in the trace.** A decision is
+  the diamond of a diagram that chooses the next node: after `Q_IN_BLACKLIST`,
+  it goes to `R_BLACKLIST` or to `Q_STEM`. `pydantic_graph` calls the
+  condition of a branch directly, so a decision left no node in the trace
+  and no row in the path of the audit page. Each decision now records its id
+  and the label of the branch it chose, such as
+  `after_Q_IN_BLACKLIST  branch="names a blacklisted term"`
+  (`trace_decisions`, `base/domain/chat/workflow/catalog.py`). The audit page
+  shows the decision with its question and the branch in the interface
+  language.
+
+- **The decisions of the chat are named after the step they follow.** The id
+  of a decision kept the old code of that step, such as `after_Q3`. The id is
+  now `after_` and the new code of the step: `after_Q_IN_BLACKLIST`. The
+  decision after `Q_KEY_ROWS` and `Q_KEY_NAMES` is `after_Q_KEY_LOOKUP`. The
+  decisions `agent` and `tier` keep their ids.
+
+  | Old | New |
+  |---|---|
+  | after_Q3 | `after_Q_IN_BLACKLIST` |
+  | after_Q5a | `after_Q_PAGE_OPEN` |
+  | after_Q5d | `after_Q_RW_ACCEPTED` |
+  | after_Q5e | `after_Q_RW_IN_BLACKLIST` |
+  | after_Q5b | `after_Q_CONDENSED` |
+  | after_Q6 | `after_Q_SEARCH_WIKI` |
+  | after_Q8b | `after_Q_COLLECTION_OPEN_PAGE` |
+  | after_Q7 | `after_Q_PAGE_FOUND` |
+  | after_Q9 | `after_Q_IS_COLLECTION` |
+  | after_Q10 | `after_Q_IS_DATA` |
+  | after_Q11 | `after_Q_FRAGMENT_FOUND` |
+  | after_Q12 | `after_Q_ROSTER_REFUSAL` |
+  | after_Q7a | `after_Q_NAMES_CATEGORY` |
+  | after_Q7b | `after_Q_NAMES_KEY` |
+  | after_Q7cd | `after_Q_KEY_LOOKUP` |
+  | after_Q17 | `after_Q_IS_GROUNDED` |
+  | after_Q19 | `after_Q_TOOL_EVIDENCE` |
+  | after_Q20 | `after_Q_MODEL_REFUSED` |
+  | after_Q20d | `after_Q_CITE_PAGES` |
+  | after_T2 | `after_T_TOOL_EVIDENCE` |
+  | after_T4c | `after_T_MARK_UNCITED` |
+
 - **The nodes of the chat are named by what they do.** A node code was a
   letter and a number, such as `Q21`, and the number no longer gave the order
   of the flow: Q5c to Q5g ran before Q5b. Each code is now the letter of its

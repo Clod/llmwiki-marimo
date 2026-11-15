@@ -22,8 +22,8 @@ from pydantic_graph import Step
 from domain.chat.workflow.node_texts import NODE_TEXTS
 
 # The lines of `graph.render()`: a step (the identifier alone, indented), a decision
-# (`state after_Q3 <<choice>>`), the first line of the note that holds its question
-# (`note right of after_Q3`), and an edge (`after_Q3 --> R_BLACKLIST: names a blacklisted term`).
+# (`state after_Q_IN_BLACKLIST <<choice>>`), the first line of the note that holds its question
+# (`note right of after_Q_IN_BLACKLIST`), and an edge (`after_Q_IN_BLACKLIST --> R_BLACKLIST: names a blacklisted term`).
 _STEP = re.compile(r"^\s+(\w+)$")
 _CHOICE = re.compile(r"^\s*state (\w+) <<choice>>$")
 _NOTE = re.compile(r"^\s*note right of (\w+)$")
