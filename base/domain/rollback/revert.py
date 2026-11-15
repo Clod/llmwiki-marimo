@@ -37,7 +37,8 @@ Progress = Callable[[str], None]
 # Vocabulario screen). A point from before `wiki_config.toml` was tracked does not
 # hold it: going back to that point keeps the current configuration.
 CONFIG = "wiki_config.toml"
-_TRACKED = ("wiki", ".gitignore", CONFIG)
+DATASETS = "datasets"
+_TRACKED = ("wiki", ".gitignore", CONFIG, DATASETS)
 
 
 class RevertError(RuntimeError):
@@ -99,7 +100,7 @@ def resolve(workspace: Path, target: str) -> str:
 
 
 def dirty_files(workspace: Path) -> list[str]:
-    """The files of wiki/, .gitignore and wiki_config.toml that differ from HEAD, untracked ones included."""
+    """The files of wiki/, .gitignore, wiki_config.toml and datasets/ that differ from HEAD, untracked ones included."""
     result = _git(workspace, "status", "--porcelain", "-z", "--no-renames", "--untracked-files=all",
                   "--", *_TRACKED, check=False)
     if result.returncode != 0:
@@ -193,19 +194,23 @@ def _undo(workspace: Path, directory: Path, db_replaced: bool) -> None:
 
 
 def _restore_files(workspace: Path, target_sha: str) -> None:
-    """Make wiki/, .gitignore and wiki_config.toml equal to the target commit's, staged.
+    """Make wiki/, .gitignore, wiki_config.toml and datasets/ equal to the target commit's, staged.
 
     `git checkout <sha> -- wiki` restores and overwrites but never deletes a file
     that the target does not have, so those go first: the tracked ones with
-    `git rm`, the untracked ones (a forced revert) with `git clean`.
+    `git rm`, the untracked ones (a forced revert) with `git clean`. A point that
+    predates the tracking of `datasets/` (it holds no data file) keeps the current
+    data files, as a point without `wiki_config.toml` keeps the current one.
     """
     in_target = set(_git(workspace, "ls-tree", "-r", "--name-only", "-z", target_sha, "--",
                          *_TRACKED).stdout.split("\0")) - {""}
     in_head = set(_git(workspace, "ls-files", "-z", "--", *_TRACKED).stdout.split("\0")) - {""}
-    extra = sorted(in_head - in_target - {CONFIG})   # a point without the config keeps the current one
+    keeps_datasets = not any(f.startswith(f"{DATASETS}/") for f in in_target)
+    extra = sorted(f for f in in_head - in_target - {CONFIG}   # a point without the config keeps the current one
+                   if not (keeps_datasets and f.startswith(f"{DATASETS}/")))
     for i in range(0, len(extra), 200):
         _git(workspace, "rm", "-q", "-f", "--", *extra[i:i + 200])
-    _git(workspace, "clean", "-fdq", "--", "wiki")
+    _git(workspace, "clean", "-fdq", "--", "wiki", *([] if keeps_datasets else [DATASETS]))
     present = [name for name in _TRACKED
                if any(f == name or f.startswith(f"{name}/") for f in in_target)]
     if present:

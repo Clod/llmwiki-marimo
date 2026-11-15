@@ -300,3 +300,48 @@ def test_an_uncommitted_config_change_refuses_the_revert(history):
     assert dirty_files(ws.workspace) == ["wiki_config.toml"]
     with pytest.raises(DirtyWiki):
         revert_wiki(ws.workspace, shas["B"])
+
+
+# ── datasets/ is part of a point ─────────────────────────────────────────────
+
+def _dataset(ws, text):
+    folder = ws.workspace / "datasets"
+    folder.mkdir(exist_ok=True)
+    (folder / "dolar.md").write_text(text, encoding="utf-8")
+
+
+def test_a_data_file_is_committed_and_going_back_restores_it(history):
+    from domain.tools.git_ops import auto_commit, head_sha
+
+    ws, shas = history
+    _dataset(ws, "first version\n")
+    auto_commit(ws.workspace, "data: first version")
+    first = head_sha(ws.workspace)
+    assert "datasets/dolar.md" in git(ws.workspace, "show", "--name-only", "--format=", "HEAD").split()
+    _dataset(ws, "second version\n")
+    auto_commit(ws.workspace, "data: second version")
+    revert_wiki(ws.workspace, first)
+    assert (ws.workspace / "datasets" / "dolar.md").read_text() == "first version\n"
+
+
+def test_a_point_from_before_the_data_was_tracked_keeps_the_current_data(history):
+    from domain.tools.git_ops import auto_commit
+
+    ws, shas = history
+    _dataset(ws, "current\n")
+    auto_commit(ws.workspace, "data: current")
+    revert_wiki(ws.workspace, shas["A"])                              # A holds no datasets/
+    assert (ws.workspace / "datasets" / "dolar.md").read_text() == "current\n"
+
+
+def test_a_data_file_edited_by_hand_becomes_a_point_instead_of_stopping_the_revert(history):
+    from domain.tools.git_ops import auto_commit
+    from services.wiki import open_wiki, uncommitted
+
+    ws, shas = history
+    _dataset(ws, "committed\n")
+    auto_commit(ws.workspace, "data")
+    _dataset(ws, "edited by hand\n")
+    assert dirty_files(ws.workspace) == ["datasets/dolar.md"]
+    assert uncommitted(open_wiki(ws.workspace)) == []
+    assert "datasets: data files edited by hand" in git(ws.workspace, "log", "-1", "--format=%s")

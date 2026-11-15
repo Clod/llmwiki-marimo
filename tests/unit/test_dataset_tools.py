@@ -99,3 +99,28 @@ def test_query_dataset_no_datasets_dir_is_honest(tmp_path) -> None:
 
     assert isinstance(result, str)
     assert "plazo_fijo" in result
+
+
+def test_a_metrica_that_does_not_exist_lists_the_existing_ones(tmp_path) -> None:
+    """The model asked for metrica='7_dias' and got no rows: the answer names the metricas
+    the category has, so the model can ask again. It still counts as no evidence."""
+    from domain.chat.guardrail import _is_substantive
+
+    workspace = _make_workspace(tmp_path)
+    result = query_dataset(_Ctx(deps=str(workspace / ".llmwiki" / "index.db")), "plazo_fijo", metrica="7_dias")
+    assert result.startswith("No dataset rows found")
+    assert "Existing values of the category" in result and "metrica:" in result
+    assert "tna" in result.lower()
+    assert not _is_substantive(result)
+
+
+def test_a_clave_that_does_not_exist_lists_the_existing_claves(tmp_path) -> None:
+    workspace = _make_workspace(tmp_path)
+    result = query_dataset(_Ctx(deps=str(workspace / ".llmwiki" / "index.db")), "plazo_fijo", clave="Banco Comafi")
+    assert "clave:" in result and "Banco Nación" in result
+
+
+def test_an_unknown_categoria_lists_nothing(tmp_path) -> None:
+    workspace = _make_workspace(tmp_path)
+    result = query_dataset(_Ctx(deps=str(workspace / ".llmwiki" / "index.db")), "nonexistent", metrica="x")
+    assert "Existing values" not in result

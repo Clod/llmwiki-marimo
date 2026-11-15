@@ -450,6 +450,22 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A dataset filter that matches nothing names the values that exist.** The
+  model asked `query_dataset` for `metrica='7_dias'`, got "No dataset rows
+  found" and answered with no evidence. The answer now ends with the metricas
+  (or claves) the category has, so the model can ask again; it still counts as
+  no evidence (`base/domain/chat/dataset_tools.py`).
+- **A one-sentence wiki page is found by the search.** A page shorter than the
+  minimum fragment (32 tokens) produced no fragment, so the search never found
+  it. Such a page is indexed whole, as one fragment
+  (`_insert_chunks`, `base/domain/tools/wiki_fs.py`).
+- **The data files are part of the history points.** Going back to a point
+  restored the pages and `wiki_config.toml` but not `datasets/`. The automatic
+  commit now includes `datasets/`, and going back restores it; a point from
+  before this change keeps the current data files. A data file edited by hand
+  becomes a point when the History screen opens, instead of stopping every
+  revert (`commit_datasets`, `base/domain/tools/git_ops.py`).
+
 - **A macOS `._*` file in `datasets/` no longer breaks the vocabulary.** macOS
   writes binary `._name.md` files next to files copied to some disks; the
   dataset source read them and `build_vocabulary` failed with

@@ -68,7 +68,7 @@ def init_wiki_repo(workspace: Path) -> None:
 
 
 def auto_commit(workspace: Path, message: str) -> None:
-    """Stage wiki/, .gitignore and wiki_config.toml, and commit. Silent if nothing to commit.
+    """Stage wiki/, .gitignore, wiki_config.toml and datasets/, and commit. Silent if nothing to commit.
 
     No-op when WIKI_AUTOCOMMIT is disabled; graceful skip when git is unavailable.
     A git failure here never propagates — it must not fail an ingest.
@@ -79,8 +79,11 @@ def auto_commit(workspace: Path, message: str) -> None:
 
     try:
         # wiki_config.toml is part of a point: its vocabulary lists are edited from
-        # the Vocabulario screen, and going back to a point restores it.
-        paths = ["wiki/", ".gitignore"] + (["wiki_config.toml"] if (workspace / "wiki_config.toml").exists() else [])
+        # the Vocabulario screen, and going back to a point restores it. So is datasets/:
+        # the data files are part of what the wiki answers, and going back restores them.
+        # A data file edited by hand enters the next point.
+        paths = ["wiki/", ".gitignore"] + [name for name in ("wiki_config.toml", "datasets")
+                                            if (workspace / name).exists()]
         _run(["git", "add", *paths], workspace)
         result = _run(
             ["git", "commit", "-m", message],
@@ -92,6 +95,26 @@ def auto_commit(workspace: Path, message: str) -> None:
             _snapshot_index(workspace)
         else:
             logger.debug("Nothing to commit: %s", message)
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        _warn_git_unavailable(exc)
+
+
+def commit_datasets(workspace: Path) -> None:
+    """Commit the changes of `datasets/` alone, when there are any.
+
+    A data file is edited by hand, outside the application, so nothing commits it; a
+    pending change of `datasets/` would stop every revert (`revert.dirty_files`) with no
+    button to save it. The history screen calls this before it lists what is unsaved.
+    No-op when WIKI_AUTOCOMMIT is disabled; a git failure never propagates.
+    """
+    if not autocommit_enabled() or not (workspace / "datasets").is_dir():
+        return
+    try:
+        _run(["git", "add", "datasets"], workspace)
+        result = _run(["git", "commit", "-m", "datasets: data files edited by hand", "--", "datasets"],
+                      workspace, check=False)
+        if result.returncode == 0:
+            logger.info("Git commit: data files edited by hand")
     except (FileNotFoundError, subprocess.CalledProcessError) as exc:
         _warn_git_unavailable(exc)
 

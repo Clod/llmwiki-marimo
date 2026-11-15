@@ -85,11 +85,16 @@ def _insert_chunks(
     """
     # Import chunker dynamically here to prevent Python circular import conflicts
     # (when file A imports file B, and file B imports file A)
-    from domain.ingestion.chunker import chunk_pages
+    from domain.ingestion.chunker import Chunk, _estimate_tokens, chunk_pages
 
     # 1. Break down the content into a list of semantic chunks.
     #    We pass the text as page 1 (since standard wiki pages are single-page markdown).
     chunks = chunk_pages([(1, content)])
+    # A page shorter than the minimum fragment (MIN_CHUNK_TOKENS) yields no fragment, and
+    # the search could not find it: a one-sentence page is indexed whole, as one fragment.
+    if not chunks and content.strip():
+        text = content.strip()
+        chunks = [Chunk(index=0, content=text, page=1, start_char=0, token_count=_estimate_tokens(text))]
     # Node W_CHUNK of the writing diagram, for a wiki page (domain/tracing.py).
     tracing.mark("W_CHUNK", tracing.WRITING, document_id=doc_id, fragments=len(chunks))
 
