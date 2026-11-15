@@ -159,7 +159,7 @@
       <div class="setting">
         <div class="setting-head"><label for="f-describe">{{ _("Describe the images") }}</label><code>describe</code></div>
         <label class="check"><input type="checkbox" id="f-describe" name="describe"{% if values.describe %} checked{% endif %}> {{ _("Enabled") }}</label>
-        <p class="setting-help muted">{{ _("Each image kept from a source is described by a vision model, and the description enters the text of the source. Each description is one call to the model. The vision model is set in the .env file (VISION_*).") }}</p>
+        <p class="setting-help muted">{{ _("Each image kept from a source is described by a vision model, and the description enters the text of the source. Each description is one call to the model. The vision model is set in the group «Vision model» of this screen.") }}</p>
         <p class="setting-default">{{ _("Default value") }}: <code>{{ _("no") if not defaults.describe else _("yes") }}</code></p>
       </div>
       <div class="setting{% if errors.min_side_px %} invalid{% endif %}">

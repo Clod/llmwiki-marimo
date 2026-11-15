@@ -3004,7 +3004,7 @@ msgstr ""
 #: web/templates/settings.html
 msgid ""
 "Each image kept from a source is described by a vision model, and the description enters the text of the source. Each"
-" description is one call to the model. The vision model is set in the .env file (VISION_*)."
+" description is one call to the model. The vision model is set in the group «Vision model» of this screen."
 msgstr ""
 
 #: web/templates/settings.html

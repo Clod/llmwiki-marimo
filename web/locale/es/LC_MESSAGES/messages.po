@@ -3135,10 +3135,11 @@ msgstr ""
 #: web/templates/settings.html
 msgid ""
 "Each image kept from a source is described by a vision model, and the description enters the text of the source. Each"
-" description is one call to the model. The vision model is set in the .env file (VISION_*)."
+" description is one call to the model. The vision model is set in the group «Vision model» of this screen."
 msgstr ""
 "Un modelo de visión describe cada imagen conservada de una fuente, y la descripción entra en el texto de la fuente. "
-"Cada descripción es una llamada al modelo. El modelo de visión se define en el archivo .env (VISION_*)."
+"Cada descripción es una llamada al modelo. El modelo de visión se define en el grupo «Modelo de visión» de esta "
+"pantalla."
 
 #: web/templates/settings.html
 msgid "Minimum side"
@@ -3870,4 +3871,15 @@ msgstr "una herramienta devolvió evidencia"
 
 #~ msgid "answer not replaced by the guardrail refusal"
 #~ msgstr "respuesta no reemplazada por el rechazo del guardrail"
+
+#~ msgid ""
+#~ "Each image kept from a source is described by a vision"
+#~ " model, and the description enters the text of the "
+#~ "source. Each description is one call to the model. The "
+#~ "vision model is set in the .env file (VISION_*)."
+#~ msgstr ""
+#~ "Un modelo de visión describe cada imagen conservada de una"
+#~ " fuente, y la descripción entra en el texto de la "
+#~ "fuente. Cada descripción es una llamada al modelo. El modelo"
+#~ " de visión se define en el archivo .env (VISION_*)."
 
