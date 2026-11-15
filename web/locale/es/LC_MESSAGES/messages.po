@@ -3425,8 +3425,8 @@ msgid "Mode of the turn"
 msgstr "Modo del turno"
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "Refused exchanges removed from the history"
-msgstr "Se quitan del historial los intercambios con negativa"
+msgid "Refused answers replaced by a note in the history; their questions kept"
+msgstr "Las negativas del historial se reemplazan por una nota; sus preguntas se conservan"
 
 #: base/domain/chat/workflow/node_texts.py
 msgid "Advisory tables removed from the history"
@@ -3848,4 +3848,7 @@ msgstr "respuesta no reemplazada por el rechazo del guardrail"
 
 #~ msgid "Was the overview or the index read?"
 #~ msgstr "¿Se leyó el resumen o el índice?"
+
+#~ msgid "Refused exchanges removed from the history"
+#~ msgstr "Se quitan del historial los intercambios con negativa"
 

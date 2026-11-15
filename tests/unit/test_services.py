@@ -109,12 +109,30 @@ def _msg(role, content):
     return SimpleNamespace(role=role, content=content)
 
 
-def test_model_history_drops_refused_exchanges():
+def test_model_history_replaces_a_refusal_by_a_note_and_keeps_its_question():
+    """The refusal leaves no prose of the model to imitate; the question stays, so a
+    follow-up keeps its topic."""
     history = chat.model_history([
         _msg("user", "capital of France?"), _msg("assistant", REFUSAL_EN),
         _msg("user", "who is Cinderella?"), _msg("assistant", "A girl in a tale."),
     ])
-    assert [type(m).__name__ for m in history] == ["ModelRequest", "ModelResponse"]
+    assert [type(m).__name__ for m in history] == ["ModelRequest", "ModelResponse"] * 2
+    assert history[0].parts[0].content == "capital of France?"
+    assert history[1].parts[0].content == "[earlier question, not answered]"
+    assert REFUSAL_EN not in str(history)
+
+
+def test_the_note_of_a_refusal_is_in_the_language_of_the_wiki():
+    history = chat.model_history([_msg("user", "¿qué son los cedears?"), _msg("assistant", REFUSAL_EN)], "es")
+    assert history[1].parts[0].content == "[pregunta anterior sin respuesta]"
+
+
+def test_the_drafted_page_of_a_conversation_has_no_refused_exchange():
+    text = chat.conversation_markdown([
+        _msg("user", "capital of France?"), _msg("assistant", REFUSAL_EN),
+        _msg("user", "who is Cinderella?"), _msg("assistant", "A girl in a tale."),
+    ], "en")
+    assert "France" not in text and "not answered" not in text and "Cinderella" in text
 
 
 def test_model_history_ends_a_turn_that_read_data_with_its_origin():

@@ -27,7 +27,7 @@ CFG = SimpleNamespace(blacklist=["cedear", "cedears"], data_aliases={"dolar": ["
 
 
 # The nodes of the history, first in every path of the input workflow.
-HISTORY = ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES"]
+HISTORY = ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_MARK_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES"]
 # The nodes that build the prompt, last in every path that reaches the agent.
 PROMPT = ["C_OPEN_PAGE_NOTE", "Q_SYNONYMS", "Q_PROMPT"]
 
@@ -257,8 +257,8 @@ def test_workshop_patch_of_collection_intent_changes_the_path(patched):
 
 
 def test_agent_input_builds_the_history_of_model_history():
-    """The nodes C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history that `model_history` builds: the
-    refused exchange removed, the origin line on the answer that read data."""
+    """The nodes C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history that `model_history` builds: the
+    refusal replaced by a note, the origin line on the answer that read data."""
     from domain.chat.history import model_history
     from domain.chat.refusal import fixed_sentence
     from domain.verify.models import ContextPassage
@@ -282,9 +282,30 @@ def test_agent_input_builds_the_history_of_model_history():
     assert steps(path) == HISTORY + ["Q_IN_BLACKLIST", "C_OPEN_PAGE_NOTE"]
     assert [m.parts[0].content for m in turn.history] == [m.parts[0].content for m in model_history(prior, "es")]
     by_node = {entry["node"]: entry["attributes"] for entry in path}
-    assert by_node["C_DROP_REFUSED"]["refused_dropped"] == 2
-    assert by_node["C_ORIGIN_LINES"] == {"origin_lines": 1, "history_messages": 2}
+    assert by_node["C_MARK_REFUSED"]["refused_marked"] == 1
+    assert by_node["C_ORIGIN_LINES"] == {"origin_lines": 1, "history_messages": 4}
     assert by_node["C_WHICH_MODE"]["mode"] == "agent"
+
+
+def test_the_rewrite_of_a_follow_up_sees_the_question_that_got_a_refusal(patched):
+    """After a refusal, the condenser still receives the refused question, so «¿Y la
+    carroza?» can be rewritten with its topic. The refusal is replaced by a note."""
+    from domain.chat.refusal import fixed_sentence
+
+    seen = []
+
+    async def condense(question, history):
+        seen.extend(m.parts[0].content for m in history)
+        return "¿Cómo era la carroza de Cenicienta?"
+
+    prior = [SimpleNamespace(role="user", content="¿Cómo era la carroza de Cenicienta?", context=()),
+             SimpleNamespace(role="assistant", content=fixed_sentence("es") + " Nada más.", context=())]
+    turn = PreRetrievalTurn(
+        "¿Y la carroza?", CFG, "db", Path("/tmp/wp"), [], "es",
+        stem_language="es", source=_NoDatasets(), condense=condense, prior=prior,
+    )
+    _run(turn)
+    assert seen == ["¿Cómo era la carroza de Cenicienta?", "[pregunta anterior sin respuesta]"]
 
 
 def _run_agent(turn):

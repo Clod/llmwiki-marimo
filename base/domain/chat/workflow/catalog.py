@@ -37,7 +37,9 @@ from domain.chat import condense as condensation
 from domain.chat import figure_check, history, preretrieval
 from domain.chat.config import DEFAULT_NUMBER_TOLERANCE
 from domain.chat.figure_check import FigureCheck
-from domain.chat.guardrail import enforce_grounding, has_grounding, refusal_for, strip_refused_exchanges
+from domain.chat.guardrail import (
+    count_refused, enforce_grounding, has_grounding, mark_refused_exchanges, refusal_for,
+)
 from domain.chat.overlap import coverage
 from domain.chat.postprocess import (
     advisory_table, answer_with_table, ensure_citation, injected_pages, mark_injected, mark_uncited,
@@ -108,12 +110,12 @@ class AnswerChecks:
 
 
 class QuestionState(Protocol):
-    """The fields of the state of an input workflow that the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES and
+    """The fields of the state of an input workflow that the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES and
     C_OPEN_PAGE_NOTE read and write: `PreRetrievalTurn` and `AgentTurn` both have them.
 
     prior:      the prior messages of the chat (`.role`, `.content`); None when the
                 caller passed `history` already built.
-    kept:       the history between C_DROP_REFUSED and C_ORIGIN_LINES, as chat messages.
+    kept:       the history between C_MARK_REFUSED and C_ORIGIN_LINES, as chat messages.
     history:    the history that the model receives, as Pydantic AI messages.
     asked:      the question that the model receives, with the open-page note (C_OPEN_PAGE_NOTE).
     noted_page: the page that the note of C_OPEN_PAGE_NOTE names, or None.
@@ -140,7 +142,7 @@ OutCtx = StepContext[AnswerChecks, None, AnswerChecks]
 
 async def history_counts(ctx: QCtx) -> QuestionState:
     """The counts of the history of the turn, computed from the prior messages
-    as `model_history` builds the history. C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES record the effect of each
+    as `model_history` builds the history. C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES record the effect of each
     step."""
     turn = ctx.state
     tracing.mark("C_COUNT_HISTORY", R, **history.history_counts(turn.prior or [], turn.language))
@@ -154,11 +156,12 @@ async def mode(ctx: QCtx) -> QuestionState:
 
 async def strip_refused(ctx: QCtx) -> QuestionState:
     """A citation-less refusal left in the history primes the model to answer the
-    next question without a citation: each refused exchange is removed."""
+    next question without a citation: each refusal is replaced by a fixed note, and
+    its question stays so that a follow-up keeps its topic."""
     turn = ctx.state
     if turn.prior is not None:
-        turn.kept = strip_refused_exchanges(list(turn.prior))
-    tracing.mark("C_DROP_REFUSED", R, refused_dropped=len(turn.prior or []) - len(turn.kept))
+        turn.kept = mark_refused_exchanges(list(turn.prior), turn.language)
+    tracing.mark("C_MARK_REFUSED", R, refused_marked=count_refused(turn.prior or []))
     return turn
 
 
@@ -717,7 +720,7 @@ async def agent_answer(ctx: OutCtx) -> str:
 CATALOG = {
     "C_COUNT_HISTORY": history_counts,
     "C_WHICH_MODE": mode,
-    "C_DROP_REFUSED": strip_refused,
+    "C_MARK_REFUSED": strip_refused,
     "C_DROP_TABLES": compact_tables,
     "C_TRIM_TURNS": trim_turns,
     "C_ORIGIN_LINES": origin_lines,

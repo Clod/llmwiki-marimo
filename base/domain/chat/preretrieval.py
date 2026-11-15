@@ -553,9 +553,9 @@ async def pre_retrieval_answer(
     Q_IS_GROUNDED): the sentence verifier is its only comparison against the fragments.
 
     `prior` holds the prior messages of the chat (`.role`, `.content`); the nodes
-    C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES of the input workflow build the history of the model from them.
+    C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES of the input workflow build the history of the model from them.
     A caller without `prior` passes the history already built in `history`, and
-    C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES leave that history as it is.
+    C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES leave that history as it is.
     """
     with tracing.root(
         "turn", workspace, mode="pre-retrieval", question=question, language=language,
@@ -686,9 +686,9 @@ class PreRetrievalTurn:
     # that Q_KEY_ROWS or Q_KEY_NAMES reads (Q_NAMES_KEY): tuples of `named_categories`.
     named: list[tuple[str, list[str], list[str], list]] = field(default_factory=list)
     category: tuple[str, list[str], list[str], list] | None = None
-    # The prior messages of the chat, from which C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build `history`; None
+    # The prior messages of the chat, from which C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build `history`; None
     # when the caller passed `history` already built. `mode` is what C_WHICH_MODE records.
-    # `kept` is the history between C_DROP_REFUSED and C_ORIGIN_LINES.
+    # `kept` is the history between C_MARK_REFUSED and C_ORIGIN_LINES.
     prior: list | None = None
     mode: str = "pre-retrieval"
     kept: list = field(default_factory=list)
@@ -799,7 +799,7 @@ async def _pre_retrieval_turn(
     """The body of `pre_retrieval_answer`, inside the turn's root span.
 
     The input workflow (`domain/chat/workflow/input_checks.py`, `graph`) builds
-    the history (C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES), runs the checks of the question and builds the
+    the history (C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES), runs the checks of the question and builds the
     prompt (C_OPEN_PAGE_NOTE, Q_SYNONYMS, Q_PROMPT). When the input workflow ends in a refusal, the model
     is not called. Else the agent runs here, between the two workflows, and
     records Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS. The output workflow

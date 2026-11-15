@@ -6,7 +6,7 @@ R_NOTHING_FOUND). It does not call the agent: the graph ends in an `AgentCall`, 
 `_pre_retrieval_turn` (`domain/chat/preretrieval.py`) calls the agent. Its
 state is the `PreRetrievalTurn` of the turn.
 
-`agent_graph`, the input workflow of the agent mode, runs the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES,
+`agent_graph`, the input workflow of the agent mode, runs the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES,
 then Q_IN_BLACKLIST: a question that names a blacklisted term ends in the refusal R_BLACKLIST,
 any other question goes to C_OPEN_PAGE_NOTE, which builds the question that the model
 receives. The nodes Q_IN_BLACKLIST and R_BLACKLIST are the same functions of the catalog as in
@@ -47,7 +47,7 @@ class AgentTurn:
     """The state of the input workflow of the agent mode.
 
     prior:   the prior messages of the chat (`.role`, `.content`).
-    kept:    the history between C_DROP_REFUSED and C_ORIGIN_LINES, as chat messages.
+    kept:    the history between C_MARK_REFUSED and C_ORIGIN_LINES, as chat messages.
     history: the history that the model receives (C_ORIGIN_LINES).
     asked:   the question that the model receives, with the open-page note (C_OPEN_PAGE_NOTE).
     """
@@ -150,7 +150,7 @@ def _calls(node: str):
 # the steps of this module that are not in the catalog. The test
 # `tests/unit/test_workflow_nodes_doc.py` compares each list with its graph, and
 # `docs/workflow_nodes.md` is generated from the lists (`table.py`).
-HISTORY_NODES = ("C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES")
+HISTORY_NODES = ("C_COUNT_HISTORY", "C_WHICH_MODE", "C_MARK_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES")
 PRE_RETRIEVAL_NODES = (
     *HISTORY_NODES, "Q_QUESTION", "Q_NORMALIZE", "Q_IN_BLACKLIST", "Q_STEM", "Q_NAMES_DATA", "Q_IN_ROSTER", "Q_PAGE_OPEN", "Q_REWRITE", "Q_RW_ACCEPTED", "Q_RW_IN_BLACKLIST", "Q_RW_NAMES_DATA", "Q_RW_IN_ROSTER", "Q_CONDENSED",
     "Q_SEARCH_WIKI", "Q_SEARCH_SOURCES", "Q_COLLECTION_PAGES", "Q_COLLECTION_OPEN_PAGE", "Q_PAGE_FOUND", "Q_NAMES_CATEGORY", "Q_NAMES_KEY", "Q_KEY_ROWS", "Q_KEY_NAMES", "Q_IS_COLLECTION", "Q_IS_DATA", "Q_FRAGMENT_FOUND", "Q_ROSTER_REFUSAL", "C_OPEN_PAGE_NOTE", "Q_SYNONYMS",

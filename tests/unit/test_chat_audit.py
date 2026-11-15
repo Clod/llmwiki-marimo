@@ -188,7 +188,7 @@ def test_the_agent_mode_refuses_a_blacklisted_question_without_calling_the_model
 def test_agent_returns_its_path(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper.", grounded()), [msg("user", "Who is Cinderella?")], mode=chat.AGENT))
-    assert ids(result) == ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES", "Q_IN_BLACKLIST", "C_OPEN_PAGE_NOTE", "T_AGENT", "T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
+    assert ids(result) == ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_MARK_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES", "Q_IN_BLACKLIST", "C_OPEN_PAGE_NOTE", "T_AGENT", "T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
     refused = run(chat.chat_turn_with_context(
         wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.AGENT))
     assert "T_GUARDRAIL" in ids(refused)

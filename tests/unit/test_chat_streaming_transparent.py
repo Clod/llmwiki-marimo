@@ -109,7 +109,7 @@ def test_c1_counts_the_whole_history(wiki):
     prior = conversation()
     result = stream(wiki, agents(RecordingAgent("a")), [*prior, msg("user", "Who is Cinderella?")])[-1]
     c1 = next(n["attributes"] for n in result.path if n["node"] == "C_COUNT_HISTORY")
-    assert (c1["prior_messages"], c1["refused_dropped"], c1["history_messages"]) == (len(prior), 0, len(prior))
+    assert (c1["prior_messages"], c1["refused_marked"], c1["history_messages"]) == (len(prior), 0, len(prior))
 
 
 def test_the_agent_receives_the_question_as_written(wiki):

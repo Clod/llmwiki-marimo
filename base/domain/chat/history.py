@@ -13,13 +13,13 @@ the full answers in the UI):
     costs context,
   - cap to the last N turns.
 
-Composes with `strip_refused_exchanges` (guardrail.py), which is applied first.
+Composes with `mark_refused_exchanges` (guardrail.py), which is applied first.
 Operates on chat messages duck-typed as `.role` ("user"/"assistant") + `.content`;
 compacted turns are returned as small immutable stand-ins.
 
 `model_history` builds the history that the model receives in the pre-retrieval
 and agent modes from three helpers, `compact_tables`, `cap_turns` and
-`with_origin_lines`, after `strip_refused_exchanges`. The nodes C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES of
+`with_origin_lines`, after `mark_refused_exchanges`. The nodes C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES of
 the input workflows (`domain/chat/workflow/catalog.py`) run the same four steps,
 one per node.
 """
@@ -32,7 +32,7 @@ from typing import Any
 
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 
-from domain.chat.guardrail import strip_refused_exchanges
+from domain.chat.guardrail import count_refused, mark_refused_exchanges
 
 # Markers of the advisory table block inside an assistant answer. We cut from the
 # earliest one to the end and replace it with a short placeholder.
@@ -145,24 +145,25 @@ def with_origin_lines(messages: list, language: str | None = None) -> list:
 
 
 def model_history(messages: Sequence[Any], language: str | None = None) -> list:
-    """The prior turns as Pydantic AI messages, without refused exchanges.
+    """The prior turns as Pydantic AI messages, each refusal replaced by a note.
 
     A citation-less refusal left in the context primes the model to answer the
-    next question without a citation too (verified), so refused exchanges are
-    dropped before the history is trimmed and converted. An assistant turn that
+    next question without a citation too (verified), so each refusal is replaced
+    by a fixed note before the history is trimmed and converted; its question
+    stays, so a follow-up keeps its topic (`mark_refused_exchanges`). An assistant turn that
     read data ends with its origin line (`data_origin`): the history has no tool
     call and no injected context, so without the line the model calls the figures
     of a past answer unsupported.
     """
-    return with_origin_lines(trim_history(strip_refused_exchanges(list(messages))), language)
+    return with_origin_lines(trim_history(mark_refused_exchanges(list(messages), language)), language)
 
 
 def history_counts(prior: Sequence[Any], language: str | None = None) -> dict:
-    """The counts that node C_COUNT_HISTORY records: the prior messages, the refused ones
-    `strip_refused_exchanges` removed, and the messages the model receives."""
+    """The counts that node C_COUNT_HISTORY records: the prior messages, the refusals
+    `mark_refused_exchanges` replaced by a note, and the messages the model receives."""
     prior = list(prior)
     return dict(
         prior_messages=len(prior),
-        refused_dropped=len(prior) - len(strip_refused_exchanges(prior)),
+        refused_marked=count_refused(prior),
         history_messages=len(model_history(prior, language)),
     )

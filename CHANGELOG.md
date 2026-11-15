@@ -410,6 +410,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A follow-up after a refusal keeps its topic.** After a turn that ended in a
+  refusal, a follow-up such as «¿Y la carroza?» ended in `R_NOT_IN_ROSTER`: the
+  history lost the refusal and also the question that got it, so the rewrite of
+  the follow-up had no topic to work from. The question now stays, and the
+  refusal is replaced by a fixed note written by the code,
+  «[pregunta anterior sin respuesta]» (in English, «[earlier question, not
+  answered]»), as the advisory tables already are. The note leaves the model no
+  refusal text to imitate. The node is renamed `C_DROP_REFUSED` →
+  `C_MARK_REFUSED`, and its trace attribute, and the one of `C_COUNT_HISTORY`,
+  `refused_dropped` → `refused_marked`: the number of refusals replaced. The
+  markdown of a conversation drafted as a page still leaves the refused
+  exchanges out.
+
 - **A data question with a collection expression reaches the data tools.** The
   investment question of the finance demo, «Tengo $1.000.000 que no voy a
   necesitar por 3 meses, ¿qué alternativas tengo y cuánto ganaría con cada

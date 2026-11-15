@@ -91,7 +91,7 @@ def test_a_agent_turn_writes_the_nodes_of_the_agent_mode(wiki):
         wiki, agents("Cinderella lost a slipper.", evidence()), history, mode=chat.AGENT))
     rec = records(wiki)
     assert rec["C_COUNT_HISTORY"] == {"node": "C_COUNT_HISTORY", "diagram": "reading", "prior_messages": 2,
-                         "refused_dropped": 0, "history_messages": 2}
+                         "refused_marked": 0, "history_messages": 2}
     assert rec["C_WHICH_MODE"]["mode"] == "agent"
     assert rec["T_AGENT"]["tools_called"] == ["read_wiki_page"]
     assert rec["T_AGENT"]["raw_output"] == "Cinderella lost a slipper."
@@ -119,7 +119,7 @@ def test_c1_counts_the_refused_exchanges_it_dropped(wiki):
     asyncio.run(chat.chat_turn_with_context(
         wiki, agents("Paris."), history, mode=chat.AGENT))
     c1 = records(wiki)["C_COUNT_HISTORY"]
-    assert (c1["prior_messages"], c1["history_messages"]) == (4, c1["prior_messages"] - c1["refused_dropped"])
+    assert (c1["prior_messages"], c1["history_messages"]) == (4, c1["prior_messages"] - c1["refused_marked"])
 
 
 def test_a_streaming_turn_writes_the_nodes_of_the_streaming_mode(wiki):

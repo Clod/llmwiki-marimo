@@ -268,7 +268,7 @@ async def chat_turn_with_context(
 
     Each mode runs its two workflows (`domain/chat/workflow/`). The pre-retrieval
     mode runs them in `pre_retrieval_answer`. The agent mode runs here the input
-    workflow (`input_checks.agent_graph`, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, Q_IN_BLACKLIST and C_OPEN_PAGE_NOTE,
+    workflow (`input_checks.agent_graph`, C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, Q_IN_BLACKLIST and C_OPEN_PAGE_NOTE,
     or the refusal R_BLACKLIST, which ends the turn), the model (T_AGENT) and
     the output workflow (`output_checks.agent_graph`, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN).
     """
@@ -296,7 +296,7 @@ async def chat_turn_with_context(
             return result
 
         with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-            # The input workflow records C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES.
+            # The input workflow records C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES.
             checked: list[figure_check.FigureCheck] = []
             answer = await pre_retrieval_answer(
                 question, config=agents.config, db_path=wiki.db_path, workspace=wiki.path,
@@ -391,7 +391,7 @@ async def chat_turn_stream_with_context(
     tokens = _Tokens()
     R = tracing.READING
     with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-        tracing.mark("C_COUNT_HISTORY", R, prior_messages=len(prior), refused_dropped=0,
+        tracing.mark("C_COUNT_HISTORY", R, prior_messages=len(prior), refused_marked=0,
                      history_messages=len(history))
         tracing.mark("C_WHICH_MODE", R, mode=STREAMING)
         with tracing.node("F_AGENT", R) as f1:
@@ -459,8 +459,9 @@ _EXCHANGE_LABELS = {"es": ("Pregunta", "Respuesta"), "en": ("Question", "Answer"
 def conversation_markdown(messages: Sequence[Any], language: str) -> str:
     """The conversation as markdown, one question and its answer per exchange.
 
-    Refused exchanges are dropped, as in `model_history`: a refusal holds no
-    content for a page. A trailing question with no answer yet is dropped too.
+    Refused exchanges are dropped, question and refusal: a refusal holds no
+    content for a page. (`model_history` keeps the question and replaces the
+    refusal by a note.) A trailing question with no answer yet is dropped too.
     """
     question_label, answer_label = _EXCHANGE_LABELS.get(language, _EXCHANGE_LABELS["en"])
     blocks: list[str] = []

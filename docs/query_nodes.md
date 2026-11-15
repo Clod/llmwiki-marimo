@@ -72,7 +72,7 @@ position of the question in the conversation), `mode`, `question` and
 ```mermaid
 flowchart TD
     START["a question arrives in the chat"]
-    C_COUNT_HISTORY["C_COUNT_HISTORY · the history of the turn, counted<br/>pre-retrieval and agent: C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history,<br/>nodes of the input workflow<br/>streaming: plain_history, every message as written"]
+    C_COUNT_HISTORY["C_COUNT_HISTORY · the history of the turn, counted<br/>pre-retrieval and agent: C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history,<br/>nodes of the input workflow<br/>streaming: plain_history, every message as written"]
     C_WHICH_MODE{"C_WHICH_MODE · the mode of the turn"}
     P["Q_QUESTION · pre-retrieval, section 2"]
     S["T_AGENT · agent, section 3<br/>🤖 model call"]
@@ -87,9 +87,9 @@ flowchart TD
 
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
-| C_COUNT_HISTORY | Counts the history of the turn: the prior messages, the refused ones that C_DROP_REFUSED removes, and the messages that the model receives. In the pre-retrieval and agent modes, C_COUNT_HISTORY is the first node of the input workflow and counts the history as `model_history` builds the history; C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history, one step per node. In the streaming mode, the model receives every prior message as written (`plain_history`), with no message removed and no line added, and `refused_dropped` is 0 | `base/domain/chat/workflow/catalog.py`, `history_counts`; `base/domain/chat/history.py`, `history_counts`, `model_history`; `base/services/chat.py`, `chat_turn_stream_with_context`, `plain_history` | `prior_messages`, `refused_dropped`, `history_messages` | code |
+| C_COUNT_HISTORY | Counts the history of the turn: the prior messages, the refusals that C_MARK_REFUSED replaces by a note, and the messages that the model receives. In the pre-retrieval and agent modes, C_COUNT_HISTORY is the first node of the input workflow and counts the history as `model_history` builds the history; C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history, one step per node. In the streaming mode, the model receives every prior message as written (`plain_history`), with no message removed and no line added, and `refused_marked` is 0 | `base/domain/chat/workflow/catalog.py`, `history_counts`; `base/domain/chat/history.py`, `history_counts`, `model_history`; `base/services/chat.py`, `chat_turn_stream_with_context`, `plain_history` | `prior_messages`, `refused_marked`, `history_messages` | code |
 | C_WHICH_MODE | Records the mode of the turn. In the pre-retrieval and agent modes, C_WHICH_MODE is the second node of the input workflow; in the streaming mode, `chat_turn_stream_with_context` records C_WHICH_MODE | `base/domain/chat/workflow/catalog.py`, `mode`; `base/services/chat.py`, `chat_turn_with_context`, `chat_turn_stream_with_context` | `mode` | code |
-| C_DROP_REFUSED | Removes from the history every refused answer, with the question that the refused answer answered. A refused first turn leaves the second turn with an empty history. Runs in the input workflows of the pre-retrieval and agent modes | `base/domain/chat/guardrail.py`, `strip_refused_exchanges`; `base/domain/chat/workflow/catalog.py`, `strip_refused` | `refused_dropped` | code |
+| C_MARK_REFUSED | Replaces every refused answer of the history with the note «[pregunta anterior sin respuesta]» (in English, «[earlier question, not answered]»); the question that got the refusal stays, so a follow-up keeps its topic. Runs in the input workflows of the pre-retrieval and agent modes | `base/domain/chat/guardrail.py`, `mark_refused_exchanges`, `REFUSED_NOTE`; `base/domain/chat/workflow/catalog.py`, `strip_refused` | `refused_marked` | code |
 | C_DROP_TABLES | Replaces the advisory table of each answer of the history with a placeholder line; the model can call the advisory tool again. Runs in the input workflows of the pre-retrieval and agent modes | `base/domain/chat/history.py`, `compact_tables`; `base/domain/chat/workflow/catalog.py`, `compact_tables` | `compacted` | code |
 | C_TRIM_TURNS | Keeps the last `max_turns` turns of the history, 3 by default. Runs in the input workflows of the pre-retrieval and agent modes | `base/domain/chat/history.py`, `cap_turns`, `DEFAULT_MAX_TURNS`; `base/domain/chat/workflow/catalog.py`, `trim_turns` | `trimmed`, `max_turns` | code |
 | C_ORIGIN_LINES | Builds the history that the model receives; an answer that read data ends with its origin line, which names the dataset or the tool that the figures came from. Runs in the input workflows of the pre-retrieval and agent modes | `base/domain/chat/history.py`, `with_origin_lines`, `data_origin`; `base/domain/chat/workflow/catalog.py`, `origin_lines` | `origin_lines`, `history_messages` | code |
@@ -107,7 +107,7 @@ The identifier of a node is the letter of its family and a name of what the
 node does. A decision node is named by its question: `Q_IN_ROSTER` asks whether
 the question names a topic of the coverage roster. A node of the rewrite of a
 follow-up carries `RW_`: `Q_RW_IN_ROSTER` asks the same of the rewrite. A new
-node changes no other identifier. C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, C_OPEN_PAGE_NOTE, C_FIGURES and C_VERIFY_SENTENCES are nodes of section 1. Each refusal node is
+node changes no other identifier. C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, C_OPEN_PAGE_NOTE, C_FIGURES and C_VERIFY_SENTENCES are nodes of section 1. Each refusal node is
 named by the cause of the refusal (R_BLACKLIST, R_NOT_IN_ROSTER, R_NOTHING_FOUND, R_UNSUPPORTED, R_NO_EVIDENCE and R_MODEL, `RefusalCause` in
 `base/domain/chat/refusal.py`).
 
@@ -182,7 +182,7 @@ each workflow registers the functions that the workflow uses (`register`). A
 node that two workflows use is the same function in both workflows.
 
 - **The input workflow**, `graph` in `base/domain/chat/workflow/input_checks.py`,
-  runs C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES (section 1), the checks of the question from Q_QUESTION to
+  runs C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES (section 1), the checks of the question from Q_QUESTION to
   Q_ROSTER_REFUSAL, and C_OPEN_PAGE_NOTE, Q_SYNONYMS and Q_PROMPT, which build the prompt. The input workflow ends in
   a refusal (R_BLACKLIST, R_NOT_IN_ROSTER, R_NOTHING_FOUND) or in the node that calls the agent (Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS). The
   input workflow reads and writes the `PreRetrievalTurn` of the turn
@@ -263,7 +263,7 @@ The agent mode has two workflows too, with the call to the model, T_AGENT, betwe
 them. `chat_turn_with_context` (`base/services/chat.py`) runs both workflows.
 
 - **The input workflow**, `agent_graph` in
-  `base/domain/chat/workflow/input_checks.py`, runs C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES
+  `base/domain/chat/workflow/input_checks.py`, runs C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES
   (section 1), then Q_IN_BLACKLIST. A question that names a blacklisted term ends in the
   refusal R_BLACKLIST: the model is not called and the output workflow does not run. Any
   other question goes to C_OPEN_PAGE_NOTE, which builds the question that the model
@@ -274,7 +274,7 @@ them. `chat_turn_with_context` (`base/services/chat.py`) runs both workflows.
   to T_MARK_UNCITED, the figure check C_FIGURES and T_SHOWN. Its state is the `AnswerChecks` of the
   answer, with no `PreRetrievalTurn`.
 
-C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, Q_IN_BLACKLIST, R_BLACKLIST, C_OPEN_PAGE_NOTE and C_FIGURES are the same functions of the catalog as in the
+C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, Q_IN_BLACKLIST, R_BLACKLIST, C_OPEN_PAGE_NOTE and C_FIGURES are the same functions of the catalog as in the
 pre-retrieval mode.
 
 The diagrams of the two workflows of this mode are generated from the graphs:
