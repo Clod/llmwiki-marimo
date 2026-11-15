@@ -20,7 +20,7 @@ __all__ = ["DECISION_QUESTIONS", "NODE_TEXTS", "text"]
 # The question of each decision of the chat graphs, by the id of the decision.
 DECISION_QUESTIONS = {
     node.id: node.note
-    for graph in (input_checks.graph, output_checks.graph, output_checks.strict_graph)
+    for graph in (input_checks.graph, output_checks.graph, output_checks.agent_graph)
     for node in graph.nodes.values()
     if isinstance(node, Decision) and node.note
 }

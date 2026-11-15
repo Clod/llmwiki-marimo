@@ -346,7 +346,7 @@ None of this appears in the engine — it is example/overlay content only.
 
 Not yet decided (future task workflow); intentionally out of scope here:
 
-- **Producer / refresh**: manual edit first; scheduled `marimo-batch` notebook
+- **Producer / refresh**: manual edit first; a scheduled job
   later. Source form (API / CSV / scrape / PDF) TBD.
 - **Storage**: physical SQLite layout for the normalized rows; **replace‑latest**
   (markdown holds the current snapshot) vs. optional **time‑series** history.

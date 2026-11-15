@@ -1,7 +1,7 @@
 """One chat turn, in any of the three chat modes, for any user interface.
 
 `build_agents` builds the two agents of a wiki; `chat_turn` answers a turn in
-the pre-retrieval or the strict mode; `chat_turn_stream` answers it in the
+the pre-retrieval or the agent mode; `chat_turn_stream` answers it in the
 streaming mode, chunk by chunk. `chat_turn_with_context` and
 `chat_turn_stream_with_context` do the same and also return the passages the
 model read (`ChatResult`), for the sentence verification; `chat_turn` and
@@ -41,11 +41,11 @@ from domain.verify.models import ContextPassage
 from services.wiki import Wiki
 
 PRE_RETRIEVAL = "pre-retrieval"
-STRICT = "strict"
+AGENT = "agent"
 STREAMING = "streaming"
 
-# In the strict and streaming modes the model searches with its own tools; the
-# open page reaches it as the same note the pre-retrieval mode uses. The strict
+# In the agent and streaming modes the model searches with its own tools; the
+# open page reaches it as the same note the pre-retrieval mode uses. The agent
 # mode adds the note in node C_OPEN_PAGE_NOTE of its input workflow.
 _with_open_page = with_open_page
 
@@ -54,7 +54,7 @@ _with_open_page = with_open_page
 class ChatAgents:
     """The chat configuration of a wiki and its two agents.
 
-    `agent` searches with its own tools (strict and streaming modes);
+    `agent` searches with its own tools (agent and streaming modes);
     `agent_pre_retrieval` has no wiki-search tools, because the code retrieves
     before it runs (pre-retrieval mode). Both are built once per wiki, so
     switching the mode does not rebuild anything.
@@ -259,7 +259,7 @@ async def chat_turn_with_context(
     mode: str, conversation_id: str | None = None, open_page: str | None = None,
     sentence_verifier: bool = False,
 ) -> ChatResult:
-    """Answer the last message of `messages` in the pre-retrieval or strict mode.
+    """Answer the last message of `messages` in the pre-retrieval or agent mode.
 
     `open_page` is the id of the page the user is reading, or None. The context
     does not depend on `WIKI_TRACE`. `sentence_verifier` is True when the caller
@@ -267,9 +267,9 @@ async def chat_turn_with_context(
     pre-retrieval mode, a Tier-2 answer then skips the containment check (Q_IS_GROUNDED).
 
     Each mode runs its two workflows (`domain/chat/workflow/`). The pre-retrieval
-    mode runs them in `pre_retrieval_answer`. The strict mode runs here the input
-    workflow (`input_checks.strict_graph`, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES and C_OPEN_PAGE_NOTE), the model (T_AGENT) and
-    the output workflow (`output_checks.strict_graph`, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN).
+    mode runs them in `pre_retrieval_answer`. The agent mode runs here the input
+    workflow (`input_checks.agent_graph`, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES and C_OPEN_PAGE_NOTE), the model (T_AGENT) and
+    the output workflow (`output_checks.agent_graph`, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN).
     """
     prior = list(messages[:-1])
     question = messages[-1].content
@@ -317,13 +317,13 @@ async def chat_turn_with_context(
             root.set(final_answer=result.answer, **figure_counts(result.figures))
         return result
 
-    if mode != STRICT:
-        raise ValueError(f"chat_turn answers the pre-retrieval and strict modes, not {mode!r}")
+    if mode != AGENT:
+        raise ValueError(f"chat_turn answers the pre-retrieval and agent modes, not {mode!r}")
     with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-        # The input workflow of the strict mode, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES and C_OPEN_PAGE_NOTE: the history and
+        # The input workflow of the agent mode, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES and C_OPEN_PAGE_NOTE: the history and
         # the question that the model receives.
-        turn = input_checks.StrictTurn(question, prior, language, open_page)
-        await input_checks.strict_graph.run(state=turn, inputs=turn)
+        turn = input_checks.AgentTurn(question, prior, language, open_page)
+        await input_checks.agent_graph.run(state=turn, inputs=turn)
         with tracing.node("T_AGENT", R) as t1:
             result = await agents.agent.run(
                 turn.asked, deps=wiki.db_path, message_history=turn.history,
@@ -332,13 +332,13 @@ async def chat_turn_with_context(
             raw = result.output
             messages_run = result.all_messages()
             t1.set(tools_called=_tools_called(messages_run), raw_output=raw)
-        # The checks of the answer, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN: the output workflow of the strict mode.
+        # The checks of the answer, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN: the output workflow of the agent mode.
         checks = output_checks.AnswerChecks(
             raw, messages_run, language,
             tolerance=getattr(agents.config, "number_tolerance", DEFAULT_NUMBER_TOLERANCE),
             conversation=tuple(figure_check.conversation_sources(messages)),
         )
-        answer = await output_checks.strict_graph.run(state=checks, inputs=checks)
+        answer = await output_checks.agent_graph.run(state=checks, inputs=checks)
         root.set(raw_output=raw, final_answer=answer, grounded=checks.grounded,
                  refusal_substituted=checks.refusal_substituted, **figure_counts(
                      checks.figures.report if checks.figures else None))
@@ -353,7 +353,7 @@ async def chat_turn(
     wiki: Wiki, agents: ChatAgents, messages: Sequence[Any], *,
     mode: str, conversation_id: str | None = None, open_page: str | None = None,
 ) -> str:
-    """Answer the last message of `messages` in the pre-retrieval or strict mode.
+    """Answer the last message of `messages` in the pre-retrieval or agent mode.
 
     `open_page` is the id of the page the user is reading, or None.
     """
@@ -374,7 +374,7 @@ async def chat_turn_stream_with_context(
     nothing between the user and the agent: the agent receives every prior message
     as written (`plain_history`), and the answer is the text of the agent, with no
     check. The question carries the note of the open page (`_with_open_page`), as
-    in the strict mode.
+    in the agent mode.
     """
     prior = list(messages[:-1])
     history = plain_history(prior)

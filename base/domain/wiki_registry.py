@@ -1,12 +1,9 @@
 """Wiki folder registry: discovery, recent-list persistence, path hygiene.
 
-Pure helpers (no marimo / UI imports) so they can be unit-tested and reused by
-both marimo apps. Used by the wiki picker that lets the user switch between
-multiple wikis at runtime instead of editing WIKI_PATH in .env.
-
-Why no file_browser: marimo's `file_browser(selection_mode="directory")` does not
-emit a value in the 0.23.x line (GH issue #1478), so directory picking is done
-via discovery + a recent list + a sanitised text path instead.
+Pure helpers (no UI imports) so they can be unit-tested. Used by the wiki
+picker of the web interface (`web/routes/picker.py`), which lets the user switch
+between multiple wikis at runtime instead of editing WIKI_PATH in .env. A folder
+is chosen by discovery, a recent list and a sanitised text path.
 """
 
 from __future__ import annotations

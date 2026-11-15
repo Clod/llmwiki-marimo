@@ -543,14 +543,14 @@ def test_needs_llm_skip_message_names_the_two_buttons_that_supply_a_model() -> N
 
     rendered = _NEEDS_LLM_MESSAGE.format(check="stale")
     assert "llm_client" not in rendered, "API-level wording leaked back into a user-facing message"
-    assert "Also run full LLM lint & repair after ingest" in rendered
+    assert "Full repair with the model, slower" in rendered
     assert "Run Wiki Lint & Repair" in rendered
     assert _NEEDS_LLM == {"stale", "missing_concept"}, (
         "the message promises these two are fixable by supplying a model"
     )
 
 
-def test_skip_message_button_names_match_the_ingest_app() -> None:
+def test_skip_message_button_names_match_the_web_controls() -> None:
     """Guard against the two drifting apart.
 
     The message tells the user to press specific controls. If either is renamed
@@ -562,7 +562,8 @@ def test_skip_message_button_names_match_the_ingest_app() -> None:
 
     from domain.repair.runner import _NEEDS_LLM_MESSAGE
 
-    app = (Path(__file__).resolve().parents[2] / "marimo" / "ingest_app.py").read_text()
-    for control in ("Also run full LLM lint & repair after ingest", "Run Wiki Lint & Repair"):
+    templates = Path(__file__).resolve().parents[2] / "web" / "templates"
+    app = (templates / "ingest.html").read_text() + (templates / "maintain.html").read_text()
+    for control in ("Full repair with the model, slower", "Run Wiki Lint & Repair"):
         assert control in _NEEDS_LLM_MESSAGE, f"message no longer names {control!r}"
-        assert control in app, f"{control!r} is named in the skip message but gone from the app"
+        assert control in app, f"{control!r} is named in the skip message but gone from the web interface"

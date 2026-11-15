@@ -26,9 +26,6 @@ routes hold no application logic: they call `base/services/` (`wiki.py`, `chat.p
 environment variables are in [`web/README.md`](../../web/README.md); this section
 describes each screen.
 
-The marimo apps in `marimo/` are being retired. They stay in the repository until a
-separate change removes them, and this manual does not describe them.
-
 The application listens on `localhost` and has no authentication: it is for one user
 on one machine. The interface is in English and in Spanish (the **EN | ES** switch at the right of
 the header; §7.11); the labels quoted below are the English ones, the message ids of the templates. Every screen of a wiki has the same
@@ -42,8 +39,7 @@ Route: `GET /` (`web/routes/picker.py`). The screen is titled "Choose a wiki" an
 lists the wikis in a table with the columns Wiki, Path, Language, Sources and Pages,
 and an **Open** link per row. The first wiki of the recent list carries the tag
 "last opened". The list holds the default wiki (`WIKI_PATH`), the wiki folders under
-`WIKI_HOME`, and the recent list (`~/.llmwiki/recent_wikis.json`, shared with the marimo
-apps); a recent folder that is no longer a wiki (no `wiki/` nor `.llmwiki/`) is not
+`WIKI_HOME`, and the recent list (`~/.llmwiki/recent_wikis.json`); a recent folder that is no longer a wiki (no `wiki/` nor `.llmwiki/`) is not
 listed, and the picker rewrites the recent list without it (`wiki_registry.prune_recent`).
 A row that comes only from the recent list has **Remove from the list**
 (`POST /recent/remove`): the path leaves the list and the folder stays on disk. A wiki
@@ -113,7 +109,7 @@ over SSE. The selector **Mode** has three values (`web/deps.py:MODES`):
 | Value | Label | Behaviour |
 | --- | --- | --- |
 | `pre-retrieval` | Pre-retrieval | Code searches the wiki before the model is called and hands over the pages it found. |
-| `strict` | Strict | The model consults the wiki with tools; if it did not, the answer is replaced by a refusal (§15.3). |
+| `agent` | Agent with evidence check | The model consults the wiki with tools; if it did not, the answer is replaced by a refusal (§15.3). |
 | `streaming` | No verification | The answer appears as the model writes it. Code does not check that it comes from the wiki. |
 
 Under each answer, one line names the mode and gives the tokens: "N / M tokens", the tokens of the turn and of the whole conversation, with the
@@ -374,7 +370,7 @@ and run the path of the product on material that ships with the code:
 - **Reading** (`answers`, `declines`, `uses_tools`): three chat turns on a temporary wiki
   of two pages. The first question, in the pre-retrieval mode, must end in node `Q_SHOWN`
   with the datum of the page (`ZK-4471`) and the slug of the page. The second, which no
-  page answers, must end in `R_MODEL`. The first question again, in the strict mode, must
+  page answers, must end in `R_MODEL`. The first question again, in the agent mode, must
   end in `T_SHOWN`, with a node `K` (a call to a tool) in the path and the datum in the
   answer.
 - **Ingestion** (`ingests`): the ingestion of a `.md` of one paragraph into a temporary
@@ -506,10 +502,8 @@ Vocabulary screen (§7.6) edits the lists.
 
 | Flag                       | Effect                                                                                       |
 | -------------------------- | ------------------------------------------------------------------------------------------- |
-| `WIKI_DEBUG=1`             | Shows the debug panel of the marimo `ingest_app.py` (the web interface does not read it)     |
 | `WIKI_HOME=…`              | Folder the wiki picker scans for sibling wikis (default: parent of `WIKI_PATH`). See §7.1.   |
 | `WIKI_AUTOCOMMIT=0`        | Disable the per-ingest git auto-commit of `wiki/` in the workspace (default: on). Falsy values `0/false/no/off`; read by `git_ops.autocommit_enabled` — skips both `init_wiki_repo` and `auto_commit`. |
-| `HEADLESS=1`               | Used by the E2E test suite for non-interactive Playwright runs                               |
 | `WIKI_TRACE=1`             | Turns on the opt-in trace: one OpenTelemetry span per diagram node, for a chat turn and for an ingest. See §14.                    |
 | `WIKI_TRACE_CAPTURE=…`     | Selects the trace's payload channels: `all` (default) · `none` · CSV of `extracted_text,chunks,prompts,responses,markdown`. See §14. |
 
@@ -522,7 +516,6 @@ Vocabulary screen (§7.6) edits the lists.
 ```bash
 uv run pytest tests/unit tests/regression -q       # 1410 unit + 16 regression tests — fast, no LLM, no network
 uv run --group web pytest -q tests/web             # 444 tests: 382 routes, rendering and design checks, 62 Playwright flows
-uv run pytest tests/e2e/ -v -s                     # E2E tests of the marimo apps + LLM (not in CI; goes away with the marimo apps)
 ```
 
 CI (`.github/workflows/test.yml`) runs the first two commands, in the jobs `unit` and `web`. No test of the first two calls a model.
@@ -631,33 +624,6 @@ covered against the frozen corpus by `tests/regression/test_eval_reader_golden.p
 `domain.tools.db.seed_workspace_row` (used to create a fresh DB before re-ingest) is
 shared with `build_golden_corpus.py`.
 
-### E2E infrastructure (marimo apps)
-
-> **Run with the test ports free.** The fixtures start their own marimo servers
-> on **2719** (ingest) and **2720** (read). They do *not* fail if the port is
-> already taken — Playwright will silently connect to whatever is listening, so a
-> dev app left running on those ports makes the suite connect to the wrong
-> instance (different workspace/state) and produce spurious failures. Stop any
-> marimo app on 2719/2720 before running the E2E suite.
-
-Uses `async_playwright` (the test runner lives inside an asyncio loop — anyio  
-4.x). Configured in `pytest.ini`:
-
-```ini
-asyncio_mode = auto
-asyncio_default_fixture_loop_scope = session
-```
-
-**Two-phase wait pattern** (because `status='ready'` fires at step 6, before  
-the wiki page is created at step 9):
-
-```python
-wait_for_ingestion(filename)             # source status='ready'
-src = assert_source_ok(filename)
-wait_for_wiki_page(src["id"], filename)  # wiki page actually exists in DB
-assert_wiki_ok(src["id"], filename)
-```
-
 ---
 
 ## 15. Datasets, Grounding Guardrail & the `finance_argentina` Overlay
@@ -707,10 +673,10 @@ substantive content (`has_grounding`); otherwise `enforce_grounding` replaces th
 answer with a language-appropriate refusal (`REFUSAL_ES`/`REFUSAL_EN`: "I could not
 back this answer with a lookup in the wiki in this turn."). It catches answers the
 model leaks despite the system prompt (general knowledge on "related" topics). Wired in
-`services.chat.chat_turn` (mode `strict`, chosen with the **Mode** selector of the
+`services.chat.chat_turn` (mode `agent`, chosen with the **Mode** selector of the
 reading screen, §7.2):
 
-- **`strict`** → the agent runs to completion, then the gate applies (refuse if
+- **`agent`** → the agent runs to completion, then the gate applies (refuse if
   ungrounded). The answer is not streamed, because text already shown cannot be
   retracted.
 - **`streaming`** → the whole agent runs, tool calls included

@@ -39,7 +39,7 @@ class FakeAgent:
     """
 
     delay = 0.0        # seconds between the two chunks of a streamed answer
-    grounded = False   # True: the run holds a tool result, so the strict mode keeps the answer
+    grounded = False   # True: the run holds a tool result, so the agent mode keeps the answer
 
     def __init__(self, output) -> None:
         self.output = output

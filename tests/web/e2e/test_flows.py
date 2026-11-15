@@ -510,7 +510,7 @@ def test_the_verify_checkbox_is_remembered_and_follows_the_mode(page, tmp_path):
         page.locator("#mode").select_option("streaming")
         expect(page.locator("#verify-box")).to_be_disabled()
         assert "no comprueba la respuesta" in page.locator("#verify-label").get_attribute("title")
-        page.locator("#mode").select_option("strict")
+        page.locator("#mode").select_option("agent")
         expect(page.locator("#verify-box")).to_be_enabled()
 
 

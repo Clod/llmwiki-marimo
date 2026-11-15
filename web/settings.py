@@ -1,7 +1,6 @@
 """The settings of one web application.
 
-`WebSettings.from_env` reads the same `.env` as the marimo apps
-(`base/config.py`) plus `WIKI_PATH` and `WIKI_HOME` (`domain/wiki_registry.py`).
+`WebSettings.from_env` reads the `.env` of `base/config.py` plus `WIKI_PATH` and `WIKI_HOME` (`domain/wiki_registry.py`).
 A test builds a `WebSettings` directly.
 """
 
@@ -18,9 +17,8 @@ class WebSettings:
     """Where the wikis are, and which model the chat and the ingestion call.
 
     `wiki_path` is the wiki selected by default; `wiki_home` is the folder the
-    picker scans for other wikis. `recent_file` is the recent-wikis list the
-    marimo apps share. The `ingest_*` fields fall back to the chat fields when
-    blank, as in `ingest_app`.
+    picker scans for other wikis. `recent_file` is the recent-wikis list of
+    the picker. The `ingest_*` fields fall back to the chat fields when blank.
     """
 
     wiki_path: str | None

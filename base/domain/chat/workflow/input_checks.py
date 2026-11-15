@@ -6,9 +6,9 @@ R_NOTHING_FOUND). It does not call the agent: the graph ends in an `AgentCall`, 
 `_pre_retrieval_turn` (`domain/chat/preretrieval.py`) calls the agent. Its
 state is the `PreRetrievalTurn` of the turn.
 
-`strict_graph`, the input workflow of the strict mode, runs the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES
+`agent_graph`, the input workflow of the agent mode, runs the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES
 and C_OPEN_PAGE_NOTE: it builds the history and the question that the model receives, and
-checks nothing in the question. Its state is a `StrictTurn`. `chat_turn_with_context`
+checks nothing in the question. Its state is a `AgentTurn`. `chat_turn_with_context`
 (`services/chat.py`) runs it before node T_AGENT.
 
 Each step returns the state, so that each decision reads the field that its
@@ -16,7 +16,7 @@ condition names. The steps of the nodes are functions of the catalog
 (`catalog.py`), registered here with `register`. The catalog says how the steps
 call `preretrieval`.
 
-`PRE_RETRIEVAL_NODES` and `STRICT_NODES` list the catalog nodes of each graph,
+`PRE_RETRIEVAL_NODES` and `AGENT_NODES` list the catalog nodes of each graph,
 and `OWN_STEPS` the steps of this module that are not in the catalog (Q_AGENT_PAGES to
 Q_AGENT_FRAGMENTS).
 
@@ -41,8 +41,8 @@ Ctx = StepContext[PreRetrievalTurn, None, PreRetrievalTurn]
 
 
 @dataclass
-class StrictTurn:
-    """The state of the input workflow of the strict mode.
+class AgentTurn:
+    """The state of the input workflow of the agent mode.
 
     prior:   the prior messages of the chat (`.role`, `.content`).
     kept:    the history between C_DROP_REFUSED and C_ORIGIN_LINES, as chat messages.
@@ -54,7 +54,7 @@ class StrictTurn:
     prior: list | None
     language: str | None
     open_page: str | None = None
-    mode: str = "strict"
+    mode: str = "agent"
     kept: list = field(default_factory=list)
     history: list = field(default_factory=list)
     asked: str = ""
@@ -142,9 +142,9 @@ PRE_RETRIEVAL_NODES = (
     "Q_SEARCH_WIKI", "Q_SEARCH_SOURCES", "Q_COLLECTION_PAGES", "Q_COLLECTION_OPEN_PAGE", "Q_PAGE_FOUND", "Q_NAMES_CATEGORY", "Q_NAMES_KEY", "Q_KEY_ROWS", "Q_KEY_NAMES", "Q_IS_COLLECTION", "Q_IS_DATA", "Q_FRAGMENT_FOUND", "Q_ROSTER_REFUSAL", "C_OPEN_PAGE_NOTE", "Q_SYNONYMS",
     "Q_PROMPT", "R_BLACKLIST", "R_NOT_IN_ROSTER", "R_NOTHING_FOUND",
 )
-STRICT_NODES = (*HISTORY_NODES, "C_OPEN_PAGE_NOTE")
-AGENT_NODES = ("Q_AGENT_PAGES", "Q_AGENT_COLLECTION", "Q_AGENT_TOOLS", "Q_AGENT_FRAGMENTS")
-OWN_STEPS = AGENT_NODES
+AGENT_NODES = (*HISTORY_NODES, "C_OPEN_PAGE_NOTE")
+AGENT_CALL_NODES = ("Q_AGENT_PAGES", "Q_AGENT_COLLECTION", "Q_AGENT_TOOLS", "Q_AGENT_FRAGMENTS")
+OWN_STEPS = AGENT_CALL_NODES
 
 history_steps = [register(g, code) for code in HISTORY_NODES]
 question = register(g, "Q_QUESTION")
@@ -189,10 +189,10 @@ def _agent_call(node: str):
     return g.step(call, node_id=node)
 
 
-agent_calls = {node: _agent_call(node) for node in AGENT_NODES}
+agent_calls = {node: _agent_call(node) for node in AGENT_CALL_NODES}
 
 # The label of the branch of the decision `agent` that goes to each node of
-# `AGENT_NODES`, in the same order.
+# `AGENT_CALL_NODES`, in the same order.
 AGENT_LABELS = (
     N_("wiki pages injected"),
     N_("overview and index injected"),
@@ -211,7 +211,7 @@ AGENT_LABELS = (
 # ends the checks with a plan goes to C_OPEN_PAGE_NOTE, Q_SYNONYMS and Q_PROMPT, which build the prompt,
 # and then here.
 agent = g.decision(node_id="agent", note=N_("What text was injected into the prompt?"))
-for _node, _label in zip(AGENT_NODES, AGENT_LABELS):
+for _node, _label in zip(AGENT_CALL_NODES, AGENT_LABELS):
     agent = agent.branch(g.match(PreRetrievalTurn, matches=_calls(_node)).label(_label).to(agent_calls[_node]))
 
 g.add(
@@ -321,17 +321,17 @@ g.add(
 graph = trace_decisions(g.build())
 
 
-# ── The input workflow of the strict mode ─────────────────────────────────────
+# ── The input workflow of the agent mode ─────────────────────────────────────
 
 sg = GraphBuilder(
-    name="strict_input_checks", state_type=StrictTurn, input_type=StrictTurn,
-    output_type=StrictTurn, auto_instrument=False,
+    name="agent_input_checks", state_type=AgentTurn, input_type=AgentTurn,
+    output_type=AgentTurn, auto_instrument=False,
 )
-strict_steps = [register(sg, code) for code in STRICT_NODES]
+agent_steps = [register(sg, code) for code in AGENT_NODES]
 sg.add(
-    sg.edge_from(sg.start_node).to(strict_steps[0]),
-    *(sg.edge_from(a).to(b) for a, b in zip(strict_steps, strict_steps[1:])),
-    sg.edge_from(strict_steps[-1]).to(sg.end_node),
+    sg.edge_from(sg.start_node).to(agent_steps[0]),
+    *(sg.edge_from(a).to(b) for a, b in zip(agent_steps, agent_steps[1:])),
+    sg.edge_from(agent_steps[-1]).to(sg.end_node),
 )
 
-strict_graph = sg.build()
+agent_graph = sg.build()

@@ -133,6 +133,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The mode «Agent with evidence check» is named `agent` in the code.** The
+  interface showed «Agent with evidence check», and the code, the trace and the
+  documents called the mode `strict`, a name the interface never shows. In this
+  mode the model searches the wiki with tools. In the pre-retrieval mode, the
+  code searches the wiki before it calls the model. The mode value is now `agent` (`AGENT`,
+  `base/services/chat.py`). The selector sends `agent`, and the trace writes
+  `mode="agent"`. The graphs, the types and the functions follow:
+  `agent_graph`, `AgentTurn`, `AGENT_NODES`, `agent_answer`. The list of the
+  nodes that call the model in the pre-retrieval mode, which was `AGENT_NODES`,
+  is now `AGENT_CALL_NODES`. The node codes do not change: a node can run in
+  more than one mode, so its code names no mode. Traces written before this
+  change keep `mode="strict"`.
+
 - **Each decision of the chat records a node in the trace.** A decision is
   the diamond of a diagram that chooses the next node: after `Q_IN_BLACKLIST`,
   it goes to `R_BLACKLIST` or to `Q_STEM`. `pydantic_graph` calls the
@@ -373,6 +386,28 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   (`scripts/workflow_nodes.py`), and a test fails when the file and the
   workflows differ. A node that runs in one mode and not in the other shows in
   one row: Q3, the blacklist, runs in the pre-retrieval input workflow only.
+
+### Fixed
+
+- **The repair log names the controls of the web interface.** When the repair
+  after an ingestion skipped a page because no model was supplied, the log said
+  to tick "Also run full LLM lint & repair after ingest". That checkbox exists
+  only in the marimo ingest app. The log now says to tick "Full repair with the
+  model, slower" on the Ingest screen, or to press "Run Wiki Lint & Repair" in
+  Maintain (`base/domain/repair/runner.py`). The test that compared the message
+  with the marimo app now compares it with the templates of the web interface.
+
+### Removed
+
+- **The marimo apps.** `marimo/` (the ingest app, the two read apps, the grid
+  layout and the delete widget), their end-to-end tests in `tests/e2e/`,
+  `scripts/capture_screenshots.py` (screenshots of the marimo read app) and
+  `docs/read_app_tabs_flow.md` (the flow of the marimo read app). The
+  dependencies `marimo`, `anywidget` and `traitlets`, which only `marimo/`
+  imported, left `pyproject.toml`, `uv.lock` and `requirements.txt`. The
+  documents, the docstrings and the issue templates stop describing marimo as
+  current. `v0.4.0` remains the last release with the marimo interface; the
+  note of the README that sends to it stays.
 
 ## [0.6.5] - 2026-11-06
 

@@ -92,10 +92,10 @@ def test_the_reference_line_of_the_model_is_labelled_and_the_split_follows(setti
     assert f'<mark class="unsupported" title="{UNSUPPORTED_TIP}">{INVENTED}</mark>' in verification
 
 
-def test_the_strict_mode_is_verified_against_its_tool_returns(client, agents, verifier):
+def test_the_agent_mode_is_verified_against_its_tool_returns(client, agents, verifier):
     agents.agent.grounded = True
     agents.agent.output = "Texto de la página de la wiki. Una oración inventada sobre sirenas marinas."
-    events = stream(client, ask_verified(client, mode="strict"))
+    events = stream(client, ask_verified(client, mode="agent"))
     assert [name for name, _ in events] == ["chunk", "verification", "done"]
     assert "1 de 2 oraciones sin respaldo" in events[1][1]
 

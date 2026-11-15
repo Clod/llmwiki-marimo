@@ -112,7 +112,7 @@ def _turns(m, *, answers=None, declines=None, uses_tools=None):
     return {
         (m.answerable, chat_service.PRE_RETRIEVAL): answers or (cited, ["C_COUNT_HISTORY", "C_WHICH_MODE", "Q_AGENT_PAGES", "Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"]),
         (m.unanswerable, chat_service.PRE_RETRIEVAL): declines or ("No answer.", ["C_COUNT_HISTORY", "C_WHICH_MODE", "Q_AGENT_PAGES", "Q_MODEL_REFUSED", "R_MODEL"]),
-        (m.answerable, chat_service.STRICT): uses_tools or (
+        (m.answerable, chat_service.AGENT): uses_tools or (
             cited, ["C_COUNT_HISTORY", "C_WHICH_MODE", "T_AGENT", "K_READ_PAGE", "K_SEARCH_WIKI", "K_SEARCH_SOURCES", "T_TOOL_EVIDENCE", "T_CITE_TOOLS", "C_FIGURES", "T_SHOWN"]),
     }
 
@@ -129,7 +129,7 @@ def test_reading_passes_the_three_checks(monkeypatch):
     assert calls == [
         ("user", m.answerable, (), chat_service.PRE_RETRIEVAL),
         ("user", m.unanswerable, (), chat_service.PRE_RETRIEVAL),
-        ("user", m.answerable, (), chat_service.STRICT),
+        ("user", m.answerable, (), chat_service.AGENT),
     ]
 
 

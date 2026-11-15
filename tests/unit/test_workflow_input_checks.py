@@ -245,7 +245,7 @@ def test_workshop_patch_of_collection_intent_changes_the_path(patched):
     assert out.startswith("Esta wiki trata de finanzas.")
 
 
-def test_strict_input_builds_the_history_of_model_history():
+def test_agent_input_builds_the_history_of_model_history():
     """The nodes C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build the history that `model_history` builds: the
     refused exchange removed, the origin line on the answer that read data."""
     from domain.chat.history import model_history
@@ -260,11 +260,11 @@ def test_strict_input_builds_the_history_of_model_history():
         msg("user", "¿qué tasa da el Banco Galicia?"),
         msg("assistant", "30 %.", (ContextPassage("datasets/plazo_fijo.md", "| clave |"),)),
     ]
-    turn = input_checks.StrictTurn("¿y el Nación?", prior, "es")
+    turn = input_checks.AgentTurn("¿y el Nación?", prior, "es")
 
     async def go():
         with tracing.collect() as path:
-            await input_checks.strict_graph.run(state=turn, inputs=turn)
+            await input_checks.agent_graph.run(state=turn, inputs=turn)
         return path
     path = asyncio.run(go())
 
@@ -273,4 +273,4 @@ def test_strict_input_builds_the_history_of_model_history():
     by_node = {entry["node"]: entry["attributes"] for entry in path}
     assert by_node["C_DROP_REFUSED"]["refused_dropped"] == 2
     assert by_node["C_ORIGIN_LINES"] == {"origin_lines": 1, "history_messages": 2}
-    assert by_node["C_WHICH_MODE"]["mode"] == "strict"
+    assert by_node["C_WHICH_MODE"]["mode"] == "agent"

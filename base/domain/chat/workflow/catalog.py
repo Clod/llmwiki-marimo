@@ -10,7 +10,7 @@ use is the same function in both.
 The steps of the input workflow of the pre-retrieval mode read the
 `PreRetrievalTurn` of the turn. The nodes that both input workflows use (C_COUNT_HISTORY to
 C_ORIGIN_LINES) read the fields that `QuestionState` names, which `PreRetrievalTurn` and
-`StrictTurn` (`input_checks.py`) both have. The steps of the output workflows
+`AgentTurn` (`input_checks.py`) both have. The steps of the output workflows
 read the `AnswerChecks` of the turn, defined here so that the annotations of the
 steps resolve in this module.
 
@@ -77,7 +77,7 @@ class AnswerChecks:
     messages: the messages of the run (`result.all_messages()`).
     result:   the result of the run, for the `on_trace` callback of the turn.
     turn:     the state of the input workflow in the pre-retrieval mode; None
-              in the strict mode.
+              in the agent mode.
     answer:   the answer as the steps change it; the final answer at the end.
     tolerance:    `[verify] number_tolerance` of the wiki, for C_FIGURES.
     conversation: the `(origin, text)` sources of the conversation that authorise
@@ -109,7 +109,7 @@ class AnswerChecks:
 
 class QuestionState(Protocol):
     """The fields of the state of an input workflow that the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES and
-    C_OPEN_PAGE_NOTE read and write: `PreRetrievalTurn` and `StrictTurn` both have them.
+    C_OPEN_PAGE_NOTE read and write: `PreRetrievalTurn` and `AgentTurn` both have them.
 
     prior:      the prior messages of the chat (`.role`, `.content`); None when the
                 caller passed `history` already built.
@@ -653,7 +653,7 @@ async def shown(ctx: OutCtx) -> str:
     return checks.answer
 
 
-# ── The nodes of the answer, strict mode ──────────────────────────────────────
+# ── The nodes of the answer, agent mode ──────────────────────────────────────
 
 async def evidence(ctx: OutCtx) -> AnswerChecks:
     checks = ctx.state
@@ -672,7 +672,7 @@ async def guardrail(ctx: OutCtx) -> AnswerChecks:
     return checks
 
 
-async def strict_table(ctx: OutCtx) -> AnswerChecks:
+async def agent_table(ctx: OutCtx) -> AnswerChecks:
     """Deterministic post-processing (domain/chat/postprocess.py): the advisory
     table is guaranteed whether or not the model reproduced it under history
     priming. No-op on a refusal."""
@@ -683,7 +683,7 @@ async def strict_table(ctx: OutCtx) -> AnswerChecks:
     return checks
 
 
-async def strict_citation(ctx: OutCtx) -> AnswerChecks:
+async def agent_citation(ctx: OutCtx) -> AnswerChecks:
     """The source citation is guaranteed whether or not the model wrote it. No-op
     on a refusal."""
     checks = ctx.state
@@ -705,7 +705,7 @@ async def uncited_mark(ctx: OutCtx) -> AnswerChecks:
     return checks
 
 
-async def strict_answer(ctx: OutCtx) -> str:
+async def agent_answer(ctx: OutCtx) -> str:
     checks = ctx.state
     tracing.mark("T_SHOWN", R, final_answer=checks.answer, refusal_substituted=checks.refusal_substituted)
     return checks.answer
@@ -768,10 +768,10 @@ CATALOG = {
     "R_MODEL": refuse_model,
     "T_TOOL_EVIDENCE": evidence,
     "T_GUARDRAIL": guardrail,
-    "T_ADVISORY_TABLE": strict_table,
-    "T_CITE_TOOLS": strict_citation,
+    "T_ADVISORY_TABLE": agent_table,
+    "T_CITE_TOOLS": agent_citation,
     "T_MARK_UNCITED": uncited_mark,
-    "T_SHOWN": strict_answer,
+    "T_SHOWN": agent_answer,
 }
 
 

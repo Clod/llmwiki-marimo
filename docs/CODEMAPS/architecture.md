@@ -2,10 +2,10 @@
 
 # Architecture
 
-**llmwiki-marimo** — an LLM-powered knowledge base. Raw sources (PDF/DOCX) are ingested
+**llmwiki** — an LLM-powered knowledge base. Raw sources (PDF/DOCX) are ingested
 into a curated wiki (summaries + concept pages) backed by SQLite. A chat agent
 answers questions wiki-first, falling back to raw source chunks. A lint→repair
-cycle keeps the wiki internally consistent. Both apps can switch the active wiki
+cycle keeps the wiki internally consistent. The web interface can switch the active wiki
 at runtime via a picker (`base/domain/wiki_registry.py`, §7.1); `WIKI_PATH` in
 `.env` is only the default. See `docs/manual/programmer_manual.md` for the authoritative
 §-by-§ spec.
@@ -13,7 +13,7 @@ at runtime via a picker (`base/domain/wiki_registry.py`, §7.1); `WIKI_PATH` in
 ## Layers
 
 ```
-marimo/        UI layer (marimo notebooks) — ingest_app, read_app
+web/           UI layer (FastAPI + HTMX) — calls base/services/
    │
 base/domain/    Pure domain logic (no UI, no network except LLM)
    ├── ingestion/  sources → wiki pages + DB

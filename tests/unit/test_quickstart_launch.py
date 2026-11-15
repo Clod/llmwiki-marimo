@@ -23,7 +23,6 @@ def test_launch_command_names_the_web_application():
     quickstart = _load_quickstart()
     command = quickstart.launch_command(REPO_ROOT / ".venv", 2720)
     assert command[1:4] == ["-m", "uvicorn", "web.app:app"]
-    assert not any("marimo" in part for part in command[1:])
 
 
 def test_launch_command_runs_the_python_of_the_venv():

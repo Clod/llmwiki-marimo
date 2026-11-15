@@ -18,7 +18,7 @@ Operates on chat messages duck-typed as `.role` ("user"/"assistant") + `.content
 compacted turns are returned as small immutable stand-ins.
 
 `model_history` builds the history that the model receives in the pre-retrieval
-and strict modes from three helpers, `compact_tables`, `cap_turns` and
+and agent modes from three helpers, `compact_tables`, `cap_turns` and
 `with_origin_lines`, after `strip_refused_exchanges`. The nodes C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES of
 the input workflows (`domain/chat/workflow/catalog.py`) run the same four steps,
 one per node.

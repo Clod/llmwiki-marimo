@@ -27,7 +27,7 @@ from web.state import AppState, Message, Turn
 
 router = APIRouter()
 
-MODES = (chat_service.PRE_RETRIEVAL, chat_service.STRICT, chat_service.STREAMING)
+MODES = (chat_service.PRE_RETRIEVAL, chat_service.AGENT, chat_service.STREAMING)
 _SAVED_PAGE = re.compile(r"wiki/(\S+)\.md")
 _EMPTY_CONVERSATION = N_("There is no answered question to save.")
 
@@ -60,7 +60,7 @@ def audit_buttons(templates: Jinja2Templates, wiki_id: str, conversation_id: str
 
 # The modes in which the sentence verification is valid: the third one shows the
 # answer as it arrives and checks nothing.
-VERIFIABLE_MODES = (chat_service.PRE_RETRIEVAL, chat_service.STRICT)
+VERIFIABLE_MODES = (chat_service.PRE_RETRIEVAL, chat_service.AGENT)
 
 
 def _skipped_containment(path) -> bool:
@@ -131,7 +131,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
     """Stream the answer: raw text chunks while it arrives (streaming mode), then
     the rendered answer, which replaces the chunks, then, when the turn asked for
     it, one `verification` event with the answer again and its unsupported
-    sentences marked, then `done`. In the pre-retrieval and strict modes, the figures
+    sentences marked, then `done`. In the pre-retrieval and agent modes, the figures
     without support are marked in red in the rendered answer, with or without that
     verification. The streaming mode runs no check: its answer has no red mark and
     no summary line."""

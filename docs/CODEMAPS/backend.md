@@ -2,8 +2,8 @@
 
 # Backend (base/domain)
 
-Pure domain layer. No web framework — entry points are called directly by the
-marimo apps. Tools derive `workspace = Path(db_path).parent.parent`.
+Pure domain layer. No web framework — `base/services/` is called by the web
+application (`web/`). Tools derive `workspace = Path(db_path).parent.parent`.
 
 `base/config.py` (pydantic-settings) holds no hardcoded provider/model — LLM
 values come from `.env`. `require_llm_config(base_url, api_key, model, *, purpose)`

@@ -180,7 +180,7 @@ def test_modelo_section_says_the_code_did_not_change_the_answer(client, agents):
 def test_modelo_section_shows_the_replaced_text_with_its_warning(client, agents):
     agents.agent.output = "The deposit lasts 90 days."
     agents.agent.grounded = False
-    stream(client, ask(client, "capital of France?", mode="strict"))
+    stream(client, ask(client, "capital of France?", mode="agent"))
     html = audit(client).text
     assert "Este texto no está verificado: el código lo reemplazó porque no pudo respaldarlo con la wiki." in html
     assert "The deposit lasts 90 days." in html
@@ -223,7 +223,7 @@ def test_a_node_without_a_path_says_so(client, agents, app):
     from web.state import Message
 
     conversation = app.state.web.conversation(WIKI_ID, "x")
-    conversation.extend([Message("user", "q"), Message("assistant", "a", "strict")])
+    conversation.extend([Message("user", "q"), Message("assistant", "a", "agent")])
     assert "No hay recorrido registrado para esta respuesta." in audit(client, conversation_id="x").text
 
 
@@ -301,10 +301,10 @@ def test_the_nodes_of_the_path_are_marked_visited_in_each_diagram(client, agents
     assert {"Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"} <= visited(exit_) and "R_MODEL" not in visited(exit_)
 
 
-def test_the_strict_mode_shows_its_own_graphs_and_the_call_t1(client, agents):
+def test_the_agent_mode_shows_its_own_graphs_and_the_call_t1(client, agents):
     agents.agent.output = "The deposit lasts 90 days."
     agents.agent.grounded = False
-    stream(client, ask(client, "capital of France?", mode="strict"))
+    stream(client, ask(client, "capital of France?", mode="agent"))
     entry, call, exit_ = diagrams(audit(client).text)
     assert "C_OPEN_PAGE_NOTE · " in entry and "Q_QUESTION · " not in entry
     assert "T_AGENT · " in call and "Q_AGENT_PAGES" not in call
@@ -333,7 +333,7 @@ def test_selecting_another_turn_returns_its_diagrams(client, agents):
     agents.agent.output = "The deposit lasts 90 days."
     agents.agent.grounded = False
     stream(client, ask(client))
-    stream(client, ask(client, "capital of France?", mode="strict"))
+    stream(client, ask(client, "capital of France?", mode="agent"))
     first = client.get(f"/w/{WIKI_ID}/audit/c1/diagram/1").text
     second = client.get(f"/w/{WIKI_ID}/audit/c1/diagram/2").text
     assert "Q_AGENT_PAGES · " in first and "T_GUARDRAIL · " not in first
@@ -376,7 +376,7 @@ def test_the_model_call_chain_keeps_each_tool_call_in_order():
     assert model_call_chain(["C_COUNT_HISTORY", "Q_QUESTION", "Q_IN_BLACKLIST", "R_BLACKLIST"]) == [] and model_call_diagram(["R_BLACKLIST"]) == ""
 
 
-GRAPHS = [("pre-retrieval", 0), ("pre-retrieval", 1), ("strict", 0), ("strict", 1)]
+GRAPHS = [("pre-retrieval", 0), ("pre-retrieval", 1), ("agent", 0), ("agent", 1)]
 
 
 def test_every_step_of_a_graph_is_labelled_in_its_diagram():

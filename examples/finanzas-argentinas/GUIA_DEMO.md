@@ -385,8 +385,10 @@ citar-o-abstenerse, no completar con conocimiento general, y mantenerse en el
 dominio. Como red de seguridad determinista, el **guardrail** `enforce_grounding`
 reemplaza por una abstención cualquier respuesta que **no** se apoye en un
 resultado de herramienta — así una cita fabricada de memoria no pasa. El guardrail
-es un toggle en la interfaz (estricto/_buffered_ vs. normal/_streamed_).
-→ `base/domain/chat/guardrail.py` (cableado en `marimo/read_app.py`),
+corre en el modo «Agente con comprobación de evidencia»; el modo «Sin
+verificación» no lo aplica.
+→ `base/domain/chat/guardrail.py` (nodo `T_GUARDRAIL`, en
+`base/domain/chat/workflow/catalog.py`),
 prompt en `examples/finanzas-argentinas/wiki_config.toml`.
 
 ### 4.2 Las nueve preguntas, una por una
@@ -479,8 +481,8 @@ ambas) y **las referencias** de código.
   En la práctica el modelo busca, no encuentra, y lo admite; si agrega una
   explicación general, debe etiquetarla como tal.
 - **Referencias:** reglas en `wiki_config.toml`;
-  `chat/guardrail.py::enforce_grounding` / `has_grounding` (cableado en
-  `marimo/read_app.py`).
+  `chat/guardrail.py::enforce_grounding` / `has_grounding` (nodo
+  `T_GUARDRAIL`, en `chat/workflow/catalog.py`).
 
 #### H — Un número que **no está** en los datos
 - **Desafío:** admitir que falta un dato puntual (la tasa del Banco Comafi) que

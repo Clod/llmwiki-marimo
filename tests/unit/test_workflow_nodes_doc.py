@@ -1,7 +1,7 @@
 """The node lists that each chat workflow declares match the graph it builds.
 
 Each workflow module declares the nodes of the catalog that each of its graphs
-registers (`PRE_RETRIEVAL_NODES`, `STRICT_NODES`) and the steps that are not in
+registers (`PRE_RETRIEVAL_NODES`, `AGENT_NODES`) and the steps that are not in
 the catalog (`OWN_STEPS`). The steps of a graph that are not own steps are
 exactly the declared list, and every declared code is a key of
 `catalog.CATALOG`. `docs/workflow_nodes.md` is the table generated from those
@@ -17,9 +17,9 @@ from domain.chat.workflow import catalog, input_checks, output_checks, table
 
 WORKFLOWS = [
     pytest.param(input_checks, input_checks.graph, input_checks.PRE_RETRIEVAL_NODES, id="input, pre-retrieval"),
-    pytest.param(input_checks, input_checks.strict_graph, input_checks.STRICT_NODES, id="input, strict"),
+    pytest.param(input_checks, input_checks.agent_graph, input_checks.AGENT_NODES, id="input, agent"),
     pytest.param(output_checks, output_checks.graph, output_checks.PRE_RETRIEVAL_NODES, id="output, pre-retrieval"),
-    pytest.param(output_checks, output_checks.strict_graph, output_checks.STRICT_NODES, id="output, strict"),
+    pytest.param(output_checks, output_checks.agent_graph, output_checks.AGENT_NODES, id="output, agent"),
 ]
 
 

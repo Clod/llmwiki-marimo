@@ -61,8 +61,8 @@ _ADVISORY_CHECKS = {"vocab_stale", "vocab_covered", "vocab_ambiguous", "thin_pag
 # is missing in the reader's own terms.
 _NEEDS_LLM_MESSAGE = (
     "'{check}' repair needs a model, and none was supplied. To fix these: tick "
-    "\"Also run full LLM lint & repair after ingest\" before ingesting, or press "
-    "\"Run Wiki Lint & Repair\" to sweep the whole wiki now."
+    "\"Full repair with the model, slower\" before ingesting, or press "
+    "\"Run Wiki Lint & Repair\" in Maintain to sweep the whole wiki now."
 )
 
 

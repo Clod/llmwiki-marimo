@@ -1,6 +1,6 @@
 """The diagrams of a turn for the audit page of a conversation.
 
-A turn of the pre-retrieval or the strict mode shows three diagrams: the input
+A turn of the pre-retrieval or the agent mode shows three diagrams: the input
 workflow, the call to the model and the output workflow. The input and output
 diagrams are Mermaid flowcharts converted from the text of the graphs
 (`graph.render()`, see `flowchart`), so they show the steps that run. Each step
@@ -33,11 +33,11 @@ SOURCE = Path(__file__).resolve().parent.parent / "docs" / "query_nodes.md"
 # The input and the output graph of each mode with workflows. The streaming mode has none.
 WORKFLOW_GRAPHS = {
     "pre-retrieval": (input_checks.graph, output_checks.graph),
-    "strict": (input_checks.strict_graph, output_checks.strict_graph),
+    "agent": (input_checks.agent_graph, output_checks.agent_graph),
 }
 
 # The nodes that call the model between the two workflows of a mode.
-MODEL_CALLS = (*input_checks.AGENT_NODES, "T_AGENT")
+MODEL_CALLS = (*input_checks.AGENT_CALL_NODES, "T_AGENT")
 
 VISITED_STYLE = "classDef visited fill:#fde047,stroke:#a16207,stroke-width:3px,color:#1f2937"
 

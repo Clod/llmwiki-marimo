@@ -465,11 +465,11 @@ def test_an_edit_that_is_not_a_regeneration_leaves_the_stale_mark(
 def test_deleting_every_stale_page_leaves_the_wiki_consistent(
     tmp_workspace: WorkspaceFixture,
 ) -> None:
-    """The sequence behind the ingest app's "Delete Stale Page(s)" button.
+    """The sequence behind the deletion of the stale pages in Maintain.
 
-    The button is two marimo cells that do exactly this: list the marked pages,
-    delete each one, report. The cells cannot be unit-tested, so the sequence is —
-    it is where a mistake would actually cost something, since it deletes.
+    `services.ingest.delete_stale_pages` does exactly this: list the marked
+    pages, delete each one, report. The sequence is tested here because it is
+    where a mistake would actually cost something, since it deletes.
 
     What must hold afterwards: the marked pages are gone, the unmarked one is
     untouched, nothing still links to what was deleted, the catalogue no longer

@@ -33,7 +33,7 @@ from .dataset_tools import query_dataset
 from .tools import search_source_chunks
 # Import the read-only tools that let the agent interact with our Wiki.
 # Note: the agent has NO write tool — creating/updating wiki pages is the user's
-# explicit action via the "Save to wiki" form in read_app.py (save_to_wiki).
+# explicit action via "Save to wiki" in the web interface (services/chat.py → save_to_wiki).
 from .wiki_tools import read_wiki_page, search_wiki_fts
 # Appends the wiki's chat answer-language directive to the system prompt.
 from domain.i18n import apply_chat_directive
@@ -120,7 +120,7 @@ def create_agent(
         query_dataset        — current structured dataset values (only when workspace has datasets/)
 
     The agent has no write tool by design: saving a chat response as a wiki page is the
-    user's explicit action via the "Save to wiki" form (read_app.py → save_to_wiki).
+    user's explicit action via "Save to wiki" in the web interface (services/chat.py → save_to_wiki).
     The system prompt instructs the agent to propose a title/category and point the
     user at that form rather than persisting anything itself.
     """
@@ -153,7 +153,7 @@ def create_agent(
         effective_prompt = f"{effective_prompt}{load_prompt('dataset_addendum', language)}"
 
     # Domain-overlay tools (e.g. finance_argentina) are injected by the caller
-    # (the composition root / read_app), keeping this engine module
+    # (the composition root, services/chat.py), keeping this engine module
     # domain-agnostic — it never imports any overlay. Both default to None, so a
     # caller that passes neither gets byte-identical tools and prompt.
     if extra_tools:

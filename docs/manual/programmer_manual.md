@@ -162,7 +162,6 @@ as an MCP tool, alongside — not replacing — the index-first cascade.
                             ▼
               ┌───────────────────────────────┐
               │   Web interface               │ web/ → base/services/
-              │   (marimo/ is being retired)  │
               └───────────────────────────────┘
 
               ┌───────────────────────────────┐
@@ -211,7 +210,6 @@ the table has twelve rows.
 | **Services** *(added)* | the calls every interface makes to the domain: open a wiki, list and save pages, one chat turn per mode, uploads, maintenance, history, the relations graph. No interface code | `base/services/wiki.py` · `base/services/chat.py` · `base/services/ingest.py` |
 | **Web interface** *(added)* | the interface of the project: FastAPI routes, Jinja2 templates, HTMX, SSE. Routes hold no logic and call `base/services/` | `web/app.py` · `web/routes/` |
 | **Verification** *(added)* | the check of each sentence of a page, or of a chat answer, against the text of its sources with a local NLI model; report only, it never rewrites a page | `verify/page.py` · `verify/core.py` |
-| **User Interface (marimo)** | three Marimo notebooks and a widget — the former interface, being retired and kept until a separate change removes it | `marimo/ingest_app.py` · `marimo/read_app_tabs.py` |
 | **Core & Configuration** | cross-cutting settings, locales, the prompt files, workspace discovery | `base/config.py` · `domain/i18n.py` · `domain/prompts.py` |
 | **Support** | documentation, templates, scripts, the quick-start installer | `quickstart.py` |
 
@@ -347,11 +345,6 @@ llmwiki/
 │   ├── render.py                       # Markdown → sanitized HTML, internal links rewritten
 │   ├── state.py                        # AppState: open wikis, conversations, operations (in memory)
 │   └── settings.py                     # WebSettings
-├── marimo/                             # Being retired; removal is a separate change
-│   ├── ingest_app.py                   # Wiki picker + upload + ingest + scan + regenerate UI
-│   ├── read_app.py · read_app_tabs.py  # Wiki picker + reader + chat + save_to_wiki (grid / tabs)
-│   ├── layouts/read_app.grid.json      # Grid layout of read_app.py
-│   └── widgets/delete_confirm.py       # DeleteConfirmWidget (anywidget)
 ├── database/
 │   └── sqlite_schema.sql               # Canonical schema (applied by open_db)
 ├── scripts/
@@ -365,15 +358,13 @@ llmwiki/
 │   ├── wiki_revert.py                  # Go back to an earlier point of a wiki (command line)
 │   ├── capture_ingestion_walkthrough.py · capture_query_walkthrough.py
 │   │                                   #   regenerate the figures of the two walkthroughs
-│   ├── capture_screenshots.py          # screenshots of the marimo read app
 │   └── record_demo.py                  # the two README demo videos and the reading screenshot (web)
 ├── tests/
 │   ├── conftest.py                     # sys.path + fixture registration
 │   ├── helpers/{fake_llm.py,workspace.py,golden.py}
 │   ├── unit/                           # 1410 unit tests (no LLM, no network)
 │   ├── regression/                     # golden-corpus + eval-reader invariants (16 tests)
-│   ├── web/                            # 444 tests: routes, rendering, design checks; e2e/ holds the 62 Playwright flows
-│   └── e2e/                            # Playwright tests of the marimo apps (live model; not in CI)
+│   └── web/                            # 444 tests: routes, rendering, design checks; e2e/ holds the 62 Playwright flows
 ├── examples/                          # Pre-ingested demo wikis for quickstart.py (§7)
 │   ├── fairy-tales/                   # Complete workspace; browsable with no LLM
 │   ├── cuentos-de-hadas/             # Spanish (es) mirror of fairy-tales
@@ -430,9 +421,6 @@ page creation. Always add a second poll for the wiki page in tests.
 - **Circular import.** `wiki_fs.py` imports `chunker.py` inside  
 `_insert_chunks()` (deferred) to prevent a load-time cycle with  
 `pipeline.py`.
-- **Marimo reactivity** (marimo apps only). `ingest_file()` runs synchronously inside a marimo  
-cell. Marimo re-runs dependent cells reactively *after* the cell completes,  
-not during. Cells are not async unless explicitly written as `async def`.
 - **`source_document_id` is set only for summary pages**, not concepts —  
 because one concept can be derived from multiple sources.
 - **Citation parser dash.** `update_references` requires *one or more* spaces  

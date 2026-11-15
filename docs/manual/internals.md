@@ -335,7 +335,7 @@ in [`docs/ingestion_nodes.md`](../ingestion_nodes.md) (writing: the
 ingestion steps I_…, the end states E_…, the fragment path W_… and the
 maintenance nodes M_…) and [`docs/query_nodes.md`](../query_nodes.md) (reading:
 the checks C_…, the pre-retrieval nodes Q_…, the streaming nodes F_…, the
-strict nodes T_…, the tools K_… and the refusal causes R_…). Those tables are the reference for which
+agent nodes T_…, the tools K_… and the refusal causes R_…). Those tables are the reference for which
 node covers which function; this section does not repeat them.
 
 ### 14.7 Rendering — `scripts/render_trace.py`

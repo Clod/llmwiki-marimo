@@ -154,10 +154,10 @@ def _agents(output):
     return chat.ChatAgents(config=config, agent=_Agent(output), agent_pre_retrieval=_Agent(output))
 
 
-def test_strict_turn_without_tool_evidence_is_refused(wiki):
+def test_agent_turn_without_tool_evidence_is_refused(wiki):
     agents = _agents("Paris.")
     answer = asyncio.run(chat.chat_turn(
-        wiki, agents, [_msg("user", "capital of France?")], mode=chat.STRICT,
+        wiki, agents, [_msg("user", "capital of France?")], mode=chat.AGENT,
     ))
     assert answer == REFUSAL_EN
     assert agents.agent.prompts == ["capital of France?"]
