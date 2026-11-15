@@ -3526,7 +3526,11 @@ msgid "The model answers, calling the tools; the text is shown as it arrives"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "The answer is complete, with no check but the figure check"
+msgid "Advisory table of the tool appended below the text"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The answer is complete, with no check"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py

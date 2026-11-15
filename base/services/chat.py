@@ -393,7 +393,8 @@ async def chat_turn_stream_with_context(
     item, with the whole answer and the tool returns of the run. The code changes
     nothing between the user and the agent: the agent receives every prior message
     as written (`plain_history`), and the answer is the text of the agent, with no
-    check. The question carries the note of the open page (`_with_open_page`), as
+    check. The one addition is the table of the advisory tool, below the text, when
+    the tool ran (node F_ADVISORY_TABLE): its prompt tells the model not to copy it. The question carries the note of the open page (`_with_open_page`), as
     in the agent mode.
     """
     prior = list(messages[:-1])
@@ -431,10 +432,21 @@ async def chat_turn_stream_with_context(
                     full_text += chunk
                     yield chunk
             f1.set(tools_called=_tools_called(run_messages))
+        raw = full_text
+        # The prompt of the advisory tool tells the model not to copy its table, because
+        # the code adds it. The streaming mode checks nothing, but it keeps that promise:
+        # the table of the tool goes below the text, as the tool returned it, and the text
+        # of the model is not changed.
+        table = advisory_table(run_messages)
+        if table:
+            addition = f"\n\n{table}" if full_text else table
+            full_text += addition
+            yield addition
+            tracing.mark("F_ADVISORY_TABLE", R, table_added=True)
         tracing.mark("F_COMPLETE", R, final_answer=full_text)
-        root.set(raw_output=full_text, final_answer=full_text)
-    yield ChatResult(full_text, tuple(context_from_messages(run_messages)), path=tuple(path),
-                     input_tokens=tokens.input, output_tokens=tokens.output)
+        root.set(raw_output=raw, final_answer=full_text)
+    yield ChatResult(full_text, tuple(context_from_messages(run_messages)), (table,) if table else (),
+                     path=tuple(path), input_tokens=tokens.input, output_tokens=tokens.output)
 
 
 async def chat_turn_stream(

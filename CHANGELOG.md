@@ -450,6 +450,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **«No verification» shows the table of the alternatives.** For a question
+  such as «¿qué alternativas tengo y cuánto ganaría?», the prompt of the
+  advisory tool tells the model not to copy its table, because the code adds
+  it. The streaming mode added nothing, so the answer commented the options with
+  no figure. It now appends the table of the tool below the text, as the tool
+  returned it (node `F_ADVISORY_TABLE`); the text of the model is not changed and
+  no check runs. The text of `F_COMPLETE` no longer mentions a figure check that
+  the mode does not run.
+
 - **A dataset filter that matches nothing names the values that exist.** The
   model asked `query_dataset` for `metrica='7_dias'`, got "No dataset rows
   found" and answered with no evidence. The answer now ends with the metricas

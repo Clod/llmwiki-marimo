@@ -214,6 +214,31 @@ def test_agent_returns_its_path(wiki):
     assert "T_NO_EVIDENCE_WARNING" in ids(refused)
 
 
+def test_streaming_appends_the_table_of_the_advisory_tool_and_keeps_the_text(wiki):
+    """The prompt of the advisory tool tells the model not to copy its table, because
+    the code adds it. The streaming mode adds it too, below the text, as the tool
+    returned it; the text of the model is not changed."""
+    table = "| Instrumento | Ganancia |\n|---|---|\n| Plazo fijo | $ 27.000 |"
+    returned = [ModelRequest(parts=[ToolReturnPart(tool_name="estimar_alternativas", content=table,
+                                                   tool_call_id="c")])]
+
+    async def collect():
+        chunks, result = [], None
+        async for item in chat.chat_turn_stream_with_context(
+                wiki, agents("Hay tres opciones.", returned), [msg("user", "¿Qué alternativas tengo?")]):
+            if isinstance(item, str):
+                chunks.append(item)
+            else:
+                result = item
+        return chunks, result
+
+    chunks, result = run(collect())
+    assert result.answer == "Hay tres opciones.\n\n" + table
+    assert "".join(chunks) == result.answer                 # the table reaches the screen too
+    assert ids(result)[-2:] == ["F_ADVISORY_TABLE", "F_COMPLETE"]
+    assert result.generated == (table,)
+
+
 def test_streaming_returns_its_path(wiki):
     async def last():
         result = None

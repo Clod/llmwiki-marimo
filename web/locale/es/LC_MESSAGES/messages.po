@@ -3666,8 +3666,12 @@ msgid "The model answers, calling the tools; the text is shown as it arrives"
 msgstr "El modelo responde llamando a las herramientas; el texto se muestra a medida que llega"
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "The answer is complete, with no check but the figure check"
-msgstr "La respuesta está completa, sin otra comprobación que la de las cifras"
+msgid "Advisory table of the tool appended below the text"
+msgstr "Tabla de alternativas de la herramienta agregada debajo del texto"
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "The answer is complete, with no check"
+msgstr "La respuesta está completa, sin comprobaciones"
 
 #: base/domain/chat/workflow/node_texts.py
 msgid "Tool: read a wiki page"
@@ -3882,4 +3886,7 @@ msgstr "una herramienta devolvió evidencia"
 #~ " fuente, y la descripción entra en el texto de la "
 #~ "fuente. Cada descripción es una llamada al modelo. El modelo"
 #~ " de visión se define en el archivo .env (VISION_*)."
+
+#~ msgid "The answer is complete, with no check but the figure check"
+#~ msgstr "La respuesta está completa, sin otra comprobación que la de las cifras"
 

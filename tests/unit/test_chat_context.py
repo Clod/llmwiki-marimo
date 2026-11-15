@@ -143,9 +143,10 @@ def test_streaming_yields_the_chunks_then_the_result(wiki):
             wiki, agents("Cinderella lost a slipper.", tool_messages()), [msg("user", "Who is Cinderella?")])]
 
     items = run(collect())
-    assert items[:-1] == ["Cinde", "rella lost a slipper."]
+    table = "| opción | tasa |\n|---|---|\n| a | 1 |"     # the advisory tool ran: its table follows the text
+    assert items[:-1] == ["Cinde", "rella lost a slipper.", "\n\n" + table]
     last = items[-1]
-    assert isinstance(last, chat.ChatResult) and last.answer == "Cinderella lost a slipper."
+    assert isinstance(last, chat.ChatResult) and last.answer == "Cinderella lost a slipper.\n\n" + table
     assert last.context[0].page == "/wiki/concepts/cinderella.md"
 
 
