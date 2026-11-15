@@ -222,8 +222,8 @@ of the question, without case nor accents: "alternativ" matches "alternativas". 
 | **Aliases** | The effective map of `load_config` (generated ⊕ hand-written − rejected), each alias marked **generated** or **hand-written** | **Add** a hand-written alias of a roster name; **Remove** a hand-written alias; **Reject** a generated alias |
 | **Blacklist** | `[fuera_de_alcance] terminos` | **Add** a term the roster does not hold; **Remove** a term |
 | **Rejected aliases** | `[falsos_sinonimos]`: the aliases a name must never have | **Accept again** |
-| **Questions about the whole wiki** | `[intent] collection`: the expressions of node `Q9`, or the base list of the wiki's language (`base/domain/chat/intent.<language>.toml`) while the key is absent. The panel says which one it shows | **Add** an expression; **Remove** an expression. The first change writes the whole base list into `wiki_config.toml`, with the change applied |
-| **Calculation requests** | `[intent] advisory`: the expressions of an advisory request (node `Q5`), or the base list of the active domains. Shown only when an active domain has an advisory list or the wiki has its own | As **Questions about the whole wiki** |
+| **Questions about the whole wiki** | `[intent] collection`: the expressions of node `Q_IS_COLLECTION`, or the base list of the wiki's language (`base/domain/chat/intent.<language>.toml`) while the key is absent. The panel says which one it shows | **Add** an expression; **Remove** an expression. The first change writes the whole base list into `wiki_config.toml`, with the change applied |
+| **Calculation requests** | `[intent] advisory`: the expressions of an advisory request (node `Q_IN_ROSTER`), or the base list of the active domains. Shown only when an active domain has an advisory list or the wiki has its own | As **Questions about the whole wiki** |
 
 `POST /w/{wiki_id}/vocabulary/{op}` applies one change under the wiki's lock and returns
 the body of the screen. `domain.chat.config_writer` rewrites only what changes in
@@ -372,10 +372,10 @@ in the server (`AppState.model_test_lock`). The tests live in `base/domain/model
 and run the path of the product on material that ships with the code:
 
 - **Reading** (`answers`, `declines`, `uses_tools`): three chat turns on a temporary wiki
-  of two pages. The first question, in the pre-retrieval mode, must end in node `Q21`
+  of two pages. The first question, in the pre-retrieval mode, must end in node `Q_SHOWN`
   with the datum of the page (`ZK-4471`) and the slug of the page. The second, which no
-  page answers, must end in `R5`. The first question again, in the strict mode, must
-  end in `T5`, with a node `K` (a call to a tool) in the path and the datum in the
+  page answers, must end in `R_MODEL`. The first question again, in the strict mode, must
+  end in `T_SHOWN`, with a node `K` (a call to a tool) in the path and the datum in the
   answer.
 - **Ingestion** (`ingests`): the ingestion of a `.md` of one paragraph into a temporary
   wiki. It passes when the status is `ingested`, the summary page exists, a new concept
@@ -747,7 +747,7 @@ engine's `DatasetSource` + dataset-file front-matter; the engine never imports i
   actual se mantiene"*.
 - **Typed data tools** (`data_tools.py`) — one tool per dataset category:
   `tasa_plazo_fijo`, `tasa_caucion`, `cotizacion_dolar`, `precio_accion` and
-  `rendimiento_fci` (trace nodes K6 to K10). The allowed values of each argument are
+  `rendimiento_fci` (trace nodes K_PLAZO_FIJO, K_CAUCION, K_DOLLAR, K_SHARE_PRICE and K_MONEY_MARKET). The allowed values of each argument are
   read from the dataset files when the agents are built (`make_data_tools`) and
   written into the JSON schema of the tool as an `enum`; a value outside them raises
   `ModelRetry` with the allowed values. Each tool returns the rows as the table of

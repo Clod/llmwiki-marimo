@@ -51,7 +51,7 @@ def test_the_screen_in_english(en_client, vocab_wiki):
 def test_adding_a_blacklist_term_commits_and_keeps_the_comment(client, vocab_wiki):
     html = post(client, "blacklist-add", term="bitcoin").text
     assert html.lstrip().startswith('<div class="vocab-body" id="vocab-body">') and "Lista negra · 2" in html
-    assert load_config(vocab_wiki.path).off_limits == ["cripto", "bitcoin"]
+    assert load_config(vocab_wiki.path).blacklist == ["cripto", "bitcoin"]
     assert "# Hand-written comment that must survive." in (vocab_wiki.path / "wiki_config.toml").read_text()
     assert last_commit(vocab_wiki) == 'vocabulary: blacklist "bitcoin"'
 
@@ -89,7 +89,7 @@ def test_a_change_waits_for_no_running_operation(client, app, vocab_wiki):
     finally:
         entry.busy.release()
     assert "Hay otra operación en curso sobre esta wiki." in html
-    assert load_config(vocab_wiki.path).off_limits == ["cripto"]
+    assert load_config(vocab_wiki.path).blacklist == ["cripto"]
 
 
 def test_an_unknown_change_is_a_404(client, vocab_wiki):

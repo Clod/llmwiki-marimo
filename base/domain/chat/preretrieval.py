@@ -34,7 +34,7 @@ from domain.chat.scope import (
     # The input workflow reads it through this module, where the workshop
     # replaces it (`mock.patch.object(preretrieval, "collection_intent", ...)`).
     collection_intent,  # noqa: F401
-    is_off_limits,
+    is_blacklisted,
     matched_terms,
     mentions_known_data,
 )
@@ -135,7 +135,7 @@ def retrieve_wiki(
 ) -> list[str]:
     """Top curated-wiki chunks for `query` (Tier 1). Empty list if none.
 
-    `topics` are the roster terms the question names (node Q5). The query joins its
+    `topics` are the roster terms the question names (node Q_IN_ROSTER). The query joins its
     words with OR, and BM25 adds up the words that match: in "¿plazo fijo o FCI money
     market?", the three words of one topic outrank the two of the other, and the six
     hits can all belong to one topic. Each topic is searched alone. Its pages are its
@@ -233,7 +233,7 @@ def retrieve_collection_pages(workspace) -> list[str]:
     return pages
 
 
-# Header of the key-names block of node Q7d, per content language.
+# Header of the key-names block of node Q_KEY_NAMES, per content language.
 _KEY_NAMES_HEADER = {
     "es": "[datasets/{categoria}.md] Valores de `{clave}` con datos en este dataset:",
     "en": "[datasets/{categoria}.md] Values of `{clave}` with data in this dataset:",
@@ -249,8 +249,8 @@ _KEYS_OFFERED = {
 class DatasetInjection:
     """The dataset context a Tier-1 turn adds next to the wiki pages (decision 16).
 
-    blocks:     the text blocks to inject — a row table (node Q7c) or a list of
-                key names (node Q7d) per category the question names.
+    blocks:     the text blocks to inject — a row table (node Q_KEY_ROWS) or a list of
+                key names (node Q_KEY_NAMES) per category the question names.
     references: the dataset files whose ROWS were injected, for the citation.
     fuentes:    the external origins of those rows, for the citation.
     """
@@ -258,7 +258,7 @@ class DatasetInjection:
     blocks: list[str]
     references: list[str]
     fuentes: list[str]
-    # Categories injected as key names (Q7d): categoria -> (key column, keys).
+    # Categories injected as key names (Q_KEY_NAMES): categoria -> (key column, keys).
     key_names: dict[str, tuple[str, list[str]]] = field(default_factory=dict)
 
 
@@ -286,7 +286,7 @@ def named_categories(
     data_aliases: dict[str, list[str]],
     language: str | None,
 ) -> list[tuple[str, list[str], list[str], list]]:
-    """The categories the question names (node Q7a), in the order of the source.
+    """The categories the question names (node Q_NAMES_CATEGORY), in the order of the source.
 
     One tuple per named category: the category, its keys, the keys the question
     names, and the rows of the category. A category is named when the question
@@ -310,7 +310,7 @@ def named_categories(
 
 
 def rows_block(categoria: str, named_keys: list[str], rows: list) -> tuple[str, str, list[str]]:
-    """The rows of the named keys of a category (node Q7c): the block to inject,
+    """The rows of the named keys of a category (node Q_KEY_ROWS): the block to inject,
     the dataset file to cite, and the origin of each injected row."""
     key_rows = [row for row in rows if row.clave in named_keys]
     block = f"[datasets/{categoria}.md]\n{format_rows_as_table(categoria, key_rows)}"
@@ -320,7 +320,7 @@ def rows_block(categoria: str, named_keys: list[str], rows: list) -> tuple[str, 
 def key_names_block(
     categoria: str, keys: list[str], source: DatasetSource, language: str | None,
 ) -> tuple[str, tuple[str, list[str]]]:
-    """The key names of a category, without values (node Q7d): the block to
+    """The key names of a category, without values (node Q_KEY_NAMES): the block to
     inject, and the entry of `DatasetInjection.key_names` (key column, keys)."""
     header = _KEY_NAMES_HEADER.get((language or "es").lower(), _KEY_NAMES_HEADER["en"])
     clave = str(source.attributes(categoria).get("clave") or "clave")
@@ -344,7 +344,7 @@ def dataset_injection(
 
     The function records no node. The input workflow
     (`domain/chat/workflow/input_checks.py`) runs the same three parts as the
-    nodes Q7a, Q7b, Q7c and Q7d.
+    nodes Q_NAMES_CATEGORY, Q_NAMES_KEY, Q_KEY_ROWS and Q_KEY_NAMES.
     """
     blocks: list[str] = []
     references: list[str] = []
@@ -385,7 +385,7 @@ def offer_available_keys(
 ) -> str:
     """Append the keys that have data when the model asked for one that does not.
 
-    Applies to a category injected as key names (Q7d): when the model called
+    Applies to a category injected as key names (Q_KEY_NAMES): when the model called
     `query_dataset` with a key that category lacks — "Banco Comafi" in
     `plazo_fijo` — and the answer names none of the category's keys, the code
     appends one line listing them, so the user can ask again for one that has
@@ -447,7 +447,7 @@ def tier2_plan(hits: list[str]) -> RetrievalPlan:
 def plan_retrieval(
     question: str,
     *,
-    off_limits: Iterable[str],
+    blacklist: Iterable[str],
     wiki_hits: list[str],
     doc_hits: list[str],
     has_data: bool,
@@ -479,9 +479,9 @@ def plan_retrieval(
 
     The function records no node. The input workflow
     (`domain/chat/workflow/input_checks.py`) takes the same decisions in the
-    same order, and records each one as its node: Q7, Q9, Q10, Q11 and Q12.
+    same order, and records each one as its node: Q_PAGE_FOUND, Q_IS_COLLECTION, Q_IS_DATA, Q_FRAGMENT_FOUND and Q_ROSTER_REFUSAL.
     """
-    if is_off_limits(question, off_limits):
+    if is_blacklisted(question, blacklist):
         return _REFUSE
     if wiki_hits and in_roster:
         return tier1_plan(wiki_hits)
@@ -522,7 +522,7 @@ async def pre_retrieval_answer(
     `open_page` is the id of the page the user is reading (`concepts/x`), or
     None. That page is injected first, and a question asked while reading it
     counts as covered, so "¿cuánto rinde?" read next to the plazo fijo UVA page
-    is answered from it (node Q5a).
+    is answered from it (node Q_PAGE_OPEN).
 
     The CODE retrieves (curated wiki, then raw docs) and decides the plan; the
     model is invoked (via the injected async `run_agent(prompt, history)`) only
@@ -541,21 +541,21 @@ async def pre_retrieval_answer(
     rewrites a follow-up into a question that stands alone (`domain/chat/condense.py`).
     It runs only when the question alone passes neither the coverage gate nor the
     data check and no page is open; the gate and the search then use the rewrite,
-    and the model still answers the original question (node Q5b).
+    and the model still answers the original question (node Q_CONDENSED).
 
     `conversation` holds the `(origin, text)` sources of the conversation that
     authorise the figures of the answer (`figure_check.conversation_sources`).
-    `on_figures`, if given, is called once with the `FigureCheck` of node C3; it is
-    not called when the turn ends in a refusal, which does not reach C3.
+    `on_figures`, if given, is called once with the `FigureCheck` of node C_FIGURES; it is
+    not called when the turn ends in a refusal, which does not reach C_FIGURES.
 
     `sentence_verifier` is True when the sentence verifier will check the answer
     after it is shown. A Tier-2 answer then skips the containment check (node
-    Q17): the sentence verifier is its only comparison against the fragments.
+    Q_IS_GROUNDED): the sentence verifier is its only comparison against the fragments.
 
     `prior` holds the prior messages of the chat (`.role`, `.content`); the nodes
-    C2a to C2d of the input workflow build the history of the model from them.
+    C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES of the input workflow build the history of the model from them.
     A caller without `prior` passes the history already built in `history`, and
-    C2a to C2d leave that history as it is.
+    C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES leave that history as it is.
     """
     with tracing.root(
         "turn", workspace, mode="pre-retrieval", question=question, language=language,
@@ -588,7 +588,7 @@ def with_open_page(question: str, open_page: str | None, language: str | None) -
 
 
 def build_prompt(context: str | None, synonyms: str, asked: str, language: str | None) -> str:
-    """The prompt that the model receives (node Q12b): the injected `context`, with
+    """The prompt that the model receives (node Q_PROMPT): the injected `context`, with
     the `synonyms` line first, in the inject template, or the question `asked`
     alone, after the synonyms line, when nothing is injected."""
     if context:
@@ -631,10 +631,10 @@ def _hit_labels(hits: list[str]) -> list[str]:
 def _answer_node(plan: RetrievalPlan, wiki_hits: list[str], in_roster: bool) -> str:
     """The reading-diagram node that injects the plan's context and runs the model."""
     if plan.tier == "curado":
-        return "Q13" if (wiki_hits and in_roster) else "Q14"
+        return "Q_AGENT_PAGES" if (wiki_hits and in_roster) else "Q_AGENT_COLLECTION"
     if plan.tier == "crudo":
-        return "Q16"
-    return "Q15"
+        return "Q_AGENT_FRAGMENTS"
+    return "Q_AGENT_TOOLS"
 
 
 @dataclass
@@ -658,12 +658,12 @@ class PreRetrievalTurn:
     condense: Any = None
     on_trace: Any = None
     # The sentence verifier checks the answer after it is shown: a Tier-2 answer
-    # skips the containment check (node Q17).
+    # skips the containment check (node Q_IS_GROUNDED).
     sentence_verifier: bool = False
-    # What the gate and the search examine: the question, or its rewrite (Q5d).
+    # What the gate and the search examine: the question, or its rewrite (Q_RW_ACCEPTED).
     search: str = ""
-    off_limits: bool = False
-    # The text that the condenser returned (Q5c).
+    blacklisted: bool = False
+    # The text that the condenser returned (Q_REWRITE).
     rewrite: str = ""
     # The coverage roster (`ensure_roster`), built once per turn.
     roster_built: bool = False
@@ -682,18 +682,18 @@ class PreRetrievalTurn:
     plan: RetrievalPlan | None = None
     intent: IntentLists | None = None   # resolved by `intent_lists`, once per turn
     injection: DatasetInjection = field(default_factory=lambda: DatasetInjection([], [], []))
-    # The categories the question names (Q7a), not yet read, and the category
-    # that Q7c or Q7d reads (Q7b): tuples of `named_categories`.
+    # The categories the question names (Q_NAMES_CATEGORY), not yet read, and the category
+    # that Q_KEY_ROWS or Q_KEY_NAMES reads (Q_NAMES_KEY): tuples of `named_categories`.
     named: list[tuple[str, list[str], list[str], list]] = field(default_factory=list)
     category: tuple[str, list[str], list[str], list] | None = None
-    # The prior messages of the chat, from which C2a to C2d build `history`; None
-    # when the caller passed `history` already built. `mode` is what C2 records.
-    # `kept` is the history between C2a and C2d.
+    # The prior messages of the chat, from which C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES build `history`; None
+    # when the caller passed `history` already built. `mode` is what C_WHICH_MODE records.
+    # `kept` is the history between C_DROP_REFUSED and C_ORIGIN_LINES.
     prior: list | None = None
     mode: str = "pre-retrieval"
     kept: list = field(default_factory=list)
-    # The question with the open-page note (C4), the synonyms line (Q12a) and
-    # the prompt that the model receives (Q12b).
+    # The question with the open-page note (C_OPEN_PAGE_NOTE), the synonyms line (Q_SYNONYMS) and
+    # the prompt that the model receives (Q_PROMPT).
     asked: str = ""
     synonyms: str = ""
     prompt: str = ""
@@ -704,12 +704,12 @@ class PreRetrievalTurn:
 
     @property
     def noted_page(self) -> str | None:
-        """The page that the note of C4 names: the open page, when Q5a found it."""
+        """The page that the note of C_OPEN_PAGE_NOTE names: the open page, when Q_PAGE_OPEN found it."""
         return self.open_page if self.open_block is not None else None
 
 
 def ensure_roster(turn: PreRetrievalTurn) -> None:
-    """The coverage roster of nodes Q4a and Q5: the aliases, the dataset
+    """The coverage roster of nodes Q_NAMES_DATA and Q_IN_ROSTER: the aliases, the dataset
     categories and keys, and the roster terms (categories and concept-page
     titles). Built once per turn: the second call does nothing."""
     if turn.roster_built:
@@ -729,10 +729,10 @@ def ensure_roster(turn: PreRetrievalTurn) -> None:
 
 
 def blacklist(turn: PreRetrievalTurn, text: str) -> bool:
-    """Node Q3 on `text`: whether `text` names a blacklist term, by whole
+    """Node Q_IN_BLACKLIST on `text`: whether `text` names a blacklist term, by whole
     normalized word, never by stem (decision 5)."""
-    turn.off_limits = is_off_limits(text, turn.config.off_limits)
-    return turn.off_limits
+    turn.blacklisted = is_blacklisted(text, turn.config.blacklist)
+    return turn.blacklisted
 
 
 def intent_lists(turn: PreRetrievalTurn) -> IntentLists:
@@ -752,8 +752,8 @@ def intent_lists(turn: PreRetrievalTurn) -> IntentLists:
 
 
 def detect_data(turn: PreRetrievalTurn, text: str) -> None:
-    """The data detection (`has_data`) on `text`: node Q4a on the question, node
-    Q5f on the rewrite. `ensure_roster` runs first."""
+    """The data detection (`has_data`) on `text`: node Q_NAMES_DATA on the question, node
+    Q_RW_NAMES_DATA on the rewrite. `ensure_roster` runs first."""
     # Route to the tools either by a NAMED data term or by generic advisory
     # intent ("$1M, 3 meses, ¿qué alternativas?") — the latter names no
     # instrument but still belongs on the query_dataset/estimar_alternativas
@@ -765,8 +765,8 @@ def detect_data(turn: PreRetrievalTurn, text: str) -> None:
 
 
 def match_terms(turn: PreRetrievalTurn, text: str) -> None:
-    """The roster match (`matched`, `in_roster`) on `text`: node Q5 on the
-    question, node Q5g on the rewrite. `ensure_roster` runs first."""
+    """The roster match (`matched`, `in_roster`) on `text`: node Q_IN_ROSTER on the
+    question, node Q_RW_IN_ROSTER on the rewrite. `ensure_roster` runs first."""
     turn.matched = matched_terms(
         text, sorted(turn.roster_terms), turn.aliases, language=turn.stem_language,
         exact=sorted(turn.keys),
@@ -799,12 +799,12 @@ async def _pre_retrieval_turn(
     """The body of `pre_retrieval_answer`, inside the turn's root span.
 
     The input workflow (`domain/chat/workflow/input_checks.py`, `graph`) builds
-    the history (C1 to C2d), runs the checks of the question and builds the
-    prompt (C4, Q12a, Q12b). When the input workflow ends in a refusal, the model
+    the history (C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES), runs the checks of the question and builds the
+    prompt (C_OPEN_PAGE_NOTE, Q_SYNONYMS, Q_PROMPT). When the input workflow ends in a refusal, the model
     is not called. Else the agent runs here, between the two workflows, and
-    records Q13, Q14, Q15 or Q16. The output workflow
+    records Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS. The output workflow
     (`domain/chat/workflow/output_checks.py`, `graph`) runs the checks of the
-    answer and the additions Q20a to Q20d.
+    answer and the additions Q_ADVISORY_TABLE, Q_OFFER_KEYS, Q_CITE_TOOLS and Q_CITE_PAGES.
     """
     from domain.chat.workflow import input_checks, output_checks
 
@@ -819,7 +819,7 @@ async def _pre_retrieval_turn(
     if isinstance(outcome, input_checks.Refused):
         return outcome.text
 
-    # The nodes C4, Q12a and Q12b of the input workflow built the prompt.
+    # The nodes C_OPEN_PAGE_NOTE, Q_SYNONYMS and Q_PROMPT of the input workflow built the prompt.
     plan, prompt = turn.plan, turn.prompt
     if on_context is not None:
         on_context([context_passage(block) for block in plan.blocks])

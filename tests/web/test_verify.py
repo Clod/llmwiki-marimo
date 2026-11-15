@@ -321,8 +321,8 @@ def test_a_failed_verification_of_a_tier2_answer_says_it_was_compared_with_nothi
 
     async def tier2(*args, **kwargs):
         result = await real(*args, **kwargs)
-        # The path of a Tier-2 answer that skipped Q17: the warning Q18, no Q17.
-        return replace(result, path=({"node": "Q20"}, {"node": "Q18"}))
+        # The path of a Tier-2 answer that skipped Q_IS_GROUNDED: the warning Q_SOURCE_WARNING, no Q_IS_GROUNDED.
+        return replace(result, path=({"node": "Q_MODEL_REFUSED"}, {"node": "Q_SOURCE_WARNING"}))
 
     monkeypatch.setattr(chat_service, "chat_turn_with_context", tier2)
     app = create_app(settings, agents_factory=lambda wiki: agents, verifier=Broken())

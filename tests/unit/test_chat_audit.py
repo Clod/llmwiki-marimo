@@ -1,5 +1,5 @@
 """The path of a turn kept in memory (`tracing.collect`, `ChatResult.path`), the matched terms of
-the coverage roster check (Q5, Q5b). The short texts of the nodes are tested in
+the coverage roster check (Q_IN_ROSTER, Q_CONDENSED). The short texts of the nodes are tested in
 tests/web/test_audit.py: they live in web/, which needs the `web` group."""
 
 import asyncio
@@ -27,19 +27,19 @@ def test_collect_records_nodes_and_attributes_with_tracing_off(monkeypatch, tmp_
     monkeypatch.delenv(tracing.ENV_VAR, raising=False)
     with tracing.collect() as path:
         with tracing.root("turn", tmp_path):
-            tracing.mark("Q3", tracing.READING, answer=False)
-            with tracing.node("Q6", tracing.READING, fts_query="a OR b") as q6:
+            tracing.mark("Q_IN_BLACKLIST", tracing.READING, answer=False)
+            with tracing.node("Q_SEARCH_WIKI", tracing.READING, fts_query="a OR b") as q6:
                 q6.set(pages=["x"], skipped=None)
     assert path == [
-        {"node": "Q3", "diagram": "reading", "attributes": {"answer": False}},
-        {"node": "Q6", "diagram": "reading", "attributes": {"fts_query": "a OR b", "pages": ["x"]}},
+        {"node": "Q_IN_BLACKLIST", "diagram": "reading", "attributes": {"answer": False}},
+        {"node": "Q_SEARCH_WIKI", "diagram": "reading", "attributes": {"fts_query": "a OR b", "pages": ["x"]}},
     ]
     assert not (tmp_path / ".llmwiki").exists()
 
 
 def test_nothing_is_collected_outside_collect(monkeypatch):
     monkeypatch.delenv(tracing.ENV_VAR, raising=False)
-    tracing.mark("Q3", tracing.READING, answer=False)     # no error, nothing kept
+    tracing.mark("Q_IN_BLACKLIST", tracing.READING, answer=False)     # no error, nothing kept
     with tracing.collect() as path:
         pass
     assert path == []
@@ -49,7 +49,7 @@ def test_payload_adds_only_the_ref_when_a_file_was_written(monkeypatch, tmp_path
     monkeypatch.setenv(tracing.ENV_VAR, "1")
     with tracing.collect() as path:
         with tracing.root("turn", tmp_path):
-            with tracing.node("I4", tracing.WRITING) as n:
+            with tracing.node("I_EXTRACT", tracing.WRITING) as n:
                 n.payload("text", "hello", channel="extracted_text")
     attributes = path[0]["attributes"]
     assert list(attributes) == ["text.ref"] and attributes["text.ref"].startswith("payloads/")
@@ -59,7 +59,7 @@ def test_payload_adds_only_the_ref_when_a_file_was_written(monkeypatch, tmp_path
 def test_payload_with_tracing_off_records_nothing(monkeypatch, tmp_path):
     monkeypatch.delenv(tracing.ENV_VAR, raising=False)
     with tracing.collect() as path:
-        with tracing.node("I4", tracing.WRITING) as n:
+        with tracing.node("I_EXTRACT", tracing.WRITING) as n:
             n.payload("text", "hello", channel="extracted_text")
     assert path[0]["attributes"] == {}
 
@@ -86,7 +86,7 @@ def test_mentions_known_data_is_the_boolean_of_matched_terms():
     assert mentions_known_data("hola", ["plazo_fijo"], language="es") is False
 
 
-# ── ChatResult.path in the three modes; Q5 matched ───────────────────────────
+# ── ChatResult.path in the three modes; Q_IN_ROSTER matched ───────────────────────────
 
 @pytest.fixture
 def wiki(tmp_path):
@@ -118,7 +118,7 @@ class Agent:
 
 
 def agents(output, messages=(), condenser=None):
-    config = SimpleNamespace(language="en", off_limits=[], data_aliases={}, system_prompt="", suggested_prompts=[])
+    config = SimpleNamespace(language="en", blacklist=[], data_aliases={}, system_prompt="", suggested_prompts=[])
     return chat.ChatAgents(config=config, agent=Agent(output, messages),
                            agent_pre_retrieval=Agent(output, messages), condenser=condenser)
 
@@ -141,8 +141,8 @@ def test_pre_retrieval_returns_its_path_and_the_matched_terms(wiki, monkeypatch)
     monkeypatch.delenv(tracing.ENV_VAR, raising=False)
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper."), [msg("user", "Who is Cinderella?")], mode=chat.PRE_RETRIEVAL))
-    assert ids(result)[:2] == ["C1", "C2"] and "Q5" in ids(result) and "Q6" in ids(result)
-    q5 = next(s for s in result.path if s["node"] == "Q5")
+    assert ids(result)[:2] == ["C_COUNT_HISTORY", "C_WHICH_MODE"] and "Q_IN_ROSTER" in ids(result) and "Q_SEARCH_WIKI" in ids(result)
+    q5 = next(s for s in result.path if s["node"] == "Q_IN_ROSTER")
     assert q5["attributes"]["answer"] is True and q5["attributes"]["matched"] == ["Cinderella"]
     assert not (wiki.path / ".llmwiki" / "traces").exists()
 
@@ -150,9 +150,9 @@ def test_pre_retrieval_returns_its_path_and_the_matched_terms(wiki, monkeypatch)
 def test_pre_retrieval_records_an_empty_match(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("x"), [msg("user", "Will it rain tomorrow in Rosario?")], mode=chat.PRE_RETRIEVAL))
-    q5 = next(s for s in result.path if s["node"] == "Q5")
+    q5 = next(s for s in result.path if s["node"] == "Q_IN_ROSTER")
     assert q5["attributes"]["answer"] is False and q5["attributes"]["matched"] == []
-    assert "R2a" in ids(result)
+    assert "R_NOT_IN_ROSTER" in ids(result)
 
 
 def test_pre_retrieval_q5b_records_the_matched_terms_of_the_rewrite(wiki):
@@ -160,7 +160,7 @@ def test_pre_retrieval_q5b_records_the_matched_terms_of_the_rewrite(wiki):
     ag = agents("She left.", condenser=SimpleNamespace(
         run=lambda prompt: _async(SimpleNamespace(output="What happened to Cinderella?"))))
     result = run(chat.chat_turn_with_context(wiki, ag, history, mode=chat.PRE_RETRIEVAL))
-    q5b = next(s for s in result.path if s["node"] == "Q5b")
+    q5b = next(s for s in result.path if s["node"] == "Q_CONDENSED")
     assert q5b["attributes"]["matched"] == ["Cinderella"]
 
 
@@ -171,10 +171,10 @@ async def _async(value):
 def test_strict_returns_its_path(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper.", grounded()), [msg("user", "Who is Cinderella?")], mode=chat.STRICT))
-    assert ids(result) == ["C1", "C2", "C2a", "C2b", "C2c", "C2d", "C4", "T1", "T2", "T4a", "T4b", "T4c", "C3", "T5"]
+    assert ids(result) == ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES", "C_OPEN_PAGE_NOTE", "T_AGENT", "T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
     refused = run(chat.chat_turn_with_context(
         wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.STRICT))
-    assert "T3" in ids(refused)
+    assert "T_GUARDRAIL" in ids(refused)
 
 
 def test_streaming_returns_its_path(wiki):
@@ -185,7 +185,7 @@ def test_streaming_returns_its_path(wiki):
             result = item
         return result
 
-    assert ids(run(last())) == ["C1", "C2", "F1", "F2"]
+    assert ids(run(last())) == ["C_COUNT_HISTORY", "C_WHICH_MODE", "F_AGENT", "F_COMPLETE"]
 
 
 def test_two_turns_keep_separate_paths(wiki):

@@ -21,7 +21,7 @@ def test_loads_scope_lists(tmp_path):
         encoding="utf-8",
     )
     cfg = load_config(tmp_path)
-    assert cfg.off_limits == ["cripto", "bitcoin"]
+    assert cfg.blacklist == ["cripto", "bitcoin"]
     assert cfg.data_aliases == {"dolar": ["billete verde", "blue"]}
     assert cfg.false_synonyms == {"cedear": ["accion", "acciones"]}
 
@@ -31,14 +31,14 @@ def test_scope_lists_default_empty_when_sections_absent(tmp_path):
         '[assistant]\nsystem_prompt = "hola"\n', encoding="utf-8"
     )
     cfg = load_config(tmp_path)
-    assert cfg.off_limits == []
+    assert cfg.blacklist == []
     assert cfg.data_aliases == {}
     assert cfg.false_synonyms == {}
 
 
 def test_scope_lists_default_empty_when_no_config_file(tmp_path):
     cfg = load_config(tmp_path)  # no wiki_config.toml at all
-    assert cfg.off_limits == []
+    assert cfg.blacklist == []
     assert cfg.data_aliases == {}
     assert cfg.false_synonyms == {}
 

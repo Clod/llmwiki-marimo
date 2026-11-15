@@ -110,10 +110,10 @@ def _fake_chat(monkeypatch, turns):
 def _turns(m, *, answers=None, declines=None, uses_tools=None):
     cited = f"The code is {m.fact} (/wiki/concepts/{m.pages[0].slug}.md)."
     return {
-        (m.answerable, chat_service.PRE_RETRIEVAL): answers or (cited, ["C1", "C2", "Q13", "Q20", "C3", "Q21"]),
-        (m.unanswerable, chat_service.PRE_RETRIEVAL): declines or ("No answer.", ["C1", "C2", "Q13", "Q20", "R5"]),
+        (m.answerable, chat_service.PRE_RETRIEVAL): answers or (cited, ["C_COUNT_HISTORY", "C_WHICH_MODE", "Q_AGENT_PAGES", "Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"]),
+        (m.unanswerable, chat_service.PRE_RETRIEVAL): declines or ("No answer.", ["C_COUNT_HISTORY", "C_WHICH_MODE", "Q_AGENT_PAGES", "Q_MODEL_REFUSED", "R_MODEL"]),
         (m.answerable, chat_service.STRICT): uses_tools or (
-            cited, ["C1", "C2", "T1", "K1", "K2", "K3", "T2", "T4", "C3", "T5"]),
+            cited, ["C_COUNT_HISTORY", "C_WHICH_MODE", "T_AGENT", "K_READ_PAGE", "K_SEARCH_WIKI", "K_SEARCH_SOURCES", "T_TOOL_EVIDENCE", "T_CITE_TOOLS", "C_FIGURES", "T_SHOWN"]),
     }
 
 
@@ -135,17 +135,17 @@ def test_reading_passes_the_three_checks(monkeypatch):
 
 def test_reading_fails_when_the_path_ends_elsewhere(monkeypatch):
     m = material("en")
-    _fake_chat(monkeypatch, _turns(m, declines=("It is red.", ["C1", "C2", "Q13", "Q20", "C3", "Q21"])))
+    _fake_chat(monkeypatch, _turns(m, declines=("It is red.", ["C_COUNT_HISTORY", "C_WHICH_MODE", "Q_AGENT_PAGES", "Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"])))
     report = runner.test_reading(*_VALUES)
     declines = report.checks[1]
     assert not declines.passed and declines.ran
-    assert "ends in Q21, not in R5" in declines.detail
+    assert "ends in Q_SHOWN, not in R_MODEL" in declines.detail
     assert not report.passed and report.could_run
 
 
 def test_reading_fails_when_the_answer_lacks_the_fact(monkeypatch):
     m = material("en")
-    nodes = ["C1", "C2", "Q13", "Q20", "C3", "Q21"]
+    nodes = ["C_COUNT_HISTORY", "C_WHICH_MODE", "Q_AGENT_PAGES", "Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"]
     _fake_chat(monkeypatch, _turns(m, answers=(f"See /wiki/concepts/{m.pages[0].slug}.md.", nodes)))
     answers = runner.test_reading(*_VALUES).checks[0]
     assert not answers.passed and answers.ran
@@ -154,7 +154,7 @@ def test_reading_fails_when_the_answer_lacks_the_fact(monkeypatch):
 
 def test_reading_fails_when_the_answer_does_not_cite_the_page(monkeypatch):
     m = material("en")
-    nodes = ["C1", "C2", "Q13", "Q20", "C3", "Q21"]
+    nodes = ["C_COUNT_HISTORY", "C_WHICH_MODE", "Q_AGENT_PAGES", "Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"]
     _fake_chat(monkeypatch, _turns(m, answers=("The code is ZK-4471.", nodes)))
     answers = runner.test_reading(*_VALUES).checks[0]
     assert not answers.passed
@@ -163,7 +163,7 @@ def test_reading_fails_when_the_answer_does_not_cite_the_page(monkeypatch):
 
 def test_reading_fails_without_a_k_node(monkeypatch):
     m = material("en")
-    _fake_chat(monkeypatch, _turns(m, uses_tools=("The code is ZK-4471.", ["C1", "C2", "T1", "T2", "C3", "T5"])))
+    _fake_chat(monkeypatch, _turns(m, uses_tools=("The code is ZK-4471.", ["C_COUNT_HISTORY", "C_WHICH_MODE", "T_AGENT", "T_TOOL_EVIDENCE", "C_FIGURES", "T_SHOWN"])))
     uses_tools = runner.test_reading(*_VALUES).checks[2]
     assert not uses_tools.passed and uses_tools.ran
     assert "no K node" in uses_tools.detail

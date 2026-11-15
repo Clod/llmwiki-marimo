@@ -32,7 +32,7 @@ def _agents(stream_fn, calls):
         return "[wiki page: wiki/concepts/cinderella.md]\n\n" + BODY
 
     agent = Agent(FunctionModel(stream_function=stream_fn), tools=[read_page], deps_type=str)
-    config = SimpleNamespace(language="en", off_limits=[], data_aliases={}, system_prompt="",
+    config = SimpleNamespace(language="en", blacklist=[], data_aliases={}, system_prompt="",
                              suggested_prompts=[])
     return chat.ChatAgents(config=config, agent=agent, agent_pre_retrieval=agent)
 

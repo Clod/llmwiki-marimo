@@ -14,7 +14,7 @@ from domain.chat import preretrieval
 from domain.chat.preretrieval import pre_retrieval_answer
 
 CFG = SimpleNamespace(
-    off_limits=["cedear", "cedears"],
+    blacklist=["cedear", "cedears"],
     data_aliases={"dolar": ["billete verde"]},
 )
 
@@ -67,7 +67,7 @@ def _answer(question, run_agent, *, wiki=(), docs=(), vocab=frozenset(),
     ))
 
 
-def test_off_limits_refuses_without_calling_agent(monkeypatch):
+def test_blacklist_refuses_without_calling_agent(monkeypatch):
     agent = _fake_agent("no debería llamarse")
     out = _answer("¿qué son los cedears?", agent, wiki=["algo"], monkeypatch=monkeypatch)
     assert out.startswith("No puedo responder esta pregunta: menciona «cedears»")

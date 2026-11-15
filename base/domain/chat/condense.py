@@ -1,7 +1,7 @@
 """Query condensation: a follow-up question rewritten so that it stands alone.
 
 Under pre-retrieval the code decides, before the model runs, whether a question
-names a topic of the wiki (the coverage gate, node Q5) and searches with it (Q6).
+names a topic of the wiki (the coverage gate, node Q_IN_ROSTER) and searches with it (Q_SEARCH_WIKI).
 An elliptic follow-up ("¿Y qué riesgos tiene?", after a question about the
 caución) names no topic, so the gate refuses it although the conversation makes
 its subject plain. Condensation asks the model to rewrite such a question, from

@@ -3,23 +3,23 @@
 Each graph starts with the answer of the agent and the messages of the run
 (`AnswerChecks`), and ends in the final answer of the turn.
 
-- `graph`, the pre-retrieval mode: Q17 and R3 (Tier 2 only), Q19 and R4 (no
-  injected context only), Q20 and R5, then the additions: Q20a
-  (`answer_with_table`), Q20b (`offer_available_keys`), Q20c
-  (`ensure_citation`), Q20d (`mark_injected`), Q18 (Tier 2 only), C3 and Q21. The first decision,
-  `tier`, chooses between Q17, Q19 and Q20. The state carries the
+- `graph`, the pre-retrieval mode: Q_IS_GROUNDED and R_UNSUPPORTED (Tier 2 only), Q_TOOL_EVIDENCE and R_NO_EVIDENCE (no
+  injected context only), Q_MODEL_REFUSED and R_MODEL, then the additions: Q_ADVISORY_TABLE
+  (`answer_with_table`), Q_OFFER_KEYS (`offer_available_keys`), Q_CITE_TOOLS
+  (`ensure_citation`), Q_CITE_PAGES (`mark_injected`), Q_SOURCE_WARNING (Tier 2 only), C_FIGURES and Q_SHOWN. The first decision,
+  `tier`, chooses between Q_IS_GROUNDED, Q_TOOL_EVIDENCE and Q_MODEL_REFUSED. The state carries the
   `PreRetrievalTurn` that the input workflow (`input_checks.py`) filled.
-- `strict_graph`, the strict mode: T2, T3 (no evidence only), then the
-  additions: T4a (`answer_with_table`), T4b (`ensure_citation`), T4c
-  (`mark_uncited`), and C3 and T5.
+- `strict_graph`, the strict mode: T_TOOL_EVIDENCE, T_GUARDRAIL (no evidence only), then the
+  additions: T_ADVISORY_TABLE (`answer_with_table`), T_CITE_TOOLS (`ensure_citation`), T_MARK_UNCITED
+  (`mark_uncited`), and C_FIGURES and T_SHOWN.
   The state carries no turn.
 
-C3 is the figure check (`domain/chat/figure_check.py`), the last step before the
+C_FIGURES is the figure check (`domain/chat/figure_check.py`), the last step before the
 answer in both graphs. The two graphs register the same function of the catalog
-for C3. A refusal (R3, R4, R5, T3) does not reach C3: the code wrote it.
+for C_FIGURES. A refusal (R_UNSUPPORTED, R_NO_EVIDENCE, R_MODEL, T_GUARDRAIL) does not reach C_FIGURES: the code wrote it.
 
 The streaming mode runs neither graph (`chat_turn_stream_with_context`,
-`services/chat.py`). The streaming mode runs no check, C3 included.
+`services/chat.py`). The streaming mode runs no check, C_FIGURES included.
 
 The steps of the nodes are functions of the catalog (`catalog.py`), registered
 here with `register`. `PRE_RETRIEVAL_NODES` and `STRICT_NODES` list the nodes of
@@ -43,9 +43,9 @@ from domain.chat.workflow.catalog import N_, AnswerChecks, register
 # compares each list with its graph, and `docs/workflow_nodes.md` is generated
 # from the lists (`table.py`).
 PRE_RETRIEVAL_NODES = (
-    "Q17", "Q19", "Q20", "R3", "R4", "R5", "Q20a", "Q20b", "Q20c", "Q20d", "Q18", "C3", "Q21",
+    "Q_IS_GROUNDED", "Q_TOOL_EVIDENCE", "Q_MODEL_REFUSED", "R_UNSUPPORTED", "R_NO_EVIDENCE", "R_MODEL", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "Q_SOURCE_WARNING", "C_FIGURES", "Q_SHOWN",
 )
-STRICT_NODES = ("T2", "T3", "T4a", "T4b", "T4c", "C3", "T5")
+STRICT_NODES = ("T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN")
 OWN_STEPS: tuple[str, ...] = ()
 
 g = GraphBuilder(
@@ -62,13 +62,13 @@ strict = GraphBuilder(
 
 def _verifies(checks: AnswerChecks) -> bool:
     """A Tier-2 answer (raw source fragments) is verified against the fragments
-    with the containment coefficient (Q17), unless the sentence verifier checks it."""
+    with the containment coefficient (Q_IS_GROUNDED), unless the sentence verifier checks it."""
     return checks.turn.plan.verify and not checks.turn.sentence_verifier
 
 
 def _verified_by_sentences(checks: AnswerChecks) -> bool:
     """A Tier-2 answer that the sentence verifier checks after it is shown: it
-    skips Q17, and the verifier is its only comparison against the fragments."""
+    skips Q_IS_GROUNDED, and the verifier is its only comparison against the fragments."""
     return checks.turn.plan.verify and checks.turn.sentence_verifier
 
 
@@ -88,19 +88,19 @@ def _tier2(checks: AnswerChecks) -> bool:
 
 # ── The output workflow of the pre-retrieval mode ─────────────────────────────
 
-fragment_coverage = register(g, "Q17")
-tool_evidence = register(g, "Q19")
-model_refusal = register(g, "Q20")
-refuse_unsupported = register(g, "R3")
-refuse_ungrounded = register(g, "R4")
-refuse_model = register(g, "R5")
-table = register(g, "Q20a")
-keys = register(g, "Q20b")
-citation = register(g, "Q20c")
-injected_reference = register(g, "Q20d")
-tier2_warning = register(g, "Q18")
-figures = register(g, "C3")
-shown = register(g, "Q21")
+fragment_coverage = register(g, "Q_IS_GROUNDED")
+tool_evidence = register(g, "Q_TOOL_EVIDENCE")
+model_refusal = register(g, "Q_MODEL_REFUSED")
+refuse_unsupported = register(g, "R_UNSUPPORTED")
+refuse_ungrounded = register(g, "R_NO_EVIDENCE")
+refuse_model = register(g, "R_MODEL")
+table = register(g, "Q_ADVISORY_TABLE")
+keys = register(g, "Q_OFFER_KEYS")
+citation = register(g, "Q_CITE_TOOLS")
+injected_reference = register(g, "Q_CITE_PAGES")
+tier2_warning = register(g, "Q_SOURCE_WARNING")
+figures = register(g, "C_FIGURES")
+shown = register(g, "Q_SHOWN")
 
 g.add(
     g.edge_from(g.start_node).to(
@@ -148,13 +148,13 @@ graph = g.build()
 
 # ── The output workflow of the strict mode ────────────────────────────────────
 
-evidence = register(strict, "T2")
-guardrail = register(strict, "T3")
-strict_table = register(strict, "T4a")
-strict_citation = register(strict, "T4b")
-uncited_mark = register(strict, "T4c")
-strict_figures = register(strict, "C3")
-strict_answer = register(strict, "T5")
+evidence = register(strict, "T_TOOL_EVIDENCE")
+guardrail = register(strict, "T_GUARDRAIL")
+strict_table = register(strict, "T_ADVISORY_TABLE")
+strict_citation = register(strict, "T_CITE_TOOLS")
+uncited_mark = register(strict, "T_MARK_UNCITED")
+strict_figures = register(strict, "C_FIGURES")
+strict_answer = register(strict, "T_SHOWN")
 
 strict.add(
     strict.edge_from(strict.start_node).to(evidence),

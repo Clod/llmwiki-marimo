@@ -41,15 +41,15 @@ def roster_topics(wiki) -> list[str]:
 
 def criterion_nodes(path, topics) -> list[dict]:
     """One entry per node of the path, for the template: identifier, short text, the
-    attributes as (name, text) pairs and, for Q5, the stemmed question and the roster."""
-    stemmed = next((s["attributes"].get("stemmed") for s in path if s["node"] == "Q4"), None)
+    attributes as (name, text) pairs and, for Q_IN_ROSTER, the stemmed question and the roster."""
+    stemmed = next((s["attributes"].get("stemmed") for s in path if s["node"] == "Q_STEM"), None)
     nodes = []
     for step in path:
         attributes = step["attributes"]
         entry = {"id": step["node"], "text": audit_nodes.text(step["node"]),
                  "attributes": [(k, _display(v)) for k, v in attributes.items()],
                  "stemmed": None, "topics": None}
-        if step["node"] == "Q5":
+        if step["node"] == "Q_IN_ROSTER":
             entry["stemmed"] = stemmed
             if not attributes.get("matched"):
                 entry["topics"] = topics()

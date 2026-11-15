@@ -38,8 +38,8 @@ workflow runs the node. What each node does is in
 [`query_nodes.md`](query_nodes.md).
 
 The calls to the model run between the two workflows of a mode, outside both:
-T1 in the strict mode, and Q13 to Q16 in the pre-retrieval mode. The streaming
-mode has no workflows: it records C1, C2, F1 and F2 and runs no check.
+T_AGENT in the strict mode, and Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS in the pre-retrieval mode. The streaming
+mode has no workflows: it records C_COUNT_HISTORY, C_WHICH_MODE, F_AGENT and F_COMPLETE and runs no check.
 """
 
 

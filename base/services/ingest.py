@@ -1,8 +1,8 @@
 """Ingestion and maintenance of a wiki, for any user interface.
 
 `ingest_uploads` is the upload path of the ingest app: it ingests each file,
-then reconciles the pages it touched (node I15) and refreshes their "See also"
-cross-links (node I16), all under one `ingest` root span. The other functions
+then reconciles the pages it touched (node I_UPLOAD_REPAIR) and refreshes their "See also"
+cross-links (node I_CROSSLINKS), all under one `ingest` root span. The other functions
 are the maintenance passes and the read-only views of the sources.
 """
 
@@ -142,7 +142,7 @@ def ingest_uploads(
         repair_client = client if full_repair else None
         mode = "full LLM" if full_repair else "deterministic"
         progress(f"🩺 Running {mode} lint on {len(touched)} ingested page(s)…")
-        with tracing.node("I15", tracing.WRITING, mode=mode, pages=len(touched)) as i15:
+        with tracing.node("I_UPLOAD_REPAIR", tracing.WRITING, mode=mode, pages=len(touched)) as i15:
             report = lint_wiki(wiki.db_path, wiki.path, client=repair_client, model=model,
                                progress_cb=progress)
             # The image checks report a source by its path under sources/.
@@ -162,7 +162,7 @@ def ingest_uploads(
         # added concept. Scoped to the touched pages; the wiki-wide sweep is
         # quadratic in the page count and belongs to the wiki-wide button.
         if source_ids:
-            with tracing.node("I16", tracing.WRITING, touched=len(touched)) as i16:
+            with tracing.node("I_CROSSLINKS", tracing.WRITING, touched=len(touched)) as i16:
                 linked = crosslink_wiki_pages(wiki.path, wiki.db_path, language=wiki.language,
                                               progress_cb=progress, touched=touched)
                 i16.set(linked=linked)

@@ -46,7 +46,7 @@ STREAMING = "streaming"
 
 # In the strict and streaming modes the model searches with its own tools; the
 # open page reaches it as the same note the pre-retrieval mode uses. The strict
-# mode adds the note in node C4 of its input workflow.
+# mode adds the note in node C_OPEN_PAGE_NOTE of its input workflow.
 _with_open_page = with_open_page
 
 
@@ -167,8 +167,8 @@ class ChatResult:
     answer: str
     context: tuple[ContextPassage, ...] = ()
     generated: tuple[str, ...] = ()
-    # What the model wrote, when the code replaced it (a refusal of the guardrail, R3,
-    # R4); None when the answer shows the model's text. For the user to audit it.
+    # What the model wrote, when the code replaced it (a refusal of the guardrail, R_UNSUPPORTED,
+    # R_NO_EVIDENCE); None when the answer shows the model's text. For the user to audit it.
     raw_answer: str | None = None
     # The nodes the turn went through, in order: {"node", "diagram", "attributes"} each
     # (`tracing.collect`); kept whether or not WIKI_TRACE is on.
@@ -183,7 +183,7 @@ class ChatResult:
 # ── figure check ─────────────────────────────────────────────────────────────
 
 def figure_counts(report: FigureReport | None) -> dict:
-    """The counts the node C3 records (`domain/chat/figure_check.py`)."""
+    """The counts the node C_FIGURES records (`domain/chat/figure_check.py`)."""
     return figure_check.counts(report)
 
 
@@ -195,7 +195,7 @@ def check_turn_figures(result: ChatResult, messages: Sequence[Any], config: Any,
     note of the locale is appended after every other appended text and added to
     `generated`, so the sentence verification skips it. The text of the model is never
     edited. A refusal of the code (`refused`) has an empty report: no model text was
-    written. The output workflow runs the same check as its node C3. The streaming
+    written. The output workflow runs the same check as its node C_FIGURES. The streaming
     mode does not call this function.
     """
     if refused:
@@ -210,8 +210,8 @@ def check_turn_figures(result: ChatResult, messages: Sequence[Any], config: Any,
 
 def _with_figures(result: ChatResult, check: figure_check.FigureCheck | None, *, in_answer: bool) -> ChatResult:
     """`result` with the report of `check`, and its note in `generated`; `in_answer` says
-    whether the answer already holds the note (C3 of the output workflow appended it).
-    A path that did not reach C3 (a refusal) has an empty report."""
+    whether the answer already holds the note (C_FIGURES of the output workflow appended it).
+    A path that did not reach C_FIGURES (a refusal) has an empty report."""
     if check is None:
         return replace(result, figures=FigureReport())
     generated = (*result.generated, check.note) if check.note else result.generated
@@ -264,12 +264,12 @@ async def chat_turn_with_context(
     `open_page` is the id of the page the user is reading, or None. The context
     does not depend on `WIKI_TRACE`. `sentence_verifier` is True when the caller
     checks the answer with the sentence verifier after it is shown: in the
-    pre-retrieval mode, a Tier-2 answer then skips the containment check (Q17).
+    pre-retrieval mode, a Tier-2 answer then skips the containment check (Q_IS_GROUNDED).
 
     Each mode runs its two workflows (`domain/chat/workflow/`). The pre-retrieval
     mode runs them in `pre_retrieval_answer`. The strict mode runs here the input
-    workflow (`input_checks.strict_graph`, C1 to C2d and C4), the model (T1) and
-    the output workflow (`output_checks.strict_graph`, T2 to T5).
+    workflow (`input_checks.strict_graph`, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES and C_OPEN_PAGE_NOTE), the model (T_AGENT) and
+    the output workflow (`output_checks.strict_graph`, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN).
     """
     prior = list(messages[:-1])
     question = messages[-1].content
@@ -295,7 +295,7 @@ async def chat_turn_with_context(
             return result
 
         with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-            # The input workflow records C1, C2 and C2a to C2d.
+            # The input workflow records C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES.
             checked: list[figure_check.FigureCheck] = []
             answer = await pre_retrieval_answer(
                 question, config=agents.config, db_path=wiki.db_path, workspace=wiki.path,
@@ -312,7 +312,7 @@ async def chat_turn_with_context(
                 raw_answer=raw_answer, path=tuple(path),
                 input_tokens=tokens.input, output_tokens=tokens.output,
             )
-            # C3 ran in the output workflow; a refusal did not reach it.
+            # C_FIGURES ran in the output workflow; a refusal did not reach it.
             result = _with_figures(result, checked[-1] if checked else None, in_answer=True)
             root.set(final_answer=result.answer, **figure_counts(result.figures))
         return result
@@ -320,11 +320,11 @@ async def chat_turn_with_context(
     if mode != STRICT:
         raise ValueError(f"chat_turn answers the pre-retrieval and strict modes, not {mode!r}")
     with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-        # The input workflow of the strict mode, C1 to C2d and C4: the history and
+        # The input workflow of the strict mode, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES and C_OPEN_PAGE_NOTE: the history and
         # the question that the model receives.
         turn = input_checks.StrictTurn(question, prior, language, open_page)
         await input_checks.strict_graph.run(state=turn, inputs=turn)
-        with tracing.node("T1", R) as t1:
+        with tracing.node("T_AGENT", R) as t1:
             result = await agents.agent.run(
                 turn.asked, deps=wiki.db_path, message_history=turn.history,
             )
@@ -332,7 +332,7 @@ async def chat_turn_with_context(
             raw = result.output
             messages_run = result.all_messages()
             t1.set(tools_called=_tools_called(messages_run), raw_output=raw)
-        # The checks of the answer, T2 to T5: the output workflow of the strict mode.
+        # The checks of the answer, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN: the output workflow of the strict mode.
         checks = output_checks.AnswerChecks(
             raw, messages_run, language,
             tolerance=getattr(agents.config, "number_tolerance", DEFAULT_NUMBER_TOLERANCE),
@@ -386,10 +386,10 @@ async def chat_turn_stream_with_context(
     tokens = _Tokens()
     R = tracing.READING
     with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-        tracing.mark("C1", R, prior_messages=len(prior), refused_dropped=0,
+        tracing.mark("C_COUNT_HISTORY", R, prior_messages=len(prior), refused_dropped=0,
                      history_messages=len(history))
-        tracing.mark("C2", R, mode=STREAMING)
-        with tracing.node("F1", R) as f1:
+        tracing.mark("C_WHICH_MODE", R, mode=STREAMING)
+        with tracing.node("F_AGENT", R) as f1:
             # run_stream_events runs the whole agent — every model request and every
             # tool call — and streams the text as it arrives. run_stream took the first
             # text of the model as the final output and skipped a tool call that
@@ -411,7 +411,7 @@ async def chat_turn_stream_with_context(
                     full_text += chunk
                     yield chunk
             f1.set(tools_called=_tools_called(run_messages))
-        tracing.mark("F2", R, final_answer=full_text)
+        tracing.mark("F_COMPLETE", R, final_answer=full_text)
         root.set(raw_output=full_text, final_answer=full_text)
     yield ChatResult(full_text, tuple(context_from_messages(run_messages)), path=tuple(path),
                      input_tokens=tokens.input, output_tokens=tokens.output)

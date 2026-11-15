@@ -123,9 +123,9 @@ def test_reading(base_url: str, api_key: str, model: str, language: str = "en",
     """Three chat turns on the temporary wiki.
 
     answers:    a question the first page answers, in the pre-retrieval mode. The path
-                ends in Q21, and the answer holds the datum and cites the page.
-    declines:   a question no page answers, in the pre-retrieval mode. The path ends in R5.
-    uses_tools: the first question, in the strict mode. The path ends in T5 and has a K
+                ends in Q_SHOWN, and the answer holds the datum and cites the page.
+    declines:   a question no page answers, in the pre-retrieval mode. The path ends in R_MODEL.
+    uses_tools: the first question, in the strict mode. The path ends in T_SHOWN and has a K
                 node (a call to a tool), and the answer holds the datum.
     """
     start = time.monotonic()
@@ -166,7 +166,7 @@ async def _reading_checks(wiki: Wiki, m: Material, base_url: str, api_key: str, 
     return checks
 
 
-_LAST_NODE = {"answers": "Q21", "declines": "R5", "uses_tools": "T5"}
+_LAST_NODE = {"answers": "Q_SHOWN", "declines": "R_MODEL", "uses_tools": "T_SHOWN"}
 
 
 def _judge_reading(key: str, answer: str, path: list[str], fact: str, slug: str) -> Check:

@@ -380,7 +380,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
 
     config = load_config(Path(workspace))
     aliases = config.data_aliases
-    if not aliases and not config.off_limits:
+    if not aliases and not config.blacklist:
         return []
 
     # Compare the way the coverage gate compares (design_stemming.md, decision
@@ -436,7 +436,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
             ))
 
     # 4. Covered — an off-limits term the wiki now actually covers.
-    for term in config.off_limits:
+    for term in config.blacklist:
         if covered(term):
             issues.append(LintIssue(
                 check="vocab_covered", severity="info", page="wiki_config.toml",

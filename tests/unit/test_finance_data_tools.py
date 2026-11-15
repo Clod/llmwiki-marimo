@@ -1,4 +1,4 @@
-"""The finance data tools (K6 to K10): enums read from the data, rejection, trace, registration.
+"""The finance data tools (K_PLAZO_FIJO, K_CAUCION, K_DOLLAR, K_SHARE_PRICE and K_MONEY_MARKET): enums read from the data, rejection, trace, registration.
 
 Real dataset files in a temporary workspace; the model is simulated.
 """
@@ -210,10 +210,10 @@ def test_each_call_writes_its_record(ws, monkeypatch):
         precio_accion(ctx(ws), ticker="YPFD")
         rendimiento_fci(ctx(ws), fondo="Delta Pesos")
     rec = records(ws)
-    assert (rec["K6"]["entidad"], rec["K6"]["plazo_dias"], rec["K6"]["substantive"]) == ("Brubank", 30, True)
-    assert rec["K7"]["mercado"] == "BYMA" and rec["K7"]["substantive"] is True
-    assert rec["K8"]["tipo"] == "MEP" and rec["K9"]["ticker"] == "YPFD" and rec["K10"]["fondo"] == "Delta Pesos"
-    assert all("rejected" not in rec[k] for k in ("K6", "K7", "K8", "K9", "K10"))
+    assert (rec["K_PLAZO_FIJO"]["entidad"], rec["K_PLAZO_FIJO"]["plazo_dias"], rec["K_PLAZO_FIJO"]["substantive"]) == ("Brubank", 30, True)
+    assert rec["K_CAUCION"]["mercado"] == "BYMA" and rec["K_CAUCION"]["substantive"] is True
+    assert rec["K_DOLLAR"]["tipo"] == "MEP" and rec["K_SHARE_PRICE"]["ticker"] == "YPFD" and rec["K_MONEY_MARKET"]["fondo"] == "Delta Pesos"
+    assert all("rejected" not in rec[k] for k in ("K_PLAZO_FIJO", "K_CAUCION", "K_DOLLAR", "K_SHARE_PRICE", "K_MONEY_MARKET"))
 
 
 def test_a_rejected_call_writes_the_reason(ws, monkeypatch):
@@ -221,14 +221,14 @@ def test_a_rejected_call_writes_the_reason(ws, monkeypatch):
     with tracing.root("turn", ws):
         with pytest.raises(ModelRetry):
             tasa_caucion(ctx(ws), plazo_dias=5)
-    k7 = records(ws)["K7"]
+    k7 = records(ws)["K_CAUCION"]
     assert k7["plazo_dias"] == 5 and k7["substantive"] is False
     assert "plazo_dias must be one of 1, 7, 14, 30" in k7["rejected"]
 
 
 def test_a_text_plazo_reaches_the_tool_and_is_rejected_with_the_allowed_values(ws, monkeypatch):
     """"7_dias" is not stopped by the type check of Pydantic AI: the tool rejects
-    it, writes K7 with `rejected`, and the model receives the allowed values."""
+    it, writes K_CAUCION with `rejected`, and the model receives the allowed values."""
     monkeypatch.setenv(tracing.ENV_VAR, "1")
     seen = []
 
@@ -242,7 +242,7 @@ def test_a_text_plazo_reaches_the_tool_and_is_rejected_with_the_allowed_values(w
     with tracing.root("turn", ws), agent.override(model=FunctionModel(model_fn)):
         agent.run_sync("tasa", deps=str(ws / ".llmwiki" / "index.db"))
     assert "plazo_dias must be one of 1, 7, 14, 30" in str(seen[1].content)
-    k7 = records(ws)["K7"]
+    k7 = records(ws)["K_CAUCION"]
     assert k7["plazo_dias"] == "7_dias" and "plazo_dias must be one of" in k7["rejected"]
 
 

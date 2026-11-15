@@ -17,7 +17,7 @@ The link line of a described image in the stored text is followed by a delimited
 (D5); the link line of an image that was skipped or is pending is followed by a marker.
 `strip_descriptions` undoes both, so the same function can describe a text again.
 
-Nodes of the writing diagram: I17 (images kept), I18 (one image described), I19 (one
+Nodes of the writing diagram: I_IMAGES_KEPT (images kept), I_IMAGE_DESCRIBED (one image described), I_IMAGE_SKIPPED (one
 image skipped).
 """
 
@@ -317,7 +317,7 @@ def describe_images(
     folder = doc_dir / IMAGES_DIRNAME
     W = tracing.WRITING
     if not dry_run:
-        tracing.mark("I17", W, count=len(figures),
+        tracing.mark("I_IMAGES_KEPT", W, count=len(figures),
                      total_bytes=sum((folder / f["file"]).stat().st_size
                                      for f in figures if (folder / f["file"]).is_file()))
     if not config.describe:
@@ -372,7 +372,7 @@ def describe_images(
         fig["description"] = (desc_name(outcome.file) if outcome.kind == "described"
                               else outcome.reason if outcome.kind in ("skipped", "decorative") else "")
         if outcome.kind == "skipped":
-            tracing.mark("I19", W, file=outcome.file, reason=outcome.reason)
+            tracing.mark("I_IMAGE_SKIPPED", W, file=outcome.file, reason=outcome.reason)
     write_figures(doc_dir, figures)
 
     by_file = {o.file: o for o in outcomes}
@@ -418,17 +418,17 @@ def _settle(outcome: Outcome, desc: dict, *, trace: bool) -> None:
         outcome.reason = DECORATIVE
     if not trace:
         return
-    tracing.mark("I18", tracing.WRITING, file=outcome.file, image_sha256=desc.get("image_sha256"),
+    tracing.mark("I_IMAGE_DESCRIBED", tracing.WRITING, file=outcome.file, image_sha256=desc.get("image_sha256"),
                  model=outcome.model, cached=True, tokens_input=desc.get("tokens_input", 0),
                  tokens_output=desc.get("tokens_output", 0))
     if outcome.kind == "decorative":
-        tracing.mark("I19", tracing.WRITING, file=outcome.file, reason=DECORATIVE)
+        tracing.mark("I_IMAGE_SKIPPED", tracing.WRITING, file=outcome.file, reason=DECORATIVE)
 
 
 def _call(outcome: Outcome, vision: Vision, image: Path, desc_path: Path, sha: str,
           prompt_sha: str, language: str) -> None:
     """Describe one image with the model; a failure of any kind is the reason `failed`."""
-    with tracing.node("I18", tracing.WRITING, file=outcome.file, image_sha256=sha,
+    with tracing.node("I_IMAGE_DESCRIBED", tracing.WRITING, file=outcome.file, image_sha256=sha,
                       model=vision.model, cached=False) as node:
         try:
             answer, tokens_in, tokens_out = call_vision(vision, image, language)
@@ -436,7 +436,7 @@ def _call(outcome: Outcome, vision: Vision, image: Path, desc_path: Path, sha: s
             logger.warning("could not describe %s: %s", outcome.file, exc)
             node.set(error=str(exc)[:300])
             outcome.kind, outcome.reason = "skipped", FAILED
-            tracing.mark("I19", tracing.WRITING, file=outcome.file, reason=FAILED)
+            tracing.mark("I_IMAGE_SKIPPED", tracing.WRITING, file=outcome.file, reason=FAILED)
             return
         node.set(tokens_input=tokens_in, tokens_output=tokens_out)
     _write_description(desc_path, sha, vision, prompt_sha, language, answer, tokens_in, tokens_out)
@@ -444,4 +444,4 @@ def _call(outcome: Outcome, vision: Vision, image: Path, desc_path: Path, sha: s
     outcome.kind = "decorative" if answer["decorative"] else "described"
     if outcome.kind == "decorative":
         outcome.reason = DECORATIVE
-        tracing.mark("I19", tracing.WRITING, file=outcome.file, reason=DECORATIVE)
+        tracing.mark("I_IMAGE_SKIPPED", tracing.WRITING, file=outcome.file, reason=DECORATIVE)

@@ -1,5 +1,5 @@
 """Tests for the search of a page alias by the name it stands for
-(`preretrieval.alias_titles`, node Q6). The end-to-end test runs on a copy of the
+(`preretrieval.alias_titles`, node Q_SEARCH_WIKI). The end-to-end test runs on a copy of the
 fairy-tale demo, with a stand-in for the model. No LLM.
 """
 
@@ -22,7 +22,7 @@ def test_an_alias_is_replaced_by_the_name_it_stands_for():
 
 
 def test_a_question_that_names_an_alias_receives_the_page_of_the_name(tmp_path):
-    # Battery `pil-06`: no page holds the word "Culocenizón", and the question ended in R4.
+    # Battery `pil-06`: no page holds the word "Culocenizón", and the question ended in R_NO_EVIDENCE.
     workspace = tmp_path / "cuentos"
     shutil.copytree(DEMO, workspace, ignore=shutil.ignore_patterns(".git", "traces", "chat_trace.jsonl"))
     config = load_config(workspace)

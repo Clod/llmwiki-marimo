@@ -64,10 +64,10 @@ VERIFIABLE_MODES = (chat_service.PRE_RETRIEVAL, chat_service.STRICT)
 
 
 def _skipped_containment(path) -> bool:
-    """True for a Tier-2 answer (it carries the warning, node Q18) that skipped the
-    containment check (node Q17) because the sentence verifier was to check it."""
+    """True for a Tier-2 answer (it carries the warning, node Q_SOURCE_WARNING) that skipped the
+    containment check (node Q_IS_GROUNDED) because the sentence verifier was to check it."""
     nodes = {step.get("node") for step in path or ()}
-    return "Q18" in nodes and "Q17" not in nodes
+    return "Q_SOURCE_WARNING" in nodes and "Q_IS_GROUNDED" not in nodes
 
 
 def _verify_note(text: str, failed: bool = False) -> str:
@@ -170,7 +170,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 # conversation is verified against it. The answer itself is
                 # verified only when the checkbox asks for it.
                 # With the checkbox on, a Tier-2 answer skips the containment check
-                # (Q17): the sentence verifier below is its only comparison.
+                # (Q_IS_GROUNDED): the sentence verifier below is its only comparison.
                 answered = await chat_service.chat_turn_with_context(
                     entry.wiki, agents, conversation, mode=turn.mode,
                     conversation_id=turn.conversation_id, open_page=turn.open_page,
@@ -225,7 +225,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 marked = render_marked(wiki_id, text, marks, pages, sources, described=described)
                 body = marked + _summary(report.unsupported, report.checked, report.described) + figure_note
             except Exception:  # noqa: BLE001 — the answer stays as it is
-                # A Tier-2 answer that skipped Q17 was compared with nothing.
+                # A Tier-2 answer that skipped Q_IS_GROUNDED was compared with nothing.
                 note = (_("Could not verify. The answer was not compared with the fragments "
                           "of the original documents.") if _skipped_containment(path)
                         else _("Could not verify"))

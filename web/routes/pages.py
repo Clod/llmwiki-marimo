@@ -88,7 +88,7 @@ def _verification_view(wiki, page: str, text: str, wiki_id: str, pages: list[str
 def home(request: Request, wiki_id: str, state: AppState = Depends(get_state),
          templates: Jinja2Templates = Depends(get_templates)):
     """The Home screen: the logo and the name of the wiki, beside the chat. No page is
-    open, so a question asked here reaches pre-retrieval without `open_page` (node Q5a)."""
+    open, so a question asked here reaches pre-retrieval without `open_page` (node Q_PAGE_OPEN)."""
     context = page_context(state, wiki_id, "")
     context.update(home=True, title=wiki_id, kind=N_("Home"), deletable=False, html="")
     return templates.TemplateResponse(request, "page.html", context)

@@ -61,7 +61,7 @@ def query_dataset(
         filter combination has no rows. Never invents a value.
     """
     text = _query_dataset(ctx, categoria, clave, metrica)
-    tracing.mark("K4", tracing.READING, categoria=categoria, clave=clave, metrica=metrica,
+    tracing.mark("K_READ_DATASET", tracing.READING, categoria=categoria, clave=clave, metrica=metrica,
                  substantive=_is_substantive(text))
     return text
 
@@ -72,7 +72,7 @@ def _query_dataset(
     clave: str | None = None,
     metrica: str | None = None,
 ) -> str:
-    """The body of `query_dataset`; `query_dataset` records node K4 with the returned text."""
+    """The body of `query_dataset`; `query_dataset` records node K_READ_DATASET with the returned text."""
     db_path = ctx.deps
     datasets_dir = _workspace(db_path) / "datasets"
     source = LocalMarkdownSource(datasets_dir)

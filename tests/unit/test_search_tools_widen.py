@@ -1,4 +1,4 @@
-"""The search tools of the model (K2 `search_wiki_fts`, K3 `search_source_chunks`):
+"""The search tools of the model (K_SEARCH_WIKI `search_wiki_fts`, K_SEARCH_SOURCES `search_source_chunks`):
 every word first; when nothing has every word, any word (the OR query of the
 pre-retrieval search, `_fts_query`). A query the wiki matches as written keeps
 its results; a query with one word the wiki lacks ("manzana envenenada
@@ -86,8 +86,8 @@ def test_the_k_record_says_whether_the_query_was_widened(tmp_path, monkeypatch):
         search_wiki_fts(ctx, "manzana envenenada simbolismo")
         asyncio.run(search_source_chunks(ctx, "manzana envenenada"))
     rec = _k_records(workspace)
-    assert rec["K2"]["widened"] is True and rec["K2"]["substantive"] is True
-    assert rec["K3"]["widened"] is False
+    assert rec["K_SEARCH_WIKI"]["widened"] is True and rec["K_SEARCH_WIKI"]["substantive"] is True
+    assert rec["K_SEARCH_SOURCES"]["widened"] is False
 
 
 def test_the_source_tool_returns_the_whole_fragment(tmp_path):

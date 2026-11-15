@@ -37,9 +37,9 @@ def workspace(tmp_path, monkeypatch):
     with tracing.root(
         "turn", tmp_path, conversation_id="c1", turn=1, mode="pre-retrieval", question="q1",
     ):
-        with tracing.node("Q2", tracing.READING):
+        with tracing.node("Q_NORMALIZE", tracing.READING):
             pass
-        with tracing.node("Q13", tracing.READING) as q13:
+        with tracing.node("Q_AGENT_PAGES", tracing.READING) as q13:
             q13.payload("prompt", "the injected prompt", channel="prompts", ext="txt")
 
     with tracing.root(
@@ -50,7 +50,7 @@ def workspace(tmp_path, monkeypatch):
     with tracing.root("ingest", tmp_path):
         with tracing.node("document", tracing.WRITING, filename="a.pdf") as doc:
             doc.set(document_id="doc-1", relative_path="sources/a.pdf")
-            with tracing.node("I4", tracing.WRITING):
+            with tracing.node("I_EXTRACT", tracing.WRITING):
                 pass
 
     return tmp_path
@@ -74,7 +74,7 @@ def test_default_renders_every_trace_indented(workspace, monkeypatch, capsys):
     assert out.count("TRACE ") == 3  # two turns + one ingest
     assert "turn (" in out
     assert "ingest (" in out
-    assert "  Q2 (" in out  # indented one level under its root
+    assert "  Q_NORMALIZE (" in out  # indented one level under its root
     assert "    document (" not in out  # document is a child of ingest, one level
     assert "  document (" in out
 
@@ -102,7 +102,7 @@ def test_conversation_orders_turns(workspace, monkeypatch, capsys):
 def test_doc_renders_the_document_subtree(workspace, monkeypatch, capsys):
     out = _run(monkeypatch, capsys, [str(workspace), "--doc", "doc-1"])
     assert out.startswith("document (")
-    assert "I4 (" in out
+    assert "I_EXTRACT (" in out
     assert "turn" not in out
     assert "TRACE " not in out  # --doc prints the subtree only, no trace header
 

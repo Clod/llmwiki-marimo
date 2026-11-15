@@ -336,10 +336,10 @@ def test_the_nodes_i17_i18_and_i19_are_recorded(ws, monkeypatch):
     with tracing.collect() as path:
         ingest(ws, Vision(FakeVisionClient(), "gpt-test"))
     nodes = {e["node"]: e["attributes"] for e in path}
-    assert nodes["I17"]["count"] == 2 and nodes["I17"]["total_bytes"] > 0
-    assert nodes["I18"]["file"] == "imageFile2.png" or nodes["I18"]["file"] == "imageFile1.png"
-    assert nodes["I18"]["cached"] is False and nodes["I18"]["tokens_input"] == 812
-    assert nodes["I19"]["reason"] == "over_limit"
+    assert nodes["I_IMAGES_KEPT"]["count"] == 2 and nodes["I_IMAGES_KEPT"]["total_bytes"] > 0
+    assert nodes["I_IMAGE_DESCRIBED"]["file"] == "imageFile2.png" or nodes["I_IMAGE_DESCRIBED"]["file"] == "imageFile1.png"
+    assert nodes["I_IMAGE_DESCRIBED"]["cached"] is False and nodes["I_IMAGE_DESCRIBED"]["tokens_input"] == 812
+    assert nodes["I_IMAGE_SKIPPED"]["reason"] == "over_limit"
 
 
 # ── the ingestion prompts (D6) and the log line (D13) ───────────────────────

@@ -126,8 +126,9 @@ def ingest_file(
 
     With WIKI_TRACE=1 the run is one `document` span, inside the `ingest` root
     span of the batch or scan that called it (or a root of its own). Each step
-    is a child span named by its node in the writing diagram (I1–I13, W1, W3),
-    and the end state is one of E1–E4 (domain/tracing.py).
+    is a child span named by its node in the writing diagram (the I_ nodes of
+    one document, W_CHUNK, W_INSERT_CHUNKS), and the end state is one of
+    E_INVALID, E_UNCHANGED, E_ROLLED_BACK and E_INGESTED (domain/tracing.py).
     """
     with tracing.root("ingest", workspace), tracing.node(
         "document", tracing.WRITING, filename=Path(file_path).name, batch=_batch_mode,
@@ -139,16 +140,16 @@ def ingest_file(
         )
         doc.set(status=result.status, message=result.message)
         if result.status == "failed" and result.doc_id is None:
-            tracing.mark("E1", tracing.WRITING, message=result.message)
+            tracing.mark("E_INVALID", tracing.WRITING, message=result.message)
         elif result.status == "skipped":
-            tracing.mark("E2", tracing.WRITING)
+            tracing.mark("E_UNCHANGED", tracing.WRITING)
         elif result.status == "ingested":
-            tracing.mark("E4", tracing.WRITING)
+            tracing.mark("E_INGESTED", tracing.WRITING)
         return result
 
 
 def _validation_error(file_path: Path, *, images: bool = True) -> str | None:
-    """The reason `file_path` cannot be ingested, or None (node I1).
+    """The reason `file_path` cannot be ingested, or None (node I_VALIDATE).
 
     With `images` false (`[images] ignore = true`), an image file is refused.
     """
@@ -214,7 +215,7 @@ def _ingest_file(
 
     # ── Step 1: Validate ──────────────────────────────────────────────────────
     error = _validation_error(file_path, images=not load_images_config(workspace).ignore)
-    tracing.mark("I1", W, answer=error is None, error=error)
+    tracing.mark("I_VALIDATE", W, answer=error is None, error=error)
     if error is not None:
         return IngestResult(file_path, "failed", error)
     ext = file_path.suffix.lower()
@@ -228,7 +229,7 @@ def _ingest_file(
 
         # ── Step 2: Detect changes ────────────────────────────────────────────
         should_process, current_hash = needs_ingestion(file_path, conn)
-        tracing.mark("I2", W, answer=should_process, content_hash=current_hash)
+        tracing.mark("I_IS_CHANGED", W, answer=should_process, content_hash=current_hash)
         if not should_process:
             _cb(f"⏭ {file_path.name} — already up to date")
             return IngestResult(file_path, "skipped", "already up to date")
@@ -262,7 +263,7 @@ def _ingest_file(
             )
         conn.commit()
 
-        tracing.mark("I3", W, document_id=doc_id, relative_path=relative)
+        tracing.mark("I_DOCUMENT_ROW", W, document_id=doc_id, relative_path=relative)
         doc.set(document_id=doc_id, relative_path=relative)
         llm_client = tracing.wrap_openai(llm_client)
 
@@ -273,7 +274,7 @@ def _ingest_file(
         try:
             # ── Step 4: Extract text ──────────────────────────────────────────
             cache_dir = workspace / ".llmwiki" / "cache" / "local" / doc_id
-            with tracing.node("I4", W) as i4:
+            with tracing.node("I_EXTRACT", W) as i4:
                 images_config = effective_config(load_images_config(workspace), file_path.name)
                 page_contents, parser = extract(file_path, cache_dir, language, _cb,
                                                 keep_images=not images_config.ignore)
@@ -294,7 +295,7 @@ def _ingest_file(
             _cb(f"✅ Extracted {len(page_contents)} pages")
 
             # ── Step 5: Chunk source document ─────────────────────────────────
-            with tracing.node("W1", W, document_id=doc_id) as w1:
+            with tracing.node("W_CHUNK", W, document_id=doc_id) as w1:
                 chunks = chunk_pages(page_contents)
                 w1.payload(
                     "chunks",
@@ -310,7 +311,7 @@ def _ingest_file(
             _cb(f"✂️ Chunked into {len(chunks)} chunks")
 
             # ── Step 6: Atomic source document DB write ────────────────────────
-            with tracing.node("W2", W, document_id=doc_id, fragments=len(chunks), language=language):
+            with tracing.node("W_STEM", W, document_id=doc_id, fragments=len(chunks), language=language):
                 stemmed = [stem_text(c.content, language) for c in chunks]
             with conn:
                 conn.execute(
@@ -336,7 +337,7 @@ def _ingest_file(
                         for c, stem in zip(chunks, stemmed)
                     ],
                 )
-            tracing.mark("W3", W, document_id=doc_id, fragments=len(chunks))
+            tracing.mark("W_INSERT_CHUNKS", W, document_id=doc_id, fragments=len(chunks))
             # Source doc now committed — subsequent tools can open their own connections.
             conn.close()
             conn = None
@@ -350,14 +351,14 @@ def _ingest_file(
 
             # ── Step 7: Structured extraction ─────────────────────────────────
             _cb("🤖 Extracting knowledge structure...")
-            with tracing.node("I5", W) as i5:
+            with tracing.node("I_CONCEPTS", W) as i5:
                 extraction = extract_structured(doc_meta, page_contents, llm_client, model, language=language)
                 i5.set(concepts=[c.name for c in extraction.concepts])
             _cb(f"📋 Found {len(extraction.concepts)} concept(s)")
 
             # ── Step 8: Create/update concept pages ───────────────────────────
             concept_slugs: list[str] = []
-            with tracing.node("I6", W, concept_count=len(extraction.concepts)) as i6:
+            with tracing.node("I_CONCEPT_PAGES", W, concept_count=len(extraction.concepts)) as i6:
                 for concept in extraction.concepts:
                     slug = make_wiki_slug(concept.name)
                     concept_slugs.append(slug)
@@ -394,7 +395,7 @@ def _ingest_file(
             # Concepts contribute their name + aliases to .llmwiki/aliases.generated.toml,
             # validated against the wiki's coverage. Never abort ingest on failure —
             # the pages are the deliverable; an alias is secondary.
-            with tracing.node("I7", W) as i7:
+            with tracing.node("I_ALIASES", W) as i7:
                 try:
                     _alias_result = update_generated_aliases(
                         workspace,
@@ -410,7 +411,7 @@ def _ingest_file(
 
             # ── Step 9: Create summary page ───────────────────────────────────
             _cb("📄 Writing summary page...")
-            with tracing.node("I8", W) as i8:
+            with tracing.node("I_SUMMARY_PAGE", W) as i8:
                 summary_md = build_summary_page(
                     doc_meta, extraction, language=language,
                     figures=load_figures(workspace, doc_id, with_descriptions=images_config.describe),
@@ -440,11 +441,11 @@ def _ingest_file(
                     language=language,
                 )
 
-            tracing.mark("I9", W, answer=_batch_mode)
+            tracing.mark("I_IS_BATCH", W, answer=_batch_mode)
             if not _batch_mode:
                 # ── Step 10: Rewrite overview ─────────────────────────────────
                 _cb("🌐 Updating overview...")
-                with tracing.node("I10", W) as i10:
+                with tracing.node("I_OVERVIEW", W) as i10:
                     current_overview = (workspace / "wiki" / "overview.md").read_text(encoding="utf-8")
                     all_concept_names = _all_concept_names(db_path)
                     new_overview = update_overview(
@@ -465,11 +466,11 @@ def _ingest_file(
                     f"Concepts: {', '.join(c.name for c in extraction.concepts) or 'none'}\n"
                     f"{image_line}"
                 )
-                with tracing.node("I11", W):
+                with tracing.node("I_LOG", W):
                     append_to_page(db_path, workspace, "/wiki/", "log", log_entry)
 
                 # ── Step 12: Git commit ───────────────────────────────────────
-                with tracing.node("I12", W):
+                with tracing.node("I_COMMIT", W):
                     init_wiki_repo(workspace)
                     auto_commit(workspace, f"ingest: {file_path.name}")
 
@@ -477,7 +478,7 @@ def _ingest_file(
             if lint_after_ingest and not _batch_mode:
                 from domain.lint.runner import lint_wiki
                 _cb("🩺 Running lint checks...")
-                with tracing.node("I13", W) as i13:
+                with tracing.node("I_LINT", W) as i13:
                     lint_report = lint_wiki(db_path, workspace)
                     i13.set(issues=len(lint_report.issues))
                 if lint_report.issues:
@@ -501,7 +502,7 @@ def _ingest_file(
             # Roll back wiki pages this run created/overwrote so a failed ingest
             # leaves no orphaned or half-merged derived pages behind.
             rolled_back = _rollback_wiki_pages(db_path, workspace, wiki_compensations, language=language)
-            tracing.mark("E3", W, error=str(exc)[:500], rolled_back=rolled_back)
+            tracing.mark("E_ROLLED_BACK", W, error=str(exc)[:500], rolled_back=rolled_back)
             if rolled_back:
                 _cb(f"↩️ Rolled back {rolled_back} partial wiki page(s)")
             if conn is None:
@@ -663,7 +664,7 @@ def scan_and_ingest(
         # isn't part of ingest_file). Gated on a fingerprint of the vocabulary, so
         # the LLM runs only when the datasets/ actually changed. Best-effort — an
         # alias must never fail a scan.
-        with tracing.node("I14", tracing.WRITING) as i14:
+        with tracing.node("I_DATASET_ALIASES", tracing.WRITING) as i14:
             try:
                 _ds = regenerate_dataset_aliases(
                     workspace,
@@ -691,7 +692,7 @@ def scan_and_ingest(
             touched = pages_touched_by(
                 db_path, [r.doc_id for r in results if r.status == "ingested" and r.doc_id]
             )
-            with tracing.node("I16", tracing.WRITING, touched=len(touched)) as i16:
+            with tracing.node("I_CROSSLINKS", tracing.WRITING, touched=len(touched)) as i16:
                 n_linked = crosslink_wiki_pages(
                     workspace, db_path, language=language, progress_cb=_cb, touched=touched,
                 )

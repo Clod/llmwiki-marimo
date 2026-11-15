@@ -62,7 +62,7 @@ class Agent:
 
 
 def agents(output, messages=(), usage=(0, 0), condenser=None):
-    config = SimpleNamespace(language="en", off_limits=[], data_aliases={}, system_prompt="",
+    config = SimpleNamespace(language="en", blacklist=[], data_aliases={}, system_prompt="",
                              suggested_prompts=[])
     return chat.ChatAgents(config=config, agent=Agent(output, messages, usage),
                            agent_pre_retrieval=Agent(output, messages, usage), condenser=condenser)
@@ -161,7 +161,7 @@ def test_the_existing_functions_keep_their_results(wiki):
 
 
 def test_pre_retrieval_sums_the_condensation_and_the_answer(wiki):
-    """The turn made two model calls: the condensation (Q5b) and the answer."""
+    """The turn made two model calls: the condensation (Q_CONDENSED) and the answer."""
     condenser = Agent("Who is Cinderella?", usage=(100, 5))
     history = [msg("user", "Who is Cinderella?"), msg("assistant", "A girl."), msg("user", "And what about her?")]
     result = run(chat.chat_turn_with_context(

@@ -117,7 +117,7 @@ def batch_ingest(
 
         # 3. If no files were actually ingested (e.g., they were all skipped or failed),
         #    we terminate early to avoid useless Git commits or overview rewrites.
-        tracing.mark("I9a", W, ingested=len(summaries))
+        tracing.mark("I_BATCH_END", W, ingested=len(summaries))
         if not summaries:
             _cb("⚠️  No files were ingested — skipping overview and commit.")
             return results
@@ -127,7 +127,7 @@ def batch_ingest(
         # we rewrite the global wiki introduction exactly once using the combined summaries.
         _cb("🌐 Rewriting overview for batch...")
         try:
-            with tracing.node("I10", W) as i10:
+            with tracing.node("I_OVERVIEW", W) as i10:
                 # A. Read the current overview markdown content
                 current_overview = (workspace / "wiki" / "overview.md").read_text(encoding="utf-8")
 
@@ -155,7 +155,7 @@ def batch_ingest(
             try:
                 from domain.lint.runner import lint_wiki
                 _cb("🩺 Running lint on batch result...")
-                with tracing.node("I13", W) as i13:
+                with tracing.node("I_LINT", W) as i13:
                     lint_report = lint_wiki(db_path, workspace)
                     i13.set(issues=len(lint_report.issues))
                 _cb(f"🩺 Lint: {lint_report.summary()}")
@@ -188,13 +188,13 @@ def batch_ingest(
             log_lines.append(f"- Lint: {lint_report.summary()}\n")
 
         # Append this structured markdown block into "/wiki/log.md" on disk and in the DB
-        with tracing.node("I11", W):
+        with tracing.node("I_LOG", W):
             append_to_page(db_path, workspace, "/wiki/", "log", "".join(log_lines))
 
         # ── Single git commit ─────────────────────────────────────────────────────
         # Make a single git snapshot commit containing all updated/inserted files
         # to record this batch operation.
-        with tracing.node("I12", W):
+        with tracing.node("I_COMMIT", W):
             init_wiki_repo(workspace)
             auto_commit(workspace, f"batch ingest: {len(ingested)} file(s)")
 

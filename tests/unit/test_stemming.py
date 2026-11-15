@@ -15,7 +15,7 @@ import pytest
 
 from domain.chat.config import load_config
 from domain.chat.overlap import coverage
-from domain.chat.scope import is_off_limits, mentions_known_data
+from domain.chat.scope import is_blacklisted, mentions_known_data
 from domain.chat.tools import search_source_chunks
 from domain.text.stemming import stem_fts_query, stem_text
 from domain.tools.db import SchemaMismatchError, open_db, seed_workspace_row
@@ -116,8 +116,8 @@ def test_dataset_key_matches_only_as_written():
 
 def test_blacklist_does_not_refuse_the_verb_ceder():
     blacklist = ["cedear", "cedears"]
-    assert not is_off_limits("¿Me conviene ceder mis acciones a un fondo?", blacklist)
-    assert is_off_limits("¿Qué son los CEDEARs?", blacklist)
+    assert not is_blacklisted("¿Me conviene ceder mis acciones a un fondo?", blacklist)
+    assert is_blacklisted("¿Qué son los CEDEARs?", blacklist)
 
 
 # ── 6. The Tier-2 verification ───────────────────────────────────────────────

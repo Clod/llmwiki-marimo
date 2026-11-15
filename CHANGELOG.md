@@ -133,6 +133,139 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The nodes of the chat are named by what they do.** A node code was a
+  letter and a number, such as `Q21`, and the number no longer gave the order
+  of the flow: Q5c to Q5g ran before Q5b. Each code is now the letter of its
+  family and a name in uppercase: `Q_SHOWN`, `R_BLACKLIST`. A decision node is
+  named by its question (`Q_IN_ROSTER`), and a node of the rewrite of a
+  follow-up carries `RW_` (`Q_RW_IN_ROSTER`). The new code is the node id of
+  the graph, the span name of a trace, the id of the diagrams and the key of
+  the node texts. Traces written before this change keep the old codes; the
+  table below converts them.
+
+  | Old | New |
+  |---|---|
+  | C1 | `C_COUNT_HISTORY` |
+  | C2 | `C_WHICH_MODE` |
+  | C2a | `C_DROP_REFUSED` |
+  | C2b | `C_DROP_TABLES` |
+  | C2c | `C_TRIM_TURNS` |
+  | C2d | `C_ORIGIN_LINES` |
+  | C3 | `C_FIGURES` |
+  | C4 | `C_OPEN_PAGE_NOTE` |
+  | Q1 | `Q_QUESTION` |
+  | Q2 | `Q_NORMALIZE` |
+  | Q3 | `Q_IN_BLACKLIST` |
+  | Q4 | `Q_STEM` |
+  | Q4a | `Q_NAMES_DATA` |
+  | Q5 | `Q_IN_ROSTER` |
+  | Q5a | `Q_PAGE_OPEN` |
+  | Q5c | `Q_REWRITE` |
+  | Q5d | `Q_RW_ACCEPTED` |
+  | Q5e | `Q_RW_IN_BLACKLIST` |
+  | Q5f | `Q_RW_NAMES_DATA` |
+  | Q5g | `Q_RW_IN_ROSTER` |
+  | Q5b | `Q_CONDENSED` |
+  | Q6 | `Q_SEARCH_WIKI` |
+  | Q7 | `Q_PAGE_FOUND` |
+  | Q7a | `Q_NAMES_CATEGORY` |
+  | Q7b | `Q_NAMES_KEY` |
+  | Q7c | `Q_KEY_ROWS` |
+  | Q7d | `Q_KEY_NAMES` |
+  | Q8 | `Q_SEARCH_SOURCES` |
+  | Q8a | `Q_COLLECTION_PAGES` |
+  | Q8b | `Q_COLLECTION_OPEN_PAGE` |
+  | Q9 | `Q_IS_COLLECTION` |
+  | Q10 | `Q_IS_DATA` |
+  | Q11 | `Q_FRAGMENT_FOUND` |
+  | Q12 | `Q_ROSTER_REFUSAL` |
+  | Q12a | `Q_SYNONYMS` |
+  | Q12b | `Q_PROMPT` |
+  | Q13 | `Q_AGENT_PAGES` |
+  | Q14 | `Q_AGENT_COLLECTION` |
+  | Q15 | `Q_AGENT_TOOLS` |
+  | Q16 | `Q_AGENT_FRAGMENTS` |
+  | Q17 | `Q_IS_GROUNDED` |
+  | Q18 | `Q_SOURCE_WARNING` |
+  | Q19 | `Q_TOOL_EVIDENCE` |
+  | Q20 | `Q_MODEL_REFUSED` |
+  | Q20a | `Q_ADVISORY_TABLE` |
+  | Q20b | `Q_OFFER_KEYS` |
+  | Q20c | `Q_CITE_TOOLS` |
+  | Q20d | `Q_CITE_PAGES` |
+  | Q21 | `Q_SHOWN` |
+  | R1 | `R_BLACKLIST` |
+  | R2a | `R_NOT_IN_ROSTER` |
+  | R2b | `R_NOTHING_FOUND` |
+  | R3 | `R_UNSUPPORTED` |
+  | R4 | `R_NO_EVIDENCE` |
+  | R5 | `R_MODEL` |
+  | T1 | `T_AGENT` |
+  | T2 | `T_TOOL_EVIDENCE` |
+  | T3 | `T_GUARDRAIL` |
+  | T4a | `T_ADVISORY_TABLE` |
+  | T4b | `T_CITE_TOOLS` |
+  | T4c | `T_MARK_UNCITED` |
+  | T5 | `T_SHOWN` |
+  | F1 | `F_AGENT` |
+  | F2 | `F_COMPLETE` |
+  | K1 | `K_READ_PAGE` |
+  | K2 | `K_SEARCH_WIKI` |
+  | K3 | `K_SEARCH_SOURCES` |
+  | K4 | `K_READ_DATASET` |
+  | K5 | `K_ALTERNATIVES` |
+  | K6 | `K_PLAZO_FIJO` |
+  | K7 | `K_CAUCION` |
+  | K8 | `K_DOLLAR` |
+  | K9 | `K_SHARE_PRICE` |
+  | K10 | `K_MONEY_MARKET` |
+
+- **The nodes of the ingestion are named by what they do**, as the nodes of
+  the chat are. The groups keep their letters: I (the ingestion steps), E (the
+  end state of a document), W (the path of a fragment) and M (the maintenance
+  of a wiki built before stemming). Traces written before this change keep the
+  old codes; the table below converts them.
+
+  | Old | New |
+  |---|---|
+  | I1 | `I_VALIDATE` |
+  | I2 | `I_IS_CHANGED` |
+  | I3 | `I_DOCUMENT_ROW` |
+  | I4 | `I_EXTRACT` |
+  | I5 | `I_CONCEPTS` |
+  | I6 | `I_CONCEPT_PAGES` |
+  | I7 | `I_ALIASES` |
+  | I8 | `I_SUMMARY_PAGE` |
+  | I9 | `I_IS_BATCH` |
+  | I9a | `I_BATCH_END` |
+  | I10 | `I_OVERVIEW` |
+  | I11 | `I_LOG` |
+  | I12 | `I_COMMIT` |
+  | I13 | `I_LINT` |
+  | I14 | `I_DATASET_ALIASES` |
+  | I15 | `I_UPLOAD_REPAIR` |
+  | I16 | `I_CROSSLINKS` |
+  | I17 | `I_IMAGES_KEPT` |
+  | I18 | `I_IMAGE_DESCRIBED` |
+  | I19 | `I_IMAGE_SKIPPED` |
+  | E1 | `E_INVALID` |
+  | E2 | `E_UNCHANGED` |
+  | E3 | `E_ROLLED_BACK` |
+  | E4 | `E_INGESTED` |
+  | W1 | `W_CHUNK` |
+  | W2 | `W_STEM` |
+  | W3 | `W_INSERT_CHUNKS` |
+  | W4 | `W_FTS_TRIGGER` |
+  | M1 | `M_LACKS_STEMS` |
+  | M2 | `M_LANGUAGE` |
+  | M3 | `M_REBUILD_INDEX` |
+  | M4 | `M_LINT_NAMES` |
+
+- **One name for the blacklist in the Python code.** The code called the list
+  of `[fuera_de_alcance] terminos` both `blacklist` and `off_limits`. The
+  Python identifiers now say `blacklist` (`WikiAssistantConfig.blacklist`,
+  `scope.is_blacklisted`, `scope.blacklist_term`); the boolean of a turn is
+  `blacklisted`. The key of the wiki configuration does not change.
 - **The NLI model download takes only the files the verifier loads.** The model
   repository holds the same weights in three formats (`model.safetensors`,
   `pytorch_model.bin`, `onnx/`), 2.4 GB in all. `download_model` now takes the

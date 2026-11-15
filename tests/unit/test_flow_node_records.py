@@ -79,7 +79,7 @@ class Agent:
 
 
 def agents(output, messages=()):
-    config = SimpleNamespace(language="en", off_limits=[], data_aliases={}, system_prompt="",
+    config = SimpleNamespace(language="en", blacklist=[], data_aliases={}, system_prompt="",
                              suggested_prompts=[])
     return chat.ChatAgents(config=config, agent=Agent(output, messages),
                            agent_pre_retrieval=Agent(output, messages))
@@ -90,26 +90,26 @@ def test_a_strict_turn_writes_the_nodes_of_the_strict_mode(wiki):
     asyncio.run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper.", evidence()), history, mode=chat.STRICT))
     rec = records(wiki)
-    assert rec["C1"] == {"node": "C1", "diagram": "reading", "prior_messages": 2,
+    assert rec["C_COUNT_HISTORY"] == {"node": "C_COUNT_HISTORY", "diagram": "reading", "prior_messages": 2,
                          "refused_dropped": 0, "history_messages": 2}
-    assert rec["C2"]["mode"] == "strict"
-    assert rec["T1"]["tools_called"] == ["read_wiki_page"]
-    assert rec["T1"]["raw_output"] == "Cinderella lost a slipper."
-    assert rec["T2"]["answer"] is True
-    assert "T3" not in rec
-    assert rec["T4b"]["citation_added"] is True and rec["T4a"]["table_added"] is False
-    assert rec["T5"]["refusal_substituted"] is False
-    assert rec["T5"]["final_answer"].startswith("Cinderella lost a slipper.")
+    assert rec["C_WHICH_MODE"]["mode"] == "strict"
+    assert rec["T_AGENT"]["tools_called"] == ["read_wiki_page"]
+    assert rec["T_AGENT"]["raw_output"] == "Cinderella lost a slipper."
+    assert rec["T_TOOL_EVIDENCE"]["answer"] is True
+    assert "T_GUARDRAIL" not in rec
+    assert rec["T_CITE_TOOLS"]["citation_added"] is True and rec["T_ADVISORY_TABLE"]["table_added"] is False
+    assert rec["T_SHOWN"]["refusal_substituted"] is False
+    assert rec["T_SHOWN"]["final_answer"].startswith("Cinderella lost a slipper.")
 
 
 def test_a_strict_turn_without_evidence_writes_t3(wiki):
     asyncio.run(chat.chat_turn_with_context(
         wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.STRICT))
     rec = records(wiki)
-    assert rec["T2"]["answer"] is False
-    assert rec["T3"]["final_answer"] == rec["T5"]["final_answer"]
-    assert rec["T5"]["refusal_substituted"] is True
-    assert rec["T1"]["tools_called"] == []
+    assert rec["T_TOOL_EVIDENCE"]["answer"] is False
+    assert rec["T_GUARDRAIL"]["final_answer"] == rec["T_SHOWN"]["final_answer"]
+    assert rec["T_SHOWN"]["refusal_substituted"] is True
+    assert rec["T_AGENT"]["tools_called"] == []
 
 
 def test_c1_counts_the_refused_exchanges_it_dropped(wiki):
@@ -118,7 +118,7 @@ def test_c1_counts_the_refused_exchanges_it_dropped(wiki):
                msg("user", "a"), msg("assistant", "b"), msg("user", "Who is Cinderella?")]
     asyncio.run(chat.chat_turn_with_context(
         wiki, agents("Paris."), history, mode=chat.STRICT))
-    c1 = records(wiki)["C1"]
+    c1 = records(wiki)["C_COUNT_HISTORY"]
     assert (c1["prior_messages"], c1["history_messages"]) == (4, c1["prior_messages"] - c1["refused_dropped"])
 
 
@@ -129,10 +129,10 @@ def test_a_streaming_turn_writes_the_nodes_of_the_streaming_mode(wiki):
 
     asyncio.run(collect())
     rec = records(wiki)
-    assert rec["C1"]["prior_messages"] == 0
-    assert rec["C2"]["mode"] == "streaming"
-    assert rec["F1"]["tools_called"] == ["read_wiki_page"]
-    assert rec["F2"]["final_answer"] == "Cinderella lost a slipper."
+    assert rec["C_COUNT_HISTORY"]["prior_messages"] == 0
+    assert rec["C_WHICH_MODE"]["mode"] == "streaming"
+    assert rec["F_AGENT"]["tools_called"] == ["read_wiki_page"]
+    assert rec["F_COMPLETE"]["final_answer"] == "Cinderella lost a slipper."
 
 
 def test_a_pre_retrieval_turn_writes_c1_c2_and_q1(wiki):
@@ -140,9 +140,9 @@ def test_a_pre_retrieval_turn_writes_c1_c2_and_q1(wiki):
         wiki, agents("Cinderella lost a slipper."), [msg("user", "Who is Cinderella?")],
         mode=chat.PRE_RETRIEVAL))
     rec = records(wiki)
-    assert rec["Q1"]["question"] == "Who is Cinderella?"
-    assert rec["C2"]["mode"] == "pre-retrieval"
-    assert "C1" in rec
+    assert rec["Q_QUESTION"]["question"] == "Who is Cinderella?"
+    assert rec["C_WHICH_MODE"]["mode"] == "pre-retrieval"
+    assert "C_COUNT_HISTORY" in rec
 
 
 def ctx(wiki):
@@ -158,21 +158,21 @@ def test_each_tool_writes_its_record_with_substantive(wiki):
         dataset_tools.query_dataset(ctx(wiki), "nada", clave="k")
         agent_tool.estimar_alternativas(ctx(wiki), 1000.0, 3.0)
     by_name = {s["name"]: s["attributes"] for s in spans(wiki)}
-    assert by_name["K1"]["llmwiki.path"] == "wiki/concepts/cinderella.md"
-    assert by_name["K1"]["llmwiki.substantive"] is True
-    assert (by_name["K2"]["llmwiki.query"], by_name["K2"]["llmwiki.limit"]) == ("nonexistentterm", 3)
-    assert by_name["K2"]["llmwiki.substantive"] is False
-    assert by_name["K3"]["llmwiki.limit"] == 4 and by_name["K3"]["llmwiki.substantive"] is False
-    assert by_name["K4"]["llmwiki.categoria"] == "nada" and by_name["K4"]["llmwiki.clave"] == "k"
-    assert by_name["K4"]["llmwiki.substantive"] is False
-    assert by_name["K5"]["llmwiki.monto"] == 1000.0 and by_name["K5"]["llmwiki.moneda"] == "ARS"
-    assert "llmwiki.substantive" in by_name["K5"]
+    assert by_name["K_READ_PAGE"]["llmwiki.path"] == "wiki/concepts/cinderella.md"
+    assert by_name["K_READ_PAGE"]["llmwiki.substantive"] is True
+    assert (by_name["K_SEARCH_WIKI"]["llmwiki.query"], by_name["K_SEARCH_WIKI"]["llmwiki.limit"]) == ("nonexistentterm", 3)
+    assert by_name["K_SEARCH_WIKI"]["llmwiki.substantive"] is False
+    assert by_name["K_SEARCH_SOURCES"]["llmwiki.limit"] == 4 and by_name["K_SEARCH_SOURCES"]["llmwiki.substantive"] is False
+    assert by_name["K_READ_DATASET"]["llmwiki.categoria"] == "nada" and by_name["K_READ_DATASET"]["llmwiki.clave"] == "k"
+    assert by_name["K_READ_DATASET"]["llmwiki.substantive"] is False
+    assert by_name["K_ALTERNATIVES"]["llmwiki.monto"] == 1000.0 and by_name["K_ALTERNATIVES"]["llmwiki.moneda"] == "ARS"
+    assert "llmwiki.substantive" in by_name["K_ALTERNATIVES"]
 
 
 def test_a_rejected_path_is_recorded_too(wiki):
     with tracing.root("turn", wiki.path):
         wiki_tools.read_wiki_page(ctx(wiki), "wiki/../../.env")
-    k1 = records(wiki)["K1"]
+    k1 = records(wiki)["K_READ_PAGE"]
     assert k1["substantive"] is False
 
 
@@ -180,7 +180,7 @@ def test_insert_chunks_writes_w1_w2_w3(wiki):
     with tracing.root("ingest", wiki.path):
         create_page(wiki.db_path, wiki.path, "/wiki/concepts/", "other", "Other", BODY, [])
     rec = records(wiki)
-    doc_id = rec["W1"]["document_id"]
-    assert rec["W2"]["document_id"] == doc_id and rec["W3"]["document_id"] == doc_id
-    assert rec["W2"]["fragments"] == rec["W1"]["fragments"] == rec["W3"]["fragments"]
-    assert rec["W2"]["language"] == "en"
+    doc_id = rec["W_CHUNK"]["document_id"]
+    assert rec["W_STEM"]["document_id"] == doc_id and rec["W_INSERT_CHUNKS"]["document_id"] == doc_id
+    assert rec["W_STEM"]["fragments"] == rec["W_CHUNK"]["fragments"] == rec["W_INSERT_CHUNKS"]["fragments"]
+    assert rec["W_STEM"]["language"] == "en"

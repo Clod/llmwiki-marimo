@@ -320,13 +320,13 @@ in any of it, the same question always produces the same line. Five columns:
 
 | Column | What it means |
 |---|---|
-| `off_limits` | the question names something on the wiki's **blacklist** — the hand-written `[fuera_de_alcance]` list in its `wiki_config.toml` ([explained here](ingestion_walkthrough.md#the-pieces-before-anything-moves)), where its owner records topics the wiki should never answer about. The finance demo lists `cedear`, `cripto`, `bitcoin`. Every other row is read out of the wiki's own contents; this one is a standalone declaration |
+| `blacklisted` | the question names something on the wiki's **blacklist** — the hand-written `[fuera_de_alcance]` list in its `wiki_config.toml` ([explained here](ingestion_walkthrough.md#the-pieces-before-anything-moves)), where its owner records topics the wiki should never answer about. The finance demo lists `cedear`, `cripto`, `bitcoin`. Every other row is read out of the wiki's own contents; this one is a standalone declaration |
 | `data` | the question names a value kept in the `datasets/` folder, or asks for an estimate |
 | `roster` | the question names something on the **coverage roster**: the subjects this wiki considers itself to cover. Nothing stores it — it is assembled fresh on every question, from the titles of the wiki's own concept pages plus, in a wiki with datasets, the dataset vocabulary. It is the wiki's answer to "what am I about?" — and, as later acts show with numbers, it is what decides coverage, *not* the number of search hits |
 | `wiki` / `docs` | how many hits the full-text search returned, in the curated pages and in the raw documents respectively |
 | `plan` | the resulting decision: call the model, or refuse |
 
-Those five values are computed by four functions: `scope.is_off_limits`,
+Those five values are computed by four functions: `scope.is_blacklisted`,
 `scope.mentions_known_data`, `scope.advisory_intent` and
 `preretrieval.plan_retrieval`. All four live inside the pre-retrieval path and
 are called from nowhere else. That is worth stating plainly, because the
@@ -748,7 +748,7 @@ documents alone — no `datasets/` folder — it has five branches:
 
 ```mermaid
 flowchart TD
-    Q["question"] --> OFF{"is_off_limits?<br/><i>on the wiki's own blacklist</i>"}
+    Q["question"] --> OFF{"is_blacklisted?<br/><i>on the wiki's own blacklist</i>"}
     OFF -->|yes| R1["<b>refuse</b><br/>no model call"]
     OFF -->|no| T1{"wiki_hits <b>and</b> in_roster?"}
     T1 -->|yes| TIER1["<b>invoke</b> — Tier 1 <i>curado</i> (curated)<br/>inject the top curated passages, no verification"]
@@ -819,7 +819,7 @@ this document](#wikis-whose-facts-change).
 
 The [appendix's routing
 table](query_walkthrough_appendix.md#the-routing-decision-deterministic--no-model-involved)
-has one row per question below, with the real `off_limits`/`data`/`roster` values
+has one row per question below, with the real `blacklisted`/`data`/`roster` values
 and search hit counts that this diagram leaves out.
 
 ### Three acts every ticked wiki has
@@ -852,7 +852,7 @@ the code. Here it is determined by the code.
 *"¿Qué es un ETF?"* — *what is an ETF?* A perfectly reasonable finance question
 about an instrument this particular wiki has no page for.
 
-`off_limits=False`, `data=False`, `roster=False`, and both `wiki` and `docs` hit
+`blacklisted=False`, `data=False`, `roster=False`, and both `wiki` and `docs` hit
 counts are **0**. The plan is `refuse`, and the model was **never invoked** — no
 completion, no token spent. The `docs=0` is not "the search came back empty";
 it is that the raw-source search never ran at all. Looking at
@@ -879,7 +879,7 @@ count removes that path before the model is ever called.
 This is the most instructive row in the whole appendix, and the clearest evidence
 for the claim this document has been building — that coverage has to be decided
 by something other than the number of search hits.
-`off_limits=False`, `data=False`, `roster=False` — but
+`blacklisted=False`, `data=False`, `roster=False` — but
 `wiki=6`. The full-text query genuinely matched 6 fragments in the curated wiki
 (some word shared between the question and unrelated financial prose). If the
 plan were driven by the hit count alone, this would be Tier 1: inject those 6

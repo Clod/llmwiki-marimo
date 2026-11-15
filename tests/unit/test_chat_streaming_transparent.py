@@ -3,7 +3,7 @@
 The agent receives every prior message as written, refused exchanges included,
 with no origin line and no trimming. It receives the question as written, with the
 note of the open page when the user reads a page. The answer is the text of the
-agent, and the path of the turn is C1 C2 F1 F2. The agent is a stand-in; no model
+agent, and the path of the turn is C_COUNT_HISTORY C_WHICH_MODE F_AGENT F_COMPLETE. The agent is a stand-in; no model
 is called.
 """
 
@@ -57,7 +57,7 @@ def msg(role, content, context=()):
 
 
 def agents(agent):
-    config = SimpleNamespace(language="en", number_tolerance=0.05, off_limits=[], data_aliases={},
+    config = SimpleNamespace(language="en", number_tolerance=0.05, blacklist=[], data_aliases={},
                              system_prompt="", suggested_prompts=[])
     return chat.ChatAgents(config=config, agent=agent, agent_pre_retrieval=agent)
 
@@ -108,7 +108,7 @@ def test_the_agent_receives_every_prior_message_as_written(wiki):
 def test_c1_counts_the_whole_history(wiki):
     prior = conversation()
     result = stream(wiki, agents(RecordingAgent("a")), [*prior, msg("user", "Who is Cinderella?")])[-1]
-    c1 = next(n["attributes"] for n in result.path if n["node"] == "C1")
+    c1 = next(n["attributes"] for n in result.path if n["node"] == "C_COUNT_HISTORY")
     assert (c1["prior_messages"], c1["refused_dropped"], c1["history_messages"]) == (len(prior), 0, len(prior))
 
 
@@ -131,4 +131,4 @@ def test_the_user_sees_the_text_of_the_agent_and_the_path_is_c1_c2_f1_f2(wiki):
     assert "".join(items[:-1]) == INVENTED
     assert result.answer == INVENTED
     assert result.figures is None and result.generated == ()
-    assert [n["node"] for n in result.path] == ["C1", "C2", "F1", "F2"]
+    assert [n["node"] for n in result.path] == ["C_COUNT_HISTORY", "C_WHICH_MODE", "F_AGENT", "F_COMPLETE"]

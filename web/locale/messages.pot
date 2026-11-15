@@ -1498,14 +1498,14 @@ msgstr ""
 
 #: web/templates/_vocabulary_body.html
 msgid ""
-"Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node Q9). An "
+"Expressions of a question about the wiki as a whole: such a question gets the overview and the index (node Q_IS_COLLECTION). An "
 "expression matches at the start of a word, without case nor accents"
 msgstr ""
 
 #: web/templates/_vocabulary_body.html
 msgid ""
 "Expressions of a request for an investment calculation: with a money amount or a time horizon, the question goes to "
-"the data tools (node Q5). An expression matches at the start of a word, without case nor accents"
+"the data tools (node Q_IN_ROSTER). An expression matches at the start of a word, without case nor accents"
 msgstr ""
 
 #: web/templates/_vocabulary_body.html

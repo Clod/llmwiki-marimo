@@ -97,7 +97,7 @@ class FakeAgent:
 
 
 def fake_agents(output, language: str = "en") -> chat.ChatAgents:
-    config = SimpleNamespace(language=language, off_limits=[], data_aliases={}, system_prompt="",
+    config = SimpleNamespace(language=language, blacklist=[], data_aliases={}, system_prompt="",
                              suggested_prompts=["¿Quién perdió el zapato?"])
     return chat.ChatAgents(config=config, agent=FakeAgent(output), agent_pre_retrieval=FakeAgent(output))
 

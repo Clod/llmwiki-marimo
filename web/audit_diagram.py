@@ -8,8 +8,8 @@ is a box with its short text (`audit_nodes.text`), each decision a diamond with
 its question, and each branch an arrow with its label, all in the interface
 language. The conversion is `domain.chat.workflow.flowchart`, which also writes
 the diagrams of `docs/workflow_diagrams.md`, in English. The diagram of the call to the model is a chain built from the path
-of the turn: the node of the call (Q13 to Q16, or T1) and each tool node (K1 to
-K10) in the order of the path.
+of the turn: the node of the call (Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS, or T_AGENT) and each tool node (K_READ_PAGE to
+K_MONEY_MARKET) in the order of the path.
 
 A turn of the streaming mode shows the overview of `docs/query_nodes.md` (the
 first Mermaid block of the file), read from the file each time. Each diagram
@@ -37,7 +37,7 @@ WORKFLOW_GRAPHS = {
 }
 
 # The nodes that call the model between the two workflows of a mode.
-MODEL_CALLS = (*input_checks.AGENT_NODES, "T1")
+MODEL_CALLS = (*input_checks.AGENT_NODES, "T_AGENT")
 
 VISITED_STYLE = "classDef visited fill:#fde047,stroke:#a16207,stroke-width:3px,color:#1f2937"
 
@@ -48,10 +48,10 @@ TITLES = {
 }
 
 _BLOCK = re.compile(r"^```mermaid\n(.*?)^```", re.S | re.M)
-# A node line: `    Q["Q1 · question"]`, `C2{"C2 · ..."}`, `IDX[("DB · ...")]`. The first group is
+# A node line: `    Q["Q_QUESTION · question"]`, `C_WHICH_MODE{"C_WHICH_MODE · ..."}`, `IDX[("DB · ...")]`. The first group is
 # the id Mermaid uses, the second the id of the node in the path, which opens the label.
 _NODE = re.compile(r'^\s*(\w+)\s*(?:\[\(|\[|\{|\()\s*"([A-Za-z]\w*) ·', re.M)
-_TOOL = re.compile(r"K\d+")
+_TOOL = re.compile(r"K_[A-Z_]+")
 
 
 @dataclass(frozen=True)

@@ -144,17 +144,17 @@ concept-citation check false-failed a correctly cited answer. Tests:
 
 ## 3. Pre-retrieval plan order — both tiers gated on the roster
 
-The nodes of the plan (Q7 to Q12) and of the whole pre-retrieval turn are in
+The nodes of the plan (from Q_PAGE_FOUND to Q_ROSTER_REFUSAL in the order of the table) and of the whole pre-retrieval turn are in
 `docs/query_nodes.md`, section 2; `tests/unit/test_flow_nodes.py` keeps that
 document and the tracing calls of the code in step. The flowcharts of the two
 workflows of the mode are in `docs/workflow_diagrams.md`, generated from the
 graphs.
 
-**Contract.** `domain.chat.preretrieval.plan_retrieval(question, *, off_limits,
+**Contract.** `domain.chat.preretrieval.plan_retrieval(question, *, blacklist,
 wiki_hits, doc_hits, has_data, in_roster, collection_hits=[])` decides in this
 order:
 
-1. `is_off_limits` → **refuse** (blacklist wins over any hit).
+1. `is_blacklisted` → **refuse** (blacklist wins over any hit).
 2. `wiki_hits and in_roster` → **Tier-1 curated** (inject, no verify).
 3. `collection_hits` → **Tier-1 curated** (inject the collection pages, no verify).
 4. `has_data` → **tools only** (no injected context; `query_dataset` /
@@ -180,7 +180,7 @@ the overview rather than the tools. It cannot fire without something to inject:
 `wiki/overview.md` nor `wiki/index.md`, and the question then refuses as before.
 
 **Caller (`pre_retrieval_answer`) computes, in the reading diagram's order:**
-first `is_off_limits(q)`, by whole normalized word (the blacklist is never
+first `is_blacklisted(q)`, by whole normalized word (the blacklist is never
 stemmed); for a question that passes it,
 `has_data = mentions_known_data(q, categories, aliases, language=…, exact=keys)
 or advisory_intent(q, intent.advisory, intent.advisory_shapes)` — the second
@@ -205,7 +205,7 @@ Tests: `test_chat_retrieval_plan.py`, `test_chat_pre_retrieval_answer.py`,
 ## 3b. Tier 1 from wiki pages also carries the dataset the question names
 
 **Contract.** When the plan is Tier 1 from wiki pages (branch 2 of section 3,
-span `Q13`), `pre_retrieval_answer` calls
+span `Q_AGENT_PAGES`), `pre_retrieval_answer` calls
 `dataset_injection(question, source, config.data_aliases, language)` and appends
 its blocks to the injected context. A category is named when the question names
 the category, one of its keys, or an alias of either, by whole normalized word.
@@ -213,9 +213,9 @@ For each named category:
 
 1. The question names keys of it → the code injects those keys' rows, rendered
    by `format_rows_as_table` (`domain/chat/dataset_tools.py`), under the label
-   `[datasets/<categoria>.md]` (span `Q7c`).
+   `[datasets/<categoria>.md]` (span `Q_KEY_ROWS`).
 2. The question names no key → the code injects only the category's key names,
-   without values (span `Q7d`).
+   without values (span `Q_KEY_NAMES`).
 
 **Why.** The wiki pages hold no values, and the model, told to answer from the
 context, called `query_dataset` only when the bank in the question matched the

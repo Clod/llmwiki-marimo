@@ -280,7 +280,7 @@ llmwiki/
 │       │   │   ├── validator.py        # domain lint (datasets + attributes)
 │       │   │   ├── formulae.py         # deterministic TEA / gain math
 │       │   │   ├── advisory.py         # estimate_alternatives()
-│       │   │   ├── data_tools.py       # one typed data tool per category (K6–K10)
+│       │   │   ├── data_tools.py       # one typed data tool per category (K_PLAZO_FIJO, K_CAUCION, K_DOLLAR, K_SHARE_PRICE, K_MONEY_MARKET)
 │       │   │   └── agent_tool.py       # estimar_alternativas tool + activate()
 │       ├── ingestion/
 │       │   ├── pipeline.py             # ingest_file, scan_and_ingest,

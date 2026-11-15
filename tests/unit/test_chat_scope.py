@@ -14,26 +14,26 @@ from domain.chat.scope import advisory_intent as _advisory_intent
 from domain.extensions import finance_argentina
 from domain.chat.scope import (
     drop_false_synonyms,
-    is_off_limits,
+    is_blacklisted,
     mentions_known_data,
 )
 
 
-# ── is_off_limits (blacklist, checked at the top of the flow) ────────────────
+# ── is_blacklisted (blacklist, checked at the top of the flow) ────────────────
 
 OFF_LIMITS = {"cedear", "cedears", "cripto", "bitcoin"}
 
 
-def test_off_limits_hit():
-    assert is_off_limits("¿Qué son los CEDEARs y conviene comprarlos?", OFF_LIMITS) is True
+def test_blacklist_hit():
+    assert is_blacklisted("¿Qué son los CEDEARs y conviene comprarlos?", OFF_LIMITS) is True
 
 
-def test_off_limits_accent_and_case_insensitive():
-    assert is_off_limits("¿Qué es el BITCOIN?", OFF_LIMITS) is True
+def test_blacklist_accent_and_case_insensitive():
+    assert is_blacklisted("¿Qué es el BITCOIN?", OFF_LIMITS) is True
 
 
-def test_off_limits_miss():
-    assert is_off_limits("¿A cuánto está el dólar MEP?", OFF_LIMITS) is False
+def test_blacklist_miss():
+    assert is_blacklisted("¿A cuánto está el dólar MEP?", OFF_LIMITS) is False
 
 
 # ── mentions_known_data (the "chequeo contra la lista de datos") ─────────────

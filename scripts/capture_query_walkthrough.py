@@ -10,7 +10,7 @@ hand-maintained.
 
 Two halves, deliberately separated:
 
-  * The **gate table** is pure code — `mentions_known_data`, `is_off_limits`,
+  * The **gate table** is pure code — `mentions_known_data`, `is_blacklisted`,
     the FTS hits and `plan_retrieval` — so it is deterministic, free, and the
     same on every run. That is the interesting half: the routing decision is
     made *before* the model is consulted, and often instead of consulting it.
@@ -130,7 +130,7 @@ class Decision:
     """What the code decided before (or instead of) calling the model."""
 
     case: Case
-    off_limits: bool = False
+    blacklisted: bool = False
     has_data: bool = False
     in_roster: bool = False
     wiki_hits: int = 0
@@ -158,7 +158,7 @@ def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
                                           retrieve_source_chunks, retrieve_wiki)
     from domain.chat.intent import load_intent
     from domain.chat.scope import (advisory_intent, collection_intent,
-                                   is_off_limits, mentions_known_data)
+                                   is_blacklisted, mentions_known_data)
     from domain.datasets.source import LocalMarkdownSource
     from domain.tools.wiki_fs import concept_page_names
 
@@ -174,7 +174,7 @@ def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
 
     rows = []
     for q in list(cfg.suggested_prompts or []):
-        off = is_off_limits(q, cfg.off_limits)
+        off = is_blacklisted(q, cfg.blacklist)
         in_roster = mentions_known_data(q, coverage, aliases)
         wiki_hits = [] if off else retrieve_wiki(db_path, q, language=cfg.language)
         doc_hits = (retrieve_source_chunks(db_path, q, language=cfg.language)
@@ -183,7 +183,7 @@ def _probe_plain_wiki() -> list[tuple[str, int, bool, str]]:
                     or advisory_intent(q, intent.advisory, intent.advisory_shapes))
         collection_hits = ([] if off else retrieve_collection_pages(PLAIN_DEMO)
                            if collection_intent(q, intent.collection, intent.language) else [])
-        plan = plan_retrieval(q, off_limits=cfg.off_limits, wiki_hits=wiki_hits,
+        plan = plan_retrieval(q, blacklist=cfg.blacklist, wiki_hits=wiki_hits,
                               doc_hits=doc_hits, has_data=has_data, in_roster=in_roster,
                               collection_hits=collection_hits)
         rows.append((q, len(wiki_hits), in_roster, len(collection_hits), plan.action))
@@ -196,26 +196,26 @@ def _gate(case: Case, cfg, db_path: str, vocab, coverage, aliases) -> Decision:
                                           retrieve_source_chunks, retrieve_wiki)
     from domain.chat.intent import load_intent
     from domain.chat.scope import (advisory_intent, collection_intent,
-                                   is_off_limits, mentions_known_data)
+                                   is_blacklisted, mentions_known_data)
 
     q = case.question
     intent = load_intent(DEMO, cfg.language, cfg.intent_section)
     d = Decision(case=case)
-    d.off_limits = is_off_limits(q, cfg.off_limits)
+    d.blacklisted = is_blacklisted(q, cfg.blacklist)
     d.has_data = (mentions_known_data(q, vocab, aliases)
                   or advisory_intent(q, intent.advisory, intent.advisory_shapes))
     d.in_roster = mentions_known_data(q, coverage, aliases)
 
-    wiki_hits = [] if d.off_limits else retrieve_wiki(db_path, q, language=cfg.language)
+    wiki_hits = [] if d.blacklisted else retrieve_wiki(db_path, q, language=cfg.language)
     doc_hits = (
         retrieve_source_chunks(db_path, q, language=cfg.language)
-        if (not d.off_limits and not wiki_hits and d.in_roster) else []
+        if (not d.blacklisted and not wiki_hits and d.in_roster) else []
     )
     d.wiki_hits, d.doc_hits = len(wiki_hits), len(doc_hits)
 
-    collection_hits = ([] if d.off_limits else retrieve_collection_pages(DEMO)
+    collection_hits = ([] if d.blacklisted else retrieve_collection_pages(DEMO)
                        if collection_intent(q, intent.collection, intent.language) else [])
-    plan = plan_retrieval(q, off_limits=cfg.off_limits, wiki_hits=wiki_hits,
+    plan = plan_retrieval(q, blacklist=cfg.blacklist, wiki_hits=wiki_hits,
                           doc_hits=doc_hits, has_data=d.has_data, in_roster=d.in_roster,
                           collection_hits=collection_hits)
     d.action, d.tier = plan.action, plan.tier or "—"
@@ -338,19 +338,19 @@ def _render(decisions: list[Decision], with_answers: bool,
         "",
         "## The routing decision (deterministic — no model involved)",
         "",
-        "`off_limits` and `roster` come from the wiki's own vocabulary; `wiki`/`docs`",
+        "`blacklisted` and `roster` come from the wiki's own vocabulary; `wiki`/`docs`",
         "are FTS hit counts; `plan` is what `plan_retrieval` returned. Every column",
         "here is computed by code before the model is consulted — and for the last two",
         "rows, instead of consulting it.",
         "",
-        "| # | Question | off_limits | data | roster | wiki | docs | plan |",
+        "| # | Question | blacklisted | data | roster | wiki | docs | plan |",
         "|---|---|---|---|---|---|---|---|",
     ]
     for i, d in enumerate(decisions, 1):
         q = d.case.question if len(d.case.question) <= 60 else d.case.question[:57] + "…"
         tier = "" if d.tier == "—" else f" ({d.tier})"
         out.append(
-            f"| {i} | {q} | {d.off_limits} | {d.has_data} | {d.in_roster} "
+            f"| {i} | {q} | {d.blacklisted} | {d.has_data} | {d.in_roster} "
             f"| {d.wiki_hits} | {d.doc_hits} | **{d.action}**{tier} |"
         )
     out += [

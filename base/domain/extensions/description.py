@@ -43,7 +43,7 @@ class ArgumentDescription:
 @dataclass(frozen=True)
 class ToolDescription:
     name: str
-    node: str                                # the trace node, K1 to K10
+    node: str                                # the trace node of the tool, a K_ code
     description: str
     arguments: tuple[ArgumentDescription, ...]
     role: str                                # EVIDENCE, VERBATIM or "" (neither)
@@ -151,8 +151,8 @@ def generic_tools(workspace: Path, replaced: bool) -> tuple[ToolDescription, ...
     else:
         dataset_state = dict(active=True)
     return (
-        describe_tool(read_wiki_page, "K1", role("read_wiki_page"), True),
-        describe_tool(search_wiki_fts, "K2", role("search_wiki_fts"), True),
-        describe_tool(search_source_chunks, "K3", role("search_source_chunks"), True),
-        describe_tool(query_dataset, "K4", role("query_dataset"), **dataset_state),
+        describe_tool(read_wiki_page, "K_READ_PAGE", role("read_wiki_page"), True),
+        describe_tool(search_wiki_fts, "K_SEARCH_WIKI", role("search_wiki_fts"), True),
+        describe_tool(search_source_chunks, "K_SEARCH_SOURCES", role("search_source_chunks"), True),
+        describe_tool(query_dataset, "K_READ_DATASET", role("query_dataset"), **dataset_state),
     )

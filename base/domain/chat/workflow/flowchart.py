@@ -23,7 +23,7 @@ from domain.chat.workflow.node_texts import NODE_TEXTS
 
 # The lines of `graph.render()`: a step (the identifier alone, indented), a decision
 # (`state after_Q3 <<choice>>`), the first line of the note that holds its question
-# (`note right of after_Q3`), and an edge (`after_Q3 --> R1: names a blacklisted term`).
+# (`note right of after_Q3`), and an edge (`after_Q3 --> R_BLACKLIST: names a blacklisted term`).
 _STEP = re.compile(r"^\s+(\w+)$")
 _CHOICE = re.compile(r"^\s*state (\w+) <<choice>>$")
 _NOTE = re.compile(r"^\s*note right of (\w+)$")

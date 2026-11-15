@@ -1,4 +1,4 @@
-"""Query condensation (domain/chat/condense.py and node Q5b of pre_retrieval_answer):
+"""Query condensation (domain/chat/condense.py and node Q_CONDENSED of pre_retrieval_answer):
 a follow-up that names no topic is rewritten from the conversation and the coverage
 gate runs again on the rewrite. No model: the rewrite and the answer are injected."""
 
@@ -11,7 +11,7 @@ from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserProm
 from domain.chat import condense, preretrieval
 from domain.chat.preretrieval import pre_retrieval_answer
 
-CFG = SimpleNamespace(off_limits=["cedear", "cedears"], data_aliases={})
+CFG = SimpleNamespace(blacklist=["cedear", "cedears"], data_aliases={})
 CONCEPTS = ["Caución bursátil"]
 WIKI_HIT = "[/wiki/concepts/caucion-bursatil.md]\nLa caución tiene riesgo de crédito casi nulo."
 HISTORY = [

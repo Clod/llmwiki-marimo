@@ -156,7 +156,7 @@ def read_vocabulary(wiki: Wiki) -> Vocabulary:
         for alias in aliases if isinstance(alias, str))
     findings = tuple(Finding(i.check, i.severity, i.terms) for i in vocabulary_check(wiki.db_path, wiki.path))
     return Vocabulary(roster=roster(wiki), aliases=_aliases(wiki, sections), rejected=rejected,
-                      blacklist=tuple(load_config(wiki.path).off_limits), findings=findings,
+                      blacklist=tuple(load_config(wiki.path).blacklist), findings=findings,
                       intent=intent_lists(wiki, sections))
 
 

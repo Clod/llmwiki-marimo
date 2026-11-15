@@ -90,11 +90,11 @@ def _insert_chunks(
     # 1. Break down the content into a list of semantic chunks.
     #    We pass the text as page 1 (since standard wiki pages are single-page markdown).
     chunks = chunk_pages([(1, content)])
-    # Node W1 of the writing diagram, for a wiki page (domain/tracing.py).
-    tracing.mark("W1", tracing.WRITING, document_id=doc_id, fragments=len(chunks))
+    # Node W_CHUNK of the writing diagram, for a wiki page (domain/tracing.py).
+    tracing.mark("W_CHUNK", tracing.WRITING, document_id=doc_id, fragments=len(chunks))
 
-    # Node W2: the stem of each fragment, in the wiki's language.
-    with tracing.node("W2", tracing.WRITING, document_id=doc_id, fragments=len(chunks),
+    # Node W_STEM: the stem of each fragment, in the wiki's language.
+    with tracing.node("W_STEM", tracing.WRITING, document_id=doc_id, fragments=len(chunks),
                       language=language):
         stemmed = [stem_text(c.content, language) for c in chunks]
 
@@ -110,7 +110,7 @@ def _insert_chunks(
             for c, stem in zip(chunks, stemmed)
         ],
     )
-    tracing.mark("W3", tracing.WRITING, document_id=doc_id, fragments=len(chunks))
+    tracing.mark("W_INSERT_CHUNKS", tracing.WRITING, document_id=doc_id, fragments=len(chunks))
 
 
 def _strip_dead_links(
