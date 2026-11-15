@@ -133,7 +133,7 @@ def test_criterio_lists_the_path_and_each_node_with_its_text(client, agents):
     agents.agent_pre_retrieval.output = CITED
     stream(client, ask(client))
     html = audit(client).text
-    assert "C_COUNT_HISTORY → C_WHICH_MODE → C_DROP_REFUSED" in html
+    assert "C_COUNT_HISTORY → C_WHICH_MODE → C_MARK_REFUSED" in html
     assert "Q_IN_ROSTER" in html and "¿La pregunta nombra un tema de la wiki (padrón de cobertura)?" in html
     assert "Cinderella" in html     # the matched term, in the definition list of Q_IN_ROSTER
 
@@ -286,7 +286,7 @@ def test_a_pre_retrieval_turn_shows_the_input_the_model_call_and_the_output(clie
     html = audit(client).text
     entry, call, exit_ = diagrams(html)
     assert titles(html) == ["Workflow de entrada", "Llamada al modelo", "Workflow de salida"]
-    assert entry.startswith("flowchart TD") and "C_DROP_REFUSED · Se quitan del historial" in entry
+    assert entry.startswith("flowchart TD") and "C_MARK_REFUSED · Las negativas del historial se reemplazan por una nota" in entry
     assert "Q_AGENT_PAGES · " in call and "Q_SHOWN · " in exit_
     assert '/static/js/mermaid.min.js' in html and "cdn" not in html.split("<body")[1].lower()
 
@@ -296,7 +296,7 @@ def test_the_nodes_of_the_path_are_marked_visited_in_each_diagram(client, agents
     stream(client, ask(client))
     entry, call, exit_ = diagrams(audit(client).text)
     assert "classDef visited" in entry and "classDef visited" in exit_
-    assert {"C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "Q_QUESTION", "Q_IN_BLACKLIST", "Q_PROMPT", "Q_AGENT_PAGES"} <= visited(entry) and "R_BLACKLIST" not in visited(entry)
+    assert {"C_COUNT_HISTORY", "C_WHICH_MODE", "C_MARK_REFUSED", "Q_QUESTION", "Q_IN_BLACKLIST", "Q_PROMPT", "Q_AGENT_PAGES"} <= visited(entry) and "R_BLACKLIST" not in visited(entry)
     assert visited(call) == {"n0"}                              # Q_AGENT_PAGES; the fake agent calls no tool
     assert {"Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"} <= visited(exit_) and "R_MODEL" not in visited(exit_)
 
@@ -369,7 +369,7 @@ def test_a_missing_source_leaves_the_streaming_page_without_diagrams(client, age
 def test_the_model_call_chain_keeps_each_tool_call_in_order():
     from web.audit_diagram import model_call_chain, model_call_diagram
 
-    path = ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES", "C_OPEN_PAGE_NOTE", "T_AGENT", "K_READ_PAGE", "K_SEARCH_SOURCES", "K_READ_PAGE", "T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_SHOWN"]
+    path = ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_MARK_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES", "C_OPEN_PAGE_NOTE", "T_AGENT", "K_READ_PAGE", "K_SEARCH_SOURCES", "K_READ_PAGE", "T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_SHOWN"]
     assert model_call_chain(path) == ["T_AGENT", "K_READ_PAGE", "K_SEARCH_SOURCES", "K_READ_PAGE"]
     text = model_call_diagram(path)
     assert "n0 --> n1" in text and "n2 --> n3" in text and visited(text) == {"n0", "n1", "n2", "n3"}

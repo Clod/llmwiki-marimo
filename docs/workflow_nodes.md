@@ -20,7 +20,7 @@ mode has no workflows: it records C_COUNT_HISTORY, C_WHICH_MODE, F_AGENT and F_C
 |---|---|---|---|---|
 | `C_COUNT_HISTORY` | yes | no | yes | no |
 | `C_WHICH_MODE` | yes | no | yes | no |
-| `C_DROP_REFUSED` | yes | no | yes | no |
+| `C_MARK_REFUSED` | yes | no | yes | no |
 | `C_DROP_TABLES` | yes | no | yes | no |
 | `C_TRIM_TURNS` | yes | no | yes | no |
 | `C_ORIGIN_LINES` | yes | no | yes | no |

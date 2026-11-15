@@ -15,7 +15,7 @@ from domain.chat.workflow.catalog import N_
 NODE_TEXTS: dict[str, str] = {
     "C_COUNT_HISTORY": N_("History of the turn counted: prior messages, refused ones, messages the model receives"),
     "C_WHICH_MODE": N_("Mode of the turn"),
-    "C_DROP_REFUSED": N_("Refused exchanges removed from the history"),
+    "C_MARK_REFUSED": N_("Refused answers replaced by a note in the history; their questions kept"),
     "C_DROP_TABLES": N_("Advisory tables removed from the history"),
     "C_TRIM_TURNS": N_("History trimmed to the last turns"),
     "C_ORIGIN_LINES": N_("Data-origin line added to the answers of the history that read data"),

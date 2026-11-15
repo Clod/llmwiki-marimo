@@ -23,6 +23,9 @@ Design notes:
 
 from __future__ import annotations
 
+from dataclasses import is_dataclass, replace
+from types import SimpleNamespace
+
 from pydantic_ai.messages import ModelMessage, ToolReturnPart
 
 from domain.chat import refusal
@@ -100,16 +103,21 @@ def refusal_for(language: str | None) -> str:
     return REFUSAL_ES if (language or "en").lower().startswith("es") else REFUSAL_EN
 
 
-def strip_refused_exchanges(messages: list) -> list:
-    """Drop each guardrail refusal from the chat history, with the user turn
-    that triggered it.
+def _is_refused(message) -> bool:
+    """True for an assistant message that is a refusal: the guardrail's, a legacy one,
+    or one that opens with the fixed refusal sentence."""
+    content = (getattr(message, "content", "") or "").strip()
+    return getattr(message, "role", None) == "assistant" and (
+        content in (REFUSAL_ES, REFUSAL_EN, *LEGACY_REFUSALS) or refusal.is_refusal(content)
+    )
 
-    A terse, citation-less refusal (`REFUSAL_ES`)
-    left in the conversation primes the model to answer the *next* question
-    without a citation either — verified: two off-corpus refusals followed by a
-    real question come back grounded-but-uncited, whereas the same question as
-    the first turn cites correctly. Refusals carry nothing forward, so they are
-    removed from the context (both the refusal response and its question).
+
+def strip_refused_exchanges(messages: list) -> list:
+    """Drop each refusal from the messages, with the user turn that triggered it.
+
+    Used where a refusal holds no content at all: the markdown of a conversation
+    drafted as a page (`services.chat.conversation_markdown`). The history that the
+    model receives keeps the question instead (`mark_refused_exchanges`).
 
     Operates on chat messages duck-typed as having `.role` ("user"/"assistant")
     and `.content`; unknown shapes pass through untouched.
@@ -117,12 +125,51 @@ def strip_refused_exchanges(messages: list) -> list:
     msgs = list(messages)
     drop: set[int] = set()
     for i, m in enumerate(msgs):
-        content = (getattr(m, "content", "") or "").strip()
-        is_refusal = getattr(m, "role", None) == "assistant" and (
-            content in (REFUSAL_ES, REFUSAL_EN, *LEGACY_REFUSALS) or refusal.is_refusal(content)
-        )
-        if is_refusal:
+        if _is_refused(m):
             drop.add(i)
             if i - 1 >= 0 and getattr(msgs[i - 1], "role", None) == "user":
                 drop.add(i - 1)  # the question that got refused
     return [m for i, m in enumerate(msgs) if i not in drop]
+
+
+# The note that replaces a refusal in the history that the model receives. It names no
+# cause: a refusal can come from the blacklist, the coverage roster, the guardrail or
+# the model. Written by the code, between brackets, as the advisory-table placeholder
+# of `history._PLACEHOLDER`.
+REFUSED_NOTE = {"es": "[pregunta anterior sin respuesta]", "en": "[earlier question, not answered]"}
+
+
+def refused_note(language: str | None) -> str:
+    """The note of `language` that replaces a refusal; English when the language has none."""
+    return REFUSED_NOTE.get((language or "en")[:2], REFUSED_NOTE["en"])
+
+
+def mark_refused_exchanges(messages: list, language: str | None = None) -> list:
+    """The messages with each refusal replaced by the note of `language`; the question
+    that got the refusal stays.
+
+    A citation-less refusal left in the history made the model answer the next
+    question without a citation too (verified with the refusal text in the history).
+    Removing the question as well lost the topic of a follow-up: after a refusal,
+    «¿Y la carroza?» had nothing to be rewritten from. The note keeps the question
+    and the turn order, and gives the model no prose of its own to imitate.
+
+    A replaced message keeps its other fields; its passages (`context`) are emptied,
+    so no origin line is added to the note.
+    """
+    note = refused_note(language)
+    marked = []
+    for m in messages:
+        if not _is_refused(m):
+            marked.append(m)
+        elif is_dataclass(m):
+            fields = {"content": note, **({"context": ()} if hasattr(m, "context") else {})}
+            marked.append(replace(m, **fields))
+        else:
+            marked.append(SimpleNamespace(role="assistant", content=note, context=()))
+    return marked
+
+
+def count_refused(messages: list) -> int:
+    """The number of refusals among `messages`."""
+    return sum(1 for m in messages if _is_refused(m))

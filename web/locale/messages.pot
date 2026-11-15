@@ -3288,7 +3288,7 @@ msgid "Mode of the turn"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "Refused exchanges removed from the history"
+msgid "Refused answers replaced by a note in the history; their questions kept"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py

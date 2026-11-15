@@ -29,7 +29,7 @@ flowchart TD
   wf_end@{ shape: fr-circ }
   C_COUNT_HISTORY["C_COUNT_HISTORY · History of the turn counted: prior messages, refused ones, messages the model receives"]
   C_WHICH_MODE["C_WHICH_MODE · Mode of the turn"]
-  C_DROP_REFUSED["C_DROP_REFUSED · Refused exchanges removed from the history"]
+  C_MARK_REFUSED["C_MARK_REFUSED · Refused answers replaced by a note in the history; their questions kept"]
   C_DROP_TABLES["C_DROP_TABLES · Advisory tables removed from the history"]
   C_TRIM_TURNS["C_TRIM_TURNS · History trimmed to the last turns"]
   C_ORIGIN_LINES["C_ORIGIN_LINES · Data-origin line added to the answers of the history that read data"]
@@ -88,8 +88,8 @@ flowchart TD
 
   wf_start --> C_COUNT_HISTORY
   C_COUNT_HISTORY --> C_WHICH_MODE
-  C_WHICH_MODE --> C_DROP_REFUSED
-  C_DROP_REFUSED --> C_DROP_TABLES
+  C_WHICH_MODE --> C_MARK_REFUSED
+  C_MARK_REFUSED --> C_DROP_TABLES
   C_DROP_TABLES --> C_TRIM_TURNS
   C_TRIM_TURNS --> C_ORIGIN_LINES
   C_ORIGIN_LINES --> Q_QUESTION
@@ -235,7 +235,7 @@ flowchart TD
   wf_end@{ shape: fr-circ }
   C_COUNT_HISTORY["C_COUNT_HISTORY · History of the turn counted: prior messages, refused ones, messages the model receives"]
   C_WHICH_MODE["C_WHICH_MODE · Mode of the turn"]
-  C_DROP_REFUSED["C_DROP_REFUSED · Refused exchanges removed from the history"]
+  C_MARK_REFUSED["C_MARK_REFUSED · Refused answers replaced by a note in the history; their questions kept"]
   C_DROP_TABLES["C_DROP_TABLES · Advisory tables removed from the history"]
   C_TRIM_TURNS["C_TRIM_TURNS · History trimmed to the last turns"]
   C_ORIGIN_LINES["C_ORIGIN_LINES · Data-origin line added to the answers of the history that read data"]
@@ -246,8 +246,8 @@ flowchart TD
 
   wf_start --> C_COUNT_HISTORY
   C_COUNT_HISTORY --> C_WHICH_MODE
-  C_WHICH_MODE --> C_DROP_REFUSED
-  C_DROP_REFUSED --> C_DROP_TABLES
+  C_WHICH_MODE --> C_MARK_REFUSED
+  C_MARK_REFUSED --> C_DROP_TABLES
   C_DROP_TABLES --> C_TRIM_TURNS
   C_TRIM_TURNS --> C_ORIGIN_LINES
   C_ORIGIN_LINES --> Q_IN_BLACKLIST
