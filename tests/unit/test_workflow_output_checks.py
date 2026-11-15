@@ -157,17 +157,19 @@ def test_agent_answer_with_evidence():
     assert out.startswith("El dólar blue está a 1200.")
 
 
-def test_agent_answer_without_evidence_is_replaced():
+def test_agent_answer_without_evidence_is_shown_with_the_warning():
+    """No tool return backs the answer: the answer stays, with the warning, and reaches
+    the figure check. The refusal of the guardrail is gone."""
     checks = AnswerChecks("Inventado.", [], "es")
     out, path = _run(checks)
-    assert path == ["T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "T_SHOWN"]
-    assert out == REFUSAL_ES
-    assert checks.grounded is False and checks.refusal_substituted is True
+    assert path == ["T_TOOL_EVIDENCE", "T_NO_EVIDENCE_WARNING", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
+    assert out.startswith("Inventado.") and "Ninguna consulta a la wiki respalda esta respuesta" in out and out != REFUSAL_ES
+    assert checks.grounded is False and checks.refusal_substituted is False
 
 
 def test_render_names_the_nodes():
     diagram = output_checks.graph.render() + output_checks.agent_graph.render()
-    for node in ("Q_IS_GROUNDED", "Q_SOURCE_WARNING", "Q_TOOL_EVIDENCE", "Q_MODEL_REFUSED", "Q_SHOWN", "R_UNSUPPORTED", "R_NO_EVIDENCE", "R_MODEL", "T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_ADVISORY_TABLE", "T_SHOWN", "C_FIGURES"):
+    for node in ("Q_IS_GROUNDED", "Q_SOURCE_WARNING", "Q_TOOL_EVIDENCE", "Q_MODEL_REFUSED", "Q_SHOWN", "R_UNSUPPORTED", "R_NO_EVIDENCE", "R_MODEL", "T_TOOL_EVIDENCE", "T_NO_EVIDENCE_WARNING", "T_ADVISORY_TABLE", "T_SHOWN", "C_FIGURES"):
         assert node in diagram
 
 
@@ -199,7 +201,9 @@ def test_agent_answer_from_a_read_page_is_cited_not_marked():
     assert "Referencia: ninguna" not in out
 
 
-def test_agent_refusal_is_not_marked():
-    checks = AnswerChecks("Inventado.", [], "es")
-    out, _ = _run(checks)
-    assert out == REFUSAL_ES
+def test_a_refusal_of_the_model_in_the_agent_mode_is_shown_as_written():
+    """The model's own refusal gets neither the warning nor the uncited line."""
+    refusal = fixed_sentence("es") + " Busqué en la wiki y no encontré nada."
+    out, path = _run(AnswerChecks(refusal, [], "es"))
+    assert out == refusal
+    assert "T_NO_EVIDENCE_WARNING" not in path

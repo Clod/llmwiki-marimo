@@ -102,14 +102,14 @@ def test_a_agent_turn_writes_the_nodes_of_the_agent_mode(wiki):
     assert rec["T_SHOWN"]["final_answer"].startswith("Cinderella lost a slipper.")
 
 
-def test_a_agent_turn_without_evidence_writes_t3(wiki):
+def test_an_agent_turn_without_evidence_writes_the_retry_and_the_warning(wiki):
     asyncio.run(chat.chat_turn_with_context(
         wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.AGENT))
     rec = records(wiki)
+    assert rec["T_AGENT"]["tools_called"] == [] and rec["T_RETRY"]["tools_called"] == []
     assert rec["T_TOOL_EVIDENCE"]["answer"] is False
-    assert rec["T_GUARDRAIL"]["final_answer"] == rec["T_SHOWN"]["final_answer"]
-    assert rec["T_SHOWN"]["refusal_substituted"] is True
-    assert rec["T_AGENT"]["tools_called"] == []
+    assert "T_NO_EVIDENCE_WARNING" in rec
+    assert rec["T_SHOWN"]["refusal_substituted"] is False
 
 
 def test_c1_counts_the_refused_exchanges_it_dropped(wiki):

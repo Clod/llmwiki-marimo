@@ -257,7 +257,9 @@ Each workflow declares the list of the catalog nodes that the workflow runs
 In the agent mode the model receives the question and the history, and decides
 which tools to call (section 5). Before the model runs, the code checks the
 question against the blacklist. After the model answers, the code checks that a
-tool returned evidence.
+tool returned evidence. Without evidence, the model runs once more, told to consult
+the wiki (T_RETRY); without evidence again, the answer is shown with a warning. The
+code never replaces the answer of this mode by a refusal: the refusal is a last resort.
 
 The agent mode has two workflows too, with the call to the model, T_AGENT, between
 them. `chat_turn_with_context` (`base/services/chat.py`) runs both workflows.
@@ -270,7 +272,7 @@ them. `chat_turn_with_context` (`base/services/chat.py`) runs both workflows.
   receives. The blacklist reads the words of the question only: the agent mode has
   no rewrite of a follow-up. Its state is an `AgentTurn`.
 - **The output workflow**, `agent_graph` in
-  `base/domain/chat/workflow/output_checks.py`, runs T_TOOL_EVIDENCE, T_GUARDRAIL, the additions T_ADVISORY_TABLE
+  `base/domain/chat/workflow/output_checks.py`, runs T_TOOL_EVIDENCE, T_NO_EVIDENCE_WARNING, the additions T_ADVISORY_TABLE
   to T_MARK_UNCITED, the figure check C_FIGURES and T_SHOWN. Its state is the `AnswerChecks` of the
   answer, with no `PreRetrievalTurn`.
 
@@ -280,23 +282,28 @@ pre-retrieval mode.
 The diagrams of the two workflows of this mode are generated from the graphs:
 the input workflow in [Agent, input](workflow_diagrams.md#agent-input) and
 the output workflow in [Agent, output](workflow_diagrams.md#agent-output).
-The generated diagrams do not show T_AGENT, the call to the model, which runs
-between the two workflows. In T_AGENT the model runs with the wiki tools and the data
-tools of section 5. Two nodes of the output workflow write a fixed text:
+The generated diagrams do not show T_AGENT and T_RETRY, the calls to the model, which
+run between the two workflows. In T_AGENT the model runs with the wiki tools and the data
+tools of section 5. When no tool return of T_AGENT carries evidence, T_RETRY runs the
+model again with the question and the instruction of `prompts/agent_retry.<lang>.md`, and
+the output workflow checks the answer of T_RETRY. Two nodes of the output workflow write
+a fixed text:
 
-- **T_GUARDRAIL** replaces the answer by the guardrail refusal: «No pude respaldar esta
-  respuesta con una consulta a la wiki en este turno.» in Spanish.
+- **T_NO_EVIDENCE_WARNING** appends to an answer that no tool return backs, after the
+  retry: «Ninguna consulta a la wiki respalda esta respuesta: puede venir del conocimiento
+  general del modelo.» in Spanish.
 - **T_MARK_UNCITED** adds the line «Referencia: ninguna (…)» to an answer that cites
-  nothing (`mark_uncited`). A refusal, of T_GUARDRAIL or of the model, is left as it is.
+  nothing (`mark_uncited`). A refusal of the model is left as it is.
 
 | ID | What it does | Code | Trace | Status |
 |---|---|---|---|---|
 | T_AGENT | The model runs with the question, the history and the tools, and writes the answer | `base/services/chat.py`, `chat_turn_with_context`; `base/domain/chat/agent.py`, `create_agent` | `tools_called`, `raw_output` | code |
+| T_RETRY | No tool return of T_AGENT carries evidence: the model runs once more with the same history and the question followed by the instruction to consult the wiki. One retry at most | `base/services/chat.py`, `chat_turn_with_context`; `prompts/agent_retry.es.md` | `tools_called`, `raw_output` | code |
 | T_TOOL_EVIDENCE | Asks whether a tool return of the run carries evidence: a return that is not empty and is not one of the "nothing found" sentences of the tools | `base/domain/chat/guardrail.py`, `has_grounding`, `_is_substantive`; `base/domain/chat/workflow/catalog.py`, `evidence` | `answer` | code |
-| T_GUARDRAIL | Replaces the answer by the guardrail refusal of the wiki's language | `base/domain/chat/guardrail.py`, `enforce_grounding`, `refusal_for`; `base/domain/chat/workflow/catalog.py`, `guardrail` | `final_answer` | code |
+| T_NO_EVIDENCE_WARNING | Appends the warning of the wiki's language to an answer that no tool return backs, after the retry. The answer is never replaced | `base/domain/i18n.py`, `no_evidence_warning`; `base/domain/chat/workflow/catalog.py`, `no_evidence_warning` | no attributes | code |
 | T_ADVISORY_TABLE | Appends the advisory table when the advisory tool returned one; no change on a refusal | `base/domain/chat/postprocess.py`, `answer_with_table`; `base/domain/chat/workflow/catalog.py`, `agent_table` | `table_added` | code |
 | T_CITE_TOOLS | Adds the citation of the tools that the model used. The index and the overview of the wiki are not cited: the model reads them to find the page that answers | `base/domain/chat/postprocess.py`, `ensure_citation`; `base/domain/chat/workflow/catalog.py`, `agent_citation` | `citation_added` | code |
-| T_MARK_UNCITED | An answer that still cites nothing (no page read, no data queried, no source named) gets the line `Referencia: ninguna (…)`. A refusal, of T_GUARDRAIL or of the model, is left as it is | `base/domain/chat/postprocess.py`, `mark_uncited`; `base/domain/chat/refusal.py`, `is_refusal`; `base/domain/chat/workflow/catalog.py`, `uncited_mark` | `uncited_marked` | code |
+| T_MARK_UNCITED | An answer that still cites nothing (no page read, no data queried, no source named) gets the line `Referencia: ninguna (…)`. A refusal of the model is left as it is | `base/domain/chat/postprocess.py`, `mark_uncited`; `base/domain/chat/refusal.py`, `is_refusal`; `base/domain/chat/workflow/catalog.py`, `uncited_mark` | `uncited_marked` | code |
 | T_SHOWN | Shows the answer | `base/services/chat.py`, `chat_turn_with_context`; `base/domain/chat/workflow/catalog.py`, `agent_answer` | `final_answer`, `refusal_substituted` | code |
 
 ## 4. Streaming

@@ -109,7 +109,7 @@ over SSE. The selector **Mode** has three values (`web/deps.py:MODES`):
 | Value | Label | Behaviour |
 | --- | --- | --- |
 | `pre-retrieval` | Pre-retrieval | Code searches the wiki before the model is called and hands over the pages it found. |
-| `agent` | Agent with evidence check | The model consults the wiki with tools; if it did not, the answer is replaced by a refusal (§15.3). |
+| `agent` | Agent with evidence check | The model consults the wiki with tools; if no tool returned evidence, the model is asked once more, and then the answer carries a warning (§15.3). |
 | `streaming` | No verification | The answer appears as the model writes it. Code does not check that it comes from the wiki. |
 
 Under each answer, one line names the mode and gives the tokens: "N / M tokens", the tokens of the turn and of the whole conversation, with the
@@ -669,20 +669,24 @@ byte-identical to before (guarded by `tests/unit/test_chat_agent_datasets.py::te
 ### 15.3 Grounding guardrail (`base/domain/chat/guardrail.py`)
 
 A deterministic post-check: a run is *grounded* iff some tool returned
-substantive content (`has_grounding`); otherwise `enforce_grounding` replaces the
-answer with a language-appropriate refusal (`REFUSAL_ES`/`REFUSAL_EN`: "I could not
-back this answer with a lookup in the wiki in this turn."). It catches answers the
-model leaks despite the system prompt (general knowledge on "related" topics). Wired in
-`services.chat.chat_turn` (mode `agent`, chosen with the **Mode** selector of the
-reading screen, §7.2):
+substantive content (`has_grounding`). It catches answers the model leaks despite the
+system prompt (general knowledge on "related" topics). In the agent mode the refusal is
+a last resort, and the answer is never replaced: an ungrounded run is retried once,
+with the instruction to consult the wiki (node `T_RETRY`), and an ungrounded retry is
+shown with the warning "No consultation of the wiki backs this answer: it may come from
+the general knowledge of the model." (node `T_NO_EVIDENCE_WARNING`). A refusal of the
+model (the fixed sentence) is shown as written. Wired in `services.chat.chat_turn` (mode
+`agent`, chosen with the **Mode** selector of the reading screen, §7.2):
 
-- **`agent`** → the agent runs to completion, then the gate applies (refuse if
-  ungrounded). The answer is not streamed, because text already shown cannot be
-  retracted.
+- **`agent`** → the agent runs to completion, then the check applies (retry, then
+  warning, if ungrounded). The answer is not streamed, because text already shown
+  cannot be changed.
 - **`streaming`** → the whole agent runs, tool calls included
   (`run_stream_events`), and the text reaches the screen as the model writes it;
   no gate applies.
-- **`pre-retrieval`** → code retrieves the wiki pages before the model is called.
+- **`pre-retrieval`** → code retrieves the wiki pages before the model is called. A
+  data question that no tool return backs still ends in the refusal `R_NO_EVIDENCE`
+  (`enforce_grounding`, `REFUSAL_ES`/`REFUSAL_EN`).
 
 The mode is chosen per question, so changing it never rebuilds the agents. Known limit: it catches *no-evidence* answers, not an answer that ignored
 evidence it did retrieve (that needs answer-vs-source verification — deferred).

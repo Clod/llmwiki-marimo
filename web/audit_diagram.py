@@ -102,13 +102,15 @@ def workflow_diagram(graph, path_ids) -> str:
 
 
 def model_call_chain(path_ids) -> list[str]:
-    """The node of the call to the model and the tool nodes that follow it, in the order of
-    the path; empty when the turn did not call the model."""
+    """The node of the call to the model and the nodes that follow it: the tools it called,
+    and the retry of the agent mode (T_RETRY) with its own tools, in the order of the path;
+    empty when the turn did not call the model."""
     path_ids = list(path_ids)
     start = next((n for n, node in enumerate(path_ids) if node in MODEL_CALLS), None)
     if start is None:
         return []
-    return [path_ids[start], *(node for node in path_ids[start + 1:] if _TOOL.fullmatch(node))]
+    return [path_ids[start], *(node for node in path_ids[start + 1:]
+                               if _TOOL.fullmatch(node) or node == "T_RETRY")]
 
 
 def model_call_diagram(path_ids) -> str:

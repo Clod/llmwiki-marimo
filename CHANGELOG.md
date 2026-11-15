@@ -144,6 +144,22 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **In the agent mode the refusal of the guardrail is a last resort.** When no
+  tool of the run returned evidence, `T_GUARDRAIL` replaced the answer by «No
+  pude respaldar esta respuesta con una consulta a la wiki en este turno.», even
+  when the answer was right. Now the model runs once more, told to consult the
+  wiki (node `T_RETRY`, prompt `prompts/agent_retry.<lang>.md`); the output
+  workflow checks the answer of the retry. Without evidence again, the answer is
+  shown with the warning «Ninguna consulta a la wiki respalda esta respuesta:
+  puede venir del conocimiento general del modelo.» (node
+  `T_NO_EVIDENCE_WARNING`, which replaces `T_GUARDRAIL`). The warning says what
+  the code knows: it does not claim the answer came from the training of the
+  model. The answer is never replaced, so it always reaches the figure check
+  `C_FIGURES`, and the decision after `T_MARK_UNCITED` is gone. A refusal of the
+  model (the fixed sentence) is shown as written. The retry costs a second model
+  call, only when the first run has no evidence. The pre-retrieval mode is
+  unchanged: a data question with no evidence still ends in `R_NO_EVIDENCE`.
+
 - **The agent mode checks the blacklist before it calls the model.** «¿qué son
   los cedears?» ended in the refusal `R_BLACKLIST` in the pre-retrieval mode and
   reached the model in the agent mode («Agent with evidence check»). The input

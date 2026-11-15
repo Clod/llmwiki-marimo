@@ -1,0 +1,1 @@
+Tu respuesta anterior no se apoyó en ninguna consulta a la wiki. Consultá la wiki con tus herramientas antes de responder, y respondé solo con lo que devuelvan. Si las herramientas no devuelven nada sobre la pregunta, decilo.

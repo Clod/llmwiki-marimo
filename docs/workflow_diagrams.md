@@ -268,25 +268,23 @@ flowchart TD
   wf_start@{ shape: sm-circ }
   wf_end@{ shape: fr-circ }
   T_TOOL_EVIDENCE["T_TOOL_EVIDENCE · Did a tool return evidence?"]
-  after_T_TOOL_EVIDENCE{"Did a tool return evidence?"}
+  after_T_TOOL_EVIDENCE{"Did a tool return evidence, or did the model refuse?"}
   T_ADVISORY_TABLE["T_ADVISORY_TABLE · Advisory table appended"]
-  T_GUARDRAIL["T_GUARDRAIL · Refusal of the guardrail: the answer could not be backed"]
+  T_NO_EVIDENCE_WARNING["T_NO_EVIDENCE_WARNING · Warning: no consultation of the wiki backs the answer"]
   T_CITE_TOOLS["T_CITE_TOOLS · Citation of the tools added"]
   T_MARK_UNCITED["T_MARK_UNCITED · Answer without citation marked"]
-  after_T_MARK_UNCITED{"Did the guardrail refusal replace the answer?"}
   C_FIGURES["C_FIGURES · Figure check: each figure of the prose is exact, rounded or without support"]
   T_SHOWN["T_SHOWN · The answer is shown"]
 
   wf_start --> T_TOOL_EVIDENCE
   T_TOOL_EVIDENCE --> after_T_TOOL_EVIDENCE
+  after_T_TOOL_EVIDENCE -->|"the model refused"| T_ADVISORY_TABLE
   after_T_TOOL_EVIDENCE -->|"a tool returned evidence"| T_ADVISORY_TABLE
-  after_T_TOOL_EVIDENCE -->|"no tool returned evidence"| T_GUARDRAIL
-  T_GUARDRAIL --> T_ADVISORY_TABLE
+  after_T_TOOL_EVIDENCE -->|"no tool returned evidence"| T_NO_EVIDENCE_WARNING
+  T_NO_EVIDENCE_WARNING --> T_ADVISORY_TABLE
   T_ADVISORY_TABLE --> T_CITE_TOOLS
   T_CITE_TOOLS --> T_MARK_UNCITED
-  T_MARK_UNCITED --> after_T_MARK_UNCITED
-  after_T_MARK_UNCITED -->|"answer not replaced by the guardrail refusal"| C_FIGURES
-  after_T_MARK_UNCITED -->|"answer replaced by the guardrail refusal"| T_SHOWN
+  T_MARK_UNCITED --> C_FIGURES
   C_FIGURES --> T_SHOWN
   T_SHOWN --> wf_end
 ```

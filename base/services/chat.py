@@ -26,7 +26,7 @@ from domain import tracing
 from domain.chat.agent import create_agent
 from domain.chat import figure_check
 from domain.chat.config import DEFAULT_NUMBER_TOLERANCE, WikiAssistantConfig, load_config
-from domain.chat.guardrail import strip_refused_exchanges
+from domain.chat.guardrail import has_grounding, strip_refused_exchanges
 # `model_history` is imported here under the same name: callers use `chat.model_history`.
 from domain.chat.history import history_counts, model_history  # noqa: F401
 from domain.chat.postprocess import advisory_table
@@ -270,7 +270,8 @@ async def chat_turn_with_context(
     mode runs them in `pre_retrieval_answer`. The agent mode runs here the input
     workflow (`input_checks.agent_graph`, C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, Q_IN_BLACKLIST and C_OPEN_PAGE_NOTE,
     or the refusal R_BLACKLIST, which ends the turn), the model (T_AGENT) and
-    the output workflow (`output_checks.agent_graph`, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN).
+    the retry T_RETRY when no tool returned evidence, and the output workflow (`output_checks.agent_graph`,
+    T_TOOL_EVIDENCE, T_NO_EVIDENCE_WARNING, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED, C_FIGURES and T_SHOWN).
     """
     prior = list(messages[:-1])
     question = messages[-1].content
@@ -337,7 +338,21 @@ async def chat_turn_with_context(
             raw = result.output
             messages_run = result.all_messages()
             t1.set(tools_called=_tools_called(messages_run), raw_output=raw)
-        # The checks of the answer, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN: the output workflow of the agent mode.
+        # No tool returned evidence: the model runs once more, told to consult the wiki
+        # (the guardrail is a last resort). The output workflow checks the retry; without
+        # evidence again, T_NO_EVIDENCE_WARNING shows the answer with a warning.
+        if not has_grounding(messages_run):
+            with tracing.node("T_RETRY", R) as retry:
+                result = await agents.agent.run(
+                    f"{turn.asked}\n\n{load_prompt('agent_retry', language)}",
+                    deps=wiki.db_path, message_history=turn.history,
+                )
+                tokens.add(result)
+                raw = result.output
+                messages_run = result.all_messages()
+                retry.set(tools_called=_tools_called(messages_run), raw_output=raw)
+        # The checks of the answer, T_TOOL_EVIDENCE, T_NO_EVIDENCE_WARNING, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED, C_FIGURES and T_SHOWN:
+        # the output workflow of the agent mode.
         checks = output_checks.AnswerChecks(
             raw, messages_run, language,
             tolerance=getattr(agents.config, "number_tolerance", DEFAULT_NUMBER_TOLERANCE),

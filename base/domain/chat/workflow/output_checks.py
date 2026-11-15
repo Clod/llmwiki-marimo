@@ -9,14 +9,15 @@ Each graph starts with the answer of the agent and the messages of the run
   (`ensure_citation`), Q_CITE_PAGES (`mark_injected`), Q_SOURCE_WARNING (Tier 2 only), C_FIGURES and Q_SHOWN. The first decision,
   `tier`, chooses between Q_IS_GROUNDED, Q_TOOL_EVIDENCE and Q_MODEL_REFUSED. The state carries the
   `PreRetrievalTurn` that the input workflow (`input_checks.py`) filled.
-- `agent_graph`, the agent mode: T_TOOL_EVIDENCE, T_GUARDRAIL (no evidence only), then the
-  additions: T_ADVISORY_TABLE (`answer_with_table`), T_CITE_TOOLS (`ensure_citation`), T_MARK_UNCITED
-  (`mark_uncited`), and C_FIGURES and T_SHOWN.
+- `agent_graph`, the agent mode: T_TOOL_EVIDENCE, T_NO_EVIDENCE_WARNING (no evidence after the
+  retry T_RETRY of `services/chat.py`), then the additions: T_ADVISORY_TABLE (`answer_with_table`),
+  T_CITE_TOOLS (`ensure_citation`), T_MARK_UNCITED (`mark_uncited`), and C_FIGURES and T_SHOWN.
+  The agent mode never replaces the answer, so every answer reaches C_FIGURES.
   The state carries no turn.
 
 C_FIGURES is the figure check (`domain/chat/figure_check.py`), the last step before the
 answer in both graphs. The two graphs register the same function of the catalog
-for C_FIGURES. A refusal (R_UNSUPPORTED, R_NO_EVIDENCE, R_MODEL, T_GUARDRAIL) does not reach C_FIGURES: the code wrote it.
+for C_FIGURES. A refusal (R_UNSUPPORTED, R_NO_EVIDENCE, R_MODEL) does not reach C_FIGURES: the code wrote it.
 
 The streaming mode runs neither graph (`chat_turn_stream_with_context`,
 `services/chat.py`). The streaming mode runs no check, C_FIGURES included.
@@ -37,6 +38,7 @@ from pydantic_graph import GraphBuilder
 
 # `AnswerChecks` is the state of the graph; `_pre_retrieval_turn`, the service
 # and the tests import it from this module.
+from domain.chat.refusal import is_refusal
 from domain.chat.workflow.catalog import N_, AnswerChecks, register, trace_decisions
 
 # The nodes of the catalog that each output workflow registers. Both workflows
@@ -46,7 +48,7 @@ from domain.chat.workflow.catalog import N_, AnswerChecks, register, trace_decis
 PRE_RETRIEVAL_NODES = (
     "Q_IS_GROUNDED", "Q_TOOL_EVIDENCE", "Q_MODEL_REFUSED", "R_UNSUPPORTED", "R_NO_EVIDENCE", "R_MODEL", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "Q_SOURCE_WARNING", "C_FIGURES", "Q_SHOWN",
 )
-AGENT_NODES = ("T_TOOL_EVIDENCE", "T_GUARDRAIL", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN")
+AGENT_NODES = ("T_TOOL_EVIDENCE", "T_NO_EVIDENCE_WARNING", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN")
 OWN_STEPS: tuple[str, ...] = ()
 
 g = GraphBuilder(
@@ -77,6 +79,11 @@ def _no_context(checks: AnswerChecks) -> bool:
     """Injected context is the grounding of Tier 1 and Tier 2: the tool-based
     guardrail applies only to a data question, with no injected context."""
     return checks.turn.plan.context is None
+
+
+def _model_refused(checks: AnswerChecks) -> bool:
+    """The answer is a refusal of the model: it opens with a fixed refusal opening."""
+    return is_refusal(checks.raw)
 
 
 def _ungrounded(checks: AnswerChecks) -> bool:
@@ -150,7 +157,7 @@ graph = trace_decisions(g.build())
 # ── The output workflow of the agent mode ────────────────────────────────────
 
 evidence = register(agent, "T_TOOL_EVIDENCE")
-guardrail = register(agent, "T_GUARDRAIL")
+warning = register(agent, "T_NO_EVIDENCE_WARNING")
 agent_table = register(agent, "T_ADVISORY_TABLE")
 agent_citation = register(agent, "T_CITE_TOOLS")
 uncited_mark = register(agent, "T_MARK_UNCITED")
@@ -160,20 +167,16 @@ agent_answer = register(agent, "T_SHOWN")
 agent.add(
     agent.edge_from(agent.start_node).to(evidence),
     agent.edge_from(evidence).to(
-        agent.decision(node_id="after_T_TOOL_EVIDENCE", note=N_("Did a tool return evidence?"))
-        .branch(agent.match(AnswerChecks, matches=_ungrounded).label(N_("no tool returned evidence")).to(guardrail))
+        agent.decision(node_id="after_T_TOOL_EVIDENCE", note=N_("Did a tool return evidence, or did the model refuse?"))
+        # The model's own refusal (the fixed sentence) is shown as the model wrote it.
+        .branch(agent.match(AnswerChecks, matches=_model_refused).label(N_("the model refused")).to(agent_table))
+        .branch(agent.match(AnswerChecks, matches=_ungrounded).label(N_("no tool returned evidence")).to(warning))
         .branch(agent.match(AnswerChecks).label(N_("a tool returned evidence")).to(agent_table))
     ),
-    agent.edge_from(guardrail).to(agent_table),
+    agent.edge_from(warning).to(agent_table),
     agent.edge_from(agent_table).to(agent_citation),
     agent.edge_from(agent_citation).to(uncited_mark),
-    agent.edge_from(uncited_mark).to(
-        agent.decision(node_id="after_T_MARK_UNCITED", note=N_("Did the guardrail refusal replace the answer?"))
-        .branch(agent.match(AnswerChecks, matches=lambda c: c.refusal_substituted)
-                .label(N_("answer replaced by the guardrail refusal")).to(agent_answer))
-        .branch(agent.match(AnswerChecks)
-                .label(N_("answer not replaced by the guardrail refusal")).to(agent_figures))
-    ),
+    agent.edge_from(uncited_mark).to(agent_figures),
     agent.edge_from(agent_figures).to(agent_answer),
     agent.edge_from(agent_answer).to(agent.end_node),
 )

@@ -56,8 +56,12 @@ msgid "Agent with evidence check"
 msgstr "Agente con comprobación de evidencia"
 
 #: web/deps.py
-msgid "The model queries the wiki with tools; if it did not, the answer is replaced by a refusal"
-msgstr "El modelo consulta la wiki con herramientas; si no la consultó, la respuesta se reemplaza por un rechazo"
+msgid ""
+"The model queries the wiki with tools; if no tool returned evidence, it is asked once more, and then the answer "
+"carries a warning"
+msgstr ""
+"El modelo consulta la wiki con herramientas; si ninguna herramienta devolvió evidencia, se le pide una vez más, y "
+"después la respuesta lleva un aviso"
 
 #: web/deps.py
 msgid "No verification"
@@ -3628,13 +3632,17 @@ msgstr "Rechazo: el modelo no encontró la respuesta"
 msgid "The model answers, calling the wiki and data tools"
 msgstr "El modelo responde llamando a las herramientas de la wiki y de datos"
 
-#: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
+#: base/domain/chat/workflow/node_texts.py
+msgid "No tool returned evidence: the model answers again, told to consult the wiki"
+msgstr "Ninguna herramienta devolvió evidencia: el modelo responde otra vez, con la instrucción de consultar la wiki"
+
+#: base/domain/chat/workflow/node_texts.py
 msgid "Did a tool return evidence?"
 msgstr "¿Una herramienta devolvió evidencia?"
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "Refusal of the guardrail: the answer could not be backed"
-msgstr "Rechazo del guardrail: la respuesta no se pudo respaldar"
+msgid "Warning: no consultation of the wiki backs the answer"
+msgstr "Aviso: ninguna consulta a la wiki respalda la respuesta"
 
 #: base/domain/chat/workflow/node_texts.py
 msgid "Advisory table appended"
@@ -3749,24 +3757,20 @@ msgid "no fragments of the source documents injected"
 msgstr "sin fragmentos de los documentos originales inyectados"
 
 #: base/domain/chat/workflow/output_checks.py
+msgid "Did a tool return evidence, or did the model refuse?"
+msgstr "¿Una herramienta devolvió evidencia, o el modelo se negó a responder?"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "the model refused"
+msgstr "el modelo se negó a responder"
+
+#: base/domain/chat/workflow/output_checks.py
 msgid "no tool returned evidence"
 msgstr "ninguna herramienta devolvió evidencia"
 
 #: base/domain/chat/workflow/output_checks.py
 msgid "a tool returned evidence"
 msgstr "una herramienta devolvió evidencia"
-
-#: base/domain/chat/workflow/output_checks.py
-msgid "Did the guardrail refusal replace the answer?"
-msgstr "¿El rechazo del guardrail reemplazó la respuesta?"
-
-#: base/domain/chat/workflow/output_checks.py
-msgid "answer replaced by the guardrail refusal"
-msgstr "respuesta reemplazada por el rechazo del guardrail"
-
-#: base/domain/chat/workflow/output_checks.py
-msgid "answer not replaced by the guardrail refusal"
-msgstr "respuesta no reemplazada por el rechazo del guardrail"
 
 #~ msgid "Dataset"
 #~ msgstr "Dataset"
@@ -3851,4 +3855,19 @@ msgstr "respuesta no reemplazada por el rechazo del guardrail"
 
 #~ msgid "Refused exchanges removed from the history"
 #~ msgstr "Se quitan del historial los intercambios con negativa"
+
+#~ msgid "The model queries the wiki with tools; if it did not, the answer is replaced by a refusal"
+#~ msgstr "El modelo consulta la wiki con herramientas; si no la consultó, la respuesta se reemplaza por un rechazo"
+
+#~ msgid "Refusal of the guardrail: the answer could not be backed"
+#~ msgstr "Rechazo del guardrail: la respuesta no se pudo respaldar"
+
+#~ msgid "Did the guardrail refusal replace the answer?"
+#~ msgstr "¿El rechazo del guardrail reemplazó la respuesta?"
+
+#~ msgid "answer replaced by the guardrail refusal"
+#~ msgstr "respuesta reemplazada por el rechazo del guardrail"
+
+#~ msgid "answer not replaced by the guardrail refusal"
+#~ msgstr "respuesta no reemplazada por el rechazo del guardrail"
 

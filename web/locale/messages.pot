@@ -59,7 +59,9 @@ msgid "Agent with evidence check"
 msgstr ""
 
 #: web/deps.py
-msgid "The model queries the wiki with tools; if it did not, the answer is replaced by a refusal"
+msgid ""
+"The model queries the wiki with tools; if no tool returned evidence, it is asked once more, and then the answer "
+"carries a warning"
 msgstr ""
 
 #: web/deps.py
@@ -3491,12 +3493,16 @@ msgstr ""
 msgid "The model answers, calling the wiki and data tools"
 msgstr ""
 
-#: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
+#: base/domain/chat/workflow/node_texts.py
+msgid "No tool returned evidence: the model answers again, told to consult the wiki"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
 msgid "Did a tool return evidence?"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "Refusal of the guardrail: the answer could not be backed"
+msgid "Warning: no consultation of the wiki backs the answer"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
@@ -3612,22 +3618,18 @@ msgid "no fragments of the source documents injected"
 msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py
+msgid "Did a tool return evidence, or did the model refuse?"
+msgstr ""
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "the model refused"
+msgstr ""
+
+#: base/domain/chat/workflow/output_checks.py
 msgid "no tool returned evidence"
 msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py
 msgid "a tool returned evidence"
-msgstr ""
-
-#: base/domain/chat/workflow/output_checks.py
-msgid "Did the guardrail refusal replace the answer?"
-msgstr ""
-
-#: base/domain/chat/workflow/output_checks.py
-msgid "answer replaced by the guardrail refusal"
-msgstr ""
-
-#: base/domain/chat/workflow/output_checks.py
-msgid "answer not replaced by the guardrail refusal"
 msgstr ""
 
