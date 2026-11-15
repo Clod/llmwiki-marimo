@@ -238,7 +238,10 @@ flowchart TD
   C_DROP_TABLES["C_DROP_TABLES · Advisory tables removed from the history"]
   C_TRIM_TURNS["C_TRIM_TURNS · History trimmed to the last turns"]
   C_ORIGIN_LINES["C_ORIGIN_LINES · Data-origin line added to the answers of the history that read data"]
+  Q_IN_BLACKLIST["Q_IN_BLACKLIST · Does the question name a blacklisted term?"]
+  after_Q_IN_BLACKLIST{"Does the question name a blacklisted term?"}
   C_OPEN_PAGE_NOTE["C_OPEN_PAGE_NOTE · Note of the open page added to the question"]
+  R_BLACKLIST["R_BLACKLIST · Refusal: blacklisted term"]
 
   wf_start --> C_COUNT_HISTORY
   C_COUNT_HISTORY --> C_WHICH_MODE
@@ -246,8 +249,12 @@ flowchart TD
   C_DROP_REFUSED --> C_DROP_TABLES
   C_DROP_TABLES --> C_TRIM_TURNS
   C_TRIM_TURNS --> C_ORIGIN_LINES
-  C_ORIGIN_LINES --> C_OPEN_PAGE_NOTE
+  C_ORIGIN_LINES --> Q_IN_BLACKLIST
+  Q_IN_BLACKLIST --> after_Q_IN_BLACKLIST
+  after_Q_IN_BLACKLIST -->|"names no blacklisted term"| C_OPEN_PAGE_NOTE
+  after_Q_IN_BLACKLIST -->|"names a blacklisted term"| R_BLACKLIST
   C_OPEN_PAGE_NOTE --> wf_end
+  R_BLACKLIST --> wf_end
 ```
 
 ## Agent, output

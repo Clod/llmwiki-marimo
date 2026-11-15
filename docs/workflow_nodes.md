@@ -28,7 +28,7 @@ mode has no workflows: it records C_COUNT_HISTORY, C_WHICH_MODE, F_AGENT and F_C
 | `C_OPEN_PAGE_NOTE` | yes | no | yes | no |
 | `Q_QUESTION` | yes | no | no | no |
 | `Q_NORMALIZE` | yes | no | no | no |
-| `Q_IN_BLACKLIST` | yes | no | no | no |
+| `Q_IN_BLACKLIST` | yes | no | yes | no |
 | `Q_STEM` | yes | no | no | no |
 | `Q_NAMES_DATA` | yes | no | no | no |
 | `Q_IN_ROSTER` | yes | no | no | no |
@@ -63,7 +63,7 @@ mode has no workflows: it records C_COUNT_HISTORY, C_WHICH_MODE, F_AGENT and F_C
 | `Q_CITE_TOOLS` | no | yes | no | no |
 | `Q_CITE_PAGES` | no | yes | no | no |
 | `Q_SHOWN` | no | yes | no | no |
-| `R_BLACKLIST` | yes | no | no | no |
+| `R_BLACKLIST` | yes | no | yes | no |
 | `R_NOT_IN_ROSTER` | yes | no | no | no |
 | `R_NOTHING_FOUND` | yes | no | no | no |
 | `R_UNSUPPORTED` | no | yes | no | no |

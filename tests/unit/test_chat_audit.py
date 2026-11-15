@@ -3,6 +3,7 @@ the coverage roster check (Q_IN_ROSTER, Q_CONDENSED). The short texts of the nod
 tests/web/test_audit.py: they live in web/, which needs the `web` group."""
 
 import asyncio
+from dataclasses import replace
 import json
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
@@ -169,10 +170,25 @@ async def _async(value):
     return value
 
 
+def test_the_agent_mode_refuses_a_blacklisted_question_without_calling_the_model(wiki):
+    ag = agents("The model would answer.")
+    ag.config.blacklist = ["cedears"]
+
+    class NoModel(Agent):
+        async def run(self, prompt, deps, message_history):
+            raise AssertionError("the model was called")
+
+    ag = replace(ag, agent=NoModel("x"))
+    result = run(chat.chat_turn_with_context(wiki, ag, [msg("user", "What are cedears?")], mode=chat.AGENT))
+    assert ids(result)[-2:] == ["Q_IN_BLACKLIST", "R_BLACKLIST"]
+    assert "cedears" in result.answer
+    assert (result.input_tokens, result.output_tokens, result.context) == (0, 0, ())
+
+
 def test_agent_returns_its_path(wiki):
     result = run(chat.chat_turn_with_context(
         wiki, agents("Cinderella lost a slipper.", grounded()), [msg("user", "Who is Cinderella?")], mode=chat.AGENT))
-    assert ids(result) == ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES", "C_OPEN_PAGE_NOTE", "T_AGENT", "T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
+    assert ids(result) == ["C_COUNT_HISTORY", "C_WHICH_MODE", "C_DROP_REFUSED", "C_DROP_TABLES", "C_TRIM_TURNS", "C_ORIGIN_LINES", "Q_IN_BLACKLIST", "C_OPEN_PAGE_NOTE", "T_AGENT", "T_TOOL_EVIDENCE", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN"]
     refused = run(chat.chat_turn_with_context(
         wiki, agents("Paris."), [msg("user", "capital of France?")], mode=chat.AGENT))
     assert "T_GUARDRAIL" in ids(refused)
@@ -194,4 +210,4 @@ def test_two_turns_keep_separate_paths(wiki):
                                           mode=chat.AGENT))
     two = run(chat.chat_turn_with_context(wiki, agents("a", grounded()), [msg("user", "Who is Cinderella?")],
                                           mode=chat.AGENT))
-    assert len(steps(one.path)) == len(steps(two.path)) == 14
+    assert len(steps(one.path)) == len(steps(two.path)) == 15

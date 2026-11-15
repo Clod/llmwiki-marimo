@@ -260,7 +260,7 @@ def test_agent_input_builds_the_history_of_model_history():
         msg("user", "¿qué tasa da el Banco Galicia?"),
         msg("assistant", "30 %.", (ContextPassage("datasets/plazo_fijo.md", "| clave |"),)),
     ]
-    turn = input_checks.AgentTurn("¿y el Nación?", prior, "es")
+    turn = input_checks.AgentTurn("¿y el Nación?", prior, "es", config=CFG)
 
     async def go():
         with tracing.collect() as path:
@@ -268,9 +268,35 @@ def test_agent_input_builds_the_history_of_model_history():
         return path
     path = asyncio.run(go())
 
-    assert [entry["node"] for entry in path] == HISTORY + ["C_OPEN_PAGE_NOTE"]
+    assert steps(path) == HISTORY + ["Q_IN_BLACKLIST", "C_OPEN_PAGE_NOTE"]
     assert [m.parts[0].content for m in turn.history] == [m.parts[0].content for m in model_history(prior, "es")]
     by_node = {entry["node"]: entry["attributes"] for entry in path}
     assert by_node["C_DROP_REFUSED"]["refused_dropped"] == 2
     assert by_node["C_ORIGIN_LINES"] == {"origin_lines": 1, "history_messages": 2}
     assert by_node["C_WHICH_MODE"]["mode"] == "agent"
+
+
+def _run_agent(turn):
+    async def go():
+        with tracing.collect() as path:
+            out = await input_checks.agent_graph.run(state=turn, inputs=turn)
+        return out, path
+    return asyncio.run(go())
+
+
+def test_the_agent_mode_refuses_a_blacklisted_question_before_the_model():
+    """The agent input workflow runs the nodes Q_IN_BLACKLIST and R_BLACKLIST of the
+    pre-retrieval mode: a blacklisted question ends in the refusal, with no prompt."""
+    turn = input_checks.AgentTurn("¿qué son los cedears?", [], "es", config=CFG)
+    out, path = _run_agent(turn)
+    assert isinstance(out, Refused)
+    assert out.text.startswith("No puedo responder esta pregunta: menciona «cedears»")
+    assert [e["node"] for e in path][-3:] == ["Q_IN_BLACKLIST", "after_Q_IN_BLACKLIST", "R_BLACKLIST"]
+    assert turn.asked == ""
+
+
+def test_the_agent_mode_passes_a_question_with_no_blacklisted_term():
+    turn = input_checks.AgentTurn("¿qué es un plazo fijo?", [], "es", config=CFG)
+    out, path = _run_agent(turn)
+    assert out is turn and turn.asked == "¿qué es un plazo fijo?"
+    assert steps(path)[-2:] == ["Q_IN_BLACKLIST", "C_OPEN_PAGE_NOTE"]

@@ -268,7 +268,8 @@ async def chat_turn_with_context(
 
     Each mode runs its two workflows (`domain/chat/workflow/`). The pre-retrieval
     mode runs them in `pre_retrieval_answer`. The agent mode runs here the input
-    workflow (`input_checks.agent_graph`, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES and C_OPEN_PAGE_NOTE), the model (T_AGENT) and
+    workflow (`input_checks.agent_graph`, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, Q_IN_BLACKLIST and C_OPEN_PAGE_NOTE,
+    or the refusal R_BLACKLIST, which ends the turn), the model (T_AGENT) and
     the output workflow (`output_checks.agent_graph`, T_TOOL_EVIDENCE, T_GUARDRAIL, T_ADVISORY_TABLE, T_CITE_TOOLS, T_MARK_UNCITED and T_SHOWN).
     """
     prior = list(messages[:-1])
@@ -320,10 +321,14 @@ async def chat_turn_with_context(
     if mode != AGENT:
         raise ValueError(f"chat_turn answers the pre-retrieval and agent modes, not {mode!r}")
     with tracing.collect() as path, tracing.root("turn", wiki.path, **attributes) as root:
-        # The input workflow of the agent mode, C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES and C_OPEN_PAGE_NOTE: the history and
-        # the question that the model receives.
-        turn = input_checks.AgentTurn(question, prior, language, open_page)
-        await input_checks.agent_graph.run(state=turn, inputs=turn)
+        # The input workflow of the agent mode: the history (C_COUNT_HISTORY to C_ORIGIN_LINES), the
+        # blacklist (Q_IN_BLACKLIST, R_BLACKLIST) and the question that the model receives
+        # (C_OPEN_PAGE_NOTE). A refusal ends the turn: no model call, no output workflow.
+        turn = input_checks.AgentTurn(question, prior, language, open_page, config=agents.config)
+        outcome = await input_checks.agent_graph.run(state=turn, inputs=turn)
+        if isinstance(outcome, input_checks.Refused):
+            root.set(final_answer=outcome.text)
+            return ChatResult(outcome.text, path=tuple(path))
         with tracing.node("T_AGENT", R) as t1:
             result = await agents.agent.run(
                 turn.asked, deps=wiki.db_path, message_history=turn.history,

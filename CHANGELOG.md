@@ -144,6 +144,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The agent mode checks the blacklist before it calls the model.** «¿qué son
+  los cedears?» ended in the refusal `R_BLACKLIST` in the pre-retrieval mode and
+  reached the model in the agent mode («Agent with evidence check»). The input
+  workflow of the agent mode now runs `Q_IN_BLACKLIST` after the history: a
+  question that names a term of `[fuera_de_alcance]` ends in `R_BLACKLIST`, with
+  no model call and no output workflow. The nodes are the functions of the
+  pre-retrieval mode, unchanged; `AgentTurn` gained the fields they read
+  (`config`, `blacklisted`, `search`, `on_trace`). The agent mode has no rewrite
+  of a follow-up, so the check reads the words of the question only.
+
 - **The mode «Agent with evidence check» is named `agent` in the code.** The
   interface showed «Agent with evidence check», and the code, the trace and the
   documents called the mode `strict`, a name the interface never shows. In this

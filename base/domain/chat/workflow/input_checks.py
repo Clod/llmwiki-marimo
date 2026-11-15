@@ -6,10 +6,12 @@ R_NOTHING_FOUND). It does not call the agent: the graph ends in an `AgentCall`, 
 `_pre_retrieval_turn` (`domain/chat/preretrieval.py`) calls the agent. Its
 state is the `PreRetrievalTurn` of the turn.
 
-`agent_graph`, the input workflow of the agent mode, runs the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES
-and C_OPEN_PAGE_NOTE: it builds the history and the question that the model receives, and
-checks nothing in the question. Its state is a `AgentTurn`. `chat_turn_with_context`
-(`services/chat.py`) runs it before node T_AGENT.
+`agent_graph`, the input workflow of the agent mode, runs the nodes C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES,
+then Q_IN_BLACKLIST: a question that names a blacklisted term ends in the refusal R_BLACKLIST,
+any other question goes to C_OPEN_PAGE_NOTE, which builds the question that the model
+receives. The nodes Q_IN_BLACKLIST and R_BLACKLIST are the same functions of the catalog as in
+the pre-retrieval mode. Its state is an `AgentTurn`. `chat_turn_with_context`
+(`services/chat.py`) runs it before node T_AGENT, and calls no model when it ends in `Refused`.
 
 Each step returns the state, so that each decision reads the field that its
 condition names. The steps of the nodes are functions of the catalog
@@ -58,6 +60,18 @@ class AgentTurn:
     kept: list = field(default_factory=list)
     history: list = field(default_factory=list)
     asked: str = ""
+    # What Q_IN_BLACKLIST and R_BLACKLIST read and write, as on a `PreRetrievalTurn`: the
+    # `WikiAssistantConfig` of the wiki (its `blacklist`), the answer of Q_IN_BLACKLIST,
+    # and the trace callback of a refusal (none in this mode).
+    config: object = None
+    blacklisted: bool = False
+    on_trace: object = None
+
+    @property
+    def search(self) -> str:
+        """The text that the blacklist examines: the question. The agent mode has no
+        rewrite of a follow-up."""
+        return self.question
 
     @property
     def noted_page(self) -> str | None:
@@ -142,7 +156,7 @@ PRE_RETRIEVAL_NODES = (
     "Q_SEARCH_WIKI", "Q_SEARCH_SOURCES", "Q_COLLECTION_PAGES", "Q_COLLECTION_OPEN_PAGE", "Q_PAGE_FOUND", "Q_NAMES_CATEGORY", "Q_NAMES_KEY", "Q_KEY_ROWS", "Q_KEY_NAMES", "Q_IS_COLLECTION", "Q_IS_DATA", "Q_FRAGMENT_FOUND", "Q_ROSTER_REFUSAL", "C_OPEN_PAGE_NOTE", "Q_SYNONYMS",
     "Q_PROMPT", "R_BLACKLIST", "R_NOT_IN_ROSTER", "R_NOTHING_FOUND",
 )
-AGENT_NODES = (*HISTORY_NODES, "C_OPEN_PAGE_NOTE")
+AGENT_NODES = (*HISTORY_NODES, "Q_IN_BLACKLIST", "C_OPEN_PAGE_NOTE", "R_BLACKLIST")
 AGENT_CALL_NODES = ("Q_AGENT_PAGES", "Q_AGENT_COLLECTION", "Q_AGENT_TOOLS", "Q_AGENT_FRAGMENTS")
 OWN_STEPS = AGENT_CALL_NODES
 
@@ -325,13 +339,22 @@ graph = trace_decisions(g.build())
 
 sg = GraphBuilder(
     name="agent_input_checks", state_type=AgentTurn, input_type=AgentTurn,
-    output_type=AgentTurn, auto_instrument=False,
+    output_type=AgentTurn | Refused, auto_instrument=False,
 )
-agent_steps = [register(sg, code) for code in AGENT_NODES]
+agent_history = [register(sg, code) for code in HISTORY_NODES]
+agent_blacklist = register(sg, "Q_IN_BLACKLIST")
+agent_open_page_note = register(sg, "C_OPEN_PAGE_NOTE")
+agent_refuse_blacklist = register(sg, "R_BLACKLIST")
 sg.add(
-    sg.edge_from(sg.start_node).to(agent_steps[0]),
-    *(sg.edge_from(a).to(b) for a, b in zip(agent_steps, agent_steps[1:])),
-    sg.edge_from(agent_steps[-1]).to(sg.end_node),
+    sg.edge_from(sg.start_node).to(agent_history[0]),
+    *(sg.edge_from(a).to(b) for a, b in zip(agent_history, agent_history[1:])),
+    sg.edge_from(agent_history[-1]).to(agent_blacklist),
+    sg.edge_from(agent_blacklist).to(
+        sg.decision(node_id="after_Q_IN_BLACKLIST", note=N_("Does the question name a blacklisted term?"))
+        .branch(sg.match(AgentTurn, matches=_blacklisted).label(N_("names a blacklisted term")).to(agent_refuse_blacklist))
+        .branch(sg.match(AgentTurn).label(N_("names no blacklisted term")).to(agent_open_page_note))
+    ),
+    sg.edge_from(agent_open_page_note, agent_refuse_blacklist).to(sg.end_node),
 )
 
-agent_graph = sg.build()
+agent_graph = trace_decisions(sg.build())
