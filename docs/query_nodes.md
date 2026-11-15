@@ -205,7 +205,7 @@ Each workflow declares the list of the catalog nodes that the workflow runs
 |---|---|---|---|---|
 | Q_QUESTION | The question enters the pre-retrieval flow | `base/domain/chat/preretrieval.py`, `pre_retrieval_answer`, `PreRetrievalTurn`; `base/domain/chat/workflow/catalog.py`, `question` | `question` | code |
 | Q_NORMALIZE | Lowercases the question and removes the accents of the question; punctuation stays | `base/domain/chat/scope.py`, `_normalize`; `base/domain/chat/workflow/catalog.py`, `normalize` | `normalized` | code |
-| Q_IN_BLACKLIST | Checks the normalised question against the blacklist, by whole word | `base/domain/chat/scope.py`, `is_blacklisted`; `base/domain/chat/preretrieval.py`, `blacklist`; `base/domain/chat/workflow/catalog.py`, `blacklist` | `answer` | code |
+| Q_IN_BLACKLIST | Checks the normalised question against the blacklist, by whole word. Also runs in the input workflow of the agent mode (section 3) | `base/domain/chat/scope.py`, `is_blacklisted`; `base/domain/chat/preretrieval.py`, `blacklist`; `base/domain/chat/workflow/catalog.py`, `blacklist` | `answer` | code |
 | Q_STEM | Stems the question | `base/domain/text/stemming.py`, `stem_text`; `base/domain/chat/workflow/catalog.py`, `stem` | `stemmed` | code |
 | Q_NAMES_DATA | Checks whether the question names data: a dataset category, stemmed; a dataset key, exact; a data alias; or a request for investment advice. Builds the coverage roster first, once per turn | `base/domain/chat/scope.py`, `mentions_known_data`, `advisory_intent`; `base/domain/chat/preretrieval.py`, `ensure_roster`, `detect_data`; `base/domain/chat/workflow/catalog.py`, `data_detection` | `answer` | code |
 | Q_IN_ROSTER | Checks the question against the coverage roster: stemmed against the dataset categories, the concept-page titles and the aliases; exact against the dataset keys | `base/domain/chat/scope.py`, `mentions_known_data`; `base/domain/chat/preretrieval.py`, `build_vocabulary`, `ensure_roster`, `match_terms`; `base/domain/chat/workflow/catalog.py`, `roster` | `answer`, `roster_size`, `aliases`, `matched` | code |
@@ -244,7 +244,7 @@ Each workflow declares the list of the catalog nodes that the workflow runs
 | Q_CITE_TOOLS | `ensure_citation` adds the citation of the tools the model used; for injected dataset rows the code adds the dataset citation | `base/domain/chat/postprocess.py`, `ensure_citation`; `base/domain/chat/workflow/catalog.py`, `citation` | `citation_added` | code |
 | Q_CITE_PAGES | When the answer names none of the injected wiki pages, `mark_injected` adds a `Referencia:` line that lists the pages the model received and says that which of them the answer used cannot be determined. When the model wrote its own reference line with injected pages, `mark_injected` labels that line `Referencia según el modelo` and adds below it a line that starts with `Además` and lists every page the model received | `base/domain/chat/postprocess.py`, `mark_injected`, `injected_pages`; `base/domain/chat/workflow/catalog.py`, `injected_reference` | `injected_marked` | code |
 | Q_SHOWN | Shows the answer, with the additions of Q_ADVISORY_TABLE, Q_OFFER_KEYS, Q_CITE_TOOLS and Q_CITE_PAGES; `citation_added` says whether Q_CITE_TOOLS or Q_CITE_PAGES added a line. When the sentence verifier runs, the web interface adds the line `Referencia según el verificador de oraciones`, with the injected pages split into apparently used (they support at least one sentence) and apparently not used. That line replaces the line of `mark_injected`; when the answer has only a reference line of the model, the line goes below it, and the model's line is labelled `Referencia según el modelo` | `base/domain/chat/postprocess.py`, `resolve_injected`; `web/routes/chat.py`, `chat_stream`; `base/domain/chat/workflow/catalog.py`, `shown` | `final_answer`, `citation_added`, `keys_offered` | code |
-| R_BLACKLIST | Refusal of cause 1: the question (Q_IN_BLACKLIST) or the rewrite (Q_RW_IN_BLACKLIST) names a blacklist term; the refusal names the matched term | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`; `base/domain/chat/workflow/catalog.py`, `refuse_blacklist` | `cause`, `final_answer`, `suggestions` | code |
+| R_BLACKLIST | Refusal of cause 1: the question (Q_IN_BLACKLIST) or the rewrite (Q_RW_IN_BLACKLIST) names a blacklist term; the refusal names the matched term. Also ends the input workflow of the agent mode (section 3) | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`; `base/domain/chat/workflow/catalog.py`, `refuse_blacklist` | `cause`, `final_answer`, `suggestions` | code |
 | R_NOT_IN_ROSTER | Refusal of cause 2a: the question names no topic of the wiki | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/catalog.py`, `refuse_not_in_roster` | `cause`, `final_answer`, `suggestions` | code |
 | R_NOTHING_FOUND | Refusal of cause 2b: the question names a topic of the wiki, and the searches found no text | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/catalog.py`, `refuse_nothing_found` | `cause`, `final_answer`, `suggestions` | code |
 | R_UNSUPPORTED | Refusal of cause 3: the Tier-2 answer is not grounded in the fragments; the refusal names the source document | `base/domain/chat/refusal.py`, `render`; `base/domain/chat/preretrieval.py`, `refuse`, `suggestions`; `base/domain/chat/workflow/catalog.py`, `refuse_unsupported` | `cause`, `final_answer`, `suggestions` | code |
@@ -255,23 +255,26 @@ Each workflow declares the list of the catalog nodes that the workflow runs
 ## 3. Agent
 
 In the agent mode the model receives the question and the history, and decides
-which tools to call (section 5). After the model answers, the code checks that a
+which tools to call (section 5). Before the model runs, the code checks the
+question against the blacklist. After the model answers, the code checks that a
 tool returned evidence.
 
 The agent mode has two workflows too, with the call to the model, T_AGENT, between
 them. `chat_turn_with_context` (`base/services/chat.py`) runs both workflows.
 
 - **The input workflow**, `agent_graph` in
-  `base/domain/chat/workflow/input_checks.py`, runs C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES and C_OPEN_PAGE_NOTE
-  (section 1). The input workflow builds the history and the question that the
-  model receives, and checks nothing in the question. Its state is a
-  `AgentTurn`.
+  `base/domain/chat/workflow/input_checks.py`, runs C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES
+  (section 1), then Q_IN_BLACKLIST. A question that names a blacklisted term ends in the
+  refusal R_BLACKLIST: the model is not called and the output workflow does not run. Any
+  other question goes to C_OPEN_PAGE_NOTE, which builds the question that the model
+  receives. The blacklist reads the words of the question only: the agent mode has
+  no rewrite of a follow-up. Its state is an `AgentTurn`.
 - **The output workflow**, `agent_graph` in
   `base/domain/chat/workflow/output_checks.py`, runs T_TOOL_EVIDENCE, T_GUARDRAIL, the additions T_ADVISORY_TABLE
   to T_MARK_UNCITED, the figure check C_FIGURES and T_SHOWN. Its state is the `AnswerChecks` of the
   answer, with no `PreRetrievalTurn`.
 
-C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, C_OPEN_PAGE_NOTE and C_FIGURES are the same functions of the catalog as in the
+C_COUNT_HISTORY, C_WHICH_MODE, C_DROP_REFUSED, C_DROP_TABLES, C_TRIM_TURNS, C_ORIGIN_LINES, Q_IN_BLACKLIST, R_BLACKLIST, C_OPEN_PAGE_NOTE and C_FIGURES are the same functions of the catalog as in the
 pre-retrieval mode.
 
 The diagrams of the two workflows of this mode are generated from the graphs:

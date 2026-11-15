@@ -413,7 +413,7 @@ def test_every_branch_of_every_decision_has_a_label():
             by_decision.setdefault(a, []).append(label)
         repeated = {a: labels for a, labels in by_decision.items() if len(labels) != len(set(labels))}
         assert repeated == {}, f"{mode}, {('input', 'output')[side]}: repeated labels"
-    assert counted == 51        # 35 branches in the input graph, 12 and 4 in the output graphs
+    assert counted == 53        # 35 and 2 branches in the input graphs, 12 and 4 in the output graphs
 
 
 def test_the_branch_labels_are_translated_to_the_interface_language():
