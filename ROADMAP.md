@@ -14,11 +14,6 @@ describe how the system actually behaves, measured rather than asserted.
 
 ## Next
 
-**Italian.** The engine is already multilingual per wiki (`[wiki] language` in
-`wiki_config.toml`); adding a language is one `Locale` entry in
-`base/domain/i18n.py`. Scheduled last on purpose — the user-facing docs get
-translated once, after the open branches merge, rather than twice.
-
 **Smaller items**, each a real gap rather than a nicety:
 
 - **Deepen `data_gap`.** The check only reads concept *titles*, and its repair
