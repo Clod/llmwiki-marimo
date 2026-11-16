@@ -168,6 +168,17 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The progress lines of `base/` follow the interface language.** With the
+  interface in Spanish, the console of an ingest, a scan, a lint, a repair, a
+  verification or a reindex showed «🔎 Verifying 4 pages…»; the OCR lines were
+  in Spanish on both languages. The lines are written with `M_()`
+  (`base/domain/messages.py`), keep their message id, and the console
+  translates them: «🔎 Verificando 4 páginas…».
+- **A notice of a redirect is translated when shown.** The URL carried the
+  translated text (`?notice=Se%20borr%C3%B3…`), so a kept link showed it in the
+  language it was made in. The URL now carries a key and its values
+  (`?notice=stale-deleted&n=2`, `web/notices.py`).
+
 - **In the agent mode the refusal of the guardrail is a last resort.** When no
   tool of the run returned evidence, `T_GUARDRAIL` replaced the answer by «No
   pude respaldar esta respuesta con una consulta a la wiki en este turno.», even

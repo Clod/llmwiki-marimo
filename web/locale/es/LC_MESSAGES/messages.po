@@ -115,6 +115,22 @@ msgstr "fallida"
 msgid "Page"
 msgstr "Página"
 
+#: web/notices.py web/routes/chat.py
+msgid "The local verifier is not installed."
+msgstr "El verificador local no está instalado."
+
+#: web/notices.py
+#, python-format
+msgid "Could not verify: %(error)s"
+msgstr "No se pudo verificar: %(error)s"
+
+#: web/notices.py
+#, python-format
+msgid "Deleted %(n)s stale page."
+msgid_plural "Deleted %(n)s stale pages."
+msgstr[0] "Se borró %(n)s página obsoleta."
+msgstr[1] "Se borraron %(n)s páginas obsoletas."
+
 #: web/render.py web/templates/_sources_panel.html
 msgid "Open the source document in a new tab"
 msgstr "Abrir el documento fuente en una pestaña nueva"
@@ -240,10 +256,6 @@ msgstr "Escribí un título para la página."
 msgid "Could not prepare the draft: %(error)s"
 msgstr "No se pudo preparar el borrador: %(error)s"
 
-#: web/routes/chat.py web/routes/pages.py
-msgid "The local verifier is not installed."
-msgstr "El verificador local no está instalado."
-
 #: web/routes/chat.py
 msgid "The conversation kept no passage to verify the draft against."
 msgstr "La conversación no conservó ningún pasaje contra el cual verificar el borrador."
@@ -279,11 +291,11 @@ msgstr "El archivo de datos no existe."
 msgid "⏪ Restoring the pages of "
 msgstr "⏪ Restaurando las páginas de "
 
-#: web/routes/history.py
+#: base/domain/rollback/revert.py web/routes/history.py
 msgid "🗄 Restoring the index snapshot"
 msgstr "🗄 Restaurando la copia del índice"
 
-#: web/routes/history.py
+#: base/domain/rollback/revert.py web/routes/history.py
 msgid "🗄 No snapshot to use: rebuilding the index from the files"
 msgstr "🗄 Este punto no tiene copia del índice: se reconstruye desde los archivos"
 
@@ -466,13 +478,6 @@ msgstr "🏁 Imágenes: %(described)s descritas, %(pending)s sin descripción"
 
 #: web/routes/ingest.py
 #, python-format
-msgid "Deleted %(n)s stale page."
-msgid_plural "Deleted %(n)s stale pages."
-msgstr[0] "Se borró %(n)s página obsoleta."
-msgstr[1] "Se borraron %(n)s páginas obsoletas."
-
-#: web/routes/ingest.py
-#, python-format
 msgid "🗑 Deleting the source “%(filename)s”"
 msgstr "🗑 Borrando la fuente «%(filename)s»"
 
@@ -509,11 +514,6 @@ msgstr "Esa operación ya terminó."
 #: web/routes/pages.py web/templates/page.html
 msgid "Home"
 msgstr "Inicio"
-
-#: web/routes/pages.py
-#, python-format
-msgid "Could not verify: %(error)s"
-msgstr "No se pudo verificar: %(error)s"
 
 #: web/routes/pages.py
 #, python-format
@@ -3777,6 +3777,261 @@ msgstr "ninguna herramienta devolvió evidencia"
 msgid "a tool returned evidence"
 msgstr "una herramienta devolvió evidencia"
 
+#: base/domain/ingestion/batch.py
+#, python-format
+msgid "📦 Batch ingesting %(n)s file(s)..."
+msgstr "📦 Ingiriendo un lote de %(n)s archivo(s)..."
+
+#: base/domain/ingestion/batch.py
+msgid "⚠️  No files were ingested — skipping overview and commit."
+msgstr "⚠️  No se ingirió ningún archivo: se omiten el resumen general y el commit."
+
+#: base/domain/ingestion/batch.py
+msgid "🌐 Rewriting overview for batch..."
+msgstr "🌐 Reescribiendo el resumen general del lote..."
+
+#: base/domain/ingestion/batch.py
+msgid "🩺 Running lint on batch result..."
+msgstr "🩺 Corriendo el lint sobre el resultado del lote..."
+
+#: base/domain/ingestion/batch.py base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🩺 Lint: %(summary)s"
+msgstr "🩺 Lint: %(summary)s"
+
+#: base/domain/ingestion/batch.py
+#, python-format
+msgid "🏁 Batch complete — ingested: %(ingested)s, skipped: %(skipped)s, failed: %(failed)s"
+msgstr "🏁 Lote terminado: ingeridos %(ingested)s, omitidos %(skipped)s, fallidos %(failed)s"
+
+#: base/domain/ingestion/ocr.py
+#, python-format
+msgid "⚠️ OCR failed on page %(page)s of %(file)s: %(error)s"
+msgstr "⚠️ El OCR falló en la página %(page)s de %(file)s: %(error)s"
+
+#: base/domain/ingestion/ocr.py
+#, python-format
+msgid "🔍 OCR (%(engine)s) on %(n)s pages of %(file)s"
+msgstr "🔍 OCR (%(engine)s) en %(n)s páginas de %(file)s"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🔍 Validating %(file)s"
+msgstr "🔍 Validando %(file)s"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⏭ %(file)s — already up to date"
+msgstr "⏭ %(file)s: ya está al día"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚙️ Extracting text from %(file)s"
+msgstr "⚙️ Extrayendo el texto de %(file)s"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "✅ Extracted %(n)s pages"
+msgstr "✅ Se extrajeron %(n)s páginas"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "✂️ Chunked into %(n)s chunks"
+msgstr "✂️ Dividido en %(n)s fragmentos"
+
+#: base/domain/ingestion/pipeline.py
+msgid "🤖 Extracting knowledge structure..."
+msgstr "🤖 Extrayendo la estructura de conceptos..."
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "📋 Found %(n)s concept(s)"
+msgstr "📋 Se encontraron %(n)s concepto(s)"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "💡 Updating concept: %(name)s"
+msgstr "💡 Actualizando el concepto: %(name)s"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "💡 Creating concept: %(name)s"
+msgstr "💡 Creando el concepto: %(name)s"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚠️ %(n)s alias collision(s) dropped"
+msgstr "⚠️ Se descartaron %(n)s choque(s) de alias"
+
+#: base/domain/ingestion/pipeline.py
+msgid "📄 Writing summary page..."
+msgstr "📄 Escribiendo la página de resumen..."
+
+#: base/domain/ingestion/pipeline.py
+msgid "🌐 Updating overview..."
+msgstr "🌐 Actualizando el resumen general..."
+
+#: base/domain/ingestion/pipeline.py
+msgid "🩺 Running lint checks..."
+msgstr "🩺 Corriendo las comprobaciones del lint..."
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "✅ Done: %(file)s (%(pages)s pages, %(chunks)s chunks%(counts)s)"
+msgstr "✅ Listo: %(file)s (%(pages)s páginas, %(chunks)s fragmentos%(counts)s)"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "↩️ Rolled back %(n)s partial wiki page(s)"
+msgstr "↩️ Se revirtieron %(n)s página(s) de la wiki a medio escribir"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "❌ Failed: %(file)s — %(error)s"
+msgstr "❌ Falló: %(file)s: %(error)s"
+
+#: base/domain/ingestion/pipeline.py
+msgid "🔎 Scanning sources/..."
+msgstr "🔎 Revisando sources/..."
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🔎 Found %(n)s candidate file(s)"
+msgstr "🔎 Se encontraron %(n)s archivo(s) para ingerir"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚠️ %(n)s dataset-alias collision(s) dropped"
+msgstr "⚠️ Se descartaron %(n)s choque(s) de alias de datos"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🔤 Generated aliases for %(n)s data term(s)"
+msgstr "🔤 Se generaron alias para %(n)s término(s) de datos"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🏁 Scan complete — ingested: %(ingested)s, skipped: %(skipped)s, failed: %(failed)s"
+msgstr "🏁 Revisión terminada: ingeridos %(ingested)s, omitidos %(skipped)s, fallidos %(failed)s"
+
+#: base/domain/ingestion/pipeline.py base/services/ingest.py
+#, python-format
+msgid "🔗 Cross-linked %(n)s page(s)"
+msgstr "🔗 Se enlazaron %(n)s página(s)"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🔗 cross-linked %(page)s"
+msgstr "🔗 enlazada %(page)s"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "Found %(n)s source document(s)"
+msgstr "Se encontraron %(n)s documento(s) fuente"
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🤖 Regenerating wiki page for %(file)s..."
+msgstr "🤖 Regenerando la página de la wiki de %(file)s..."
+
+#: base/domain/ingestion/pipeline.py
+msgid "🏁 Regeneration complete"
+msgstr "🏁 Regeneración terminada"
+
+#: base/domain/lint/checks.py
+#, python-format
+msgid "🔍 data-gap scan: reviewing %(n)s concept title(s)"
+msgstr "🔍 Búsqueda de huecos de datos: revisando %(n)s título(s) de concepto"
+
+#: base/domain/repair/runner.py
+msgid "✅ No issues to repair."
+msgstr "✅ No hay problemas para reparar."
+
+#: base/domain/repair/runner.py
+#, python-format
+msgid "🔧 Repairing %(n)s issue(s)..."
+msgstr "🔧 Reparando %(n)s problema(s)..."
+
+#: base/domain/rollback/revert.py
+#, python-format
+msgid "⏪ Restoring the pages of %(sha)s"
+msgstr "⏪ Restaurando las páginas de %(sha)s"
+
+#: base/domain/tools/deletion.py
+#, python-format
+msgid "Deletion failed: %(error)s"
+msgstr "El borrado falló: %(error)s"
+
+#: base/domain/tools/reindex.py
+#, python-format
+msgid "📄 Indexing source %(file)s"
+msgstr "📄 Indexando la fuente %(file)s"
+
+#: base/domain/tools/reindex.py
+#, python-format
+msgid "📝 Indexing page %(page)s"
+msgstr "📝 Indexando la página %(page)s"
+
+#: base/domain/tools/reindex.py
+msgid "🗄 Creating a fresh index"
+msgstr "🗄 Creando un índice nuevo"
+
+#: base/domain/tools/reindex.py
+msgid "🔗 Rebuilding the references"
+msgstr "🔗 Reconstruyendo las referencias"
+
+#: base/domain/tools/reindex.py
+msgid "♻️ Replacing the index; the old one stays as index.db.bak"
+msgstr "♻️ Reemplazando el índice; el anterior queda como index.db.bak"
+
+#: base/services/ingest.py
+#, python-format
+msgid "🩺 Running full LLM lint on %(n)s ingested page(s)…"
+msgstr "🩺 Corriendo el lint completo con el modelo sobre %(n)s página(s) ingerida(s)…"
+
+#: base/services/ingest.py
+#, python-format
+msgid "🩺 Running deterministic lint on %(n)s ingested page(s)…"
+msgstr "🩺 Corriendo el lint determinista sobre %(n)s página(s) ingerida(s)…"
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔧 %(n)s issue(s) on ingested pages — repairing (full LLM)…"
+msgstr "🔧 %(n)s problema(s) en las páginas ingeridas: reparando (completo, con el modelo)…"
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔧 %(n)s issue(s) on ingested pages — repairing (deterministic)…"
+msgstr "🔧 %(n)s problema(s) en las páginas ingeridas: reparando (determinista)…"
+
+#: base/services/ingest.py
+msgid "✅ Ingested pages consistent — no repairs needed."
+msgstr "✅ Las páginas ingeridas son coherentes: no hace falta reparar."
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔎 Verifying %(n)s page(s) against their sources…"
+msgstr "🔎 Verificando %(n)s página(s) contra sus fuentes…"
+
+#: base/services/ingest.py
+msgid "✅ No issues found."
+msgstr "✅ No se encontraron problemas."
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔧 Found %(n)s issue(s) — running repairs…"
+msgstr "🔧 Se encontraron %(n)s problema(s): reparando…"
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔎 Verifying %(n)s page(s) the repairs wrote…"
+msgstr "🔎 Verificando %(n)s página(s) que escribieron las reparaciones…"
+
+#: base/services/verification.py
+#, python-format
+msgid "🔎 Verifying %(n)s pages…"
+msgstr "🔎 Verificando %(n)s páginas…"
+
 #~ msgid "Dataset"
 #~ msgstr "Dataset"
 
@@ -3889,4 +4144,7 @@ msgstr "una herramienta devolvió evidencia"
 
 #~ msgid "The answer is complete, with no check but the figure check"
 #~ msgstr "La respuesta está completa, sin otra comprobación que la de las cifras"
+
+#~ msgid "Deleted %(n)s stale pages."
+#~ msgstr ""
 

@@ -16,6 +16,7 @@ from domain import tracing
 from domain.tools.db import get_connection
 from domain.verify.verifier import Verifier
 from domain.repair.runner import ADVISORY_CHECKS
+from domain.messages import M_
 from services.wiki import Wiki
 
 Progress = Callable[[str], None]
@@ -144,7 +145,8 @@ def ingest_uploads(
         touched = related_pages(wiki.db_path, source_ids)
         repair_client = client if full_repair else None
         mode = "full LLM" if full_repair else "deterministic"
-        progress(f"🩺 Running {mode} lint on {len(touched)} ingested page(s)…")
+        progress(M_("🩺 Running full LLM lint on %(n)s ingested page(s)…", n=len(touched)) if full_repair
+                 else M_("🩺 Running deterministic lint on %(n)s ingested page(s)…", n=len(touched)))
         with tracing.node("I_UPLOAD_REPAIR", tracing.WRITING, mode=mode, pages=len(touched)) as i15:
             report = lint_wiki(wiki.db_path, wiki.path, client=repair_client, model=model,
                                progress_cb=progress)
@@ -154,12 +156,13 @@ def ingest_uploads(
                        if i.check not in _NOT_REPAIRED_ON_INGEST and i.page in scope]
             i15.set(issues=len(report.issues), fixable=len(fixable))
             if fixable:
-                progress(f"🔧 {len(fixable)} issue(s) on ingested pages — repairing ({mode})…")
+                progress(M_("🔧 %(n)s issue(s) on ingested pages — repairing (full LLM)…", n=len(fixable)) if full_repair
+                         else M_("🔧 %(n)s issue(s) on ingested pages — repairing (deterministic)…", n=len(fixable)))
                 repair_wiki(LintReport(issues=fixable, checked_at=report.checked_at),
                             wiki.db_path, wiki.path, llm_client=repair_client, model=model,
                             progress_cb=progress, language=wiki.language)
             else:
-                progress("✅ Ingested pages consistent — no repairs needed.")
+                progress(M_("✅ Ingested pages consistent — no repairs needed."))
 
         # Refresh "See also" cross-links: an older page may reference a newly
         # added concept. Scoped to the touched pages; the wiki-wide sweep is
@@ -170,7 +173,7 @@ def ingest_uploads(
                                               progress_cb=progress, touched=touched)
                 i16.set(linked=linked)
             if linked:
-                progress(f"🔗 Cross-linked {linked} page(s)")
+                progress(M_("🔗 Cross-linked %(n)s page(s)", n=linked))
         if verifier is not None and source_ids:
             _verify_written(wiki, source_ids, verifier, progress)
     return results
@@ -192,7 +195,7 @@ def _verify_written(wiki: Wiki, source_ids, verifier: Verifier, progress: Progre
     from services.verification import verify_pages, written_pages
 
     pages = written_pages(wiki, source_ids, summaries_only=summaries_only)
-    progress(f"🔎 Verifying {len(pages)} page(s) against their sources…")
+    progress(M_("🔎 Verifying %(n)s page(s) against their sources…", n=len(pages)))
     verify_pages(wiki, pages, verifier, progress=progress)
 
 
@@ -250,9 +253,9 @@ def lint_and_repair(wiki: Wiki, client, model: str, *, verifier: Verifier | None
 
     report = lint_wiki(wiki.db_path, wiki.path, client=client, model=model, progress_cb=progress)
     if not report.issues:
-        progress("✅ No issues found.")
+        progress(M_("✅ No issues found."))
         return 0
-    progress(f"🔧 Found {len(report.issues)} issue(s) — running repairs…")
+    progress(M_("🔧 Found %(n)s issue(s) — running repairs…", n=len(report.issues)))
     repairs = repair_wiki(report, wiki.db_path, wiki.path, llm_client=client, model=model,
                           progress_cb=progress, language=wiki.language)
     from domain.tools.git_ops import auto_commit, init_wiki_repo
@@ -262,7 +265,7 @@ def lint_and_repair(wiki: Wiki, client, model: str, *, verifier: Verifier | None
     if verifier is not None and written:
         from services.verification import verify_pages
 
-        progress(f"🔎 Verifying {len(written)} page(s) the repairs wrote…")
+        progress(M_("🔎 Verifying %(n)s page(s) the repairs wrote…", n=len(written)))
         verify_pages(wiki, written, verifier, progress=progress)
     return len(report.issues)
 

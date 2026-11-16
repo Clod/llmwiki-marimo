@@ -186,10 +186,21 @@ To add a language (Italian is planned): add its code and its name to `LANGUAGES`
 `tests/web/test_i18n.py` fails while an id has no translation, while a catalog holds
 an id the code no longer uses, and when a translation changes the placeholders of its id.
 
-Left in English on every interface language, because they are not written by
-`web/`: the progress lines of `base/domain/` (ingestion, lint and repair, rebuild of
-the index), the messages `services` return (`delete_source`, `PageConflict`,
-`source_view`) and the errors of the model or of git that a notice quotes.
+The progress lines of `base/` (ingestion, scan, lint and repair, verification,
+rebuild of the index, revert) and the error of `delete_source` are written with
+`M_()` (`base/domain/messages.py`): a `Message` is the English text, and it keeps
+its message id and its values. `state.start_operation` translates each line with
+`translate_message` before the console shows it, and `i18n_extract` extracts the
+ids of `M_()` from `base/`.
+
+A notice of a redirect travels in the URL as a key and its values
+(`?notice=stale-deleted&n=2`, `web/notices.py`); the screen translates it when it
+shows it, so a kept link shows it in the current language. An unknown key shows
+nothing.
+
+Left in English on every interface language: the values a line quotes (a file
+name, a lint summary), the messages `PageConflict` and `source_view` return, and
+the errors of the model or of git that a notice quotes.
 
 ## Tests
 

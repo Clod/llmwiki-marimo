@@ -123,8 +123,11 @@ def test_the_maintain_screen_warns_when_the_ocr_engine_cannot_run_and_says_how_t
 
 
 def test_the_notice_of_a_redirect_is_shown_escaped(client):
-    html = client.get(f"/w/{WIKI_ID}/ingest?notice=" + urllib.parse.quote("<b>hola</b>")).text
-    assert "&lt;b&gt;hola&lt;/b&gt;" in html
+    """The URL carries the key of the notice; a value in it is escaped, and a text that
+    is not a key shows nothing."""
+    html = client.get(f"/w/{WIKI_ID}/ingest?notice=verify-failed&error=" + urllib.parse.quote("<b>hola</b>")).text
+    assert "&lt;b&gt;hola&lt;/b&gt;" in html and "<b>hola</b>" not in html
+    assert "hola" not in client.get(f"/w/{WIKI_ID}/ingest?notice=" + urllib.parse.quote("<b>hola</b>")).text
 
 
 # ── Operations ───────────────────────────────────────────────────────────────
@@ -281,7 +284,8 @@ def test_one_operation_runs_at_a_time_per_wiki(client, wiki, monkeypatch, agents
     second = client.post(f"/w/{WIKI_ID}/ingest", files=[("files", ("B.pdf", b"x", "application/pdf"))])
     assert BUSY in second.text and "sse-connect" not in second.text
     stale = client.post(f"/w/{WIKI_ID}/stale/delete")
-    assert urllib.parse.unquote(stale.headers["location"]).endswith(BUSY)
+    assert stale.headers["location"].endswith("notice=busy")
+    assert BUSY in client.get(stale.headers["location"]).text
     source = client.post(f"/w/{WIKI_ID}/sources/x/delete", data={"filename": "X.pdf"})
     assert BUSY in source.text and "sse-connect" not in source.text
     saved = client.post(f"/w/{WIKI_ID}/chat/save", data={"title": "T", "markdown": "# T\n\nText.\n"})
@@ -350,8 +354,9 @@ def test_stale_delete_removes_only_the_stale_pages(client, wiki):
         conn.commit()
     response = client.post(f"/w/{WIKI_ID}/stale/delete")
     assert response.status_code == 303
-    location = urllib.parse.unquote(response.headers["location"])
-    assert location.startswith(f"/w/{WIKI_ID}/maintain?") and location.endswith("Se borró 1 página obsoleta.")
+    location = response.headers["location"]
+    assert location == f"/w/{WIKI_ID}/maintain?notice=stale-deleted&n=1"
+    assert "Se borró 1 página obsoleta." in client.get(location).text
     pages = list_pages(wiki)
     assert "concepts/prince" not in pages and "concepts/cinderella" in pages
 
@@ -392,7 +397,7 @@ def test_reindex_streams_progress_and_closes_with_a_spanish_summary(client, wiki
     monkeypatch.setattr(extractor, "extract", lambda path, cache_dir, **_kwargs: ([(1, "Texto de la fuente.")], "fake"))
     (wiki.sources_dir / "Cuento.pdf").write_bytes(b"%PDF-1.4")
     lines = lines_of(client, client.post(f"/w/{WIKI_ID}/reindex"))
-    assert "📄 Indexing source Cuento.pdf" in lines
+    assert "📄 Indexando la fuente Cuento.pdf" in lines      # a progress line of base/, in Spanish
     assert lines[-1] == "🏁 Índice reconstruido: 1 fuentes, 3 páginas, 2 referencias"
     assert [s["filename"] for s in ingest.list_sources(wiki)] == ["Cuento.pdf"]
     assert (wiki.path / ".llmwiki" / "index.db.bak").is_file()
@@ -458,7 +463,7 @@ def test_reindex_needs_no_model_and_takes_the_wiki_lock(unconfigured, settings, 
     first = unconfigured.post(f"/w/{WIKI_ID}/reindex")
     assert "sse-connect" in first.text and started.wait(10)
     assert BUSY in unconfigured.post(f"/w/{WIKI_ID}/reindex").text
-    assert urllib.parse.unquote(unconfigured.post(f"/w/{WIKI_ID}/stale/delete").headers["location"]).endswith(BUSY)
+    assert unconfigured.post(f"/w/{WIKI_ID}/stale/delete").headers["location"].endswith("notice=busy")
     release.set()
     assert lines_of(unconfigured, first)[-1].startswith("🏁 Índice reconstruido: 1 fuentes")
 

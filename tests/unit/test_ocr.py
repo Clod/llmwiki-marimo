@@ -134,7 +134,7 @@ def test_a_mixed_pdf_runs_the_engine_only_on_the_scanned_pages(tmp_path):
                             progress=lines.append, engine=engine)
     assert engine.calls == [(tmp_path / "m.pdf", [2, 4], "es")]
     assert pages == [(1, TEXT), (2, "ocr 2"), (3, TEXT), (4, "ocr 4")] and name == "fake"
-    assert lines == ["🔍 OCR (Fake) en 2 páginas de m.pdf"]
+    assert lines == ["🔍 OCR (Fake) on 2 pages of m.pdf"]
 
 
 def test_an_engine_that_cannot_read_a_subset_reads_every_page_and_the_text_pages_keep_their_text(tmp_path):
@@ -197,7 +197,7 @@ def test_apply_ocr_with_tesseract_reports_the_engine_in_the_parser_name(monkeypa
     lines = []
     pages, parser = extractor.extract(pdf, tmp_path / "cache", "es", lines.append)
     assert pages == [(1, "ocr 1")] and parser == "opendataloader+ocr-fake"
-    assert lines == ["🔍 OCR (Fake) en 1 páginas de scan.pdf"]
+    assert lines == ["🔍 OCR (Fake) on 1 pages of scan.pdf"]
 
 
 # ── engine vision ────────────────────────────────────────────────────────────
@@ -255,7 +255,7 @@ def test_one_failing_page_is_reported_and_the_rest_continue(tmp_path):
     result = VisionEngine("u", "k", "m", client=client).run(pdf, [1, 2, 3], "es", cache_dir=tmp_path,
                                                           progress=lines.append)
     assert result == [(1, "texto 1"), (2, ""), (3, "texto 3")]
-    assert len(lines) == 1 and "página 2" in lines[0] and "rate limited" in lines[0]
+    assert len(lines) == 1 and "page 2" in lines[0] and "rate limited" in lines[0]
 
 
 def test_vision_fails_when_every_page_fails(tmp_path):
@@ -434,7 +434,7 @@ def test_a_scanned_pdf_is_ingested_through_the_engine_and_the_console_says_so(tm
     result = ingest_file(pdf, tmp_workspace.db_path, tmp_workspace.workspace, tmp_workspace.llm, "fake",
                          progress_cb=lines.append, language="es")
     assert result.status == "ingested", result.message
-    assert "🔍 OCR (Fake) en 2 páginas de Escaneo.pdf" in lines
+    assert "🔍 OCR (Fake) on 2 pages of Escaneo.pdf" in lines
 
 
 def test_a_failed_ingestion_is_tried_again_when_the_setup_changes(tmp_workspace, monkeypatch):

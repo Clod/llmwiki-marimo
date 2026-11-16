@@ -48,6 +48,7 @@ from domain.tools.db import get_connection, open_db
 from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
 from domain.tools.references import update_references
 from domain.tools.git_ops import init_wiki_repo, auto_commit
+from domain.messages import M_
 
 logger = logging.getLogger(__name__)
 
@@ -211,7 +212,7 @@ def _ingest_file(
 
     W = tracing.WRITING
 
-    _cb(f"🔍 Validating {file_path.name}")
+    _cb(M_("🔍 Validating %(file)s", file=file_path.name))
 
     # ── Step 1: Validate ──────────────────────────────────────────────────────
     error = _validation_error(file_path, images=not load_images_config(workspace).ignore)
@@ -231,7 +232,7 @@ def _ingest_file(
         should_process, current_hash = needs_ingestion(file_path, conn)
         tracing.mark("I_IS_CHANGED", W, answer=should_process, content_hash=current_hash)
         if not should_process:
-            _cb(f"⏭ {file_path.name} — already up to date")
+            _cb(M_("⏭ %(file)s — already up to date", file=file_path.name))
             return IngestResult(file_path, "skipped", "already up to date")
 
         # ── Step 3: Upsert source document record (status=processing) ─────────
@@ -267,7 +268,7 @@ def _ingest_file(
         doc.set(document_id=doc_id, relative_path=relative)
         llm_client = tracing.wrap_openai(llm_client)
 
-        _cb(f"⚙️ Extracting text from {file_path.name}")
+        _cb(M_("⚙️ Extracting text from %(file)s", file=file_path.name))
 
         # Wiki pages created/overwritten in steps 8-9, for rollback on failure.
         wiki_compensations: list[dict] = []
@@ -292,7 +293,7 @@ def _ingest_file(
                 i4.set(page_count=len(page_contents), parser=parser)
                 if image_pass.images:
                     i4.set(images=image_pass.images, images_described=image_pass.described)
-            _cb(f"✅ Extracted {len(page_contents)} pages")
+            _cb(M_("✅ Extracted %(n)s pages", n=len(page_contents)))
 
             # ── Step 5: Chunk source document ─────────────────────────────────
             with tracing.node("W_CHUNK", W, document_id=doc_id) as w1:
@@ -308,7 +309,7 @@ def _ingest_file(
                     channel="chunks", ext="json",
                 )
                 w1.set(fragments=len(chunks))
-            _cb(f"✂️ Chunked into {len(chunks)} chunks")
+            _cb(M_("✂️ Chunked into %(n)s chunks", n=len(chunks)))
 
             # ── Step 6: Atomic source document DB write ────────────────────────
             with tracing.node("W_STEM", W, document_id=doc_id, fragments=len(chunks), language=language):
@@ -350,11 +351,11 @@ def _ingest_file(
             }
 
             # ── Step 7: Structured extraction ─────────────────────────────────
-            _cb("🤖 Extracting knowledge structure...")
+            _cb(M_("🤖 Extracting knowledge structure..."))
             with tracing.node("I_CONCEPTS", W) as i5:
                 extraction = extract_structured(doc_meta, page_contents, llm_client, model, language=language)
                 i5.set(concepts=[c.name for c in extraction.concepts])
-            _cb(f"📋 Found {len(extraction.concepts)} concept(s)")
+            _cb(M_("📋 Found %(n)s concept(s)", n=len(extraction.concepts)))
 
             # ── Step 8: Create/update concept pages ───────────────────────────
             concept_slugs: list[str] = []
@@ -363,7 +364,8 @@ def _ingest_file(
                     slug = make_wiki_slug(concept.name)
                     concept_slugs.append(slug)
                     existing_content = read_page(db_path, workspace, "/wiki/concepts/", slug)
-                    _cb(f"💡 {'Updating' if existing_content else 'Creating'} concept: {concept.name}")
+                    _cb(M_("💡 Updating concept: %(name)s", name=concept.name) if existing_content
+                        else M_("💡 Creating concept: %(name)s", name=concept.name))
                     concept_md = build_concept_page(
                         concept, file_path.name, existing_content, llm_client, model, language=language,
                         image_descriptions=image_pass.described > 0,
@@ -404,13 +406,13 @@ def _ingest_file(
                     )
                     i7.set(collisions=len(_alias_result.collisions))
                     if _alias_result.collisions:
-                        _cb(f"⚠️ {len(_alias_result.collisions)} alias collision(s) dropped")
+                        _cb(M_("⚠️ %(n)s alias collision(s) dropped", n=len(_alias_result.collisions)))
                 except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail ingest
                     i7.set(error=str(exc))
                     logger.warning("alias generation failed for %s: %s", file_path.name, exc)
 
             # ── Step 9: Create summary page ───────────────────────────────────
-            _cb("📄 Writing summary page...")
+            _cb(M_("📄 Writing summary page..."))
             with tracing.node("I_SUMMARY_PAGE", W) as i8:
                 summary_md = build_summary_page(
                     doc_meta, extraction, language=language,
@@ -444,7 +446,7 @@ def _ingest_file(
             tracing.mark("I_IS_BATCH", W, answer=_batch_mode)
             if not _batch_mode:
                 # ── Step 10: Rewrite overview ─────────────────────────────────
-                _cb("🌐 Updating overview...")
+                _cb(M_("🌐 Updating overview..."))
                 with tracing.node("I_OVERVIEW", W) as i10:
                     current_overview = (workspace / "wiki" / "overview.md").read_text(encoding="utf-8")
                     all_concept_names = _all_concept_names(db_path)
@@ -477,7 +479,7 @@ def _ingest_file(
             # ── Step 13 (optional): Lint ──────────────────────────────────────
             if lint_after_ingest and not _batch_mode:
                 from domain.lint.runner import lint_wiki
-                _cb("🩺 Running lint checks...")
+                _cb(M_("🩺 Running lint checks..."))
                 with tracing.node("I_LINT", W) as i13:
                     lint_report = lint_wiki(db_path, workspace)
                     i13.set(issues=len(lint_report.issues))
@@ -490,11 +492,12 @@ def _ingest_file(
                         db_path, workspace, "/wiki/", "log",
                         f"### Lint: {lint_report.summary()}\n\n{lint_lines}\n",
                     )
-                _cb(f"🩺 Lint: {lint_report.summary()}")
+                _cb(M_("🩺 Lint: %(summary)s", summary=lint_report.summary()))
 
             counts = (", " + get_locale(language).image_counts.format(
                 images=image_pass.images, described=image_pass.described) if image_pass.images else "")
-            _cb(f"✅ Done: {file_path.name} ({len(page_contents)} pages, {len(chunks)} chunks{counts})")
+            _cb(M_("✅ Done: %(file)s (%(pages)s pages, %(chunks)s chunks%(counts)s)", file=file_path.name,
+                    pages=len(page_contents), chunks=len(chunks), counts=counts))
             return IngestResult(file_path, "ingested", f"{len(page_contents)} pages", doc_id)
 
         except Exception as exc:
@@ -504,7 +507,7 @@ def _ingest_file(
             rolled_back = _rollback_wiki_pages(db_path, workspace, wiki_compensations, language=language)
             tracing.mark("E_ROLLED_BACK", W, error=str(exc)[:500], rolled_back=rolled_back)
             if rolled_back:
-                _cb(f"↩️ Rolled back {rolled_back} partial wiki page(s)")
+                _cb(M_("↩️ Rolled back %(n)s partial wiki page(s)", n=rolled_back))
             if conn is None:
                 conn = open_db(db_path)
             conn.execute(
@@ -513,7 +516,7 @@ def _ingest_file(
                 (str(exc)[:500], doc_id),
             )
             conn.commit()
-            _cb(f"❌ Failed: {file_path.name} — {exc}")
+            _cb(M_("❌ Failed: %(file)s — %(error)s", file=file_path.name, error=exc))
             return IngestResult(file_path, "failed", str(exc), doc_id)
 
     finally:
@@ -628,7 +631,7 @@ def scan_and_ingest(
 
     sources_dir = workspace / "sources"
     sources_dir.mkdir(parents=True, exist_ok=True)
-    _cb("🔎 Scanning sources/...")
+    _cb(M_("🔎 Scanning sources/..."))
 
     # A wiki that ignores images (`[images] ignore = true`) takes no image file as a source.
     supported = supported_extensions(not load_images_config(workspace).ignore)
@@ -644,7 +647,7 @@ def scan_and_ingest(
     # An image a Markdown source references is a figure of that source, not a source (D11).
     referenced = referenced_images([p for p in candidates if p.suffix.lower() == ".md"])
     candidates = [p for p in candidates if p.resolve() not in referenced]
-    _cb(f"🔎 Found {len(candidates)} candidate file(s)")
+    _cb(M_("🔎 Found %(n)s candidate file(s)", n=len(candidates)))
 
     if not candidates:
         return []
@@ -673,9 +676,9 @@ def scan_and_ingest(
                 )
                 i14.set(regenerated=_ds is not None)
                 if _ds and _ds.collisions:
-                    _cb(f"⚠️ {len(_ds.collisions)} dataset-alias collision(s) dropped")
+                    _cb(M_("⚠️ %(n)s dataset-alias collision(s) dropped", n=len(_ds.collisions)))
                 elif _ds:
-                    _cb(f"🔤 Generated aliases for {len(_ds.aliases)} data term(s)")
+                    _cb(M_("🔤 Generated aliases for %(n)s data term(s)", n=len(_ds.aliases)))
             except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail the scan
                 i14.set(error=str(exc))
                 logger.warning("dataset alias generation failed: %s", exc)
@@ -683,7 +686,8 @@ def scan_and_ingest(
         ingested = sum(1 for r in results if r.status == "ingested")
         skipped  = sum(1 for r in results if r.status == "skipped")
         failed   = sum(1 for r in results if r.status == "failed")
-        _cb(f"🏁 Scan complete — ingested: {ingested}, skipped: {skipped}, failed: {failed}")
+        _cb(M_("🏁 Scan complete — ingested: %(ingested)s, skipped: %(skipped)s, failed: %(failed)s",
+               ingested=ingested, skipped=skipped, failed=failed))
 
         # Final pass: now that every page exists, inject "See also" cross-links so a
         # page created early can still link to concepts extracted from a later
@@ -698,7 +702,7 @@ def scan_and_ingest(
                 )
                 i16.set(linked=n_linked)
             if n_linked:
-                _cb(f"🔗 Cross-linked {n_linked} page(s)")
+                _cb(M_("🔗 Cross-linked %(n)s page(s)", n=n_linked))
 
     return results
 
@@ -773,7 +777,7 @@ def crosslink_wiki_pages(
         )
         updated += 1
         if progress_cb:
-            progress_cb(f"🔗 cross-linked {page['relative_path']}")
+            progress_cb(M_("🔗 cross-linked %(page)s", page=page['relative_path']))
     return updated
 
 
@@ -851,14 +855,14 @@ def regenerate_wiki_pages(
             "SELECT id, filename, file_type, page_count, parser "
             "FROM documents WHERE source_kind='source' AND status='ready'"
         ).fetchall()
-        _cb(f"Found {len(docs)} source document(s)")
+        _cb(M_("Found %(n)s source document(s)", n=len(docs)))
 
         results: list[IngestResult] = []
         for doc in docs:
             doc_id = doc["id"]
             filename = doc["filename"]
             file_path = workspace / "sources" / filename
-            _cb(f"🤖 Regenerating wiki page for {filename}...")
+            _cb(M_("🤖 Regenerating wiki page for %(file)s...", file=filename))
             try:
                 page_rows = conn.execute(
                     "SELECT page, content FROM document_pages "
@@ -899,7 +903,7 @@ def regenerate_wiki_pages(
                 _cb(f"  ❌ {filename} — {exc}")
                 results.append(IngestResult(file_path, "failed", str(exc), doc_id))
 
-        _cb("🏁 Regeneration complete")
+        _cb(M_("🏁 Regeneration complete"))
         return results
     finally:
         conn.close()

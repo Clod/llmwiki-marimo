@@ -9,6 +9,7 @@ from domain.tools.references import find_orphan_pages
 from domain.tools.search import search_chunks
 from .markers import DATA_GAP_BLOCK_RE, fts_safe
 from domain.wiki_settings import language_for_db
+from domain.messages import M_
 from .report import LintIssue
 
 # ── 3.1: Orphan check ─────────────────────────────────────────────────────────
@@ -290,7 +291,7 @@ def data_gap_check(
         return []
 
     if progress_cb:
-        progress_cb(f"🔍 data-gap scan: reviewing {len(rows)} concept title(s)")
+        progress_cb(M_("🔍 data-gap scan: reviewing %(n)s concept title(s)", n=len(rows)))
 
     concept_list = "\n".join(
         f"- {r['title'] or r['filename']} ({r['path']}{r['filename']})"

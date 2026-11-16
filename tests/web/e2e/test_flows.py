@@ -697,15 +697,15 @@ def test_ingest_takes_the_window_height_and_the_sources_table_scrolls(page, live
 
 
 @pytest.mark.parametrize("path, text", [
-    ("ingest?notice=Se%20borr%C3%B3%20la%20fuente", "Se borró la fuente"),
-    ("maintain?notice=Listo", "Listo"),
+    ("ingest?notice=busy", "Hay otra operación en curso sobre esta wiki."),
+    ("maintain?notice=stale-deleted&n=1", "Se borró 1 página obsoleta."),
     ("pages/overview?deleted=BYMA", "Se borró la página «BYMA»."),
 ])
 def test_an_action_notice_closes_with_its_button_and_does_not_come_back_on_reload(page, live, path, text):
     goto(page, live, path)
     notice = page.locator(".notice.dismissible")
     expect(notice).to_contain_text(text)
-    page.wait_for_function("!location.search.includes('notice=') && !location.search.includes('deleted=')")
+    page.wait_for_function("location.search === ''")     # the notice and its values leave the address
     notice.get_by_role("button", name="Cerrar el aviso").click()
     expect(notice).to_have_count(0)
     page.reload()

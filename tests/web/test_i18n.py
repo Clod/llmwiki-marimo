@@ -237,8 +237,8 @@ def test_the_dialog_the_notices_and_the_console_lines_in_english(en_client, agen
     saved = en_client.post(f"/w/{WIKI_ID}/chat/save", data={
         "title": "Slipper story", "markdown": "# Slipper story\n\nText.", "open_page": ""}).text
     assert "Created the page “Slipper story”." in saved and ">Open the page</a>" in saved
-    notice = en_client.post(f"/w/{WIKI_ID}/stale/delete").headers["location"]
-    assert "Deleted" in notice and "Se borr" not in notice
+    notice = en_client.get(en_client.post(f"/w/{WIKI_ID}/stale/delete").headers["location"]).text
+    assert "Deleted 0 stale pages." in notice and "Se borr" not in notice
     unconfigured = en_client.post(f"/w/{WIKI_ID}/delete/concepts/missing", data={"title": "x"})
     assert unconfigured.status_code == 404 and unconfigured.json()["detail"] == "The page does not exist."
 
