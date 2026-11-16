@@ -125,6 +125,11 @@ msgstr ""
 msgid "Could not verify: %(error)s"
 msgstr ""
 
+#: base/services/wiki.py web/notices.py
+#, python-format
+msgid "%(page)s changed since it was opened (version %(version)s)"
+msgstr ""
+
 #: web/notices.py
 #, python-format
 msgid "Deleted %(n)s stale page."
@@ -420,11 +425,6 @@ msgstr ""
 #: web/routes/ingest.py
 #, python-format
 msgid "; %(failed)s sources with errors"
-msgstr ""
-
-#: web/routes/ingest.py
-#, python-format
-msgid "The text of no source could be extracted, so the current index stays as it was. First error: %(error)s"
 msgstr ""
 
 #: web/routes/ingest.py
@@ -3841,6 +3841,11 @@ msgid "🗄 Creating a fresh index"
 msgstr ""
 
 #: base/domain/tools/reindex.py
+#, python-format
+msgid "None of the %(n)s source file(s) could be extracted; the index was not replaced. First error: %(file)s: %(error)s"
+msgstr ""
+
+#: base/domain/tools/reindex.py
 msgid "🔗 Rebuilding the references"
 msgstr ""
 
@@ -3894,5 +3899,10 @@ msgstr ""
 #: base/services/verification.py
 #, python-format
 msgid "🔎 Verifying %(n)s pages…"
+msgstr ""
+
+#: base/services/wiki.py
+#, python-format
+msgid "%(filename)s is not a source of this wiki"
 msgstr ""
 

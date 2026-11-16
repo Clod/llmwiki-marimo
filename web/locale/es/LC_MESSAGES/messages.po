@@ -124,6 +124,11 @@ msgstr "El verificador local no está instalado."
 msgid "Could not verify: %(error)s"
 msgstr "No se pudo verificar: %(error)s"
 
+#: base/services/wiki.py web/notices.py
+#, python-format
+msgid "%(page)s changed since it was opened (version %(version)s)"
+msgstr "%(page)s cambió desde que se abrió (versión %(version)s)"
+
 #: web/notices.py
 #, python-format
 msgid "Deleted %(n)s stale page."
@@ -424,11 +429,6 @@ msgstr "🏁 Índice reconstruido: %(sources)s fuentes, %(pages)s páginas, %(re
 #, python-format
 msgid "; %(failed)s sources with errors"
 msgstr "; %(failed)s fuentes con error"
-
-#: web/routes/ingest.py
-#, python-format
-msgid "The text of no source could be extracted, so the current index stays as it was. First error: %(error)s"
-msgstr "No se pudo extraer el texto de ninguna fuente, así que el índice actual queda como estaba. Primer error: %(error)s"
 
 #: web/routes/ingest.py
 msgid "→ Installing torch, the build without CUDA"
@@ -3981,6 +3981,13 @@ msgid "🗄 Creating a fresh index"
 msgstr "🗄 Creando un índice nuevo"
 
 #: base/domain/tools/reindex.py
+#, python-format
+msgid "None of the %(n)s source file(s) could be extracted; the index was not replaced. First error: %(file)s: %(error)s"
+msgstr ""
+"No se pudo extraer el texto de ninguna de las %(n)s fuente(s), así que el índice actual queda como estaba. Primer "
+"error: %(file)s: %(error)s"
+
+#: base/domain/tools/reindex.py
 msgid "🔗 Rebuilding the references"
 msgstr "🔗 Reconstruyendo las referencias"
 
@@ -4035,6 +4042,11 @@ msgstr "🔎 Verificando %(n)s página(s) que escribieron las reparaciones…"
 #, python-format
 msgid "🔎 Verifying %(n)s pages…"
 msgstr "🔎 Verificando %(n)s páginas…"
+
+#: base/services/wiki.py
+#, python-format
+msgid "%(filename)s is not a source of this wiki"
+msgstr "%(filename)s no es una fuente de esta wiki"
 
 #~ msgid "Dataset"
 #~ msgstr "Dataset"
@@ -4151,4 +4163,7 @@ msgstr "🔎 Verificando %(n)s páginas…"
 
 #~ msgid "Deleted %(n)s stale pages."
 #~ msgstr ""
+
+#~ msgid "The text of no source could be extracted, so the current index stays as it was. First error: %(error)s"
+#~ msgstr "No se pudo extraer el texto de ninguna fuente, así que el índice actual queda como estaba. Primer error: %(error)s"
 

@@ -21,7 +21,7 @@ from services import ingest as ingest_service
 from services import verification as verification_service
 from services import wiki as wiki_service
 from web.deps import BUSY, get_state, get_templates, page_context
-from web.i18n import N_, _, ngettext
+from web.i18n import N_, _, ngettext, translate_message
 from web.notices import notice_query, notice_text
 from web.state import AppState, LLMNotConfigured
 
@@ -229,10 +229,8 @@ def reindex_post(request: Request, wiki_id: str, state: AppState = Depends(get_s
         try:
             return reindex_line(wiki_service.reindex(entry.wiki, progress=progress))
         except NothingExtracted as exc:
-            # The service message is English; the page shows the interface language.
-            first = str(exc).split("First error: ", 1)[-1]
-            raise RuntimeError(_("The text of no source could be extracted, so the current index stays as it was. "
-                                 "First error: %(error)s", error=first)) from exc
+            # The message of base/ (`M_`) in the interface language; the first error is quoted as it is.
+            raise RuntimeError(translate_message(exc.args[0])) from exc
 
     return _log(request, templates, wiki_id, state.start_operation(entry, work))
 

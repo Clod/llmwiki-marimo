@@ -28,7 +28,7 @@ from services.wiki import (
     source_view,
 )
 from web.deps import get_state, get_templates, image_support, page_context
-from web.i18n import N_, _
+from web.i18n import N_, _, translate_message
 from web.render import page_title, page_url, render_markdown, render_page_verified, render_source_markdown
 from web.notices import notice_query, notice_text
 from web.state import AppState
@@ -144,7 +144,7 @@ def source_file(request: Request, wiki_id: str, filename: str, state: AppState =
     try:
         path = source_view(state.get_wiki(wiki_id).wiki, filename)
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail=translate_message(exc.args[0])) from exc
     except Exception as exc:  # noqa: BLE001 — LibreOffice missing or failing
         raise HTTPException(
             status_code=500, detail=_("%(filename)s cannot be shown: %(error)s", filename=filename, error=exc)) from exc
@@ -183,7 +183,7 @@ def kept_image_file(wiki_id: str, document_id: str, file: str, state: AppState =
 
 
 @router.get("/w/{wiki_id}/edit/{page:path}", response_class=HTMLResponse)
-def edit_page(request: Request, wiki_id: str, page: str, error: str = "",
+def edit_page(request: Request, wiki_id: str, page: str, notice: str = "",
               state: AppState = Depends(get_state), templates: Jinja2Templates = Depends(get_templates)):
     text = _read(state, wiki_id, page)
     if not text:
@@ -191,7 +191,8 @@ def edit_page(request: Request, wiki_id: str, page: str, error: str = "",
     _block, body = split_frontmatter(text)
     context = page_context(state, wiki_id, page)
     wiki = state.get_wiki(wiki_id).wiki
-    context.update(body=body.strip(), version=page_version(wiki, page), error=error,
+    context.update(body=body.strip(), version=page_version(wiki, page),
+                   error=notice_text(notice, request.query_params),
                    preview=render_markdown(wiki_id, body, page, context["pages"], source_names(wiki)))
     return templates.TemplateResponse(request, "edit.html", context)
 
@@ -211,8 +212,8 @@ def save_edit(wiki_id: str, page: str, body: str = Form(...), version: str = For
     try:
         save_page(wiki, page, body, int(version) if version else None)
     except PageConflict as exc:
-        # `quote`, not `html.escape`: the text goes into a URL.
-        return RedirectResponse(f"/w/{wiki_id}/edit/{page}?error={urllib.parse.quote(str(exc))}",
+        # The URL carries the key of the notice and its values (`web/notices.py`), not the text.
+        return RedirectResponse(f"/w/{wiki_id}/edit/{page}?{notice_query('page-conflict', **exc.args[0].params)}",
                                 status_code=303)
     except (FileNotFoundError, ValueError) as exc:
         raise HTTPException(status_code=404, detail=_("The page does not exist.")) from exc

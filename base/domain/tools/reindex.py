@@ -302,9 +302,9 @@ def reindex_from_disk(workspace: Path, db_path: str, *, progress: Progress = _no
 
         indexed, failed = _index_sources(conn, workspace, user_id, language, progress)
         if failed and not indexed:
-            raise NothingExtracted(
-                f"None of the {len(failed)} source file(s) could be extracted; the index was not replaced. "
-                f"First error: {failed[0][0]}: {failed[0][1]}")
+            raise NothingExtracted(M_(
+                "None of the %(n)s source file(s) could be extracted; the index was not replaced. "
+                "First error: %(file)s: %(error)s", n=len(failed), file=failed[0][0], error=failed[0][1]))
         registered = _index_wiki_pages(conn, workspace, user_id, language, progress)
         conn.close()
         conn = None

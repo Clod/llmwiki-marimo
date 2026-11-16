@@ -107,7 +107,8 @@ def test_two_tabs_editing_one_page_the_second_save_is_refused(context, live):
     expect(first).to_have_url(f"{live.url}/w/{WIKI_ID}/pages/{CONCEPT}")
     second.locator("textarea[name=body]").fill("Segunda versión.")
     second.locator("form button", has_text="Guardar").click()
-    expect(second.get_by_text("changed since it was opened (version")).to_be_visible()
+    expect(second.get_by_text("cambió desde que se abrió (versión")).to_be_visible()
+    assert "notice=" not in second.url and "version=" not in second.url    # the notice leaves the address
     assert "Segunda versión." not in (live.wiki_dir / "wiki" / f"{CONCEPT}.md").read_text()
 
 

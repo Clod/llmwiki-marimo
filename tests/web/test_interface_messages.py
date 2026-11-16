@@ -57,3 +57,17 @@ def test_the_extraction_includes_the_messages_of_base():
     from web.i18n_extract import ids
 
     assert "🔎 Verifying %(n)s pages…" in ids() and "Deletion failed: %(error)s" in ids()
+
+
+def test_an_edit_conflict_travels_as_a_key_and_is_shown_in_the_language_of_the_screen(client, en_client):
+    response = client.post(f"/w/{WIKI_ID}/edit/concepts/cinderella", data={"body": "Texto.", "version": "999"},
+                           follow_redirects=False)
+    location = response.headers["location"]
+    assert "notice=page-conflict" in location and "version=" in location
+    assert "cambió desde que se abrió (versión" in client.get(location).text
+    assert "changed since it was opened (version" in en_client.get(location).text
+
+
+def test_an_unknown_source_document_is_a_404_in_the_language_of_the_screen(client, en_client):
+    assert client.get(f"/w/{WIKI_ID}/view/nada.pdf").json()["detail"] == "nada.pdf no es una fuente de esta wiki"
+    assert en_client.get(f"/w/{WIKI_ID}/view/nada.pdf").json()["detail"] == "nada.pdf is not a source of this wiki"
