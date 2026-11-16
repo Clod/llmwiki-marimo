@@ -1,12 +1,11 @@
 """Tests for the shared vocabulary primitives — Piece 2 of the ingest-time vocab.
 
-Pure functions: the padrón builder and the alias validator (normalize / dedupe /
-collision detection) that the generator, the linter, and the gate all share.
+Pure functions: the padrón builder and the alias validator (normalize / dedupe)
+that the generator, the linter, and the gate all share.
 """
 
 from domain.chat.vocabulary import (
     GENERATED_ALIASES_REL,
-    Collision,
     ValidatedVocabulary,
     build_roster,
     merge_aliases,
@@ -38,53 +37,37 @@ def test_build_roster_empty() -> None:
 # ── validate_aliases ──────────────────────────────────────────────────────────
 
 def test_validate_keeps_clean_aliases_as_proposed() -> None:
-    result = validate_aliases(
-        {"Dólar": ["billete verde", "blue"]},
-        roster=["dolar", "plazo fijo"],
-    )
+    result = validate_aliases({"Dólar": ["billete verde", "blue"]})
     assert result.aliases == {"Dólar": ["billete verde", "blue"]}
-    assert result.collisions == ()
 
 
 def test_validate_drops_blanks_and_normalized_duplicates() -> None:
-    result = validate_aliases(
-        {"Dólar": ["blue", "  ", "BLUE", "blue", "divisa"]},
-        roster=["dolar"],
-    )
+    result = validate_aliases({"Dólar": ["blue", "  ", "BLUE", "blue", "divisa"]})
     assert result.aliases == {"Dólar": ["blue", "divisa"]}
 
 
 def test_validate_drops_alias_equal_to_own_canonical() -> None:
-    result = validate_aliases({"Dólar": ["dólar", "blue"]}, roster=["dolar"])
+    result = validate_aliases({"Dólar": ["dólar", "blue"]})
     assert result.aliases == {"Dólar": ["blue"]}
-    assert result.collisions == ()  # self-reference is not a collision
 
 
-def test_validate_detects_collision_with_another_canonical() -> None:
-    # "acciones" proposed as an alias of CEDEAR, but "acciones" is itself covered.
-    result = validate_aliases(
-        {"CEDEAR": ["acciones", "certificado de deposito argentino"]},
-        roster=["acciones", "dolar", "cedear"],
-    )
-    assert result.aliases == {"CEDEAR": ["certificado de deposito argentino"]}
-    assert result.collisions == (
-        Collision(canonical="CEDEAR", alias="acciones", collides_with="acciones"),
-    )
+def test_validate_keeps_an_alias_that_is_the_name_of_another_covered_thing() -> None:
+    # Two pages can treat the same thing; only a curator can tell a false alias.
+    result = validate_aliases({"Riesgo de inflación": ["Riesgo inflacionario"]})
+    assert result.aliases == {"Riesgo de inflación": ["Riesgo inflacionario"]}
 
 
 def test_validate_drops_canonical_when_all_aliases_removed() -> None:
-    result = validate_aliases({"CEDEAR": ["acciones"]}, roster=["acciones", "cedear"])
-    assert result.aliases == {}
-    assert len(result.collisions) == 1
+    assert validate_aliases({"CEDEAR": ["cedear", " "]}).aliases == {}
 
 
 def test_validate_ignores_non_string_aliases() -> None:
-    result = validate_aliases({"Dólar": ["blue", None, 42]}, roster=["dolar"])
+    result = validate_aliases({"Dólar": ["blue", None, 42]})
     assert result.aliases == {"Dólar": ["blue"]}
 
 
 def test_validate_empty() -> None:
-    assert validate_aliases({}, roster=[]) == ValidatedVocabulary(aliases={}, collisions=())
+    assert validate_aliases({}) == ValidatedVocabulary(aliases={})
 
 
 # ── merge_aliases (generated ⊕ overrides − false_synonyms) ────────────────────

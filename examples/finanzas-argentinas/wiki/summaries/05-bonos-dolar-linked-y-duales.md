@@ -1,6 +1,7 @@
 ---
 type: summary
 title: 05 Bonos Dólar Linked Y Duales
+topics: [devaluación, tipo de cambio oficial, inflación]
 ---
 
 # 05 Bonos Dólar Linked Y Duales

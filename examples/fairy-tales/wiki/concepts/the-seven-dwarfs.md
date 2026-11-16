@@ -4,6 +4,7 @@ title: The Seven Dwarfs
 tags: [entity]
 sources:
   - resource: sources/Snow White and the Seven Dwarfs.pdf
+topics: [dwarfs, miners]
 ---
 
 # The Seven Dwarfs

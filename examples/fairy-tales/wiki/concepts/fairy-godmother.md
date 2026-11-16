@@ -4,6 +4,7 @@ title: Fairy Godmother
 tags: [entity]
 sources:
   - resource: sources/Cinderella.pdf
+topics: [magic, carriage]
 ---
 
 # Fairy Godmother

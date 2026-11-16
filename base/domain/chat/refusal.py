@@ -265,30 +265,27 @@ def roster_suggestions(
     """Suggestions for causes 2b and 3: the concept pages of the roster terms
     the question named (decision 13).
 
-    A concept page is suggested when the question names its title, or names a
-    dataset category whose stems appear in the title — "¿Cuánto rinden los
-    plazos fijos?" names `plazo_fijo`, whose stems `plaz fij` appear in
-    "Plazo fijo tradicional" and "Plazo fijo UVA".
+    A concept page is suggested when the question names its title or one of the
+    topics it declares, or names a dataset category whose stems appear in the
+    title. A summary page is suggested when the question names one of its topics — "¿Cuánto rinden los plazos fijos?" names `plazo_fijo`, whose stems
+    `plaz fij` appear in "Plazo fijo tradicional" and "Plazo fijo UVA".
     """
     from domain.chat.scope import mentions_known_data
     from domain.text.stemming import stem_text
-    from domain.tools.db import get_connection
+    from domain.tools.wiki_fs import topic_pages
 
     lang = language or "en"
-    with get_connection(db_path) as conn:
-        rows = conn.execute(
-            "SELECT title, path || filename AS p FROM documents "
-            "WHERE source_kind = 'wiki' AND path = '/wiki/concepts/' AND status != 'failed' "
-            "ORDER BY title"
-        ).fetchall()
     named_categories = [c for c in categories if mentions_known_data(question, [c], language=lang)]
     category_stems = [stem_text(c, lang) for c in named_categories]
     pages: list[tuple[str, str]] = []
-    for row in rows:
-        title = row["title"] or ""
-        stemmed_title = stem_text(title, lang)
-        if mentions_known_data(question, [title], language=lang) or any(
+    for page in topic_pages(db_path, ready_only=False):
+        if page.kind != "concept":
+            if mentions_known_data(question, list(page.topics), language=lang):
+                pages.append((page.title, f"/wiki/{page.page}.md"))
+            continue
+        stemmed_title = stem_text(page.title, lang)
+        if mentions_known_data(question, [page.title, *page.topics], language=lang) or any(
             re.search(rf"\b{re.escape(s)}\b", stemmed_title) for s in category_stems if s
         ):
-            pages.append((title, row["p"]))
+            pages.append((page.title, f"/wiki/{page.page}.md"))
     return order_suggestions(pages, question, language)

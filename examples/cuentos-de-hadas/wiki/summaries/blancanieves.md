@@ -1,6 +1,7 @@
 ---
 type: summary
 title: Blancanieves
+topics: [madrastra, siete enanos, príncipe]
 ---
 
 # Blancanieves

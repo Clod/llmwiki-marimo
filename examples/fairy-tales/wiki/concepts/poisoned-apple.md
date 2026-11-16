@@ -4,6 +4,7 @@ title: Poisoned Apple
 tags: [instrument]
 sources:
   - resource: sources/Snow White and the Seven Dwarfs.pdf
+topics: [apple, poison, death-like sleep]
 ---
 
 # Poisoned Apple

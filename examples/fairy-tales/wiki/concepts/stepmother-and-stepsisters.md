@@ -4,6 +4,7 @@ title: Stepmother and Stepsisters
 tags: [entity]
 sources:
   - resource: sources/Cinderella.pdf
+topics: [stepmother, stepsisters, servitude]
 ---
 
 # Stepmother and Stepsisters

@@ -727,16 +727,6 @@ msgstr ""
 
 #: web/routes/vocabulary.py
 #, python-format
-msgid "“%(term)s” is the name of another topic of the wiki."
-msgstr ""
-
-#: web/routes/vocabulary.py
-#, python-format
-msgid "The alias “%(alias)s” of “%(canonical)s” is the name of “%(other)s”."
-msgstr ""
-
-#: web/routes/vocabulary.py
-#, python-format
 msgid "There are aliases for “%(canonical)s”, which has no page nor dataset."
 msgstr ""
 
@@ -1320,8 +1310,9 @@ msgstr ""
 
 #: web/templates/_vocabulary_body.html
 msgid ""
-"The names the wiki covers: the categories and keys of datasets/ and the titles of the concept pages. A question that "
-"names none of them is refused. Read only: it changes with the pages and the datasets"
+"The names the wiki covers: the categories and keys of datasets/, the titles of the concept pages and the topics of "
+"the concept and summary pages. A question that names none of them is refused. Read only: it changes with the pages "
+"and the datasets; the topics are edited in the editor of each page"
 msgstr ""
 
 #: web/templates/_vocabulary_body.html
@@ -1350,6 +1341,10 @@ msgstr ""
 
 #: web/templates/_vocabulary_body.html
 msgid "page"
+msgstr ""
+
+#: web/templates/_vocabulary_body.html
+msgid "page topic"
 msgstr ""
 
 #: web/templates/_vocabulary_body.html
@@ -1398,7 +1393,7 @@ msgstr ""
 msgid "Add the alias as hand-written"
 msgstr ""
 
-#: web/templates/_vocabulary_body.html
+#: web/templates/_vocabulary_body.html web/templates/edit.html
 msgid "Add"
 msgstr ""
 
@@ -1422,7 +1417,7 @@ msgstr ""
 msgid "Remove the hand-written alias"
 msgstr ""
 
-#: web/templates/_vocabulary_body.html
+#: web/templates/_vocabulary_body.html web/templates/edit.html
 msgid "Remove"
 msgstr ""
 
@@ -1752,6 +1747,10 @@ msgid "Editing"
 msgstr ""
 
 #: web/templates/edit.html
+msgid "The rest of the front-matter block is not edited: it is kept as it is."
+msgstr ""
+
+#: web/templates/edit.html
 msgid "The front-matter block is not edited: it is kept as it is."
 msgstr ""
 
@@ -1765,6 +1764,34 @@ msgstr ""
 
 #: web/templates/edit.html web/templates/page.html web/templates/settings.html
 msgid "Save"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "The topics the page treats: a question that names one passes the coverage roster"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Topics"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Remove the topic from the page"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "A topic of the page"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "New topic of the page"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Suggests the topics of the other pages; Enter adds it"
+msgstr ""
+
+#: web/templates/edit.html
+msgid "Add the topic to the list; it is saved with Save"
 msgstr ""
 
 #: web/templates/edit.html
@@ -3723,11 +3750,6 @@ msgid "💡 Creating concept: %(name)s"
 msgstr ""
 
 #: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "⚠️ %(n)s alias collision(s) dropped"
-msgstr ""
-
-#: base/domain/ingestion/pipeline.py
 msgid "📄 Writing summary page..."
 msgstr ""
 
@@ -3755,17 +3777,17 @@ msgid "❌ Failed: %(file)s — %(error)s"
 msgstr ""
 
 #: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚠️ New aliases to review in the vocabulary screen: %(pairs)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
 msgid "🔎 Scanning sources/..."
 msgstr ""
 
 #: base/domain/ingestion/pipeline.py
 #, python-format
 msgid "🔎 Found %(n)s candidate file(s)"
-msgstr ""
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "⚠️ %(n)s dataset-alias collision(s) dropped"
 msgstr ""
 
 #: base/domain/ingestion/pipeline.py

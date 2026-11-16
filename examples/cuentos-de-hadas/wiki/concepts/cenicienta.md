@@ -4,6 +4,7 @@ title: Cenicienta
 tags: [entity]
 sources:
   - resource: sources/La Cenicienta.pdf
+topics: [maltrato, bondad]
 ---
 
 # Cenicienta

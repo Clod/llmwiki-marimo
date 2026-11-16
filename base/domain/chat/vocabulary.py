@@ -1,8 +1,8 @@
 """Shared vocabulary primitives for the ingest-time alias generation (Piece 2).
 
 One place for the logic that three callers must agree on:
-  - the ingest-time generator (builds the alias map, drops bad proposals),
-  - the linter (flags collisions / drift in the committed map),
+  - the ingest-time generator (builds the alias map, cleans the proposals),
+  - the linter (flags drift in the committed map),
   - the pre-retrieval gate (matches a question against known coverage).
 
 The core is pure — no LLM. The only I/O is `read_generated_aliases` /
@@ -14,10 +14,11 @@ so the generator, the linter, and the gate compare terms identically.
   - `build_roster` — the "padrón": the normalized set of canonical names the
     wiki actually covers (dataset categories/keys + concept page names). Only
     canonical names belong here, never aliases.
-  - `validate_aliases` — normalize, dedupe, and drop collisions from proposed
-    aliases. A proposal that is really the canonical name of a DIFFERENT covered
-    thing (CEDEAR ← "acciones") is dropped and reported as a `Collision`, so the
-    generator can seed a false-synonym and the linter can flag it.
+  - `validate_aliases` — normalize and dedupe proposed aliases. It never judges
+    whether an alias is false: an alias that is also the name of another covered
+    thing may be right, as two pages can treat the same thing ("Riesgo de
+    inflación" and "Riesgo inflacionario"). A curator reviews the new aliases the
+    ingestion reports, and lists a false one in `[falsos_sinonimos]`.
 """
 
 from __future__ import annotations
@@ -68,20 +69,12 @@ def build_roster(*sources: Iterable[str]) -> frozenset[str]:
 
 
 @dataclass(frozen=True)
-class Collision:
-    """An alias proposal that is really the canonical name of something else."""
-
-    canonical: str       # the concept the alias was proposed for
-    alias: str           # the offending alias, as proposed
-    collides_with: str   # the other covered canonical it normalizes to
-
-
-@dataclass(frozen=True)
 class ValidatedVocabulary:
-    """Result of validating proposed aliases against the roster."""
+    """Result of validating proposed aliases: the clean map, and the (canonical,
+    alias) pairs the generated artifact did not hold before, for a curator to review."""
 
     aliases: dict[str, list[str]] = field(default_factory=dict)
-    collisions: tuple[Collision, ...] = ()
+    new: tuple[tuple[str, str], ...] = ()
 
 
 class RosterKey:
@@ -118,22 +111,17 @@ class RosterKey:
 
 def validate_aliases(
     proposals: Mapping[str, Iterable[str]],
-    roster: Iterable[str],
     key: RosterKey | None = None,
 ) -> ValidatedVocabulary:
-    """Clean proposed aliases and separate out the collisions.
+    """Clean proposed aliases.
 
     For each canonical → its proposed aliases, an alias is KEPT (as proposed,
-    stripped) unless it: is blank or not a string; repeats its own canonical or
-    an earlier alias of the same canonical (deduped by normalized form); or is
-    the canonical name of a DIFFERENT covered thing — that last case is dropped
-    and recorded as a `Collision` (the CEDEAR ← "acciones" bug), never silently
-    kept. A canonical whose aliases are all removed drops out of the result.
+    stripped) unless it is blank or not a string, or repeats its own canonical or
+    an earlier alias of the same canonical (deduped by normalized form). A
+    canonical whose aliases are all removed drops out of the result.
     """
     key = key or RosterKey()
-    roster_by_key = {k: t for t in roster if (k := key.of_roster_term(t))}
     clean: dict[str, list[str]] = {}
-    collisions: list[Collision] = []
 
     for canonical, proposed in proposals.items():
         own = key.of_alias(canonical) | {key.of_roster_term(canonical)}
@@ -146,16 +134,12 @@ def validate_aliases(
             keys = key.of_alias(alias)
             if not na or keys & own or na in seen:
                 continue
-            hit = next((roster_by_key[k] for k in keys if k in roster_by_key), None)
-            if hit is not None:
-                collisions.append(Collision(canonical=canonical, alias=alias, collides_with=hit))
-                continue
             seen.add(na)
             kept.append(alias.strip())
         if kept:
             clean[canonical] = kept
 
-    return ValidatedVocabulary(aliases=clean, collisions=tuple(collisions))
+    return ValidatedVocabulary(aliases=clean)
 
 
 def merge_aliases(

@@ -4,6 +4,7 @@ title: Bonos CER/UVA
 tags: [instrument]
 sources:
   - resource: sources/04 Bonos CER y UVA.docx
+topics: [inflación, bonos ajustados por inflación, CER, UVA]
 ---
 
 # Bonos CER/UVA

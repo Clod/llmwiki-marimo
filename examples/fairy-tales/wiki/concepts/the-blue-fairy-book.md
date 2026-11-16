@@ -4,6 +4,7 @@ title: The Blue Fairy Book
 tags: [instrument]
 sources:
   - resource: sources/Little Red Riding Hood.pdf
+topics: [Andrew Lang, public domain]
 ---
 
 # The Blue Fairy Book

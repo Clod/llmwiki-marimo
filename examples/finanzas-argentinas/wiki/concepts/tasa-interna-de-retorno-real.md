@@ -4,6 +4,7 @@ title: Tasa Interna de Retorno Real
 tags: [theme]
 sources:
   - resource: sources/04 Bonos CER y UVA.docx
+topics: [TIR, rendimiento real, rentabilidad real]
 ---
 
 # Tasa Interna de Retorno Real

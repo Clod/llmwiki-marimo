@@ -4,6 +4,7 @@ title: Plazo fijo en dólares
 tags: [instrument]
 sources:
   - resource: sources/10 Plazos Fijos.docx
+topics: [depósito en dólares, ahorro en dólares]
 ---
 
 # Plazo fijo en dólares

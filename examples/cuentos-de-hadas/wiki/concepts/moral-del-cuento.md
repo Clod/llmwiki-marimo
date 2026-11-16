@@ -4,6 +4,7 @@ title: Moral del Cuento
 tags: [theme]
 sources:
   - resource: sources/La Cenicienta.pdf
+topics: [moraleja, lección, enseñanza]
 ---
 
 # Moral del Cuento

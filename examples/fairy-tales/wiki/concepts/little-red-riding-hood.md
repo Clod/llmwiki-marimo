@@ -4,6 +4,7 @@ title: Little Red Riding Hood
 tags: [entity]
 sources:
   - resource: sources/Little Red Riding Hood.pdf
+topics: [red hood, grandmother]
 ---
 
 # Little Red Riding Hood

@@ -97,6 +97,18 @@ def test_write_page_content_deletes_the_verification(wiki):
     assert load(wiki, doc_id) is None
 
 
+def test_write_page_content_keeps_the_verification_when_only_the_front_matter_changes(wiki):
+    # The validity of a verification is the hash of the body (`state`): new topics
+    # leave every sentence as it was.
+    doc_id = make_page(wiki)
+    save(wiki, doc_id)
+    path = wiki[1] / "wiki" / "concepts" / "uva.md"
+    text = path.read_text(encoding="utf-8").replace("title: UVA", "title: UVA\ntopics: [inflación]", 1)
+    assert "topics:" in text
+    assert write_page_content(wiki[0], wiki[1], "/wiki/concepts/", "uva", text, language="es")
+    assert load(wiki, doc_id) is not None
+
+
 def test_deleting_the_page_deletes_the_verification(wiki):
     doc_id = make_page(wiki)
     save(wiki, doc_id)

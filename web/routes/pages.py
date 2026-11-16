@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from fastapi.templating import Jinja2Templates
 
 from domain.datasets.frontmatter import split_frontmatter
+from domain.tools.wiki_fs import page_topics
 from domain.ingestion.formats import IMAGE_EXTENSIONS
 from domain.ingestion.text_extract import decode_text
 from domain.verify.models import split_source
@@ -19,6 +20,7 @@ from services.wiki import (
     FIXED_PAGES,
     PageConflict,
     delete_page,
+    has_topics,
     kept_image,
     list_pages,
     page_version,
@@ -26,6 +28,7 @@ from services.wiki import (
     save_page,
     source_names,
     source_view,
+    topic_suggestions,
 )
 from web.deps import get_state, get_templates, image_support, page_context
 from web.i18n import N_, _, translate_message
@@ -191,6 +194,9 @@ def edit_page(request: Request, wiki_id: str, page: str, notice: str = "",
     _block, body = split_frontmatter(text)
     context = page_context(state, wiki_id, page)
     wiki = state.get_wiki(wiki_id).wiki
+    topics = page_topics(text)
+    context.update(has_topics=has_topics(page), topics=topics,
+                   topic_suggestions=topic_suggestions(wiki, topics))
     context.update(body=body.strip(), version=page_version(wiki, page),
                    error=notice_text(notice, request.query_params),
                    preview=render_markdown(wiki_id, body, page, context["pages"], source_names(wiki)))
@@ -207,10 +213,14 @@ def preview_edit(wiki_id: str, page: str, body: str = Form(""), state: AppState 
 
 @router.post("/w/{wiki_id}/edit/{page:path}")
 def save_edit(wiki_id: str, page: str, body: str = Form(...), version: str = Form(""),
+              topics: list[str] = Form([]), topics_shown: str = Form(""),
               state: AppState = Depends(get_state)):
     wiki = state.get_wiki(wiki_id).wiki
+    # `topics_shown` says the topic list was in the form: an empty `topics` then
+    # removes every topic. Without it (a fixed page), the topics are not touched.
+    new_topics = topics if topics_shown and has_topics(page) else None
     try:
-        save_page(wiki, page, body, int(version) if version else None)
+        save_page(wiki, page, body, int(version) if version else None, topics=new_topics)
     except PageConflict as exc:
         # The URL carries the key of the notice and its values (`web/notices.py`), not the text.
         return RedirectResponse(f"/w/{wiki_id}/edit/{page}?{notice_query('page-conflict', **exc.args[0].params)}",

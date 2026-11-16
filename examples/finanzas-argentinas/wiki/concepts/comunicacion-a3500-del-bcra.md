@@ -4,6 +4,7 @@ title: Comunicación A3500 del BCRA
 tags: [tema]
 sources:
   - resource: sources/05 Bonos Dólar Linked y Duales.docx
+topics: [A3500, tipo de cambio mayorista, dólar mayorista]
 ---
 
 # Comunicación A3500 del BCRA

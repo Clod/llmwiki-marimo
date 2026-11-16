@@ -4,6 +4,7 @@ title: Panel General
 tags: [theme]
 sources:
   - resource: sources/01 Acciones Locales.docx
+topics: [menor capitalización]
 ---
 
 # Panel General

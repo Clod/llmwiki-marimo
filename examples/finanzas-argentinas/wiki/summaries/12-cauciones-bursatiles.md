@@ -1,6 +1,7 @@
 ---
 type: summary
 title: 12 Cauciones Bursátiles
+topics: [cauciones, colocador, tomador, colateral]
 ---
 
 # 12 Cauciones Bursátiles

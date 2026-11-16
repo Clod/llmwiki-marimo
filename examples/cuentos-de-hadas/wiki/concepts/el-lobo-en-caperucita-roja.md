@@ -4,6 +4,7 @@ title: El lobo en Caperucita Roja
 tags: [entity]
 sources:
   - resource: sources/Caperucita Roja.pdf
+topics: [lobo, engaño]
 ---
 
 # El lobo en Caperucita Roja

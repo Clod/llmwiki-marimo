@@ -4,6 +4,7 @@ title: Manzana envenenada
 tags: [instrument]
 sources:
   - resource: sources/Blancanieves.pdf
+topics: [manzana, veneno]
 ---
 
 # Manzana envenenada

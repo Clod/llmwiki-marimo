@@ -4,6 +4,7 @@ title: Royal Ball
 tags: [theme]
 sources:
   - resource: sources/Cinderella.pdf
+topics: [ball, dance]
 ---
 
 # Royal Ball

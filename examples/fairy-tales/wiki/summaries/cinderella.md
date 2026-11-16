@@ -1,6 +1,7 @@
 ---
 type: summary
 title: Cinderella
+topics: [stepmother, stepsisters, fairy godmother, royal ball]
 ---
 
 # Cinderella

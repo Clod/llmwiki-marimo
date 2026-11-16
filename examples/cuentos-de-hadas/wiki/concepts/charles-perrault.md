@@ -5,6 +5,7 @@ tags: [entity]
 sources:
   - resource: sources/Caperucita Roja.pdf
   - resource: sources/La Cenicienta.pdf
+topics: [Perrault, literatura infantil]
 ---
 
 # Charles Perrault

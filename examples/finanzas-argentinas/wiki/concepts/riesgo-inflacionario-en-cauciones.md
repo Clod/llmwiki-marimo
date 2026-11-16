@@ -4,6 +4,7 @@ title: Riesgo Inflacionario en Cauciones
 tags: [theme]
 sources:
   - resource: sources/12 Cauciones Bursátiles.docx
+topics: [inflación, cauciones]
 ---
 
 # Riesgo Inflacionario en Cauciones

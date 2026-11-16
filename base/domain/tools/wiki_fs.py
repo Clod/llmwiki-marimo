@@ -25,6 +25,7 @@ import sqlite3
 # Generator for unique random IDs (Universally Unique Identifiers)
 import uuid
 # Cross-platform file path management library
+from dataclasses import dataclass
 from pathlib import Path
 
 # Specialized connection opener function from our local database utilities
@@ -295,6 +296,14 @@ def _existing_sources(file_path: Path) -> list[dict[str, str]]:
     return _sources_from_fm_block(fm_block)
 
 
+def _existing_topics(file_path: Path) -> list[str]:
+    """The `topics` of a page already on disk, or [] if unreadable."""
+    try:
+        return page_topics(file_path.read_text(encoding="utf-8"))
+    except OSError:
+        return []
+
+
 def _lookup_source_document_filename(conn: sqlite3.Connection, source_document_id: str) -> str | None:
     """Look up a document's filename by id, for resolving the default `sources` value."""
     row = conn.execute(
@@ -411,9 +420,20 @@ def create_page(
         # 7. Derive the OKF `type` field from the target directory.
         page_type = _PAGE_TYPE_BY_DIR.get(dir_path, "page")
 
+        # 7b. Keep the `topics` the page already declares: no caller generates
+        # them, so a rewrite must not erase the ones a person wrote. With
+        # replace_sources (a rollback restore), the block `content` carries is
+        # authoritative, as for `sources`: the page on disk holds what the
+        # rolled-back run wrote. Otherwise, the page on disk.
+        if replace_sources or not file_path.exists():
+            topics = page_topics(content) if incoming_fm_block is not None else []
+        else:
+            topics = _existing_topics(file_path)
+
         # 8. Render the frontmatter block in code and prepend it to the body.
         frontmatter_block = render_frontmatter({
             "type": page_type, "title": title, "tags": tags, "sources": merged_sources,
+            "topics": topics,
         })
         final_content = frontmatter_block + body
 
@@ -518,6 +538,11 @@ def write_page_content(
     if not file_path.exists():
         return False
 
+    # A verification is valid while the body of the page is the same
+    # (`domain/verify/store.py`, `state`): a change of the front-matter alone, such
+    # as the topics, keeps it.
+    old_body = split_frontmatter(file_path.read_text(encoding="utf-8"))[1]
+    body_changed = split_frontmatter(new_content)[1] != old_body
     file_path.write_text(new_content, encoding="utf-8")
 
     # Synchronize with the database
@@ -540,8 +565,9 @@ def write_page_content(
                 conn.execute(
                     "DELETE FROM document_chunks WHERE document_id=?", (doc_id,)
                 )
-                # The text changed, so its sentence verification no longer describes it.
-                conn.execute("DELETE FROM page_verifications WHERE document_id=?", (doc_id,))
+                # The body changed, so its sentence verification no longer describes it.
+                if body_changed:
+                    conn.execute("DELETE FROM page_verifications WHERE document_id=?", (doc_id,))
                 _insert_chunks(conn, doc_id, new_content, language or load_wiki_language(workspace))
     finally:
         conn.close()
@@ -638,16 +664,71 @@ def delete_page(
     return existed
 
 
-def concept_page_names(db_path: str) -> list[str]:
-    """Titles of all ready concept pages — the concept half of the coverage roster.
+def page_topics(text: str | None) -> list[str]:
+    """The `topics` a page declares in its front-matter, e.g. `topics: [inflación]`.
 
-    Shared by the pre-retrieval gate and the vocabulary linter so both judge
-    "what the wiki covers" the same way.
+    A single string counts as a list of one topic. Any other value, a missing
+    block or an invalid front-matter gives no topics.
     """
+    block, _ = split_frontmatter(text or "")
+    if block is None:
+        return []
+    try:
+        topics = parse_frontmatter(block).get("topics")
+    except ValueError:
+        return []
+    if isinstance(topics, str):
+        topics = [topics]
+    if not isinstance(topics, list):
+        return []
+    return [t.strip() for t in topics if isinstance(t, str) and t.strip()]
+
+
+# The folders whose pages declare topics (`topics` in the front-matter), and the kind
+# of page each one holds. The three fixed pages (`index`, `overview`, `log`) do not.
+TOPIC_PAGE_DIRS = {"/wiki/concepts/": "concept", "/wiki/summaries/": "summary"}
+
+
+@dataclass(frozen=True)
+class TopicPage:
+    """A page as the coverage roster sees it: its title, its page path
+    (`concepts/riesgo-de-inflacion`), its kind (`concept` or `summary`) and the
+    topics it declares."""
+    title: str
+    page: str
+    kind: str
+    topics: tuple[str, ...]
+
+
+def topic_pages(db_path: str, *, ready_only: bool = True) -> list[TopicPage]:
+    """The concept and summary pages, ordered by title. With `ready_only=False`,
+    every page whose status is not `failed`. The topics are read from the
+    front-matter kept in the `content` column, which holds the whole text of the page."""
     from domain.tools.db import get_connection
+    status = "status='ready'" if ready_only else "status != 'failed'"
+    dirs = ", ".join(f"'{d}'" for d in TOPIC_PAGE_DIRS)
     with get_connection(db_path) as conn:
         rows = conn.execute(
-            "SELECT title FROM documents "
-            "WHERE source_kind='wiki' AND path='/wiki/concepts/' AND status='ready'"
+            "SELECT title, path, relative_path, content FROM documents "
+            f"WHERE source_kind='wiki' AND path IN ({dirs}) AND {status} ORDER BY title"
         ).fetchall()
-    return [r["title"] for r in rows if r["title"]]
+    return [TopicPage(row["title"] or "",
+                      row["relative_path"].removeprefix("wiki/").removesuffix(".md"),
+                      TOPIC_PAGE_DIRS[row["path"]],
+                      tuple(page_topics(row["content"])))
+            for row in rows]
+
+
+def concept_page_names(db_path: str) -> list[str]:
+    """The page names of the coverage roster: the title of each ready concept page,
+    and each topic a ready concept or summary page declares in its front-matter. The
+    title of a summary page («10 Plazos Fijos») is not a name of the roster.
+
+    Shared by the pre-retrieval gate, the vocabulary linter and the audit screen,
+    so all three judge "what the wiki covers" the same way.
+    """
+    names: list[str] = []
+    for page in topic_pages(db_path):
+        title = page.title if page.kind == "concept" else ""
+        names.extend(name for name in (title, *page.topics) if name)
+    return list(dict.fromkeys(names))

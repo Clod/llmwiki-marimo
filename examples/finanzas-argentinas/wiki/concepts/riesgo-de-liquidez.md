@@ -4,6 +4,7 @@ title: Riesgo de liquidez
 tags: [theme]
 sources:
   - resource: sources/10 Plazos Fijos.docx
+topics: [liquidez, precancelación]
 ---
 
 # Riesgo de liquidez

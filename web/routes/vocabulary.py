@@ -28,16 +28,12 @@ def _refusal(exc: vocab.VocabularyEditError) -> str:
         "missing": _("“%(term)s” is not in the list.", term=term),
         "covered": _("“%(term)s” is a topic the wiki covers: it cannot go to the blacklist.", term=term),
         "unknown_canonical": _("“%(term)s” is not in the roster: choose one of its names.", term=term),
-        "collision": _("“%(term)s” is the name of another topic of the wiki.", term=term),
     }.get(exc.code, str(exc))
 
 
 def finding_text(finding: vocab.Finding) -> str:
     """One finding of `vocabulary_check`, worded in the interface language."""
     t = finding.terms
-    if finding.check == "vocab_collision" and len(t) == 3:
-        return _("The alias “%(alias)s” of “%(canonical)s” is the name of “%(other)s”.",
-                 alias=t[0], canonical=t[1], other=t[2])
     if finding.check == "vocab_stale" and t:
         return _("There are aliases for “%(canonical)s”, which has no page nor dataset.", canonical=t[0])
     if finding.check == "vocab_ambiguous" and len(t) >= 2:

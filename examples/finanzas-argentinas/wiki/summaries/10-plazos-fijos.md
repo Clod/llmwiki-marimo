@@ -1,6 +1,7 @@
 ---
 type: summary
 title: 10 Plazos Fijos
+topics: [plazo fijo, depósito bancario, inflación, liquidez]
 ---
 
 # 10 Plazos Fijos

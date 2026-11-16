@@ -1,6 +1,7 @@
 ---
 type: summary
 title: 01 Acciones Locales
+topics: [acciones argentinas, Panel Líder, Panel General, mercado bursátil]
 ---
 
 # 01 Acciones Locales

@@ -12,6 +12,13 @@
 .editor-text { flex: 1; min-height: 60vh; resize: none; border: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg);
                padding: var(--space-3) var(--space-4); background: var(--color-bg); font-size: var(--text-sm); line-height: 1.7; }
 .editor-preview { padding: var(--space-4) var(--space-5); max-width: none; }
+.editor-topics { display: flex; flex-direction: column; }
+.topic-list { margin: 0; padding: var(--space-1) 0; list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); padding-inline: var(--space-3); }
+.topic-list:empty { display: none; }
+.topic-list li { display: flex; align-items: center; gap: var(--space-2); }
+.topic-add { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.topic-add .field { flex: 1; min-width: 0; max-width: 28rem; height: var(--control-h-sm); font-size: var(--text-xs); }
+.topic-add .btn { height: var(--control-h-sm); padding: 0 var(--space-3); }
 @media (max-width: 900px) {
   .editor-panes { grid-template-columns: 1fr; }
   .editor-text { min-height: 40vh; }

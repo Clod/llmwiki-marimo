@@ -4,6 +4,7 @@ title: Riesgos de los bonos CER/UVA
 tags: [theme]
 sources:
   - resource: sources/04 Bonos CER y UVA.docx
+topics: [rezago inflacionario, bonos CER, bonos UVA]
 ---
 
 # Riesgos de los bonos CER/UVA

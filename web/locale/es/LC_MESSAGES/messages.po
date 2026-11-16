@@ -734,16 +734,6 @@ msgstr "«%(term)s» no está en el padrón: elegí uno de sus nombres."
 
 #: web/routes/vocabulary.py
 #, python-format
-msgid "“%(term)s” is the name of another topic of the wiki."
-msgstr "«%(term)s» es el nombre de otro tema de la wiki."
-
-#: web/routes/vocabulary.py
-#, python-format
-msgid "The alias “%(alias)s” of “%(canonical)s” is the name of “%(other)s”."
-msgstr "El alias «%(alias)s» de «%(canonical)s» es el nombre de «%(other)s»."
-
-#: web/routes/vocabulary.py
-#, python-format
 msgid "There are aliases for “%(canonical)s”, which has no page nor dataset."
 msgstr "Hay alias para «%(canonical)s», que no tiene página ni dataset."
 
@@ -1344,11 +1334,13 @@ msgstr "Hallazgos de la revisión del vocabulario"
 
 #: web/templates/_vocabulary_body.html
 msgid ""
-"The names the wiki covers: the categories and keys of datasets/ and the titles of the concept pages. A question that "
-"names none of them is refused. Read only: it changes with the pages and the datasets"
+"The names the wiki covers: the categories and keys of datasets/, the titles of the concept pages and the topics of "
+"the concept and summary pages. A question that names none of them is refused. Read only: it changes with the pages "
+"and the datasets; the topics are edited in the editor of each page"
 msgstr ""
-"Los nombres que la wiki cubre: las categorías y claves de datasets/ y los títulos de las páginas de concepto. Una "
-"pregunta que no nombra ninguno se rechaza. Solo lectura: cambia con las páginas y los datasets"
+"Los nombres que la wiki cubre: las categorías y claves de datasets/, los títulos de las páginas de concepto y los "
+"temas de las páginas de concepto y de resumen. Una pregunta que no nombra ninguno se rechaza. Solo lectura: cambia "
+"con las páginas y los datasets; los temas se editan en el editor de cada página"
 
 #: web/templates/_vocabulary_body.html
 msgid "Roster"
@@ -1377,6 +1369,10 @@ msgstr "De dónde sale el nombre"
 #: web/templates/_vocabulary_body.html
 msgid "page"
 msgstr "página"
+
+#: web/templates/_vocabulary_body.html
+msgid "page topic"
+msgstr "tema de página"
 
 #: web/templates/_vocabulary_body.html
 msgid "dataset"
@@ -1426,7 +1422,7 @@ msgstr "Otro nombre para ese nombre"
 msgid "Add the alias as hand-written"
 msgstr "Agregar el alias como manual"
 
-#: web/templates/_vocabulary_body.html
+#: web/templates/_vocabulary_body.html web/templates/edit.html
 msgid "Add"
 msgstr "Agregar"
 
@@ -1450,7 +1446,7 @@ msgstr "generado"
 msgid "Remove the hand-written alias"
 msgstr "Quitar el alias manual"
 
-#: web/templates/_vocabulary_body.html
+#: web/templates/_vocabulary_body.html web/templates/edit.html
 msgid "Remove"
 msgstr "Quitar"
 
@@ -1786,6 +1782,10 @@ msgid "Editing"
 msgstr "Editando"
 
 #: web/templates/edit.html
+msgid "The rest of the front-matter block is not edited: it is kept as it is."
+msgstr "El resto del bloque de front-matter no se edita: se conserva tal como está."
+
+#: web/templates/edit.html
 msgid "The front-matter block is not edited: it is kept as it is."
 msgstr "El bloque de front-matter no se edita: se conserva tal como está."
 
@@ -1800,6 +1800,34 @@ msgstr "Guardar los cambios y commitearlos en el repositorio git de la wiki"
 #: web/templates/edit.html web/templates/page.html web/templates/settings.html
 msgid "Save"
 msgstr "Guardar"
+
+#: web/templates/edit.html
+msgid "The topics the page treats: a question that names one passes the coverage roster"
+msgstr "Los temas que trata la página: una pregunta que nombra uno pasa el padrón de cobertura"
+
+#: web/templates/edit.html
+msgid "Topics"
+msgstr "Temas"
+
+#: web/templates/edit.html
+msgid "Remove the topic from the page"
+msgstr "Quitar el tema de la página"
+
+#: web/templates/edit.html
+msgid "A topic of the page"
+msgstr "Un tema de la página"
+
+#: web/templates/edit.html
+msgid "New topic of the page"
+msgstr "Tema nuevo de la página"
+
+#: web/templates/edit.html
+msgid "Suggests the topics of the other pages; Enter adds it"
+msgstr "Sugiere los temas de las demás páginas; Enter lo agrega"
+
+#: web/templates/edit.html
+msgid "Add the topic to the list; it is saved with Save"
+msgstr "Agrega el tema a la lista; se guarda con Guardar"
 
 #: web/templates/edit.html
 msgid "Markdown text"
@@ -3863,11 +3891,6 @@ msgid "💡 Creating concept: %(name)s"
 msgstr "💡 Creando el concepto: %(name)s"
 
 #: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "⚠️ %(n)s alias collision(s) dropped"
-msgstr "⚠️ Se descartaron %(n)s choque(s) de alias"
-
-#: base/domain/ingestion/pipeline.py
 msgid "📄 Writing summary page..."
 msgstr "📄 Escribiendo la página de resumen..."
 
@@ -3895,6 +3918,11 @@ msgid "❌ Failed: %(file)s — %(error)s"
 msgstr "❌ Falló: %(file)s: %(error)s"
 
 #: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚠️ New aliases to review in the vocabulary screen: %(pairs)s"
+msgstr "⚠️ Alias nuevos para revisar en la pantalla de vocabulario: %(pairs)s"
+
+#: base/domain/ingestion/pipeline.py
 msgid "🔎 Scanning sources/..."
 msgstr "🔎 Revisando sources/..."
 
@@ -3902,11 +3930,6 @@ msgstr "🔎 Revisando sources/..."
 #, python-format
 msgid "🔎 Found %(n)s candidate file(s)"
 msgstr "🔎 Se encontraron %(n)s archivo(s) para ingerir"
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "⚠️ %(n)s dataset-alias collision(s) dropped"
-msgstr "⚠️ Se descartaron %(n)s choque(s) de alias de datos"
 
 #: base/domain/ingestion/pipeline.py
 #, python-format
@@ -4166,4 +4189,16 @@ msgstr "%(filename)s no es una fuente de esta wiki"
 
 #~ msgid "The text of no source could be extracted, so the current index stays as it was. First error: %(error)s"
 #~ msgstr "No se pudo extraer el texto de ninguna fuente, así que el índice actual queda como estaba. Primer error: %(error)s"
+
+#~ msgid "“%(term)s” is the name of another topic of the wiki."
+#~ msgstr "«%(term)s» es el nombre de otro tema de la wiki."
+
+#~ msgid "The alias “%(alias)s” of “%(canonical)s” is the name of “%(other)s”."
+#~ msgstr "El alias «%(alias)s» de «%(canonical)s» es el nombre de «%(other)s»."
+
+#~ msgid "⚠️ %(n)s alias collision(s) dropped"
+#~ msgstr "⚠️ Se descartaron %(n)s choque(s) de alias"
+
+#~ msgid "⚠️ %(n)s dataset-alias collision(s) dropped"
+#~ msgstr "⚠️ Se descartaron %(n)s choque(s) de alias de datos"
 

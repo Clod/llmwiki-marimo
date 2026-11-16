@@ -4,6 +4,7 @@ title: Bonos Duales
 tags: [instrumento]
 sources:
   - resource: sources/05 Bonos Dólar Linked y Duales.docx
+topics: [inflación, devaluación]
 ---
 
 # Bonos Duales
