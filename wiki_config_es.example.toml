@@ -106,19 +106,21 @@ suggested_prompts = [
 # ]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Pre-retrieval (recuperación previa) — opcional, apagado por defecto
+# Pre-retrieval (recuperación previa) — se elige en el chat, pregunta por pregunta
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Hay dos formas de responder una pregunta, y este flag elige entre las dos.
+# Hay dos formas de responder una pregunta. El selector «Modo», debajo de la
+# pregunta del chat, elige entre las dos en cada pregunta; ninguna clave de este
+# archivo elige el modo.
 #
-#   Apagado (el default). El modelo tiene las herramientas de búsqueda y decide
+#   Agente con verificación de evidencia. El modelo tiene las herramientas de búsqueda y decide
 #   solo cuáles usar. Puede responder sobre una página, sobre todas, o sobre la
 #   forma de la colección — porque puede ir a mirar. Lo que no puede es
 #   garantizar que miró: la instrucción de buscar es un pedido que el modelo
 #   quizá no honre, y puede armar una respuesta convincente sobre un párrafo que
 #   apenas comparte una palabra con la pregunta.
 #
-#   Encendido. El código recupera *antes* de consultar al modelo, y decide en
+#   Pre-retrieval (el modo con el que abre el chat). El código recupera *antes* de consultar al modelo, y decide en
 #   Python si este wiki cubre la pregunta — abstiéndose sin gastar un solo token
 #   cuando no. La recuperación deja de ser salteable. El precio es alcance:
 #   responde solo lo que reconoce como cubierto, y la cobertura sale de los
@@ -126,18 +128,14 @@ suggested_prompts = [
 #   ninguno ("¿qué hay en este wiki?", "compará todos") queda afuera aunque una
 #   búsqueda hubiera encontrado algo.
 #
-# Regla práctica: dejalo apagado para un wiki de prosa. Encendelo cuando una
-# respuesta equivocada cueste algo — plata, una dosis, un plazo legal — y
-# prefieras una abstención antes que una conjetura verosímil. Los demos que
-# vienen con el proyecto discrepan a propósito: examples/cuentos-de-hadas lo
-# deja apagado, examples/finanzas-argentinas lo enciende.
-#
-# docs/query_walkthrough.md recorre los dos modos con salida capturada de cada uno.
+# Regla práctica: el modo agente conviene para un wiki de prosa. Pre-retrieval
+# conviene cuando una respuesta equivocada cueste algo — plata, una dosis, un
+# plazo legal — y prefieras una abstención antes que una conjetura verosímil.
 #
 # [pre_retrieval]
-# enabled = true
 
-# Las listas de abajo solo importan con pre_retrieval encendido.
+# La lista negra de abajo se revisa en los modos Pre-retrieval y agente
+# (nodo Q_IN_BLACKLIST).
 
 # Lista NEGRA — temas que sabés que este wiki NO cubre. Se chequea primero, así
 # que una coincidencia se abstiene de inmediato, antes de leer ningún documento.

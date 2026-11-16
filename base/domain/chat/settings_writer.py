@@ -40,7 +40,6 @@ from domain.wiki_settings import (
 
 SYSTEM_PROMPT = "assistant.system_prompt"
 SUGGESTED_PROMPTS = "assistant.suggested_prompts"
-ENABLED = "pre_retrieval.enabled"
 MIN_COVERAGE = "pre_retrieval.min_coverage"
 CONDENSE = "pre_retrieval.condense_question"
 THRESHOLD = "verify.threshold"
@@ -52,9 +51,9 @@ MIN_BYTES = "images.min_bytes"
 MAX_PER_DOCUMENT = "images.max_per_document"
 NUMBER_TOLERANCE = "verify.number_tolerance"
 
-KEYS = (SYSTEM_PROMPT, SUGGESTED_PROMPTS, ENABLED, MIN_COVERAGE, CONDENSE, THRESHOLD, CANDIDATES,
+KEYS = (SYSTEM_PROMPT, SUGGESTED_PROMPTS, MIN_COVERAGE, CONDENSE, THRESHOLD, CANDIDATES,
         NUMBER_TOLERANCE, IGNORE, DESCRIBE, MIN_SIDE_PX, MIN_BYTES, MAX_PER_DOCUMENT)
-_BOOLEANS = (ENABLED, CONDENSE, IGNORE, DESCRIBE)
+_BOOLEANS = (CONDENSE, IGNORE, DESCRIBE)
 _FRACTIONS = (MIN_COVERAGE, THRESHOLD, NUMBER_TOLERANCE)
 _COUNTS = (MIN_SIDE_PX, MIN_BYTES)   # whole numbers, 0 or more
 
@@ -76,7 +75,7 @@ def defaults(language: str) -> dict:
     return {
         SYSTEM_PROMPT: load_prompt("system_prompt", language).strip(),
         SUGGESTED_PROMPTS: list(get_locale(language).suggested_prompts),
-        ENABLED: False, MIN_COVERAGE: 0.2, CONDENSE: True,
+        MIN_COVERAGE: 0.2, CONDENSE: True,
         THRESHOLD: DEFAULT_VERIFY_THRESHOLD, CANDIDATES: DEFAULT_VERIFY_CANDIDATES,
         IGNORE: True, DESCRIBE: False, MIN_SIDE_PX: DEFAULT_MIN_SIDE_PX, MIN_BYTES: DEFAULT_MIN_BYTES,
         MAX_PER_DOCUMENT: DEFAULT_MAX_PER_DOCUMENT,
@@ -88,7 +87,7 @@ def current(config: WikiAssistantConfig) -> dict:
     """The value each key has now, from a loaded config."""
     return {
         SYSTEM_PROMPT: config.system_prompt, SUGGESTED_PROMPTS: list(config.suggested_prompts),
-        ENABLED: config.pre_retrieval, MIN_COVERAGE: config.min_coverage, CONDENSE: config.condense_question,
+        MIN_COVERAGE: config.min_coverage, CONDENSE: config.condense_question,
         THRESHOLD: config.verify_threshold, CANDIDATES: config.verify_candidates,
         IGNORE: config.images.ignore, DESCRIBE: config.images.describe, MIN_SIDE_PX: config.images.min_side_px,
         MIN_BYTES: config.images.min_bytes, MAX_PER_DOCUMENT: config.images.max_per_document,

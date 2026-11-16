@@ -58,7 +58,7 @@ def test_one_key_changed_leaves_the_rest_of_the_file_byte_identical(wiki):
 
 def test_a_value_equal_to_the_current_one_writes_nothing(wiki):
     before = text(wiki)
-    assert sw.write_settings(wiki, {"pre_retrieval.enabled": True, "assistant.suggested_prompts": ["one", "two"],
+    assert sw.write_settings(wiki, {"pre_retrieval.min_coverage": 0.3, "assistant.suggested_prompts": ["one", "two"],
                                     "assistant.system_prompt": "Old prompt.\n"}) == []
     assert text(wiki) == before
 
@@ -73,7 +73,7 @@ def test_the_system_prompt_and_the_prompts_are_replaced_and_the_inline_comment_s
 
 
 def test_the_other_sections_and_the_language_are_not_touched(wiki):
-    sw.write_settings(wiki, {"verify.threshold": 0.8, "pre_retrieval.enabled": False})
+    sw.write_settings(wiki, {"verify.threshold": 0.8, "pre_retrieval.condense_question": False})
     parsed = data(wiki)
     assert parsed["wiki"] == {"language": "es"} and parsed["fuera_de_alcance"] == {"terminos": ["cripto"]}
     assert "# Comment on top, kept." in text(wiki) and "# the coverage" in text(wiki)
@@ -128,11 +128,11 @@ def test_an_invalid_value_is_refused_and_nothing_is_written(wiki, changes, key, 
 
 def test_the_form_values_are_parsed():
     values, errors = sw.parse_form({"assistant.system_prompt": "P", "assistant.suggested_prompts": " a \n\n b\r\n",
-                                    "pre_retrieval.enabled": True, "pre_retrieval.min_coverage": "0,25",
+                                    "pre_retrieval.min_coverage": "0,25",
                                     "pre_retrieval.condense_question": False, "verify.threshold": "0.6",
                                     "verify.candidates": "7"})
     assert errors == {} and values == {
-        "assistant.system_prompt": "P", "assistant.suggested_prompts": ["a", "b"], "pre_retrieval.enabled": True,
+        "assistant.system_prompt": "P", "assistant.suggested_prompts": ["a", "b"],
         "pre_retrieval.min_coverage": 0.25, "pre_retrieval.condense_question": False,
         "verify.threshold": 0.6, "verify.candidates": 7}
 

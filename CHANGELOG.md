@@ -622,6 +622,20 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Removed
 
+- **The `[pre_retrieval] enabled` key and its checkbox.** The settings screen showed
+  a checkbox «Pre-retrieval · Enabled», and unticking it changed nothing: the
+  chat opens in the Pre-retrieval mode and the **Mode** selector chooses the mode
+  of each question. No code read the key. The key, the checkbox and the line in
+  `examples/finanzas-argentinas/wiki_config.toml` are removed; a
+  `wiki_config.toml` that still has the key loads, and the key is ignored.
+
+- **The text of `docs/query_walkthrough.md`, its appendix and its capture script.**
+  The walkthrough described the marimo interface of v0.4.0 (two checkboxes
+  instead of the **Mode** selector). It keeps its headings, as the outline of a
+  rewrite for the web interface, and a note that points to the git history and to
+  `docs/manual/workflows/6.7-chat-rag.md`. `docs/query_walkthrough_appendix.md`
+  and `scripts/capture_query_walkthrough.py`, which generated it, are removed.
+
 - **The alias collision check.** The ingestion dropped an alias that was the
   name of another covered term, the linter reported it as `vocab_collision`
   with an automatic repair, and the vocabulary screen refused it. The rule

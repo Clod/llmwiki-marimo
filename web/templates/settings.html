@@ -102,12 +102,6 @@
 
     <section class="panel settings-block" aria-labelledby="h-pre">
       <div class="panel-head"><h2 id="h-pre"><code>[pre_retrieval]</code></h2></div>
-      <div class="setting">
-        <div class="setting-head"><label for="f-enabled">{{ _("Pre-retrieval") }}</label><code>enabled</code></div>
-        <label class="check"><input type="checkbox" id="f-enabled" name="enabled"{% if values.enabled %} checked{% endif %}> {{ _("Enabled") }}</label>
-        <p class="setting-help muted">{{ _("The code searches the wiki before calling the model and refuses the questions the wiki does not cover.") }}</p>
-        <p class="setting-default">{{ _("Default value") }}: <code>{{ _("no") if not defaults.enabled else _("yes") }}</code></p>
-      </div>
       <div class="setting{% if errors.min_coverage %} invalid{% endif %}">
         <div class="setting-head"><label for="f-min_coverage">{{ _("Minimum coverage") }}</label><code>min_coverage</code></div>
         <input class="field num" id="f-min_coverage" name="min_coverage" type="number" step="any" min="0" max="1" value="{{ values.min_coverage }}">

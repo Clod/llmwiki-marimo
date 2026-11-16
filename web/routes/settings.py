@@ -25,7 +25,7 @@ SAVED = N_("Saved. The changes apply from the next question; the earlier answers
 # Form field → key of wiki_config.toml. The checkboxes are absent from the form when unticked.
 FIELDS = {
     "system_prompt": "assistant.system_prompt", "suggested_prompts": "assistant.suggested_prompts",
-    "enabled": "pre_retrieval.enabled", "min_coverage": "pre_retrieval.min_coverage",
+    "min_coverage": "pre_retrieval.min_coverage",
     "condense_question": "pre_retrieval.condense_question",
     "threshold": "verify.threshold", "candidates": "verify.candidates",
     "ignore": "images.ignore", "describe": "images.describe",
@@ -33,7 +33,7 @@ FIELDS = {
     "max_per_document": "images.max_per_document",
     "number_tolerance": "verify.number_tolerance",
 }
-CHECKBOXES = ("enabled", "condense_question", "ignore", "describe")
+CHECKBOXES = ("condense_question", "ignore", "describe")
 
 MODELS_SAVED = N_("Saved in .env. The models apply from the next question and the next ingestion.")
 # Form field → key of `.env`: the reading model (chat), the ingestion model, the vision

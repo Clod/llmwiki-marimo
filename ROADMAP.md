@@ -109,30 +109,22 @@ Limits, as measured and as designed:
 5. A computed figure (a sum, a difference, "un 20 % más") is unsupported unless
    the computation is in the advisory table.
 
-Stated as a limit in
-[`docs/query_walkthrough.md`](docs/query_walkthrough.md#the-question-this-document-answers).
+**The raw-source fallback is not reached on the shipped demos; a retry now reaches
+the sources.** With pre-retrieval, the fallback before refusing answers from a
+fragment of the original document. It runs only when the question names something
+the wiki covers *and* the search over the generated pages returns nothing, and
+those two conditions work against each other: naming a subject finds its page.
+Measured on 2026-11-04 (v0.6.1) with the question "¿qué es …?": none of the 77
+titles and aliases of the three demos reaches the fallback. An alias is searched by
+the name it stands for, and finds the page ("Cinderwench" finds Cinderella); a
+question that names only a dataset key goes to the data path, evaluated first.
 
-**The raw-source fallback is reachable but structurally rare.** With
-pre-retrieval enabled, the last resort before refusing is to answer from a
-fragment of the original document. It runs only when the question names
-something the wiki covers *and* the search over the generated pages returns
-nothing — and those two conditions work against each other. What the wiki
-"covers" is mostly the titles of its own pages, so naming one all but
-guarantees the search finds it. Measured across both shipped demos: of 43
-concept-page titles, **0** fail to find their own page; of 17 ingest-generated
-aliases, **3** do.
-
-Those three are the whole reachable domain, and they share a shape: a name the
-wiki *recognises* but never *wrote*. Ingestion found "Cinderwench" in the tale
-and recorded it as another name for Cinderella; the generated page says
-Cinderella throughout. So the search finds nothing, the fallback fires, and the
-original text — the one place that word appears — is where it looks.
-
-The consequence is narrower reach than the design reads as offering. A detail
-question about a covered subject, whose answer is in the source and not in the
-generated page, still goes to the curated tier, because the subject's name finds
-its page. The model is handed pages that do not contain the answer, and the
-branch that would have gone looking is never evaluated.
+A detail question about a covered subject, whose answer is in the source and not in
+the generated page, used to end in a refusal: the model was handed pages that do not
+contain the answer. Since the retry with the original documents (`Q_RETRY_SOURCES`,
+`_retry_with_sources`), an answer from the pages that opens with the fixed refusal
+sentence triggers a search of the source fragments and a second call to the model
+with them. How often that second call answers is not measured yet.
 
 The gate asks *did I find anything?* rather than *does what I found answer
 this?* — the same distinction that made the stop-word defect possible one level
@@ -148,9 +140,7 @@ change proposed yet; the trade needs measuring first.
 
 **Verifying an answer against its source: the established techniques.** Two
 distinct problems are involved, and this project currently addresses neither.
-They are recorded together because the entry above and
-[`docs/query_walkthrough.md`](docs/query_walkthrough.md#the-question-this-document-answers)
-both refer to them.
+They are recorded together because the entry above refers to them.
 
 *Problem 1 — which passage supports which sentence.* `overlap.is_supported`
 takes one answer and one source. Where it runs, the code injected exactly one
@@ -192,10 +182,12 @@ introduction, method, results; installation, troubleshooting; beginning, middle,
 ending. Comparing *the section a fragment came from* against *the section the
 question asks about* is a string comparison, not a model.
 
-Half of it is built and unused. `chunker.py:63` computes `header_breadcrumb` for
-every chunk, `pipeline.py:242` stores it on the `document_chunks` row,
-`search_chunks` returns it (`tools/search.py:27`), and `wiki_tools.py:118`
-renders it into what the model sees. Every retrieved fragment already carries
+Half of it is built and unused. `chunk_text_continuing`
+(`base/domain/ingestion/chunker.py`) computes `header_breadcrumb` for every chunk,
+step 6 of `_ingest_file` (`base/domain/ingestion/pipeline.py`) stores it on the
+`document_chunks` row, `search_chunks` returns it (`base/domain/tools/search.py`),
+and `_search_wiki_fts` (`base/domain/chat/wiki_tools.py`) renders it into what the
+model sees. Every retrieved fragment already carries
 the section it came from; no code compares it with anything.
 
 The missing half is the mapping from a question to a section — deciding that
@@ -245,9 +237,9 @@ not the obstacle:
 
 | Route | Insertion point |
 |---|---|
-| breadcrumb comparison | between `retrieve_wiki` (`preretrieval.py:323`) and the plan, dropping or downranking rows whose `header_breadcrumb` does not match the section the question asks about |
+| breadcrumb comparison | between `retrieve_wiki` (`base/domain/chat/preretrieval.py`) and the plan, dropping or downranking rows whose `header_breadcrumb` does not match the section the question asks about |
 | cross-encoder reranking | the same place, rescoring and reordering the rows instead |
-| NLI verification | built: after the answer, `verify_answer` (`web/routes/chat.py:162`); the lexical check (`preretrieval.py:679`) still decides on Tier 2 |
+| NLI verification | built: after the answer, `verify_answer` (called from `web/routes/chat.py`); the lexical check (`fragment_coverage`, node `Q_IS_GROUNDED`, `base/domain/chat/workflow/catalog.py`) still decides on Tier 2 |
 
 One line each. What differs is what surrounds that line.
 
@@ -278,72 +270,35 @@ multilingual (`MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7`,
 user ticks "Verify the sentences". `[verify] threshold` defaults to 0.5, and the
 owner sets it per wiki. A cross-encoder would face the same costs.
 
-**The coverage gate matches page titles literally.** With pre-retrieval enabled,
-whether a wiki answers a question depends on whether one of its concept-page
-titles appears word-for-word *inside that question* — the test runs in that
-direction, not the reverse. On the shipped finance demo:
+**The coverage gate once matched page titles literally; routes A and C are built.**
+With pre-retrieval, a question passes the coverage gate only if it names something
+the wiki covers. The gate compared the question with the concept-page titles, whole
+and word for word, so on the finance demo "¿las cauciones son riesgosas?" was turned
+away although three pages treat exactly that. There were three routes out:
 
-```
-pages:     Caución Bursátil · Riesgo Inflacionario en Cauciones
-           Riesgo de Crédito en Cauciones
-question:  "¿las cauciones son riesgosas?"          →  not covered
-```
+- **A — Stem the gate the way the index stems.** Built. The index and the gate both
+  use the Snowball stemmer of the wiki's language (`stem_text`, the column
+  `content_stemmed` of `document_chunks`), so `caución` and `cauciones` unify.
+- **B — Match on the title's content words with a threshold.** Refused, and the
+  reason is kept: it reopens the CEDEARs leak, where a question about one instrument
+  matches a page about another because both say *riesgo*. It is what everyone
+  proposes first.
+- **C — Have each page declare what it is about.** Built. A concept or summary page
+  declares `topics` in its front-matter; the ingestion proposes them in the same call
+  that returns the aliases, a curator edits them in the page editor, and the gate
+  counts each topic like a title (`page_topics`, `concept_page_names`).
 
-Three pages about exactly that, and the question is turned away, because no whole
-title fits inside the sentence — and the bare `caución` from the dataset misses
-too, since matching is by whole word and `caución` is not one inside `cauciones`.
-Page titles are chosen by a language model at a temperature above zero, and it
-named statements rather than subjects. Regenerating a wiki therefore also edits
-the list of subjects it will answer about.
-Measured and written up in
-[`docs/query_walkthrough.md`](docs/query_walkthrough.md#where-the-roster-shows-its-limits).
-
-**The sharpest way to state it: one system holds two different notions of "the
-same word".**
-
-| | how it compares | `caución` ≟ `cauciones` |
-|---|---|---|
-| the search index (`chunks_fts`) | `porter unicode61` — stems | **yes** — identical rows, verified |
-| the coverage gate (`scope._normalize`) | lowercase, strip accents, whole word | **no** |
-
-This is solvable, and there are three routes out. They are not equivalent, and
-the obvious one is the dangerous one.
-
-**A — Stem the gate the way the index already stems.** The narrowest change:
-`caución` and `cauciones` unify and the two halves of the system stop disagreeing
-about what a word is. It does *not* fix multi-word titles — `Riesgo Inflacionario
-en Cauciones` still fits inside no question anyone would type. Low risk, because
-it loosens nothing semantically. One caveat worth knowing before adopting it:
-`porter` is an *English* stemmer applied to Spanish. It happens to unify this
-pair; adopting it means adopting its arbitrariness too.
-
-**B — Match on the title's content words with a threshold**, instead of requiring
-the whole phrase. `Riesgo Inflacionario en Cauciones` → `{riesgo, inflacionario,
-cauciones}`, and a question supplying `{cauciones, riesgosas}` scores 1 of 3.
-This fixes the case above **and reopens the CEDEARs leak** — the exact failure the
-gate exists to prevent, where a question about one instrument matches a page about
-another because both say *riesgo*. Recorded here because it is what everyone
-proposes first, and the reason to refuse it should be written down rather than
-rediscovered.
-
-**C — Have ingestion declare what each page is about.** Today the roster is
-*inferred* from whatever title the model chose in passing. But ingestion already
-extracts, per concept, a name **and its aliases** — that machinery exists and
-ships (see `alias_generation.py`). Extending it to record *"this page covers:
-cauciones, credit risk, short-dated placements"* turns the roster into **declared
-data** instead of a by-product of page naming. This is the one that addresses the
-cause: the problem is not that the match is strict, it is that the list it
-matches against was assembled by accident.
-
-**Recommendation: C as the direction, A as an interim, B refused with the reason
-kept.** None of the three has been built; this entry exists so the next person
-does not have to re-derive the trade.
+Measured on the finance demo: "¿las cauciones son riesgosas?" now matches the topic
+`cauciones` and the dataset category `caucion`. What C does not cover: the ingestion
+can propose a topic that fits any work of the same kind (`cautionary tale` for a
+fairy tale), which lets a question about another work pass; the ingestion names
+every topic it adds, and the curator removes that kind.
 
 **The pipeline accepts a malformed extraction instead of rejecting it.**
 `extract_structured` asks for JSON in the prompt, and `_parse_extraction`
 reads the reply leniently: when it does not parse, the function returns the
 whole raw response as `document_summary` and no concepts at all
-(`wiki_generator.py:312`). The run continues. That text is written verbatim
+(`_parse_extraction`, `base/domain/ingestion/wiki_generator.py`). The run continues. That text is written verbatim
 under the summary page's `## Summary` heading, the page still carries its
 `[^1]` source footnote, and what records the failure is a log warning, the
 interface line "Found 0 concept(s)", and `concept_count=0` in the ingestion
@@ -385,7 +340,7 @@ deleted because it is precisely what would keep such a step safe. The decision
 to build it or delete it is open; the function documents both directions.
 
 **Staleness does not travel along page-to-page links, and the graph to make it
-travel already exists.** Today `staleness_check` (`lint/checks.py:37`) follows
+travel already exists.** Today `staleness_check` (`base/domain/lint/checks.py`) follows
 `cites` only — wiki page to source document. It compares a page's timestamp
 against the timestamps of the sources it cites, never against another page. So
 rewriting page A leaves every page that links to A untouched, unflagged and
@@ -430,8 +385,10 @@ other.
 small set by construction, so no arbitrary depth limit is needed.
 
 *Derive it on read; do not store it.* There is no migration path in this
-project — `_apply_base_schema` (`tools/db.py:37`) runs the schema file on open,
-and there is no `ALTER TABLE`, no schema version, nothing. A new column on
+project — `_apply_base_schema` (`base/domain/tools/db.py`) runs the schema file on
+open, and there is no schema version. The one `ALTER TABLE` adds the column
+`content_stemmed` (`_rebuild_stemmed_index`); any other missing column raises
+`SchemaMismatchError`. A new column on
 `document_references` would never appear in the databases that already exist,
 including both shipped demos, so storing the weight means first building a
 migration mechanism, which is a larger change than the feature. Deriving it

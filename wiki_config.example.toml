@@ -98,19 +98,20 @@ suggested_prompts = [
 # ]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Pre-retrieval — optional, off by default
+# Pre-retrieval — chosen per question in the chat
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Two ways to answer a question, and this flag picks between them.
+# Two ways to answer a question. The Mode selector under the question of the chat
+# picks between them, for each question; no key of this file chooses the mode.
 #
-#   Unticked (the default). The model holds the search tools and decides for
+#   Agent with evidence check. The model holds the search tools and decides for
 #   itself what to call. It can answer about one page, about all of them, or
 #   about the shape of the collection — because it can go and look. What it
 #   cannot do is guarantee it looked: the instruction to search is a request the
 #   model may not honour, and it can build a confident answer on a paragraph
 #   that merely shares a word with the question.
 #
-#   Ticked. Code retrieves *before* the model is consulted, and decides in
+#   Pre-retrieval (the mode the chat opens with). Code retrieves *before* the model is consulted, and decides in
 #   Python whether this wiki covers the question at all — refusing without
 #   spending a single token when it does not. Retrieval stops being skippable.
 #   The price is reach: it answers only what it recognises as covered, and
@@ -118,21 +119,18 @@ suggested_prompts = [
 #   concept ("what is in this wiki?", "compare all of them") is turned away
 #   even when a search would have found something.
 #
-# Rule of thumb: leave it off for a wiki of prose. Turn it on when a wrong
-# answer costs something — money, a dose, a legal date — and you would rather
-# have a refusal than a plausible guess. The shipped demos disagree on purpose:
-# examples/fairy-tales leaves it off, examples/finanzas-argentinas turns it on.
-#
-# docs/query_walkthrough.md walks both modes with captured output from each.
+# Rule of thumb: the agent mode suits a wiki of prose. Pre-retrieval suits a wiki
+# where a wrong answer costs something — money, a dose, a legal date — and you
+# would rather have a refusal than a plausible guess.
 #
 # [pre_retrieval]
-# enabled = true
 # A follow-up that names no topic ("And what are its risks?") is rewritten by the
 # model, from the conversation, into a question that stands alone, and the
 # coverage gate and the search run on the rewrite. On by default.
 # condense_question = true
 
-# The lists below only matter when pre_retrieval is on.
+# The blacklist below is checked in the Pre-retrieval and the agent modes
+# (node Q_IN_BLACKLIST).
 
 # BLACKLIST — subjects you know this wiki does not cover. Checked first, so a
 # match refuses immediately, before any document is read.

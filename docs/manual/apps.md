@@ -332,7 +332,7 @@ lint and repair, and the messages `services` return.
 
 Routes: `web/routes/settings.py`, `base/services/settings.py`. `GET /w/{wiki_id}/settings`
 shows every scalar key of `wiki_config.toml` (§8) with its value, its default and a line
-of help: `[assistant] system_prompt`, `[pre_retrieval] enabled`, `min_coverage` and
+of help: `[assistant] system_prompt`, `[pre_retrieval] min_coverage` and
 `condense_question`, `[verify] threshold`, `candidates` and `number_tolerance`, and the five keys of `[images]`. `[wiki] language` is shown
 read only, because the index keeps the stems of that language. The field of the system
 prompt shows the file `prompts/system_prompt.<lang>.md` of the wiki's language when the
@@ -484,8 +484,9 @@ Vocabulary screen (§7.6) edits the lists.
   assistant. See §6.7 for an example. When `system_prompt` is omitted, the wiki
   uses `prompts/system_prompt.<lang>.md` of its language; when `suggested_prompts`
   is omitted, the localized defaults for the wiki language are used.
-- **`[pre_retrieval]`** — `enabled` (default `false`), `min_coverage` (default
-  `0.2`) and `condense_question` (default `true`) of the code-driven retrieval.
+- **`[pre_retrieval]`** — `min_coverage` (default `0.2`) and `condense_question`
+  (default `true`) of the code-driven retrieval. The mode of each question is chosen
+  in the **Mode** selector of the chat, not in this file.
 - **`[verify]`** — `threshold` (default `0.5`): the probability at which a sentence
   counts as supported; `candidates` (default `5`): the passages kept for each
   sentence before the verifier runs (`domain/verify/preselect.py`);
