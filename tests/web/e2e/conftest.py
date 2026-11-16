@@ -51,6 +51,11 @@ def browser():
         try:
             instance = launch(playwright)
         except RuntimeError as exc:
+            # On a developer machine without a browser the flows are skipped. In the CI
+            # (GitHub Actions sets `CI`) a browser is installed, so a failure to start one
+            # is a failure: skipping would hide every flow behind a green run.
+            if os.environ.get("CI"):
+                pytest.fail(str(exc))
             pytest.skip(str(exc))
         yield instance
         instance.close()

@@ -331,3 +331,18 @@ def test_the_stylesheets_hold_no_text():
 def test_the_console_placeholder_is_a_translated_attribute(client, en_client):
     assert 'data-empty="The progress of the operation appears here."' in en_client.get(f"/w/{WIKI_ID}/ingest").text
     assert 'data-empty="El progreso de la operación aparece acá."' in client.get(f"/w/{WIKI_ID}/history").text
+
+
+def test_check_lists_a_stale_catalog_and_writes_nothing(tmp_path, monkeypatch):
+    """`--check` compares what `update` would write with the files, and never writes."""
+    import shutil
+
+    locale = tmp_path / "locale"
+    shutil.copytree(i18n_extract.LOCALE_DIR, locale)
+    monkeypatch.setattr(i18n_extract, "LOCALE_DIR", locale)
+    assert i18n_extract.stale() == []
+    pot = locale / "messages.pot"
+    pot.write_bytes(pot.read_bytes() + b"\n# a stray line\n")
+    before = pot.read_bytes()
+    assert i18n_extract.stale() == [pot]
+    assert pot.read_bytes() == before

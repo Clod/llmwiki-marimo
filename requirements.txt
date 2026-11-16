@@ -852,7 +852,9 @@ pydantic-evals==2.62.0 \
 pydantic-graph==2.62.0 \
     --hash=sha256:a7b4493cbe04bbb15a13aab0dc1d8115eeff82ebd39fd9c5f51c3fe3abc0b1d6 \
     --hash=sha256:c7479adbd8901dca8315daa0eddfd2a8b32dcd5a23ebc386bb553cb9a02f8703
-    # via pydantic-ai-slim
+    # via
+    #   llmwiki
+    #   pydantic-ai-slim
 pydantic-settings==2.14.1 \
     --hash=sha256:6e3c7edfd8277687cdc598f56e5cff0e9bfff0910a3749deaa8d4401c3a2b9de \
     --hash=sha256:e874d3bec7e787b0c9958277956ed9b4dd5de6a80e162188fdaff7c5e26fd5fa

@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 # Import the core Agent class from PydanticAI
+import pydantic_ai
 from pydantic_ai import Agent
 # Import the OpenAI chat model wrapper from PydanticAI
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -41,6 +42,11 @@ from domain.prompts import load_prompt
 # Activation trigger for the dataset capability (§4 of datasets-format.md):
 # presence of a datasets/ directory with at least one valid dataset file.
 from domain.datasets.source import has_active_datasets
+
+# Pydantic AI prints a first-run banner («observability: off — …») to a terminal, once
+# per process, with the first agent run: the web server showed it with the first
+# question. The application owns its output, so the banner is off.
+pydantic_ai.BANNER_ENABLED = False
 
 
 # Appended to the system prompt only when the dataset capability is active
@@ -79,6 +85,7 @@ def create_agent(
     extra_prompt: str | None = None,
     include_wiki_tools: bool = True,
     include_dataset_tool: bool = True,
+    name: str = "wiki_assistant",
 ) -> Agent[str, str]:
     """Return a configured wiki assistant agent.
 
@@ -106,6 +113,8 @@ def create_agent(
         extra_prompt: Optional text appended to the system prompt when overlay
             tools are active (e.g. the finance_argentina routing lines, in
             Spanish). Defaults to None — no-op.
+        name: The name of the agent in the traces. The agent that answers is
+            `wiki_assistant`; the condenser of a follow-up is `question_condenser`.
 
     Returns:
         A fully-configured PydanticAI Agent instance.
@@ -170,8 +179,9 @@ def create_agent(
         # SQLite database. This database path is passed at runtime using `deps`.
         deps_type=str,
 
-        # Give the agent a clean name for internal logging/debugging
-        name="wiki_assistant",
+        # The name of the agent in the traces: `wiki_assistant` answers, and the
+        # condenser of a follow-up passes its own (`base/services/chat.py`).
+        name=name,
 
         # Inject the behavior instructions (System Prompt), localized for chat
         # answer language and, when active, extended with dataset routing.
