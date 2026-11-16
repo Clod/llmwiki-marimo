@@ -296,6 +296,21 @@ def _existing_sources(file_path: Path) -> list[dict[str, str]]:
     return _sources_from_fm_block(fm_block)
 
 
+def _new_topics(kept: list[str], proposed: list[str]) -> list[str]:
+    """The proposed topics that `kept` does not hold, compared without case nor
+    accents, without repeats, in the order proposed."""
+    from domain.chat.scope import _normalize
+
+    seen = {_normalize(t) for t in kept}
+    new: list[str] = []
+    for topic in proposed:
+        key = _normalize(topic) if isinstance(topic, str) else ""
+        if key and key not in seen:
+            seen.add(key)
+            new.append(topic.strip())
+    return new
+
+
 def _existing_topics(file_path: Path) -> list[str]:
     """The `topics` of a page already on disk, or [] if unreadable."""
     try:
@@ -326,6 +341,7 @@ def create_page(
     replace_sources: bool = False,
     clear_stale: bool = False,
     language: str | None = None,
+    topics: list[str] | None = None,
 ) -> dict:
     """Write a wiki page to disk and insert/update the DB record.
 
@@ -359,7 +375,13 @@ def create_page(
     prior frontmatter, `sources` included (possibly in the legacy shape, which
     this function migrates just like any other read).
 
-    Returns {"id": doc_id, "path": relative_path}.
+    `topics` are the topics the ingestion proposes for the page. They are added to
+    the topics the page already declares, which are all kept: the curator decides,
+    and removes in the editor the ones that do not fit. A topic already declared,
+    compared without case nor accents, is not added twice.
+
+    Returns {"id": doc_id, "path": relative_path, "new_topics": [...]}, the last one
+    the proposed topics the page did not have, for the ingestion to name them.
     Raises FileExistsError if the page exists and overwrite=False.
     """
     # 1. Standardize path formats
@@ -426,9 +448,11 @@ def create_page(
         # authoritative, as for `sources`: the page on disk holds what the
         # rolled-back run wrote. Otherwise, the page on disk.
         if replace_sources or not file_path.exists():
-            topics = page_topics(content) if incoming_fm_block is not None else []
+            kept_topics = page_topics(content) if incoming_fm_block is not None else []
         else:
-            topics = _existing_topics(file_path)
+            kept_topics = _existing_topics(file_path)
+        new_topics = _new_topics(kept_topics, topics or [])
+        topics = [*kept_topics, *new_topics]
 
         # 8. Render the frontmatter block in code and prepend it to the body.
         frontmatter_block = render_frontmatter({
@@ -496,7 +520,7 @@ def create_page(
         # Always close connection to prevent database locks or memory leaks
         conn.close()
 
-    return {"id": doc_id, "path": relative_path}
+    return {"id": doc_id, "path": relative_path, "new_topics": new_topics}
 
 
 def read_page(

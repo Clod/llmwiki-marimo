@@ -3,7 +3,8 @@
 `OLD` holds the value each constant had in the code before the move (copied at the start of the
 work, from `wiki_generator.py`, `lint/checks.py` and `Locale.content_directive`). The English
 files must equal it byte for byte, so the prompts an English wiki sends do not change. The
-Spanish `content_directive` moved unchanged.
+Spanish `content_directive` moved unchanged. A later change of an English prompt updates its
+entry here: the extraction prompts asked for topics on 2026-11-16.
 """
 
 from __future__ import annotations
@@ -91,6 +92,12 @@ OLD = {'ingest_system': {'en': 'You are a knowledge-base assistant. Your task is
                           "   the SAME thing (abbreviations, synonyms, an acronym's "
                           'expansion). Never list a\n'
                           '   related-but-different concept as an alias.\n'
+                          '3. Topics: the subjects this document treats about each concept, '
+                          'and about the\n'
+                          "   document as a whole, named with the document's own words, short\n"
+                          '   ("inflation", "purchasing power", "wolf", "grandmother"). A '
+                          'topic may be shared by\n'
+                          '   several concepts.\n'
                           '\n'
                           'Respond with valid JSON only — no markdown fences, no commentary.'},
  'extract_user_template': {'en': 'Extract knowledge from this document.\n'
@@ -106,6 +113,8 @@ OLD = {'ingest_system': {'en': 'You are a knowledge-base assistant. Your task is
                                  '{{\n'
                                  '  "document_summary": "2-3 sentence summary of the '
                                  'document",\n'
+                                 '  "document_topics": ["the subjects the whole document '
+                                 'treats"],\n'
                                  '  "concepts": [\n'
                                  '    {{\n'
                                  '      "name": "Short canonical name — a noun phrase, no '
@@ -114,7 +123,9 @@ OLD = {'ingest_system': {'en': 'You are a knowledge-base assistant. Your task is
                                  '      "insight": "The specific new insight this document '
                                  'adds about this concept",\n'
                                  '      "aliases": ["other names for the exact same thing", '
-                                 '"abbreviations, synonyms"]\n'
+                                 '"abbreviations, synonyms"],\n'
+                                 '      "topics": ["the subjects this document treats '
+                                 'about this concept"]\n'
                                  '    }}\n'
                                  '  ]\n'
                                  '}}\n'
@@ -122,7 +133,8 @@ OLD = {'ingest_system': {'en': 'You are a knowledge-base assistant. Your task is
                                  'Extract 2-5 concepts. Only include concepts worth a '
                                  'dedicated wiki page. Use an\n'
                                  'empty list for "aliases" when the concept has no common '
-                                 'alternate names.'},
+                                 'alternate names. Give 2-5\n'
+                                 'topics per concept and for the document.'},
  'concept_system': {'en': 'You are a wiki page author. Write clear, factual concept pages in '
                           'markdown.\n'
                           'Each page should have a brief definition, key characteristics, and '
@@ -296,7 +308,8 @@ NAMES = tuple(OLD)
 # both languages must carry them.
 KEYS = {
     "extract_user_template": ['"document_summary"', '"concepts"', '"name"', '"category"',
-                              '"insight"', '"aliases"', "entity|instrument|theme"],
+                              '"insight"', '"aliases"', '"topics"', '"document_topics"',
+                              "entity|instrument|theme"],
     "extract_system": ["JSON"],
     "dataset_alias_system": ['{"aliases": {"<'],
     "lint_contradiction_template": ['"CONTRADICTION: <', '"NO CONTRADICTION"'],

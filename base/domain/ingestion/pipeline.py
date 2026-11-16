@@ -359,6 +359,8 @@ def _ingest_file(
 
             # ── Step 8: Create/update concept pages ───────────────────────────
             concept_slugs: list[str] = []
+            # (page, topic) for each topic the ingestion added, for a curator to review.
+            new_topics: list[tuple[str, str]] = []
             with tracing.node("I_CONCEPT_PAGES", W, concept_count=len(extraction.concepts)) as i6:
                 for concept in extraction.concepts:
                     slug = make_wiki_slug(concept.name)
@@ -376,7 +378,9 @@ def _ingest_file(
                         concept.name, concept_md, [concept.category], overwrite=True,
                         clear_stale=True,
                         sources=[file_path.name],
+                        topics=concept.topics,
                     )
+                    new_topics.extend((f"concepts/{slug}", t) for t in concept_result["new_topics"])
                     wiki_compensations.append({
                         "dir_path": "/wiki/concepts/", "slug": slug,
                         "category": "concepts", "prior": prior,
@@ -423,7 +427,11 @@ def _ingest_file(
                     db_path, workspace, "/wiki/summaries/", wiki_slug,
                     _title_from_filename(file_path.name), summary_md, [],
                     overwrite=True, source_document_id=doc_id, clear_stale=True,
+                    topics=extraction.document_topics,
                 )
+                new_topics.extend((f"summaries/{wiki_slug}", t) for t in summary_result["new_topics"])
+                i8.set(new_topics=len(new_topics))
+                _report_new_topics(_cb, new_topics)
                 wiki_compensations.append({
                     "dir_path": "/wiki/summaries/", "slug": wiki_slug,
                     "category": "summaries", "prior": prior_summary,
@@ -608,6 +616,15 @@ def _report_new_aliases(cb: Callable[[str], None], new: Iterable[tuple[str, str]
     pairs = "; ".join(f"«{alias}» → «{canonical}»" for canonical, alias in new)
     if pairs:
         cb(M_("⚠️ New aliases to review in the vocabulary screen: %(pairs)s", pairs=pairs))
+
+
+def _report_new_topics(cb: Callable[[str], None], new: Iterable[tuple[str, str]]) -> None:
+    """Name each topic the ingestion just added to a page, for a curator to review in
+    the editor of the page. A topic the curator removed can come back with a later
+    ingestion: this line names it again."""
+    pairs = "; ".join(f"«{topic}» → {page}" for page, topic in new)
+    if pairs:
+        cb(M_("⚠️ New topics to review in the editor of each page: %(pairs)s", pairs=pairs))
 
 
 def _all_concept_names(db_path: str) -> list[str]:
@@ -895,12 +912,14 @@ def regenerate_wiki_pages(
                     doc_id=doc_id,
                 )
                 wiki_slug = make_wiki_slug(filename)
-                create_page(
+                regenerated = create_page(
                     db_path, workspace, "/wiki/summaries/", wiki_slug,
                     _title_from_filename(filename), wiki_markdown, [], overwrite=True,
                     clear_stale=True,
                     source_document_id=doc_id,
+                    topics=extraction.document_topics,
                 )
+                _report_new_topics(_cb, [(f"summaries/{wiki_slug}", t) for t in regenerated["new_topics"]])
                 _cb(f"  ✅ {filename} → wiki/summaries/{wiki_slug}.md")
                 results.append(IngestResult(file_path, "ingested", "wiki page regenerated", doc_id))
             except Exception as exc:

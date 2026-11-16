@@ -40,12 +40,14 @@ class ExtractedConcept:
     category: str  # "entity" | "instrument" | "theme"
     insight: str
     aliases: list[str] = field(default_factory=list)  # other names for the SAME thing
+    topics: list[str] = field(default_factory=list)   # the subjects a question would name
 
 
 @dataclass
 class ExtractionResult:
     document_summary: str
     concepts: list[ExtractedConcept] = field(default_factory=list)
+    document_topics: list[str] = field(default_factory=list)  # the topics of the summary page
 
 
 def extract_structured(
@@ -98,7 +100,7 @@ def image_note(language: str) -> str:
 
 
 def _clean_aliases(raw) -> list[str]:
-    """Keep only non-empty string aliases; tolerate a missing or malformed field."""
+    """Keep only non-empty string aliases (or topics); tolerate a missing or malformed field."""
     if not isinstance(raw, list):
         return []
     return [a.strip() for a in raw if isinstance(a, str) and a.strip()]
@@ -118,11 +120,13 @@ def _parse_extraction(raw: str, filename: str) -> ExtractionResult:
                 category=c.get("category", "theme"),
                 insight=c.get("insight", ""),
                 aliases=_clean_aliases(c.get("aliases")),
+                topics=_clean_aliases(c.get("topics")),
             )
             for c in data.get("concepts", [])
             if c.get("name")
         ]
-        return ExtractionResult(document_summary=summary, concepts=concepts)
+        return ExtractionResult(document_summary=summary, concepts=concepts,
+                                document_topics=_clean_aliases(data.get("document_topics")))
     except (json.JSONDecodeError, TypeError):
         logger.warning("extract_structured: JSON parse failed for %s, using fallback", filename)
         return ExtractionResult(document_summary=raw, concepts=[])
@@ -134,7 +138,7 @@ def extract_dataset_aliases(terms, client, model, language: str = "en") -> dict[
     Mirrors ``extract_structured``'s shape — one JSON call, tolerant parse. Returns
     a ``{term: [alias, ...]}`` map with only non-empty string aliases; ``{}`` on
     empty input or a malformed response. The caller validates this against the
-    wiki's coverage (dropping collisions) before persisting it, so this function
+    wiki's coverage before persisting it, so this function
     only has to fetch and clean, never trust. The content-language directive makes
     the aliases come back in the wiki language.
     """
