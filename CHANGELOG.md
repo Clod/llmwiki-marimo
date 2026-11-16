@@ -13,6 +13,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **The ingestion proposes the topics of each page.** The extraction call that
+  returns the concepts and their aliases also returns the topics of each concept
+  and of the document (`prompts/extract_*`). `create_page` adds them to the
+  topics the page already has and keeps every one: the curator removes in the
+  editor the ones that do not fit. The ingestion names each topic it added
+  (`⚠️ New topics to review in the editor of each page: «jealousy» →
+  concepts/evil-queen`). A topic the curator removed can come back with a later
+  ingestion, and the line names it again. The regeneration of the summary pages
+  adds the topics of the document too.
+
 - **A concept page declares its topics.** The question «¿La inflación me puede
   comer la ganancia?» ended in `R_NOT_IN_ROSTER`, although the wiki has the
   page «Riesgo de inflación»: the coverage roster compares a title of several

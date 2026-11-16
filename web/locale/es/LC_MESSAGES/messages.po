@@ -3923,6 +3923,11 @@ msgid "⚠️ New aliases to review in the vocabulary screen: %(pairs)s"
 msgstr "⚠️ Alias nuevos para revisar en la pantalla de vocabulario: %(pairs)s"
 
 #: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚠️ New topics to review in the editor of each page: %(pairs)s"
+msgstr "⚠️ Temas nuevos para revisar en el editor de cada página: %(pairs)s"
+
+#: base/domain/ingestion/pipeline.py
 msgid "🔎 Scanning sources/..."
 msgstr "🔎 Revisando sources/..."
 

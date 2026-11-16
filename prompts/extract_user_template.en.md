@@ -10,15 +10,18 @@ Content:
 Return JSON with this exact structure:
 {{
   "document_summary": "2-3 sentence summary of the document",
+  "document_topics": ["the subjects the whole document treats"],
   "concepts": [
     {{
       "name": "Short canonical name — a noun phrase, no parentheses or vs-comparisons",
       "category": "entity|instrument|theme",
       "insight": "The specific new insight this document adds about this concept",
-      "aliases": ["other names for the exact same thing", "abbreviations, synonyms"]
+      "aliases": ["other names for the exact same thing", "abbreviations, synonyms"],
+      "topics": ["the subjects this document treats about this concept"]
     }}
   ]
 }}
 
 Extract 2-5 concepts. Only include concepts worth a dedicated wiki page. Use an
-empty list for "aliases" when the concept has no common alternate names.
+empty list for "aliases" when the concept has no common alternate names. Give 2-5
+topics per concept and for the document.
