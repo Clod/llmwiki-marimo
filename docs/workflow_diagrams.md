@@ -39,7 +39,7 @@ flowchart TD
   after_Q_IN_BLACKLIST{"Does the question name a blacklisted term?"}
   Q_STEM["Q_STEM · The question reduced to stems"]
   R_BLACKLIST["R_BLACKLIST · Refusal: blacklisted term"]
-  Q_NAMES_DATA["Q_NAMES_DATA · Does the question name data: a dataset term, an alias or an advice request?"]
+  Q_NAMES_DATA["Q_NAMES_DATA · Does the question name data: a dataset term, an alias of one or an advice request?"]
   Q_IN_ROSTER["Q_IN_ROSTER · Does the question name a topic of the wiki (coverage roster)?"]
   Q_PAGE_OPEN["Q_PAGE_OPEN · Is the user reading a wiki page?"]
   after_Q_PAGE_OPEN{"Is the question a follow-up to rewrite, does it name a wiki topic, or is a page open?"}
@@ -49,7 +49,7 @@ flowchart TD
   Q_COLLECTION_OPEN_PAGE["Q_COLLECTION_OPEN_PAGE · Overview and index added to the open page"]
   Q_RW_ACCEPTED["Q_RW_ACCEPTED · Is the rewrite accepted: one line, not empty, not too long?"]
   after_Q_SEARCH_WIKI{"Did the wiki search find a page?"}
-  Q_SEARCH_SOURCES["Q_SEARCH_SOURCES · Search in the source documents"]
+  Q_SEARCH_SOURCES["Q_SEARCH_SOURCES · Search in the source documents, also by the names the aliases stand for"]
   after_Q_COLLECTION_OPEN_PAGE{"Does the question name a wiki topic, or is a page open?"}
   after_Q_RW_ACCEPTED{"Was the rewrite accepted?"}
   Q_CONDENSED["Q_CONDENSED · Result of the condensation: the text that the search examines, and what the checks found on it"]
