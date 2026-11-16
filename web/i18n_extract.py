@@ -11,6 +11,7 @@ service messages that the interface translates (`domain/messages.py`). Not impor
 
 from __future__ import annotations
 
+import io
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -69,12 +70,14 @@ def read(lang: str) -> Catalog:
         return pofile.read_po(fh, locale=lang)
 
 
-def update() -> None:
+def render() -> dict[Path, bytes]:
+    """The catalogs as they should be written: messages.pot and every messages.po, each
+    with its bytes. Nothing is written."""
     template = extract()
-    LOCALE_DIR.mkdir(exist_ok=True)
-    with (LOCALE_DIR / "messages.pot").open("wb") as fh:
-        template.creation_date = FIXED_DATE
-        pofile.write_po(fh, template, width=120, sort_by_file=False, include_lineno=False)
+    template.creation_date = FIXED_DATE
+    out = io.BytesIO()
+    pofile.write_po(out, template, width=120, sort_by_file=False, include_lineno=False)
+    files = {LOCALE_DIR / "messages.pot": out.getvalue()}
     for lang in LANGUAGES:
         if lang == SOURCE_LANGUAGE:
             continue
@@ -88,12 +91,33 @@ def update() -> None:
         catalog.copyright_holder = "the llmwiki authors"
         # Fixed dates: a regenerated catalog differs only where a message changed.
         catalog.creation_date = catalog.revision_date = FIXED_DATE
+        out = io.BytesIO()
+        pofile.write_po(out, catalog, width=120, sort_by_file=False, include_lineno=False, include_previous=False)
+        files[path] = out.getvalue()
+    return files
+
+
+def update() -> None:
+    """Write messages.pot and every messages.po."""
+    for path, content in render().items():
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("wb") as fh:
-            pofile.write_po(fh, catalog, width=120, sort_by_file=False, include_lineno=False, include_previous=False)
+        path.write_bytes(content)
+
+
+def stale() -> list[Path]:
+    """The catalogs whose file differs from what `update` would write: `--check` lists
+    them and fails, and writes nothing."""
+    return [path for path, content in render().items()
+            if not path.is_file() or path.read_bytes() != content]
 
 
 if __name__ == "__main__":
+    if "--check" in sys.argv[1:]:
+        out_of_date = stale()
+        for path in out_of_date:
+            print(f"out of date: {path.relative_to(ROOT)}")
+        print(f"{len(ids())} message ids")
+        sys.exit(1 if out_of_date else 0)
     update()
     print(f"{len(ids())} message ids")
     sys.exit(0)

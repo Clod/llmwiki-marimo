@@ -92,7 +92,7 @@ def build_agents(wiki: Wiki, base_url: str, api_key: str, model: str) -> ChatAge
     )
     condenser = create_agent(
         base_url, api_key, model, system_prompt=condense_prompt(config.language),
-        language=config.language, include_wiki_tools=False,
+        language=config.language, include_wiki_tools=False, name="question_condenser",
     )
     return ChatAgents(config=config, agent=agent, agent_pre_retrieval=agent_pre_retrieval,
                       condenser=condenser)

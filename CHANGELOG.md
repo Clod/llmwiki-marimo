@@ -499,6 +499,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **Maintenance.**
+  - The web server no longer prints Pydantic AI's first-run banner («observability:
+    off — …») with the first question: `pydantic_ai.BANNER_ENABLED` is off
+    (`base/domain/chat/agent.py`).
+  - The condenser of a follow-up is named `question_condenser` in the traces; it
+    was `wiki_assistant`, like the agent that answers (`create_agent(name=…)`).
+  - `pydantic-graph`, which the chat workflows import, is a declared dependency
+    (`pyproject.toml`); it came only through `pydantic-ai`.
+  - `python -m web.i18n_extract --check` lists the catalogs that are out of date
+    and exits 1, and writes nothing; it rewrote the catalogs and exited 0.
+  - In the CI, a browser that does not start fails the Playwright flows instead of
+    skipping them (`tests/web/e2e/conftest.py`).
+
 - **A datum only in a source document gets an answer in the pre-retrieval
   mode.** «¿En qué se convertían los lacayos de Cenicienta a la medianoche?»
   found the page of Cenicienta, and the model refused: the lizards are only in

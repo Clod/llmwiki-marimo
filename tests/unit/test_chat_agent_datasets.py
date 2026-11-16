@@ -177,3 +177,20 @@ def test_no_extra_is_byte_identical() -> None:
     assert _agent_tool_names(agent) == _DEFAULT_TOOLS
     (prompt,) = agent._system_prompts
     assert prompt == apply_chat_directive(base, "en")
+
+
+def test_the_banner_of_pydantic_ai_is_off():
+    """The web server printed «observability: off — …» with the first question."""
+    import pydantic_ai
+
+    assert pydantic_ai.BANNER_ENABLED is False
+
+
+def test_the_condenser_has_its_own_name_in_the_traces(tmp_path):
+    from services.chat import build_agents
+    from services.wiki import open_wiki
+
+    (tmp_path / "wiki").mkdir()
+    agents = build_agents(open_wiki(tmp_path), "http://localhost:1234/v1", "fake-key", "fake-model")
+    assert agents.agent.name == "wiki_assistant"
+    assert agents.condenser.name == "question_condenser"
