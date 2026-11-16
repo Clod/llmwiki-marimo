@@ -668,6 +668,7 @@ class PreRetrievalTurn:
     # The coverage roster (`ensure_roster`), built once per turn.
     roster_built: bool = False
     aliases: list[str] = field(default_factory=list)
+    data_aliases: list[str] = field(default_factory=list)
     categories: set[str] = field(default_factory=set)
     keys: set[str] = field(default_factory=set)
     roster_terms: set[str] = field(default_factory=set)
@@ -721,6 +722,11 @@ def ensure_roster(turn: PreRetrievalTurn) -> None:
     # Dataset categories, concept-page titles and aliases are compared by
     # stem; dataset keys (proper names, codes) by whole word (decision 15).
     turn.keys = vocabulary - turn.categories
+    # The aliases of a dataset category or key; an alias of a page title is not data:
+    # «montero» (alias of the page «Cazador») went to the data tools in a wiki with no data.
+    data_terms = {_normalize(term) for term in vocabulary}
+    turn.data_aliases = [alias for name, names in turn.config.data_aliases.items()
+                         if _normalize(name) in data_terms for alias in names]
     # "In the padrón" = the question names something the wiki actually covers
     # (a dataset term OR a concept page name OR a known alias). Tier-2 (raw
     # docs) is allowed ONLY for a covered topic, so an uncovered question
@@ -760,7 +766,7 @@ def detect_data(turn: PreRetrievalTurn, text: str) -> None:
     # path, not a refusal.
     intent = intent_lists(turn)
     turn.has_data = mentions_known_data(
-        text, turn.categories, turn.aliases, language=turn.stem_language, exact=turn.keys,
+        text, turn.categories, turn.data_aliases, language=turn.stem_language, exact=turn.keys,
     ) or advisory_intent(text, intent.advisory, intent.advisory_shapes)
 
 

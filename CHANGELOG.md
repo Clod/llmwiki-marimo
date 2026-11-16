@@ -461,6 +461,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A page alias with no wiki page reads the source fragments.** In a copy of
+  the fairy-tales wiki with the alias `"Cazador" = ["montero"]`, «¿Qué hizo el
+  montero?» found no page and went to the data tools (`Q_AGENT_TOOLS`), in a
+  wiki with no data. The data detection counted every alias, also the aliases
+  of page titles; it now counts an alias only when it stands for a dataset
+  category or key. The source search (`Q_SEARCH_SOURCES`) also searches the
+  names the aliases of the question stand for, as `Q_SEARCH_WIKI` does: the
+  question now gets the fragments of «cazador» (`Q_AGENT_FRAGMENTS`).
+
 - **«No verification» shows the table of the alternatives.** For a question
   such as «¿qué alternativas tengo y cuánto ganaría?», the prompt of the
   advisory tool tells the model not to copy its table, because the code adds

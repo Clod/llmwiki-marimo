@@ -3470,8 +3470,8 @@ msgid "The question reduced to stems"
 msgstr "La pregunta reducida a raíces"
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "Does the question name data: a dataset term, an alias or an advice request?"
-msgstr "¿La pregunta nombra datos: un término de los datasets, un alias o un pedido de consejo?"
+msgid "Does the question name data: a dataset term, an alias of one or an advice request?"
+msgstr "¿La pregunta nombra datos: un término de los datasets, un alias de un término o un pedido de consejo?"
 
 #: base/domain/chat/workflow/node_texts.py
 msgid "Does the question name a topic of the wiki (coverage roster)?"
@@ -3518,8 +3518,8 @@ msgid "Key names of the category read from the dataset"
 msgstr "Nombres de las claves de la categoría leídos del dataset"
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "Search in the source documents"
-msgstr "Búsqueda en los documentos fuente"
+msgid "Search in the source documents, also by the names the aliases stand for"
+msgstr "Búsqueda en los documentos fuente, también por los nombres que representan los alias"
 
 #: base/domain/chat/workflow/node_texts.py
 msgid "Overview and index read, for a question about the whole wiki"

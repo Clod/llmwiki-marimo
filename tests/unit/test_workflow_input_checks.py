@@ -180,6 +180,7 @@ def test_collection_question_goes_to_q14(patched):
 
 
 def test_data_question_goes_to_q15(patched):
+    patched["vocab"] = {"dolar"}                  # «billete verde» is an alias of a data term
     out, path = _run(_turn("¿a cuánto está el billete verde?"))
     assert out == AgentCall("Q_AGENT_TOOLS")
     assert path[-5:] == ["Q_IS_COLLECTION", "Q_IS_DATA"] + PROMPT
@@ -189,6 +190,7 @@ def test_a_data_question_with_a_collection_expression_goes_to_the_data_tools(pat
     """«cada» is a collection expression, and the overview was read; the question names
     data, so it goes to Q_IS_DATA and the data tools, not to the overview and the index."""
     patched["collection"] = ["[wiki/overview.md]\nThe wiki has..."]
+    patched["vocab"] = {"dolar"}
     turn = _turn("¿cuánto vale el billete verde en cada banco?")
     out, path = _run(turn)
     assert out == AgentCall("Q_AGENT_TOOLS")
@@ -204,6 +206,25 @@ def test_source_fragments_go_to_q16(patched):
     assert out == AgentCall("Q_AGENT_FRAGMENTS")
     assert path[-4:] == ["Q_FRAGMENT_FOUND"] + PROMPT
     assert turn.plan.verify is True
+
+
+def test_a_page_alias_with_no_page_goes_to_the_fragments_of_the_name_it_stands_for(patched, monkeypatch):
+    """«montero» is an alias of the page «Cazador», not of a data term: the question names
+    no data, and the source search also searches «Cazador». It went to Q_AGENT_TOOLS."""
+    queries = []
+
+    def chunks(db, query, **_kwargs):
+        queries.append(query)
+        return ["[Blancanieves.pdf]\nEl cazador llevó a Blancanieves al bosque."]
+
+    monkeypatch.setattr(preretrieval, "retrieve_source_chunks", chunks)
+    turn = _turn("¿qué hizo el montero?")
+    turn.config = SimpleNamespace(blacklist=[], data_aliases={"Cazador": ["montero"], "dolar": ["billete verde"]})
+    patched["vocab"] = {"dolar"}
+    out, path = _run(turn)
+    assert turn.has_data is False and out == AgentCall("Q_AGENT_FRAGMENTS")
+    assert path[-4:] == ["Q_FRAGMENT_FOUND"] + PROMPT
+    assert queries == ["¿qué hizo el montero? Cazador"]
 
 
 def test_collection_intent_is_read_through_preretrieval(patched):

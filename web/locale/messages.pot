@@ -3330,7 +3330,7 @@ msgid "The question reduced to stems"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "Does the question name data: a dataset term, an alias or an advice request?"
+msgid "Does the question name data: a dataset term, an alias of one or an advice request?"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
@@ -3378,7 +3378,7 @@ msgid "Key names of the category read from the dataset"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "Search in the source documents"
+msgid "Search in the source documents, also by the names the aliases stand for"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py

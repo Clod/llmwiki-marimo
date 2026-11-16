@@ -343,10 +343,16 @@ async def wiki_search(ctx: InCtx) -> PreRetrievalTurn:
 
 
 async def source_search(ctx: InCtx) -> PreRetrievalTurn:
+    """The source search, by the question and by the names its aliases stand for, as
+    Q_SEARCH_WIKI searches them: «montero» also finds the fragments of «cazador»."""
     turn = ctx.state
-    with tracing.node("Q_SEARCH_SOURCES", R, fts_query=preretrieval._fts_query(turn.search, turn.language)) as q8:
+    # Only the replaced names: a term of the question is already in `turn.search`.
+    names = [name for name in preretrieval.alias_titles(turn.matched, turn.config.data_aliases)
+             if name not in turn.matched]
+    query = " ".join([turn.search, *names])
+    with tracing.node("Q_SEARCH_SOURCES", R, fts_query=preretrieval._fts_query(query, turn.language)) as q8:
         turn.doc_hits = preretrieval.retrieve_source_chunks(
-            turn.db_path, turn.search, language=turn.stem_language,
+            turn.db_path, query, language=turn.stem_language,
         )
         q8.set(fragments=preretrieval._hit_labels(turn.doc_hits))
     return turn
