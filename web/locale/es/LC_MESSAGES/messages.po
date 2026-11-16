@@ -3569,6 +3569,10 @@ msgstr "No se entrega ninguna página: el modelo llama a las herramientas de dat
 msgid "Source fragments given to the model"
 msgstr "Fragmentos de los documentos entregados al modelo"
 
+#: base/domain/chat/workflow/node_texts.py
+msgid "The model refused with the wiki pages: search the source documents and ask again"
+msgstr "El modelo se negó con las páginas de la wiki: búsqueda en los documentos fuente y nueva pregunta"
+
 #: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
 msgid "Is the answer grounded in the fragments?"
 msgstr "¿La respuesta se apoya en los fragmentos?"

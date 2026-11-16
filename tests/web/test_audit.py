@@ -397,6 +397,14 @@ def test_the_model_call_chain_keeps_each_tool_call_in_order():
     assert model_call_chain(["C_COUNT_HISTORY", "Q_QUESTION", "Q_IN_BLACKLIST", "R_BLACKLIST"]) == [] and model_call_diagram(["R_BLACKLIST"]) == ""
 
 
+def test_the_model_call_chain_shows_the_retry_with_the_source_fragments():
+    """Q_RETRY_SOURCES and its call to the model follow the first call; the output nodes do not."""
+    from web.audit_diagram import model_call_chain
+
+    path = ["Q_PROMPT", "agent", "Q_AGENT_PAGES", "Q_RETRY_SOURCES", "Q_AGENT_FRAGMENTS", "tier", "Q_IS_GROUNDED"]
+    assert model_call_chain(path) == ["Q_AGENT_PAGES", "Q_RETRY_SOURCES", "Q_AGENT_FRAGMENTS"]
+
+
 GRAPHS = [("pre-retrieval", 0), ("pre-retrieval", 1), ("agent", 0), ("agent", 1)]
 
 

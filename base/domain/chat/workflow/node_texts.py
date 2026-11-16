@@ -54,6 +54,7 @@ NODE_TEXTS: dict[str, str] = {
     "Q_AGENT_COLLECTION": N_("Overview and index given to the model"),
     "Q_AGENT_TOOLS": N_("No page given: the model calls the data tools"),
     "Q_AGENT_FRAGMENTS": N_("Source fragments given to the model"),
+    "Q_RETRY_SOURCES": N_("The model refused with the wiki pages: search the source documents and ask again"),
     "Q_IS_GROUNDED": N_("Is the answer grounded in the fragments?"),
     "Q_SOURCE_WARNING": N_("Warning appended: the answer comes from a source document"),
     "Q_TOOL_EVIDENCE": N_("Did a data tool return evidence?"),

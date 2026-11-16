@@ -45,7 +45,7 @@ from domain.chat.postprocess import (
     advisory_table, answer_with_table, ensure_citation, injected_pages, mark_injected, mark_uncited,
 )
 from domain.chat.preretrieval import PreRetrievalTurn
-from domain.chat.refusal import Refusal, RefusalCause, fixed_sentence, is_refusal
+from domain.chat.refusal import Refusal, RefusalCause, is_refusal
 from domain.chat.scope import blacklist_term
 from domain.i18n import get_locale
 from domain.text.stemming import stem_text
@@ -346,10 +346,7 @@ async def source_search(ctx: InCtx) -> PreRetrievalTurn:
     """The source search, by the question and by the names its aliases stand for, as
     Q_SEARCH_WIKI searches them: «montero» also finds the fragments of «cazador»."""
     turn = ctx.state
-    # Only the replaced names: a term of the question is already in `turn.search`.
-    names = [name for name in preretrieval.alias_titles(turn.matched, turn.config.data_aliases)
-             if name not in turn.matched]
-    query = " ".join([turn.search, *names])
+    query = preretrieval.source_query(turn)
     with tracing.node("Q_SEARCH_SOURCES", R, fts_query=preretrieval._fts_query(query, turn.language)) as q8:
         turn.doc_hits = preretrieval.retrieve_source_chunks(
             turn.db_path, query, language=turn.stem_language,
@@ -556,7 +553,7 @@ async def tool_evidence(ctx: OutCtx) -> AnswerChecks:
 async def model_refusal(ctx: OutCtx) -> AnswerChecks:
     """The model's own refusal (cause 5): the answer opens with the fixed sentence."""
     checks = ctx.state
-    checks.model_refused = checks.raw.lstrip().startswith(fixed_sentence(checks.language))
+    checks.model_refused = preretrieval.is_model_refusal(checks.raw, checks.language)
     tracing.mark("Q_MODEL_REFUSED", R, answer=checks.model_refused)
     return checks
 

@@ -461,6 +461,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A datum only in a source document gets an answer in the pre-retrieval
+  mode.** «¿En qué se convertían los lacayos de Cenicienta a la medianoche?»
+  found the page of Cenicienta, and the model refused: the lizards are only in
+  `La Cenicienta.pdf`, and the code searched the source documents only when no
+  page was found. When the answer to the wiki pages opens with the fixed
+  refusal sentence, the new node `Q_RETRY_SOURCES` searches the source
+  documents and calls the model again with the fragments; the output workflow
+  checks that Tier-2 answer and adds its warning. With no fragment, the
+  refusal stays (`R_MODEL`).
+
 - **A page alias with no wiki page reads the source fragments.** In a copy of
   the fairy-tales wiki with the alias `"Cazador" = ["montero"]`, «¿Qué hizo el
   montero?» found no page and went to the data tools (`Q_AGENT_TOOLS`), in a

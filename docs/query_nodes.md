@@ -151,6 +151,14 @@ Two kinds of node send a request to the model:
   wiki pages (Tier 1, with the dataset rows of Q_KEY_ROWS or the key names of Q_KEY_NAMES),
   the overview and the index, nothing, or the source fragments (Tier 2). With
   nothing injected (Q_AGENT_TOOLS), the model calls the data tools of section 5.
+- **Q_RETRY_SOURCES** runs after Q_AGENT_PAGES when the answer opens with the fixed
+  refusal sentence, the test of Q_MODEL_REFUSED. The datum can be only in a source
+  document: «¿En qué se convertían los lacayos de Cenicienta a la medianoche?» gets the
+  page of Cenicienta, and the lizards are only in `La Cenicienta.pdf`. The code searches
+  the source documents as Q_SEARCH_SOURCES does, and calls the model again with the
+  fragments (Q_AGENT_FRAGMENTS); the output workflow checks that Tier-2 answer. With no
+  fragment, the output workflow checks the refusal and ends in R_MODEL. The retry is a
+  retrieval, not a check: like the calls to the model, it runs between the two workflows.
 
 Three nodes of the output workflow use a fixed text or a threshold:
 
@@ -234,6 +242,7 @@ Each workflow declares the list of the catalog nodes that the workflow runs
 | Q_AGENT_PAGES | Injects the wiki pages, with the dataset rows of Q_KEY_ROWS or the key names of Q_KEY_NAMES; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn`; the template: `prompts/inject_template.en.md` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q_AGENT_COLLECTION | Injects `overview.md` and `index.md`; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q_AGENT_TOOLS | Injects nothing; the model calls the data tools of section 5 | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
+| Q_RETRY_SOURCES | The answer of Q_AGENT_PAGES opens with the fixed refusal sentence: searches the source documents by the text of Q_SEARCH_SOURCES; with fragments, Q_AGENT_FRAGMENTS calls the model again with them | `base/domain/chat/preretrieval.py`, `_retry_with_sources`, `is_model_refusal`, `source_query` | `refused_output`, `fts_query`, `fragments` | code |
 | Q_AGENT_FRAGMENTS | Injects the source fragments; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q_IS_GROUNDED | Checks that the answer is grounded in the fragments, with the stop words of the wiki's language, stemming and the configured threshold. Skipped when the sentence verifier checks the answer (the checkbox «Verificar las oraciones» of the web interface, with the verifier installed): the verifier is then the only comparison of the answer against the fragments | `base/domain/chat/overlap.py`, `coverage`; `base/domain/chat/workflow/catalog.py`, `fragment_coverage` | `answer`, `coverage`, `min_coverage` | code |
 | Q_SOURCE_WARNING | Appends the fixed Tier-2 warning to the answer | `base/domain/i18n.py`, `get_locale`; `base/domain/chat/workflow/catalog.py`, `tier2_warning` | no attributes | code |

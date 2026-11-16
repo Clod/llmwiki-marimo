@@ -3429,6 +3429,10 @@ msgstr ""
 msgid "Source fragments given to the model"
 msgstr ""
 
+#: base/domain/chat/workflow/node_texts.py
+msgid "The model refused with the wiki pages: search the source documents and ask again"
+msgstr ""
+
 #: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
 msgid "Is the answer grounded in the fragments?"
 msgstr ""
