@@ -20,6 +20,7 @@ NOTICES: dict[str, str | Callable[..., str]] = {
     "busy": BUSY,
     "verifier-missing": N_("The local verifier is not installed."),
     "verify-failed": N_("Could not verify: %(error)s"),
+    "page-conflict": N_("%(page)s changed since it was opened (version %(version)s)"),
     "stale-deleted": lambda n, **values: ngettext("Deleted %(n)s stale page.", "Deleted %(n)s stale pages.", n,
                                                   **values),
 }

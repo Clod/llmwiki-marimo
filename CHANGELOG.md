@@ -168,6 +168,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **Three more service messages follow the interface language.** With the
+  interface in Spanish, the editor showed «concepts/x changed since it was
+  opened (version 3)», a missing source document answered «x.pdf is not a
+  source of this wiki», and a reindex that extracted nothing quoted part of its
+  message in English. The three are written with `M_()`; the conflict of the
+  editor travels in the URL as a key (`?notice=page-conflict&page=…&version=3`).
+
 - **The progress lines of `base/` follow the interface language.** With the
   interface in Spanish, the console of an ingest, a scan, a lint, a repair, a
   verification or a reindex showed «🔎 Verifying 4 pages…»; the OCR lines were

@@ -426,8 +426,8 @@ def test_reindex_that_extracts_nothing_keeps_the_index_and_says_why(client, wiki
     monkeypatch.setattr(extractor, "extract", extract)
     (wiki.sources_dir / "Cuento.pdf").write_bytes(b"x")
     lines = lines_of(client, client.post(f"/w/{WIKI_ID}/reindex"))
-    assert lines[-1] == ("❌ No se pudo extraer el texto de ninguna fuente, así que el índice actual queda como estaba. "
-                         "Primer error: Cuento.pdf: LibreOffice produced no PDF output")
+    assert lines[-1] == ("❌ No se pudo extraer el texto de ninguna de las 1 fuente(s), así que el índice actual queda "
+                         "como estaba. Primer error: Cuento.pdf: LibreOffice produced no PDF output")
     assert not (wiki.path / ".llmwiki" / "index.db.bak").exists()
 
 

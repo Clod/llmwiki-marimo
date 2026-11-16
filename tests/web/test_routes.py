@@ -431,29 +431,32 @@ def test_a_stale_version_is_refused_and_the_message_survives_the_redirect(client
     response = client.post(f"/w/{WIKI_ID}/edit/{page}", data={"body": "Second save.", "version": str(version)})
     assert response.status_code == 303
     location = response.headers["location"]
-    assert location.startswith(f"/w/{WIKI_ID}/edit/{page}?error=")
+    assert location == f"/w/{WIKI_ID}/edit/{page}?notice=page-conflict&page=concepts%2Fprince&version={version + 1}"
     assert "Second save." not in read_page(wiki, page)
     shown = client.get(location)
-    assert f"{page} changed since it was opened (version {version + 1})" in shown.text
+    assert f"{page} cambió desde que se abrió (versión {version + 1})" in shown.text
 
 
 def test_an_error_text_with_url_characters_is_encoded_in_the_redirect(client, wiki, monkeypatch):
-    """Defect A.3.2: `html.escape` does not encode a URL; `quote` does."""
+    """Defect A.3.2: `html.escape` does not encode a URL; `urlencode` does. The values of the
+    notice travel in the URL, the text does not."""
+    from domain.messages import M_
     from services.wiki import PageConflict
     import web.routes.pages as pages_routes
 
     def refuse(*args, **kwargs):
-        raise PageConflict("changed & <b>x</b> #1 100% ?a=b")
+        raise PageConflict(M_("%(page)s changed since it was opened (version %(version)s)",
+                              page="changed & <b>x</b> #1 100% ?a=b", version=2))
 
     monkeypatch.setattr(pages_routes, "save_page", refuse)
     response = client.post(f"/w/{WIKI_ID}/edit/concepts/prince", data={"body": "x", "version": "1"})
     location = response.headers["location"]
     assert " " not in location and "<" not in location and "#" not in location
     query = urllib.parse.parse_qs(urllib.parse.urlsplit(location).query)
-    assert query["error"] == ["changed & <b>x</b> #1 100% ?a=b"]
-    # And the editor shows the text unchanged, escaped by the template.
+    assert query["page"] == ["changed & <b>x</b> #1 100% ?a=b"] and query["notice"] == ["page-conflict"]
+    # And the editor shows the value unchanged, escaped by the template.
     shown = client.get(location).text
-    assert "changed &amp; &lt;b&gt;x&lt;/b&gt; #1 100% ?a=b" in shown
+    assert "changed &amp; &lt;b&gt;x&lt;/b&gt; #1 100% ?a=b cambió desde que se abrió (versión 2)" in shown
 
 
 def test_editing_a_missing_page_is_a_404(client):

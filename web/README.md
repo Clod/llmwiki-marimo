@@ -187,7 +187,8 @@ To add a language (Italian is planned): add its code and its name to `LANGUAGES`
 an id the code no longer uses, and when a translation changes the placeholders of its id.
 
 The progress lines of `base/` (ingestion, scan, lint and repair, verification,
-rebuild of the index, revert) and the error of `delete_source` are written with
+rebuild of the index, revert) and the messages of `delete_source`, `PageConflict`,
+`source_view` and `NothingExtracted` are written with
 `M_()` (`base/domain/messages.py`): a `Message` is the English text, and it keeps
 its message id and its values. `state.start_operation` translates each line with
 `translate_message` before the console shows it, and `i18n_extract` extracts the
@@ -199,8 +200,7 @@ shows it, so a kept link shows it in the current language. An unknown key shows
 nothing.
 
 Left in English on every interface language: the values a line quotes (a file
-name, a lint summary), the messages `PageConflict` and `source_view` return, and
-the errors of the model or of git that a notice quotes.
+name, a lint summary) and the errors of the model or of git that a notice quotes.
 
 ## Tests
 

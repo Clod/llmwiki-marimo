@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from domain.datasets.frontmatter import split_frontmatter
+from domain.messages import M_
 from domain.tools.db import get_connection, open_db, seed_workspace_row
 from domain.wiki_registry import is_wiki_dir
 from domain.wiki_settings import load_wiki_language, write_language
@@ -134,7 +135,8 @@ def save_page(wiki: Wiki, page: str, body: str, expected_version: int | None) ->
 
     current = page_version(wiki, page)
     if expected_version is not None and current != expected_version:
-        raise PageConflict(f"{page} changed since it was opened (version {current})")
+        raise PageConflict(M_("%(page)s changed since it was opened (version %(version)s)",
+                              page=page, version=current))
     block, _ = split_frontmatter(read_page(wiki, page))
     text = (f"---\n{block}\n---\n\n" if block is not None else "") + body.strip() + "\n"
 
@@ -197,7 +199,7 @@ def source_view(wiki: Wiki, filename: str) -> Path:
     from domain.ingestion.formats import OFFICE_EXTENSIONS
 
     if filename not in source_names(wiki):
-        raise FileNotFoundError(f"{filename} is not a source of this wiki")
+        raise FileNotFoundError(M_("%(filename)s is not a source of this wiki", filename=filename))
     path = wiki.sources_dir / filename
     is_docx = path.suffix.lower() in OFFICE_EXTENSIONS      # an office file, converted to PDF
     if not is_docx and path.suffix.lower() != ".pdf":
