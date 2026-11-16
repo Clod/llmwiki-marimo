@@ -8,7 +8,6 @@ import html
 import os
 import queue
 import sys
-import urllib.parse
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -23,6 +22,7 @@ from services import verification as verification_service
 from services import wiki as wiki_service
 from web.deps import BUSY, get_state, get_templates, page_context
 from web.i18n import N_, _, ngettext
+from web.notices import notice_query, notice_text
 from web.state import AppState, LLMNotConfigured
 
 router = APIRouter()
@@ -48,9 +48,10 @@ def summary_line(label: str, results: list) -> str:
              failed=sum(r.status == "failed" for r in results))
 
 
-def _redirect(wiki_id: str, notice: str, screen: str = "ingest") -> RedirectResponse:
-    """Back to the ingestion screen, or to the maintenance one, with a notice."""
-    return RedirectResponse(f"/w/{wiki_id}/{screen}?notice={urllib.parse.quote(notice)}", status_code=303)
+def _redirect(wiki_id: str, notice: str, screen: str = "ingest", **values) -> RedirectResponse:
+    """Back to the ingestion screen, or to the maintenance one, with the notice of the key
+    `notice` (`web.notices`): the screen translates it when it shows it."""
+    return RedirectResponse(f"/w/{wiki_id}/{screen}?{notice_query(notice, **values)}", status_code=303)
 
 
 def _unconfigured(exc: LLMNotConfigured) -> HTMLResponse:
@@ -84,7 +85,7 @@ def ingest_page(request: Request, wiki_id: str, notice: str = "", state: AppStat
     wiki = state.get_wiki(wiki_id).wiki
     images = not ingest_service.images_ignored(wiki)
     context = page_context(state, wiki_id, "", section="ingest")
-    context.update(sources=ingest_service.list_sources(wiki), notice=notice,
+    context.update(sources=ingest_service.list_sources(wiki), notice=notice_text(notice, request.query_params),
                    format_label=format_label(images), accept=accept(images))
     return templates.TemplateResponse(request, "ingest.html", context)
 
@@ -108,7 +109,8 @@ def maintain_page(request: Request, wiki_id: str, notice: str = "", state: AppSt
     context = page_context(state, wiki_id, "", section="maintain")
     context.update(sources=ingest_service.list_sources(wiki), stale=ingest_service.list_stale_pages(wiki),
                    verifiable=len(verification_service.verifiable_pages(wiki)),
-                   tools=ingest_service.tool_status(wiki.language), model=model, base_url=base_url, notice=notice,
+                   tools=ingest_service.tool_status(wiki.language), model=model, base_url=base_url,
+                   notice=notice_text(notice, request.query_params),
                    verifier_status=state.verifier_status(),
                    images=ingest_service.image_counts(wiki), vision_model=state.vision_model(),
                    images_ignored=ingest_service.images_ignored(wiki))
@@ -306,13 +308,12 @@ def describe_images_post(request: Request, wiki_id: str, state: AppState = Depen
 def stale_delete(wiki_id: str, state: AppState = Depends(get_state)):
     entry = state.get_wiki(wiki_id)
     if not entry.busy.acquire(blocking=False):
-        return _redirect(wiki_id, _(BUSY), "maintain")
+        return _redirect(wiki_id, "busy", "maintain")
     try:
         deleted, _names = ingest_service.delete_stale_pages(entry.wiki)
     finally:
         entry.busy.release()
-    return _redirect(wiki_id, ngettext("Deleted %(n)s stale page.", "Deleted %(n)s stale pages.", deleted),
-                     "maintain")
+    return _redirect(wiki_id, "stale-deleted", "maintain", n=deleted)
 
 
 def _page_id(path: str) -> str:

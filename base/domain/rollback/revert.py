@@ -28,6 +28,7 @@ from domain.rollback import snapshots
 from domain.tools.git_ops import autocommit_enabled, head_sha
 from domain.ingestion.formats import IMAGE_EXTENSIONS, OFFICE_EXTENSIONS, TEXT_EXTENSIONS
 from domain.tools.reindex import SOURCE_SUFFIXES, NothingExtracted, ReindexReport, reindex_from_disk
+from domain.messages import M_
 
 logger = logging.getLogger(__name__)
 
@@ -248,17 +249,17 @@ def revert_wiki(workspace: Path, target: str, *, force: bool = False,
     db_replaced = False
     try:
         _backup(workspace, backup_dir)
-        progress(f"⏪ Restoring the pages of {target_sha[:7]}")
+        progress(M_("⏪ Restoring the pages of %(sha)s", sha=target_sha[:7]))
         try:
             _restore_files(workspace, target_sha)
             report = None
             if via == "snapshot":
-                progress("🗄 Restoring the index snapshot")
+                progress(M_("🗄 Restoring the index snapshot"))
                 db_replaced = True   # from here a failure puts the old index back
                 if not snapshots.restore(workspace, target_sha):
                     raise IndexUnavailable("rebuild_failed", f"the snapshot of {target_sha[:7]} became unusable")
             else:
-                progress("🗄 No snapshot to use: rebuilding the index from the files")
+                progress(M_("🗄 No snapshot to use: rebuilding the index from the files"))
                 report = reindex_from_disk(workspace, str(workspace / ".llmwiki" / "index.db"), progress=progress)
                 db_replaced = True
             commit_sha = _commit(workspace, target_sha)

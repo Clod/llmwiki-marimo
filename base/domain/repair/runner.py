@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from domain.lint.report import LintReport
+from domain.messages import M_
 from .actions import (
     repair_contradiction,
     repair_data_gap,
@@ -104,10 +105,10 @@ def repair_wiki(
     report = RepairReport()
 
     if not lint_report.issues:
-        _cb("✅ No issues to repair.")
+        _cb(M_("✅ No issues to repair."))
         return report
 
-    _cb(f"🔧 Repairing {len(lint_report.issues)} issue(s)...")
+    _cb(M_("🔧 Repairing %(n)s issue(s)...", n=len(lint_report.issues)))
 
     for issue in lint_report.issues:
         handler = _DISPATCH.get(issue.check)

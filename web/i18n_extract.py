@@ -4,9 +4,9 @@
     uv run --group web python -m web.i18n_extract --check    # exit 1 when a catalog is out of date
 
 The ids are the English texts written with `_()`, `N_()` and `ngettext()` in the Python modules and
-in the templates (`_()` and `{% trans %}`). The labels of the branches of the chat workflows, marked
-with `N_()` in `base/domain/chat/workflow/`, are extracted too: the audit page shows them in its
-diagrams. Not imported by the application.
+in the templates (`_()` and `{% trans %}`). Two marks of `base/` are extracted too: `N_()`, the labels
+of the chat workflows that the audit page shows in its diagrams, and `M_()`, the progress lines and
+service messages that the interface translates (`domain/messages.py`). Not imported by the application.
 """
 
 from __future__ import annotations
@@ -23,7 +23,9 @@ from web.i18n import LANGUAGES, LOCALE_DIR, SOURCE_LANGUAGE
 
 WEB = Path(__file__).parent
 ROOT = WEB.parent
-WORKFLOWS = ROOT / "base" / "domain" / "chat" / "workflow"
+BASE = ROOT / "base"
+# In `base/`, only the two marks of `base/` count: `_` and `ngettext` are names of `web/`.
+BASE_KEYWORDS = {"N_": None, "M_": None}
 METHODS = [("**.py", "python"), ("templates/**.html", "jinja2")]
 OPTIONS = {"templates/**.html": {"extensions": "jinja2.ext.i18n", "trimmed": "true"}}
 # The tests are not under web/, so nothing else needs to be skipped; the extraction itself is.
@@ -32,13 +34,17 @@ FIXED_DATE = datetime(2026, 10, 5, tzinfo=timezone.utc)
 
 
 def extract() -> Catalog:
-    """The catalog of every message id in `web/` and in the chat workflows, with the places it is used."""
+    """The catalog of every message id in `web/` and in `base/`, with the places it is used."""
+    from babel.messages.extract import DEFAULT_KEYWORDS
+
     catalog = Catalog(project="llmwiki", charset="utf-8")
-    for directory, methods, options in ((WEB, METHODS, OPTIONS), (WORKFLOWS, [("**.py", "python")], {})):
+    for directory, methods, options, keywords in (
+            (WEB, METHODS, OPTIONS, DEFAULT_KEYWORDS),
+            (BASE, [("**.py", "python")], {}, BASE_KEYWORDS)):
         prefix = directory.relative_to(ROOT).as_posix()
         for filename, lineno, message, comments, context in extract_from_dir(
-                str(directory), method_map=methods, options_map=options, comment_tags=(),
-                strip_comment_tags=False):
+                str(directory), method_map=methods, options_map=options, keywords=keywords,
+                comment_tags=(), strip_comment_tags=False):
             if Path(filename).name in SKIP or not message:
                 continue
             singular, plural = (message[0], message[1]) if isinstance(message, tuple) else (message, None)

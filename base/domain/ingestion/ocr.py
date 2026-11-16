@@ -15,6 +15,7 @@ A DOCX never goes through OCR: LibreOffice writes its text as text.
 """
 
 from __future__ import annotations
+from domain.messages import M_
 
 import base64
 import io
@@ -205,7 +206,8 @@ class VisionEngine:
                     failures += 1
                     logger.warning("OCR failed on page %d of %s: %s", number, pdf_path.name, exc)
                     if progress:
-                        progress(f"⚠️ OCR falló en la página {number} de {pdf_path.name}: {str(exc)[:200]}")
+                        progress(M_("⚠️ OCR failed on page %(page)s of %(file)s: %(error)s",
+                                    page=number, file=pdf_path.name, error=str(exc)[:200]))
                     results.append((number, ""))
         finally:
             document.close()
@@ -319,7 +321,8 @@ def apply_ocr(
     # that already had text is kept from the first extraction.
     requested = needed if engine.supports_pages else [number for number, _ in pages]
     if progress:
-        progress(f"🔍 OCR ({engine.label}) en {len(requested)} páginas de {pdf_path.name}")
+        progress(M_("🔍 OCR (%(engine)s) on %(n)s pages of %(file)s", engine=engine.label, n=len(requested),
+                    file=pdf_path.name))
     read = dict(engine.run(pdf_path, requested, language, cache_dir=cache_dir, progress=progress))
     merged = [(number, read[number] if number in needed and number in read else markdown)
               for number, markdown in pages]

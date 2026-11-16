@@ -37,6 +37,7 @@ from .wiki_generator import update_overview
 from domain.tools.wiki_fs import append_to_page
 # Import git utilities to initialize tracking and commit all newly updated files
 from domain.tools.git_ops import init_wiki_repo, auto_commit
+from domain.messages import M_
 
 # Initialize a logger for this module
 logger = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ def batch_ingest(
 
     # 1. Initialize the workspace structure (ensuring /wiki/, /wiki/concepts/ etc exist)
     _init_wiki_workspace(workspace, language)
-    _cb(f"📦 Batch ingesting {len(files)} file(s)...")
+    _cb(M_("📦 Batch ingesting %(n)s file(s)...", n=len(files)))
 
     # One trace for the whole batch, so every file (and the batch overview model
     # call) lands under one `ingest` root span. No-op when WIKI_TRACE is unset.
@@ -119,13 +120,13 @@ def batch_ingest(
         #    we terminate early to avoid useless Git commits or overview rewrites.
         tracing.mark("I_BATCH_END", W, ingested=len(summaries))
         if not summaries:
-            _cb("⚠️  No files were ingested — skipping overview and commit.")
+            _cb(M_("⚠️  No files were ingested — skipping overview and commit."))
             return results
 
         # ── Overview rewrite (once for all files) ────────────────────────────────
         # Rather than updating the overview page 10 times (causing massive LLM cost/time),
         # we rewrite the global wiki introduction exactly once using the combined summaries.
-        _cb("🌐 Rewriting overview for batch...")
+        _cb(M_("🌐 Rewriting overview for batch..."))
         try:
             with tracing.node("I_OVERVIEW", W) as i10:
                 # A. Read the current overview markdown content
@@ -154,11 +155,11 @@ def batch_ingest(
         if run_lint:
             try:
                 from domain.lint.runner import lint_wiki
-                _cb("🩺 Running lint on batch result...")
+                _cb(M_("🩺 Running lint on batch result..."))
                 with tracing.node("I_LINT", W) as i13:
                     lint_report = lint_wiki(db_path, workspace)
                     i13.set(issues=len(lint_report.issues))
-                _cb(f"🩺 Lint: {lint_report.summary()}")
+                _cb(M_("🩺 Lint: %(summary)s", summary=lint_report.summary()))
             except Exception as exc:
                 logger.warning("Batch lint failed: %s", exc)
                 lint_report = None
@@ -199,5 +200,6 @@ def batch_ingest(
             auto_commit(workspace, f"batch ingest: {len(ingested)} file(s)")
 
         ingested_count = len(ingested)
-        _cb(f"🏁 Batch complete — ingested: {ingested_count}, skipped: {len(skipped)}, failed: {len(failed)}")
+        _cb(M_("🏁 Batch complete — ingested: %(ingested)s, skipped: %(skipped)s, failed: %(failed)s",
+               ingested=ingested_count, skipped=len(skipped), failed=len(failed)))
         return results

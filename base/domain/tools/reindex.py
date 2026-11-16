@@ -57,6 +57,7 @@ from domain.text.stemming import stem_text
 from domain.tools.db import open_db
 from domain.tools.references import update_references
 from domain.wiki_settings import load_images_config, load_wiki_language
+from domain.messages import M_
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ def _index_sources(conn, workspace: Path, user_id: str, language: str, progress:
                    ) if sources_dir.is_dir() else []
     indexed, failed = 0, []
     for path in files:
-        progress(f"📄 Indexing source {path.name}")
+        progress(M_("📄 Indexing source %(file)s", file=path.name))
         doc_id = str(uuid.uuid4())
         stat = path.stat()
         cache_dir = workspace / ".llmwiki" / "cache" / "local" / doc_id
@@ -224,7 +225,7 @@ def _index_wiki_pages(conn, workspace: Path, user_id: str, language: str, progre
         dir_path = "/" + path.parent.relative_to(workspace).as_posix() + "/"
         text = path.read_text(encoding="utf-8")
         title, tags = _page_metadata(text, path.name)
-        progress(f"📝 Indexing page {relative}")
+        progress(M_("📝 Indexing page %(page)s", page=relative))
         doc_id = str(uuid.uuid4())
         with conn:
             conn.execute(
@@ -287,7 +288,7 @@ def reindex_from_disk(workspace: Path, db_path: str, *, progress: Progress = _no
     fresh = Path(f"{db_file}.reindex")
     _remove_database(fresh)
 
-    progress("🗄 Creating a fresh index")
+    progress(M_("🗄 Creating a fresh index"))
     conn = open_db(str(fresh))
     try:
         # Step 1: schema (applied by open_db) and the workspace row.
@@ -308,7 +309,7 @@ def reindex_from_disk(workspace: Path, db_path: str, *, progress: Progress = _no
         conn.close()
         conn = None
 
-        progress("🔗 Rebuilding the references")
+        progress(M_("🔗 Rebuilding the references"))
         for doc_id, text, dir_path in registered:
             update_references(str(fresh), doc_id, text, dir_path)
 
@@ -328,7 +329,7 @@ def reindex_from_disk(workspace: Path, db_path: str, *, progress: Progress = _no
         with contextlib.suppress(FileNotFoundError):
             Path(f"{fresh}{suffix}").unlink()
 
-    progress("♻️ Replacing the index; the old one stays as index.db.bak")
+    progress(M_("♻️ Replacing the index; the old one stays as index.db.bak"))
     _swap_in(fresh, db_file)
     return ReindexReport(
         sources_indexed=indexed, sources_failed=tuple(failed), wiki_pages_indexed=len(registered),

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from domain.ingestion.images import document_dir
 from domain.repair.report import RepairResult
+from domain.messages import M_
 
 logger = logging.getLogger(__name__)
 
@@ -186,5 +187,5 @@ def delete_source(
             page=doc_id,
             action="failed",
             success=False,
-            message=f"Deletion failed: {exc}",
+            message=M_("Deletion failed: %(error)s", error=exc),
         )

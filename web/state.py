@@ -24,7 +24,7 @@ from domain.verify.verifier import Verifier
 from domain.wiki_registry import discover_wikis, is_wiki_dir, load_recent, merge_options
 from services import chat as chat_service
 from services.wiki import Wiki, open_wiki
-from web.i18n import _
+from web.i18n import _, translate_message
 from web.settings import WebSettings
 
 AgentsFactory = Callable[[Wiki], chat_service.ChatAgents]
@@ -298,11 +298,18 @@ class AppState:
         op_id = self.new_id()
         self.operations[op_id] = operation
 
+        def put(line) -> None:
+            # A progress line of `base/` (`domain.messages.Message`) is translated here, in
+            # the language of the request that started the operation (the thread runs in a
+            # copy of its context); any other line goes as it is.
+            operation.lines.put(translate_message(line))
+
         def run() -> None:
             try:
-                operation.lines.put(work(operation.lines.put))
+                operation.lines.put(translate_message(work(put)))
             except Exception as exc:  # noqa: BLE001 — reported to the page
-                operation.lines.put(f"❌ {exc}")
+                text = translate_message(exc.args[0]) if len(exc.args) == 1 else exc
+                operation.lines.put(f"❌ {text}")
             finally:
                 operation.lines.put(None)
                 busy.release()

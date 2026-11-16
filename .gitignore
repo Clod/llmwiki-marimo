@@ -47,9 +47,6 @@ workspace/
 # Private launch / marketing drafts — never publish
 launch-kit.md
 
-# Scratch prototypes + inspiration notes — kept locally, out of the public repo
-Karpathy_concepts.md
-
 # Internal release-readiness review (candid; not for the public repo)
 docs/release_readiness_review.md
 
@@ -60,8 +57,8 @@ deploy.sh
 .netlify
 nvidia-10k-first20.md
 
-.claude
-!.claude/commands/
+.claude/settings.local.json
+.claude/worktrees/
 .playwright-mcp
 .pytest_cache
 

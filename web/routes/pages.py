@@ -27,9 +27,10 @@ from services.wiki import (
     source_names,
     source_view,
 )
-from web.deps import BUSY, get_state, get_templates, image_support, page_context
+from web.deps import get_state, get_templates, image_support, page_context
 from web.i18n import N_, _
 from web.render import page_title, page_url, render_markdown, render_page_verified, render_source_markdown
+from web.notices import notice_query, notice_text
 from web.state import AppState
 
 router = APIRouter()
@@ -103,7 +104,7 @@ def view_page(request: Request, wiki_id: str, page: str, deleted: str = "", noti
     html = render_markdown(wiki_id, text, page, context["pages"], source_names(wiki)) if text else ""
     check = _verification_view(wiki, page, text, wiki_id, context["pages"]) if text else {"status": None}
     context.update(
-        deleted=deleted, notice=notice, deletable=page not in FIXED_PAGES,
+        deleted=deleted, notice=notice_text(notice, request.query_params), deletable=page not in FIXED_PAGES,
         html=check.get("html") or html, check=check,
         title=page_title(text, page) if text else page)
     return templates.TemplateResponse(request, "page.html", context, status_code=200 if text else 404)
@@ -113,21 +114,21 @@ def view_page(request: Request, wiki_id: str, page: str, deleted: str = "", noti
 def verify(wiki_id: str, page: str, state: AppState = Depends(get_state)):
     """Verify one page against its sources and go back to it. The check runs under
     the wiki's lock; a busy wiki or a missing verifier is reported on the page."""
-    def back(notice: str = "") -> RedirectResponse:
-        suffix = f"?notice={urllib.parse.quote(notice)}" if notice else ""
+    def back(notice: str = "", **values) -> RedirectResponse:
+        suffix = f"?{notice_query(notice, **values)}" if notice else ""
         return RedirectResponse(page_url(wiki_id, page) + suffix, status_code=303)
 
     entry = state.get_wiki(wiki_id)
     if not state.verifier_available():
-        return back(_("The local verifier is not installed."))
+        return back("verifier-missing")
     if not entry.busy.acquire(blocking=False):
-        return back(_(BUSY))
+        return back("busy")
     try:
         verification_service.verify_one(entry.wiki, page, state.get_verifier())
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail=_("The page does not exist."))
     except Exception as exc:  # noqa: BLE001 — shown on the page
-        return back(_("Could not verify: %(error)s", error=exc))
+        return back("verify-failed", error=exc)
     finally:
         entry.busy.release()
     return back()

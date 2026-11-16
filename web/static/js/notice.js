@@ -4,7 +4,8 @@
 (() => {
   const url = new URL(location.href);
   let changed = false;
-  for (const name of ["notice", "deleted"]) {
+  // `n` and `error` are the values a notice carries (`web/notices.py`); they go with it.
+  for (const name of ["notice", "deleted", "n", "error"]) {
     if (url.searchParams.has(name)) { url.searchParams.delete(name); changed = true; }
   }
   if (changed) history.replaceState(history.state, "", url.pathname + url.search + url.hash);

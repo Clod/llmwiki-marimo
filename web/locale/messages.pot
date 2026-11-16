@@ -116,6 +116,22 @@ msgstr ""
 msgid "Page"
 msgstr ""
 
+#: web/notices.py web/routes/chat.py
+msgid "The local verifier is not installed."
+msgstr ""
+
+#: web/notices.py
+#, python-format
+msgid "Could not verify: %(error)s"
+msgstr ""
+
+#: web/notices.py
+#, python-format
+msgid "Deleted %(n)s stale page."
+msgid_plural "Deleted %(n)s stale pages."
+msgstr[0] ""
+msgstr[1] ""
+
 #: web/render.py web/templates/_sources_panel.html
 msgid "Open the source document in a new tab"
 msgstr ""
@@ -239,10 +255,6 @@ msgstr ""
 msgid "Could not prepare the draft: %(error)s"
 msgstr ""
 
-#: web/routes/chat.py web/routes/pages.py
-msgid "The local verifier is not installed."
-msgstr ""
-
 #: web/routes/chat.py
 msgid "The conversation kept no passage to verify the draft against."
 msgstr ""
@@ -278,11 +290,11 @@ msgstr ""
 msgid "⏪ Restoring the pages of "
 msgstr ""
 
-#: web/routes/history.py
+#: base/domain/rollback/revert.py web/routes/history.py
 msgid "🗄 Restoring the index snapshot"
 msgstr ""
 
-#: web/routes/history.py
+#: base/domain/rollback/revert.py web/routes/history.py
 msgid "🗄 No snapshot to use: rebuilding the index from the files"
 msgstr ""
 
@@ -459,13 +471,6 @@ msgstr ""
 
 #: web/routes/ingest.py
 #, python-format
-msgid "Deleted %(n)s stale page."
-msgid_plural "Deleted %(n)s stale pages."
-msgstr[0] ""
-msgstr[1] ""
-
-#: web/routes/ingest.py
-#, python-format
 msgid "🗑 Deleting the source “%(filename)s”"
 msgstr ""
 
@@ -501,11 +506,6 @@ msgstr ""
 
 #: web/routes/pages.py web/templates/page.html
 msgid "Home"
-msgstr ""
-
-#: web/routes/pages.py
-#, python-format
-msgid "Could not verify: %(error)s"
 msgstr ""
 
 #: web/routes/pages.py
@@ -3635,5 +3635,260 @@ msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py
 msgid "a tool returned evidence"
+msgstr ""
+
+#: base/domain/ingestion/batch.py
+#, python-format
+msgid "📦 Batch ingesting %(n)s file(s)..."
+msgstr ""
+
+#: base/domain/ingestion/batch.py
+msgid "⚠️  No files were ingested — skipping overview and commit."
+msgstr ""
+
+#: base/domain/ingestion/batch.py
+msgid "🌐 Rewriting overview for batch..."
+msgstr ""
+
+#: base/domain/ingestion/batch.py
+msgid "🩺 Running lint on batch result..."
+msgstr ""
+
+#: base/domain/ingestion/batch.py base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🩺 Lint: %(summary)s"
+msgstr ""
+
+#: base/domain/ingestion/batch.py
+#, python-format
+msgid "🏁 Batch complete — ingested: %(ingested)s, skipped: %(skipped)s, failed: %(failed)s"
+msgstr ""
+
+#: base/domain/ingestion/ocr.py
+#, python-format
+msgid "⚠️ OCR failed on page %(page)s of %(file)s: %(error)s"
+msgstr ""
+
+#: base/domain/ingestion/ocr.py
+#, python-format
+msgid "🔍 OCR (%(engine)s) on %(n)s pages of %(file)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🔍 Validating %(file)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⏭ %(file)s — already up to date"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚙️ Extracting text from %(file)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "✅ Extracted %(n)s pages"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "✂️ Chunked into %(n)s chunks"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+msgid "🤖 Extracting knowledge structure..."
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "📋 Found %(n)s concept(s)"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "💡 Updating concept: %(name)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "💡 Creating concept: %(name)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚠️ %(n)s alias collision(s) dropped"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+msgid "📄 Writing summary page..."
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+msgid "🌐 Updating overview..."
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+msgid "🩺 Running lint checks..."
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "✅ Done: %(file)s (%(pages)s pages, %(chunks)s chunks%(counts)s)"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "↩️ Rolled back %(n)s partial wiki page(s)"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "❌ Failed: %(file)s — %(error)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+msgid "🔎 Scanning sources/..."
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🔎 Found %(n)s candidate file(s)"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚠️ %(n)s dataset-alias collision(s) dropped"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🔤 Generated aliases for %(n)s data term(s)"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🏁 Scan complete — ingested: %(ingested)s, skipped: %(skipped)s, failed: %(failed)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py base/services/ingest.py
+#, python-format
+msgid "🔗 Cross-linked %(n)s page(s)"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🔗 cross-linked %(page)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "Found %(n)s source document(s)"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "🤖 Regenerating wiki page for %(file)s..."
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
+msgid "🏁 Regeneration complete"
+msgstr ""
+
+#: base/domain/lint/checks.py
+#, python-format
+msgid "🔍 data-gap scan: reviewing %(n)s concept title(s)"
+msgstr ""
+
+#: base/domain/repair/runner.py
+msgid "✅ No issues to repair."
+msgstr ""
+
+#: base/domain/repair/runner.py
+#, python-format
+msgid "🔧 Repairing %(n)s issue(s)..."
+msgstr ""
+
+#: base/domain/rollback/revert.py
+#, python-format
+msgid "⏪ Restoring the pages of %(sha)s"
+msgstr ""
+
+#: base/domain/tools/deletion.py
+#, python-format
+msgid "Deletion failed: %(error)s"
+msgstr ""
+
+#: base/domain/tools/reindex.py
+#, python-format
+msgid "📄 Indexing source %(file)s"
+msgstr ""
+
+#: base/domain/tools/reindex.py
+#, python-format
+msgid "📝 Indexing page %(page)s"
+msgstr ""
+
+#: base/domain/tools/reindex.py
+msgid "🗄 Creating a fresh index"
+msgstr ""
+
+#: base/domain/tools/reindex.py
+msgid "🔗 Rebuilding the references"
+msgstr ""
+
+#: base/domain/tools/reindex.py
+msgid "♻️ Replacing the index; the old one stays as index.db.bak"
+msgstr ""
+
+#: base/services/ingest.py
+#, python-format
+msgid "🩺 Running full LLM lint on %(n)s ingested page(s)…"
+msgstr ""
+
+#: base/services/ingest.py
+#, python-format
+msgid "🩺 Running deterministic lint on %(n)s ingested page(s)…"
+msgstr ""
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔧 %(n)s issue(s) on ingested pages — repairing (full LLM)…"
+msgstr ""
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔧 %(n)s issue(s) on ingested pages — repairing (deterministic)…"
+msgstr ""
+
+#: base/services/ingest.py
+msgid "✅ Ingested pages consistent — no repairs needed."
+msgstr ""
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔎 Verifying %(n)s page(s) against their sources…"
+msgstr ""
+
+#: base/services/ingest.py
+msgid "✅ No issues found."
+msgstr ""
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔧 Found %(n)s issue(s) — running repairs…"
+msgstr ""
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔎 Verifying %(n)s page(s) the repairs wrote…"
+msgstr ""
+
+#: base/services/verification.py
+#, python-format
+msgid "🔎 Verifying %(n)s pages…"
 msgstr ""
 

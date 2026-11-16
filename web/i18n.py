@@ -105,6 +105,14 @@ def ngettext(singular: str, plural: str, n: int, **variables) -> str:
 _ = gettext
 
 
+def translate_message(text):
+    """`text` in the current language when it is a `Message` of `base/` (`domain.messages`,
+    written with `M_()`); any other text as it is. Read by duck typing, so this module
+    imports nothing from `base/`."""
+    msgid = getattr(text, "msgid", None)
+    return gettext(msgid, **text.params) if msgid is not None else text
+
+
 def pgettext(context: str, message: str, **variables) -> str:
     """`message` as `context` uses it: the same English text can need two Spanish ones."""
     return _fill(raw_pgettext(context, message), variables)

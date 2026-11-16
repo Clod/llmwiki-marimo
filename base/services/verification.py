@@ -15,6 +15,7 @@ from domain.tools.db import get_connection
 from domain.verify import store
 from domain.verify.page import PageOutcome, current_state, pages_with_context, verify_page
 from domain.verify.verifier import Verifier
+from domain.messages import M_
 from services.wiki import Wiki
 
 Progress = Callable[[str], None]
@@ -80,7 +81,7 @@ def verifiable_pages(wiki: Wiki) -> list[str]:
 def verify_all(wiki: Wiki, verifier: Verifier, *, progress: Progress = _noop) -> list[PageOutcome]:
     """Verify every page that has a context, one progress line per page."""
     pages = verifiable_pages(wiki)
-    progress(f"🔎 Verifying {len(pages)} pages…")
+    progress(M_("🔎 Verifying %(n)s pages…", n=len(pages)))
     return verify_pages(wiki, pages, verifier, progress=progress)
 
 
