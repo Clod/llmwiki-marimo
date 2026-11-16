@@ -19,7 +19,7 @@ La extracción de PDF y algunas piezas de bajo nivel de la ingesta están adapta
 
 ![La pantalla de lectura de la interfaz web sobre la wiki de ejemplo de finanzas: el índice de páginas a la izquierda, la página "Plazo fijo UVA" en el centro y, a la derecha, una conversación con dos preguntas y sus respuestas, cada una seguida del modo de respuesta](docs/assets/web_read_chat_es.png)
 
-*La pestaña **Leer** sobre el ejemplo de finanzas. El índice de páginas está a la izquierda y la página abierta en el centro. La conversación está a la derecha: bajo cada respuesta, una línea nombra el modo de respuesta, las páginas que la respuesta cita y los tokens del turno y de la conversación. Los botones **Criterio**, **Fuentes** y **Respuesta** abren la auditoría de la última respuesta. El selector de modo, bajo el campo de la pregunta, tiene tres valores: **Recuperación previa** (el código recupera primero y se abstiene antes de llamar al modelo), **Agente con comprobación de evidencia** (la respuesta se reemplaza por un rechazo cuando el modelo no consultó la wiki) y **Sin verificación** (la respuesta se transmite y no se comprueba) ([cuál elegir, y por qué](docs/query_walkthrough.md)). El botón **Guardar** convierte la conversación en una página de la wiki solo después de que revisas el borrador: el agente no tiene herramienta de escritura.*
+*La pestaña **Leer** sobre el ejemplo de finanzas. El índice de páginas está a la izquierda y la página abierta en el centro. La conversación está a la derecha: bajo cada respuesta, una línea nombra el modo de respuesta, las páginas que la respuesta cita y los tokens del turno y de la conversación. Los botones **Criterio**, **Fuentes** y **Respuesta** abren la auditoría de la última respuesta. El selector de modo, bajo el campo de la pregunta, tiene tres valores: **Recuperación previa** (el código recupera primero y se abstiene antes de llamar al modelo), **Agente con comprobación de evidencia** (la respuesta se reemplaza por un rechazo cuando el modelo no consultó la wiki) y **Sin verificación** (la respuesta se transmite y no se comprueba) ([cuál elegir, y por qué](docs/manual/workflows/6.7-chat-rag.md)). El botón **Guardar** convierte la conversación en una página de la wiki solo después de que revisas el borrador: el agente no tiene herramienta de escritura.*
 
 ![La pestaña Historial de la interfaz web: una lista de siete puntos de la wiki, cada uno con su fecha, su mensaje, su identificador corto de git, el número de páginas que cambió y un botón para volver a ese punto; el punto más nuevo está marcado como actual](docs/assets/web_history_es.png)
 
@@ -127,7 +127,7 @@ solo recurre a los fragmentos en bruto cuando hace falta.
 
 La interfaz está en inglés y en español: el selector **EN | ES** a la derecha del encabezado elige el idioma (una cookie; sin ella, el idioma del navegador; sin eso, inglés). Es solo el idioma de las etiquetas y los mensajes. El idioma del contenido de la wiki se define por wiki y es otra configuración (ver [Idioma de contenido de la wiki](#idioma-de-contenido-de-la-wiki)): una wiki en español puede leerse con la interfaz en inglés, y al revés.
 
-> **De marimo a una interfaz web.** Hasta la [v0.4.0](https://github.com/Clod/llmwiki-marimo/releases/tag/v0.4.0) la interfaz de este proyecto fue un conjunto de notebooks de [marimo](https://marimo.io); esa versión es la que hay que instalar para usarlos. marimo vuelve a ejecutar una celda entera cada vez que cambia uno de sus widgets, lo que le sirve a un notebook. La aplicación pasó a necesitar una conversación que sobreviva al pasar de una página a otra, el progreso transmitido mientras corre una ingesta, y una dirección para cada página y cada pantalla, así que pasó a una interfaz web generada en el servidor (FastAPI y HTMX). Las apps de marimo siguen en `marimo/` hasta que un cambio aparte las elimine; esta documentación describe solo la interfaz web.
+> **De marimo a una interfaz web.** Hasta la [v0.4.0](https://github.com/Clod/llmwiki-marimo/releases/tag/v0.4.0) la interfaz de este proyecto fue un conjunto de notebooks de [marimo](https://marimo.io); esa versión es la que hay que instalar para usarlos. marimo vuelve a ejecutar una celda entera cada vez que cambia uno de sus widgets, lo que le sirve a un notebook. La aplicación pasó a necesitar una conversación que sobreviva al pasar de una página a otra, el progreso transmitido mientras corre una ingesta, y una dirección para cada página y cada pantalla, así que pasó a una interfaz web generada en el servidor (FastAPI y HTMX). Las apps de marimo se borraron del repositorio el 2026-11-15; esta documentación describe solo la interfaz web.
 
 > **Para desarrolladores:** la referencia canónica es  
 > [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) — flujos de trabajo, prompts,  
@@ -250,8 +250,7 @@ docs/
 │   └── apps.md                       # §7 §8 §9 §15 — apps, configuración, pruebas, datasets
 ├── ingestion_walkthrough.md          # Un corpus de punta a punta — la visión narrativa
 ├── ingestion_walkthrough_appendix.md # Su inventario de artefactos (generado, regenerable)
-├── query_walkthrough.md              # Siete preguntas y cómo se ruteó cada una
-├── query_walkthrough_appendix.md     # Su captura de ruteo (generada, regenerable)
+├── query_walkthrough.md              # En reescritura para la interfaz web: solo los títulos
 └── archive/               # Documentos de diseño superados (históricos)
 
 examples/               # Wikis de demostración pre-ingeridas (usadas por quickstart.py)
@@ -522,23 +521,21 @@ suggested_prompts = [
 
 Copia `wiki_config.example.toml` desde la raíz del proyecto como punto de partida (o `wiki_config_es.example.toml` para un wiki en español — la misma estructura con `language = "es"` y prompts en español). Sin `system_prompt`, la wiki usa el prompt por defecto de su idioma, el archivo `prompts/system_prompt.<idioma>.md`; si el archivo `wiki_config.toml` está ausente, cada clave toma su valor por defecto.
 
-### Quién va a buscar: el interruptor de pre-retrieval
+### Quién va a buscar: el selector «Modo»
 
-Por defecto el modelo tiene las herramientas de búsqueda y decide cuáles usar.
-Una sección `[pre_retrieval] enabled = true` da vuelta eso: el código recupera
-*antes* de consultar al modelo y decide, en Python, si esta wiki cubre la
-pregunta — absteniéndose sin gastar un token cuando no.
+El selector **Modo**, debajo de la pregunta del chat, elige en cada pregunta quién va
+a buscar. En **Agente con verificación de evidencia**, el modelo tiene las
+herramientas de búsqueda y decide cuáles usar. En **Pre-retrieval**, el modo con el
+que abre el chat, el código recupera *antes* de consultar al modelo y decide, en
+Python, si esta wiki cubre la pregunta — absteniéndose sin gastar un token cuando no.
 
 Es un canje, no una mejora. Ganás la garantía de que la recuperación ocurrió y
 una abstención predecible; perdés alcance, porque la cobertura sale de los
 nombres de tus páginas de concepto, así que una pregunta que no nombra ninguno
-queda afuera aunque una búsqueda hubiera encontrado algo. Dejalo apagado para
-una wiki de prosa; encendelo cuando una respuesta equivocada cueste plata, una
-dosis o un plazo legal. Los demos que vienen con el proyecto discrepan a
-propósito — `examples/cuentos-de-hadas` apagado, `examples/finanzas-argentinas`
-encendido — y [`docs/query_walkthrough.md`](docs/query_walkthrough.md) recorre
-los dos con salida capturada de cada uno. El template documenta la sección y las
-tres listas de alcance que la acompañan.
+queda afuera aunque una búsqueda hubiera encontrado algo. El modo agente conviene
+para una wiki de prosa; Pre-retrieval conviene cuando una respuesta equivocada
+cueste plata, una dosis o un plazo legal. El template documenta la sección
+`[pre_retrieval]` y las tres listas de alcance que la acompañan.
 
 ### Idioma de contenido de la wiki
 

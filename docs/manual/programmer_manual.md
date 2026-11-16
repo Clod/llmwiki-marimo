@@ -356,7 +356,7 @@ llmwiki/
 │   ├── verify_pages.py                 # Verify the pages of a wiki against their sources
 │   ├── verify_battery.py               # Ask a list of questions and verify each answer sentence
 │   ├── wiki_revert.py                  # Go back to an earlier point of a wiki (command line)
-│   ├── capture_ingestion_walkthrough.py · capture_query_walkthrough.py
+│   ├── capture_ingestion_walkthrough.py
 │   │                                   #   regenerate the figures of the two walkthroughs
 │   └── record_demo.py                  # the two README demo videos and the reading screenshot (web)
 ├── tests/

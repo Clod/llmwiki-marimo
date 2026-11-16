@@ -76,13 +76,6 @@ suggested_prompts = [
     "¿A cuánto está el dólar MEP?",
 ]
 
-# ── Pre-retrieval híbrido (opt-in) ────────────────────────────────────────────
-# Con esto activo, el CÓDIGO recupera del wiki y le inyecta el contexto al modelo
-# (que ya no tiene herramientas de búsqueda), en vez de dejar que el modelo
-# decida buscar. Ver base/domain/chat/preretrieval.py.
-[pre_retrieval]
-enabled = true
-
 # Lista NEGRA: términos que sabemos que NO cubrimos -> abstención inmediata,
 # antes de tocar los documentos. (Una línea por caso; agregá los que surjan.)
 [fuera_de_alcance]

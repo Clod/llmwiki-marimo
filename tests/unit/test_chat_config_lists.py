@@ -43,15 +43,11 @@ def test_scope_lists_default_empty_when_no_config_file(tmp_path):
     assert cfg.false_synonyms == {}
 
 
-def test_pre_retrieval_is_opt_in_and_off_by_default(tmp_path):
+def test_an_old_enabled_key_is_ignored(tmp_path):
+    # The chat mode is chosen in the selector of the chat; `[pre_retrieval] enabled`
+    # chose nothing and was removed. A wiki_config.toml that still has it loads.
     (tmp_path / "wiki_config.toml").write_text(
-        '[assistant]\nsystem_prompt = "x"\n', encoding="utf-8"
+        "[pre_retrieval]\nenabled = true\nmin_coverage = 0.3\n", encoding="utf-8"
     )
-    assert load_config(tmp_path).pre_retrieval is False
-
-
-def test_pre_retrieval_enabled_when_opted_in(tmp_path):
-    (tmp_path / "wiki_config.toml").write_text(
-        "[pre_retrieval]\nenabled = true\n", encoding="utf-8"
-    )
-    assert load_config(tmp_path).pre_retrieval is True
+    config = load_config(tmp_path)
+    assert not hasattr(config, "pre_retrieval") and config.min_coverage == 0.3

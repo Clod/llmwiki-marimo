@@ -18,7 +18,7 @@ from web.app import create_app
 URL = f"/w/{WIKI_ID}/settings"
 CONFIG = ('# Comment that must survive.\n[wiki]\nlanguage = "es"\n\n[assistant]\nsystem_prompt = "Old prompt."\n\n'
           '[pre_retrieval]\nenabled = true\nmin_coverage = 0.3\n\n[fuera_de_alcance]\nterminos = ["cripto"]\n')
-FORM = {"system_prompt": "Old prompt.", "suggested_prompts": "Q1\nQ2", "enabled": "on", "min_coverage": "0.3",
+FORM = {"system_prompt": "Old prompt.", "suggested_prompts": "Q1\nQ2", "min_coverage": "0.3",
         "condense_question": "on", "threshold": "0.5", "candidates": "5",
         "number_tolerance": "0.05", "ignore": "on"}
 
@@ -43,11 +43,12 @@ def test_the_menu_link_after_history(client, en_client):
 
 def test_every_key_is_shown_with_its_value_and_the_language_is_read_only(client, config_wiki):
     html = client.get(URL).text
-    for name in ("system_prompt", "suggested_prompts", "enabled", "min_coverage", "condense_question", "threshold", "candidates",
+    for name in ("system_prompt", "suggested_prompts", "min_coverage", "condense_question", "threshold", "candidates",
                  "number_tolerance"):
         assert f'name="{name}"' in html
     assert "Old prompt." in html and 'value="0.3"' in html
-    assert re.search(r'name="enabled"[^>]*checked', html)
+    # The chat mode is chosen in the selector of the chat, not here.
+    assert 'name="enabled"' not in html
     assert 'name="language"' not in html and "<code>es</code>" in html
     assert "reindexar" in html.lower()
     assert f'href="/w/{WIKI_ID}/vocabulary"' in html
@@ -83,10 +84,9 @@ def test_saving_changes_the_file_keeping_comments_and_other_sections(client, con
 
 
 def test_an_unticked_checkbox_is_saved_as_false(client, config_wiki):
-    form = {k: v for k, v in FORM.items() if k not in ("enabled", "condense_question")}
+    form = {k: v for k, v in FORM.items() if k != "condense_question"}
     client.post(URL, data=form)
-    config = load_config(config_wiki.path)
-    assert config.pre_retrieval is False and config.condense_question is False
+    assert load_config(config_wiki.path).condense_question is False
 
 
 def test_an_invalid_value_is_refused_and_the_file_is_unchanged(client, config_wiki):

@@ -84,10 +84,6 @@ class WikiAssistantConfig:
     # Pairs that are NOT synonyms -> filter the synonym-rescue step ("cedear" -> "accion").
     false_synonyms: dict[str, list[str]] = field(default_factory=dict)
 
-    # Opt-in: when true, the chat pre-retrieves (code-driven) instead of
-    # letting the model search, and applies the tiered gate. Off by default so
-    # other wikis' chat behavior is unchanged.
-    pre_retrieval: bool = False
     # Tier-2 threshold: the fraction of an answer's content words that must
     # appear in the raw fragment it came from (`[pre_retrieval] min_coverage`).
     min_coverage: float = 0.2
@@ -193,7 +189,6 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
     # (win), minus the false-synonym delete filter. Absent artifact → {} → the
     # hand config behaves exactly as before.
     data_aliases = merge_aliases(read_generated_aliases(wiki_path), data_aliases, false_synonyms)
-    pre_retrieval = bool(data.get("pre_retrieval", {}).get("enabled", False))
     min_coverage = float(data.get("pre_retrieval", {}).get("min_coverage", 0.2))
     condense_question = bool(data.get("pre_retrieval", {}).get("condense_question", True))
 
@@ -216,7 +211,6 @@ def load_config(wiki_path: Path) -> WikiAssistantConfig:
         blacklist=blacklist,
         data_aliases=data_aliases,
         false_synonyms=false_synonyms,
-        pre_retrieval=pre_retrieval,
         min_coverage=min_coverage,
         condense_question=condense_question,
         verify_threshold=verify_threshold,

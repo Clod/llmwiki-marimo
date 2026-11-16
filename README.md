@@ -17,7 +17,7 @@ The PDF-extraction and a few low-level ingestion pieces are adapted from [Lucas 
 
 ![The reading screen of the web interface on the sample finance wiki: the page index on the left, the page "Plazo fijo UVA" in the middle, and on the right a conversation with two questions and their answers, each followed by its answering mode](docs/assets/web_read_chat_en.png)
 
-*The **Read** tab on the finance example. The page index is on the left and the open page is in the middle. The conversation is on the right: under each answer, one line names the answering mode, the pages the answer cites, and the tokens of the turn and of the conversation. The buttons **Criterion**, **Sources** and **Model answer** open the audit of the last answer. The mode selector under the question field has three values: **Pre-retrieval** (code retrieves first and refuses before the model is called), **Agent with evidence check** (the answer is replaced by a refusal when the model did not consult the wiki) and **No verification** (the answer streams and is not checked) ([which to pick, and why](docs/query_walkthrough.md)). The **Save** button turns the conversation into a wiki page only after you review the draft: the agent has no write tool.*
+*The **Read** tab on the finance example. The page index is on the left and the open page is in the middle. The conversation is on the right: under each answer, one line names the answering mode, the pages the answer cites, and the tokens of the turn and of the conversation. The buttons **Criterion**, **Sources** and **Model answer** open the audit of the last answer. The mode selector under the question field has three values: **Pre-retrieval** (code retrieves first and refuses before the model is called), **Agent with evidence check** (the answer is replaced by a refusal when the model did not consult the wiki) and **No verification** (the answer streams and is not checked) ([which to pick, and why](docs/manual/workflows/6.7-chat-rag.md)). The **Save** button turns the conversation into a wiki page only after you review the draft: the agent has no write tool.*
 
 ![The History tab of the web interface: a list of seven wiki points, each with its date, message, short git identifier, number of changed pages and a button to return to that point; the newest point is marked as current](docs/assets/web_history_en.png)
 
@@ -127,7 +127,7 @@ and only falls back to raw chunks when needed.
 
 The interface is in English and in Spanish: the **EN | ES** switch at the right of the header chooses the language (a cookie; without it, the browser's language; without that, English). This is the language of the labels and messages only. The language of the wiki content is set per wiki and is a different setting (see [Wiki content language](#wiki-content-language)): a Spanish wiki can be read with the English interface, and the reverse.
 
-> **From marimo to a web interface.** Up to [v0.4.0](https://github.com/Clod/llmwiki-marimo/releases/tag/v0.4.0) the interface of this project was a set of [marimo](https://marimo.io) notebooks; that release is the one to install for them. marimo re-runs a whole cell whenever one of its widgets changes, which suits a notebook. The application came to need a conversation that survives moving between pages, progress streamed while an ingestion runs, and an address for every page and screen, so it moved to a server-rendered web interface (FastAPI and HTMX). The marimo apps stay in `marimo/` until a separate change removes them; this documentation describes the web interface only.
+> **From marimo to a web interface.** Up to [v0.4.0](https://github.com/Clod/llmwiki-marimo/releases/tag/v0.4.0) the interface of this project was a set of [marimo](https://marimo.io) notebooks; that release is the one to install for them. marimo re-runs a whole cell whenever one of its widgets changes, which suits a notebook. The application came to need a conversation that survives moving between pages, progress streamed while an ingestion runs, and an address for every page and screen, so it moved to a server-rendered web interface (FastAPI and HTMX). The marimo apps were removed from the repository on 2026-11-15; this documentation describes the web interface only.
 
 > **For developers:** the canonical reference is  
 > [`docs/manual/programmer_manual.md`](docs/manual/programmer_manual.md) — workflows, prompts,  
@@ -248,8 +248,7 @@ docs/
 │   └── apps.md                       # §7 §8 §9 §15 — apps, config, testing, datasets
 ├── ingestion_walkthrough.md          # One corpus, end to end — the narrative view
 ├── ingestion_walkthrough_appendix.md # Its artifact inventory (generated, regenerable)
-├── query_walkthrough.md              # Seven questions, and how each was routed
-├── query_walkthrough_appendix.md     # Its routing capture (generated, regenerable)
+├── query_walkthrough.md              # Being rewritten for the web interface: headings only
 └── archive/               # Superseded design docs (historical)
 
 examples/               # Pre-ingested demo wikis (used by quickstart.py)
@@ -516,22 +515,21 @@ suggested_prompts = [
 
 Copy `wiki_config.example.toml` from the project root as a starting point (or `wiki_config_es.example.toml` for a Spanish wiki — same structure with `language = "es"` and Spanish prompts). Without a `system_prompt`, the wiki uses the default prompt of its language, the file `prompts/system_prompt.<lang>.md`; if the file `wiki_config.toml` is absent, every setting takes its default.
 
-### Who goes looking: the pre-retrieval switch
+### Who goes looking: the Mode selector
 
-By default the model holds the search tools and decides what to call. A
-`[pre_retrieval] enabled = true` section flips that: code retrieves *before* the
-model is consulted and decides, in Python, whether this wiki covers the question
-at all — refusing without spending a token when it does not.
+The **Mode** selector under the question of the chat picks, for each question, who
+goes looking. In **Agent with evidence check** the model holds the search tools and
+decides what to call. In **Pre-retrieval**, the mode the chat opens with, code
+retrieves *before* the model is consulted and decides, in Python, whether this wiki
+covers the question at all — refusing without spending a token when it does not.
 
 It is a trade, not an upgrade. You gain a guarantee that retrieval happened and
 a refusal you can predict; you lose reach, because coverage is derived from your
 concept-page names, so a question naming no concept is turned away even when a
-search would have found something. Leave it off for a wiki of prose; turn it on
-when a wrong answer costs money, a dose or a legal date. The shipped demos
-disagree on purpose — `examples/fairy-tales` off, `examples/finanzas-argentinas`
-on — and [`docs/query_walkthrough.md`](docs/query_walkthrough.md) walks both with
-captured output from each. The template documents the section and the three
-scope lists that go with it.
+search would have found something. The agent mode suits a wiki of prose;
+Pre-retrieval suits a wiki where a wrong answer costs money, a dose or a legal
+date. The template documents the `[pre_retrieval]` section and the three scope
+lists that go with it.
 
 ### Wiki content language
 

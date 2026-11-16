@@ -43,7 +43,7 @@ msgstr "Workflow de salida"
 msgid "Another operation is running on this wiki."
 msgstr "Hay otra operación en curso sobre esta wiki."
 
-#: web/deps.py web/templates/settings.html
+#: web/deps.py
 msgid "Pre-retrieval"
 msgstr "Recuperación previa"
 
@@ -3084,22 +3084,6 @@ msgid "Default value"
 msgstr "Valor por defecto"
 
 #: web/templates/settings.html
-msgid "Enabled"
-msgstr "Activada"
-
-#: web/templates/settings.html
-msgid "The code searches the wiki before calling the model and refuses the questions the wiki does not cover."
-msgstr "El código busca en la wiki antes de llamar al modelo y rechaza las preguntas que la wiki no cubre."
-
-#: web/templates/settings.html
-msgid "no"
-msgstr "no"
-
-#: web/templates/settings.html
-msgid "yes"
-msgstr "sí"
-
-#: web/templates/settings.html
 msgid "Minimum coverage"
 msgstr "Cobertura mínima"
 
@@ -3112,10 +3096,22 @@ msgid "Condense the question"
 msgstr "Condensar la pregunta"
 
 #: web/templates/settings.html
+msgid "Enabled"
+msgstr "Activada"
+
+#: web/templates/settings.html
 msgid "A follow-up that names no topic is rewritten by the model into a question that stands alone."
 msgstr ""
 "Una pregunta de seguimiento que no nombra ningún tema es reescrita por el modelo como una pregunta que se entiende "
 "sola."
+
+#: web/templates/settings.html
+msgid "no"
+msgstr "no"
+
+#: web/templates/settings.html
+msgid "yes"
+msgstr "sí"
 
 #: web/templates/settings.html
 msgid "Threshold"
@@ -4206,4 +4202,7 @@ msgstr "%(filename)s no es una fuente de esta wiki"
 
 #~ msgid "⚠️ %(n)s dataset-alias collision(s) dropped"
 #~ msgstr "⚠️ Se descartaron %(n)s choque(s) de alias de datos"
+
+#~ msgid "The code searches the wiki before calling the model and refuses the questions the wiki does not cover."
+#~ msgstr "El código busca en la wiki antes de llamar al modelo y rechaza las preguntas que la wiki no cubre."
 

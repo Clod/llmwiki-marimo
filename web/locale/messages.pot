@@ -46,7 +46,7 @@ msgstr ""
 msgid "Another operation is running on this wiki."
 msgstr ""
 
-#: web/deps.py web/templates/settings.html
+#: web/deps.py
 msgid "Pre-retrieval"
 msgstr ""
 
@@ -2961,22 +2961,6 @@ msgid "Default value"
 msgstr ""
 
 #: web/templates/settings.html
-msgid "Enabled"
-msgstr ""
-
-#: web/templates/settings.html
-msgid "The code searches the wiki before calling the model and refuses the questions the wiki does not cover."
-msgstr ""
-
-#: web/templates/settings.html
-msgid "no"
-msgstr ""
-
-#: web/templates/settings.html
-msgid "yes"
-msgstr ""
-
-#: web/templates/settings.html
 msgid "Minimum coverage"
 msgstr ""
 
@@ -2989,7 +2973,19 @@ msgid "Condense the question"
 msgstr ""
 
 #: web/templates/settings.html
+msgid "Enabled"
+msgstr ""
+
+#: web/templates/settings.html
 msgid "A follow-up that names no topic is rewritten by the model into a question that stands alone."
+msgstr ""
+
+#: web/templates/settings.html
+msgid "no"
+msgstr ""
+
+#: web/templates/settings.html
+msgid "yes"
 msgstr ""
 
 #: web/templates/settings.html
