@@ -4,6 +4,7 @@ title: The Wolf
 tags: [entity]
 sources:
   - resource: sources/Little Red Riding Hood.pdf
+topics: [wolf]
 ---
 
 # The Wolf

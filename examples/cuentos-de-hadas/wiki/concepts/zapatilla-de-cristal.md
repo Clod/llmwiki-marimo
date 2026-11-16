@@ -4,6 +4,7 @@ title: Zapatilla de Cristal
 tags: [instrument]
 sources:
   - resource: sources/La Cenicienta.pdf
+topics: [zapatilla, príncipe]
 ---
 
 # Zapatilla de Cristal

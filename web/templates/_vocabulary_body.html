@@ -9,7 +9,7 @@
 
   <div class="vocab-columns">
     <section class="panel vocab-panel" aria-labelledby="h-roster">
-      <div class="panel-head"><h2 id="h-roster" title="{{ _('The names the wiki covers: the categories and keys of datasets/ and the titles of the concept pages. A question that names none of them is refused. Read only: it changes with the pages and the datasets') }}">{{ _("Roster") }} · {{ v.roster|length }}</h2></div>
+      <div class="panel-head"><h2 id="h-roster" title="{{ _('The names the wiki covers: the categories and keys of datasets/, the titles of the concept pages and the topics of the concept and summary pages. A question that names none of them is refused. Read only: it changes with the pages and the datasets; the topics are edited in the editor of each page') }}">{{ _("Roster") }} · {{ v.roster|length }}</h2></div>
       <div class="vocab-filter">
         <input class="field" id="roster-search" type="search" placeholder="{{ _('Search the roster…') }}" aria-label="{{ _('Search the roster') }}"
                title="{{ _('Shows only the names that contain what you type, without case nor accents') }}" autocomplete="off">
@@ -17,10 +17,11 @@
       <ul class="vocab-list roster" id="roster-list">
         {% for e in v.roster %}
         <li data-name="{{ e.name }}">
-          {% if e.page %}<a href="/w/{{ wiki_id }}/pages/{{ e.page }}" title="{{ _('Open the page') }}">{{ e.name }}</a>
+          {% if e.pages|length > 1 %}<span class="roster-name">{{ e.name }}<span class="roster-pages">{% for p, title in e.pages %}<a href="/w/{{ wiki_id }}/pages/{{ p }}" title="{{ _('Open the page') }}">{{ title }}</a>{% endfor %}</span></span>
+          {% elif e.page %}<a href="/w/{{ wiki_id }}/pages/{{ e.page }}" title="{{ _('Open the page') }}">{{ e.name }}</a>
           {% else %}<button class="roster-data" type="button" hx-get="/w/{{ wiki_id }}/vocabulary/dataset" hx-vals='{{ {("category" if e.origin == "category" else "key"): e.name} | tojson }}'
                   hx-target="#dataset-slot" hx-swap="innerHTML" title="{{ _('See the dataset') }}">{{ e.name }}</button>{% endif %}
-          <span class="origin" title="{{ _('Where the name comes from') }}">{% if e.origin == 'concept' %}{{ _("page") }}{% elif e.origin == 'category' %}{{ _("dataset") }}{% else %}{{ _("dataset key") }}{% endif %}</span>
+          <span class="origin" title="{{ _('Where the name comes from') }}">{% if e.origin == 'concept' %}{{ _("page") }}{% elif e.origin == 'topic' %}{{ _("page topic") }}{% elif e.origin == 'category' %}{{ _("dataset") }}{% else %}{{ _("dataset key") }}{% endif %}</span>
         </li>
         {% endfor %}
         <li class="vocab-empty muted" id="roster-none" hidden>{{ _("No name contains that text.") }}</li>

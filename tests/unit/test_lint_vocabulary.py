@@ -2,8 +2,8 @@
 
 Crosses the effective alias map (generated ⊕ hand overrides) against the wiki's
 live coverage (concept pages + dataset vocab), catching drift the ingest-time
-generator can't: a hand-added or roster-shifted collision, a stale entry, an
-ambiguous alias, and an off-limits term that is now actually covered.
+generator can't: a stale entry, an ambiguous alias, and an off-limits term that
+is now actually covered. It never judges whether an alias is false.
 """
 
 from domain.lint.checks import vocabulary_check
@@ -20,17 +20,13 @@ def _concept(fx: WorkspaceFixture, slug: str, title: str) -> None:
                 f"# {title}\n\ncontent\n", [])
 
 
-def test_vocab_collision_is_error(tmp_workspace: WorkspaceFixture) -> None:
-    _concept(tmp_workspace, "acciones", "Acciones")
-    _concept(tmp_workspace, "cedear", "CEDEAR")
+def test_an_alias_that_is_the_name_of_another_page_is_not_flagged(tmp_workspace: WorkspaceFixture) -> None:
+    # Two pages can treat the same thing: only a curator can tell a false alias.
+    _concept(tmp_workspace, "riesgo-de-inflacion", "Riesgo de inflación")
+    _concept(tmp_workspace, "riesgo-inflacionario", "Riesgo inflacionario")
     _write_config(tmp_workspace.workspace,
-                  '[alias_datos]\n"CEDEAR" = ["acciones", "certificado"]\n')
-    issues = vocabulary_check(tmp_workspace.db_path, tmp_workspace.workspace)
-    collisions = [i for i in issues if i.check == "vocab_collision"]
-    assert len(collisions) == 1
-    assert collisions[0].severity == "error"
-    assert "acciones" in collisions[0].description.lower()
-    assert collisions[0].alias == "acciones"  # structured field for the auto-repair
+                  '[alias_datos]\n"Riesgo de inflación" = ["Riesgo inflacionario"]\n')
+    assert vocabulary_check(tmp_workspace.db_path, tmp_workspace.workspace) == []
 
 
 def test_vocab_stale_when_canonical_uncovered(tmp_workspace: WorkspaceFixture) -> None:

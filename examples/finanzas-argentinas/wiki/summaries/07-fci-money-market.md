@@ -1,6 +1,7 @@
 ---
 type: summary
 title: 07 Fci Money Market
+topics: [fondos T+0, fondos comunes de inversión, liquidez inmediata, saldos transitorios]
 ---
 
 # 07 Fci Money Market

@@ -1,6 +1,7 @@
 ---
 type: summary
 title: 04 Bonos Cer Y Uva
+topics: [bonos ajustados por inflación, inflación, rezago inflacionario, tasa real]
 ---
 
 # 04 Bonos Cer Y Uva

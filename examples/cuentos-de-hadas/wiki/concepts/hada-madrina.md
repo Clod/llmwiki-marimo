@@ -4,6 +4,7 @@ title: Hada Madrina
 tags: [entity]
 sources:
   - resource: sources/La Cenicienta.pdf
+topics: [magia, carruaje, baile real]
 ---
 
 # Hada Madrina

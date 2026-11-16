@@ -163,14 +163,29 @@ def retrieve_wiki(
     return hits[:limit - len(added)] + added if added else hits
 
 
+def _alias_names(data_aliases: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Each normalized alias, with every name it stands for: an alias can stand for
+    several names ("UVA" of "Plazo fijo UVA" and of "Unidad de Valor Adquisitivo")."""
+    names: dict[str, list[str]] = {}
+    for name, aliases in data_aliases.items():
+        for alias in aliases:
+            names.setdefault(_normalize(alias), []).append(name)
+    return names
+
+
 def alias_titles(topics: Iterable[str], data_aliases: dict[str, list[str]]) -> list[str]:
-    """`topics` with each alias replaced by the name it stands for, without repeats.
+    """`topics` as the question names them, then every name each alias among them
+    stands for, without repeats.
 
     A page alias is not in the text of its page: "Culocenizón" is an alias of
     "Cenicienta" (`aliases.generated.toml`), and no page of the wiki holds the word.
-    The topic search of `retrieve_wiki` finds the page by its title."""
-    names = {_normalize(alias): name for name, aliases in data_aliases.items() for alias in aliases}
-    return list(dict.fromkeys(names.get(_normalize(topic), topic) for topic in topics))
+    The topic search of `retrieve_wiki` finds the page by its title. The term of the
+    question is kept, and comes first: an alias may also be the title of another page,
+    and the page the question names has priority over the pages its alias stands for."""
+    topics = list(topics)
+    names = _alias_names(data_aliases)
+    return list(dict.fromkeys([*topics, *(name for topic in topics
+                                          for name in names.get(_normalize(topic), []))]))
 
 
 # The line that tells the model which aliases of the question the search replaced,
@@ -186,8 +201,11 @@ def synonyms_line(matched: Iterable[str], data_aliases: dict[str, list[str]],
                   language: str | None) -> str:
     """The line that names each alias in `matched` with the name it stands for, or ""
     when the question names no alias."""
-    names = {_normalize(alias): (alias, name) for name, aliases in data_aliases.items() for alias in aliases}
-    pairs = [names[_normalize(term)] for term in matched if _normalize(term) in names]
+    names: dict[str, list[tuple[str, str]]] = {}
+    for name, aliases in data_aliases.items():
+        for alias in aliases:
+            names.setdefault(_normalize(alias), []).append((alias, name))
+    pairs = [pair for term in matched for pair in names.get(_normalize(term), [])]
     if not pairs:
         return ""
     line, pair = _SYNONYMS.get((language or "es").lower(), _SYNONYMS["en"])

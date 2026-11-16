@@ -15,7 +15,6 @@ from .actions import (
     repair_orphan,
     repair_orphan_image,
     repair_stale,
-    repair_vocab_collision,
 )
 from .report import RepairReport, RepairResult
 
@@ -33,7 +32,6 @@ _DISPATCH = {
     "contradiction":    repair_contradiction,
     "data_gap":         repair_data_gap,
     "gap_filled":       repair_gap_filled,
-    "vocab_collision":  repair_vocab_collision,
     "missing_image":    repair_missing_image,
     "orphan_image":     repair_orphan_image,
 }

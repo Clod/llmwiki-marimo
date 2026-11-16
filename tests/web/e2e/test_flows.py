@@ -77,13 +77,35 @@ def test_edit_a_page_keeps_the_front_matter_and_commits(page, live):
     page.get_by_role("link", name="Editar").click()
     textarea = page.locator("textarea[name=body]")
     assert "type: concept" not in textarea.input_value()
-    expect(page.get_by_text("El bloque de front-matter no se edita: se conserva tal como está.")).to_be_visible()
+    expect(page.get_by_text("El resto del bloque de front-matter no se edita: se conserva tal como está.")).to_be_visible()
     textarea.fill(textarea.input_value() + "\n\nUna línea nueva del editor.")
     page.locator("form button", has_text="Guardar").click()
     expect(page).to_have_url(f"{live.url}/w/{WIKI_ID}/pages/{CONCEPT}")
     expect(page.get_by_text("Una línea nueva del editor.")).to_be_visible()
     assert "edit: concepts/plazo-fijo-uva" in git_log(live)
     assert path.read_text().split("---")[1] == front
+
+
+def test_the_topics_of_a_page_are_edited_as_a_list_and_saved_with_guardar(page, live):
+    from domain.tools.wiki_fs import page_topics
+
+    slug = "concepts/riesgo-de-inflacion"
+    path = live.wiki_dir / "wiki" / f"{slug}.md"
+    assert page_topics(path.read_text()) == ["inflación", "poder adquisitivo", "aumento de precios"]
+    goto(page, live, f"edit/{slug}")
+    topics = page.locator("#topic-list")
+    topics.locator("li", has_text="aumento de precios").get_by_role("button", name="Quitar").click()
+    field = page.locator("#topic-new")
+    field.fill("suba de precios")
+    field.press("Enter")                       # Enter adds the topic, it does not submit
+    field.fill("Inflación")                    # a repeat, without case nor accents
+    page.locator("#topic-add").click()
+    expect(topics.locator("li")).to_have_count(3)
+    assert page_topics(path.read_text()) == ["inflación", "poder adquisitivo", "aumento de precios"]
+    page.locator("form button", has_text="Guardar").click()
+    expect(page).to_have_url(f"{live.url}/w/{WIKI_ID}/pages/{slug}")
+    assert page_topics(path.read_text()) == ["inflación", "poder adquisitivo", "suba de precios"]
+    assert f"edit: {slug}" in git_log(live)
 
 
 def test_the_preview_follows_what_is_typed_and_nothing_is_saved_until_guardar(page, live):

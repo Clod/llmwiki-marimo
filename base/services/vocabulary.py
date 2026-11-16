@@ -1,8 +1,8 @@
 """The vocabulary of a wiki, as the Vocabulario screen shows and edits it.
 
 The roster ("padrón") is what the pre-retrieval gate counts as covered: the
-dataset categories and keys (`datasets/`) and the titles of the ready concept
-pages. It is computed, never stored, so it is read only here.
+dataset categories and keys (`datasets/`), the titles of the ready concept
+pages, and the topics the concept and summary pages declare in their front-matter. It is computed, never stored, so it is read only here.
 
 The aliases are the effective map of `load_config` (generated ⊕ hand-written −
 rejected), each alias marked with its origin. The rejected aliases
@@ -18,7 +18,7 @@ the wiki's lock.
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from domain.chat import config_writer
@@ -30,7 +30,7 @@ from domain.chat.intent import base_lists
 from domain.chat.vocabulary import normalize
 from domain.datasets.source import LocalMarkdownSource
 from domain.lint.checks import vocabulary_check
-from domain.tools.db import get_connection
+from domain.tools.wiki_fs import topic_pages
 
 from services.wiki import Wiki
 
@@ -41,8 +41,12 @@ __all__ = ["VocabularyEditError", "Vocabulary", "read_vocabulary", "add_blacklis
 @dataclass(frozen=True)
 class RosterEntry:
     name: str
-    origin: str          # "category" | "key" | "concept"
-    page: str = ""       # with origin "concept": the page, e.g. "concepts/plazo-fijo-uva"
+    origin: str          # "category" | "key" | "concept" | "topic"
+    page: str = ""       # with origin "concept" or "topic": the page, e.g. "concepts/plazo-fijo-uva"
+    # Every page that holds the name, as (page, title): a topic can be declared by
+    # several pages («incumplimiento» by «Riesgo de crédito» and «Riesgo de Crédito en
+    # Cauciones»), and a page title can also be the topic of another page.
+    pages: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -59,7 +63,7 @@ class CanonicalAliases:
 
 @dataclass(frozen=True)
 class Finding:
-    check: str           # "vocab_collision" | "vocab_stale" | "vocab_ambiguous" | "vocab_covered"
+    check: str           # "vocab_stale" | "vocab_ambiguous" | "vocab_covered"
     severity: str
     terms: tuple[str, ...]
 
@@ -95,29 +99,31 @@ def _sections(wiki: Wiki) -> dict:
 
 def _covered_names(wiki: Wiki) -> list[RosterEntry]:
     """Every covered name, in roster order: the dataset categories, the concept-page
-    titles, then the dataset keys. Two names may be equal once normalized, as the page
+    titles, the topics the concept and summary pages declare, then the dataset keys. Two names may be equal once normalized, as the page
     "FCI Money Market" and the category `fci_money_market`."""
     entries: list[RosterEntry] = []
     source = LocalMarkdownSource(Path(wiki.path) / "datasets")
     entries.extend(RosterEntry(category, "category") for category in source.categories())
-    with get_connection(wiki.db_path) as conn:
-        rows = conn.execute(
-            "SELECT title, relative_path FROM documents "
-            "WHERE source_kind='wiki' AND path='/wiki/concepts/' AND status='ready'").fetchall()
-    for row in rows:
-        if row["title"]:
-            page = row["relative_path"].removeprefix("wiki/").removesuffix(".md")
-            entries.append(RosterEntry(row["title"], "concept", page))
+    pages = topic_pages(wiki.db_path)
+    entries.extend(RosterEntry(p.title, "concept", p.page, ((p.page, p.title),))
+                   for p in pages if p.title and p.kind == "concept")
+    entries.extend(RosterEntry(topic, "topic", p.page, ((p.page, p.title),)) for p in pages for topic in p.topics)
     for category in source.categories():
         entries.extend(RosterEntry(row.clave, "key") for row in source.query(category))
     return entries
 
 
 def roster(wiki: Wiki) -> tuple[RosterEntry, ...]:
-    """The covered names, one entry per normalized name, sorted without case nor accents."""
+    """The covered names, one entry per normalized name, sorted without case nor accents.
+    The first entry of a name gives its spelling and its origin; `pages` gathers every
+    page that holds the name, so a topic declared by two pages links to both."""
     entries: dict[str, RosterEntry] = {}
     for entry in _covered_names(wiki):
-        entries.setdefault(normalize(entry.name), entry)
+        key = normalize(entry.name)
+        first = entries.setdefault(key, entry)
+        if first is not entry and entry.pages:
+            pages = tuple(dict.fromkeys([*first.pages, *entry.pages]))
+            entries[key] = replace(first, page=first.page or pages[0][0], pages=pages)
     return tuple(sorted(entries.values(), key=lambda e: normalize(e.name)))
 
 
@@ -207,16 +213,15 @@ def remove_intent_cue(wiki: Wiki, key: str, cue: str) -> None:
 
 
 def add_alias(wiki: Wiki, canonical: str, alias: str) -> None:
-    """Add a hand-written alias. The canonical must be in the roster ("unknown_canonical");
-    the alias must not be the name of another covered thing ("collision")."""
+    """Add a hand-written alias. The canonical must be in the roster ("unknown_canonical").
+    The alias may also be the name of another covered thing: the curator who writes it
+    decides that it is right."""
     covered = _covered_names(wiki)
     names: dict[str, str] = {}
     for entry in covered:
         names.setdefault(normalize(entry.name), entry.name)
     if normalize(canonical) not in names:
         raise VocabularyEditError("unknown_canonical", canonical.strip())
-    if normalize(alias) in names and normalize(alias) != normalize(canonical):
-        raise VocabularyEditError("collision", alias.strip())
     # The roster's spelling, not the typed one. When two covered names are equal once
     # normalized, the name the user typed is the one the alias belongs to.
     typed = canonical.strip()

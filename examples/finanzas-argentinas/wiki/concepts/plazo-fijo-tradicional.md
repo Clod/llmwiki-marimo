@@ -4,6 +4,7 @@ title: Plazo fijo tradicional
 tags: [instrument]
 sources:
   - resource: sources/10 Plazos Fijos.docx
+topics: [depósito bancario, tasa fija]
 ---
 
 # Plazo fijo tradicional

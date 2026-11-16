@@ -4,6 +4,7 @@ title: Blancanieves
 tags: [entity]
 sources:
   - resource: sources/Blancanieves.pdf
+topics: [madrastra, envidia, princesa]
 ---
 
 # Blancanieves

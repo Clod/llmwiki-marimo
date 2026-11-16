@@ -4,6 +4,7 @@ title: Snow White
 tags: [entity]
 sources:
   - resource: sources/Snow White and the Seven Dwarfs.pdf
+topics: [princess]
 ---
 
 # Snow White

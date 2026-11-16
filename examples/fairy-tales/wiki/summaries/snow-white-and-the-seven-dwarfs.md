@@ -1,6 +1,7 @@
 ---
 type: summary
 title: Snow White And The Seven Dwarfs
+topics: [queen, poisoned apple, dwarfs]
 ---
 
 # Snow White And The Seven Dwarfs

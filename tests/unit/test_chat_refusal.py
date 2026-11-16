@@ -131,7 +131,9 @@ def test_roster_suggestions_come_from_the_named_category(demo_db):
     db_path, _ = demo_db
     out = roster_suggestions(db_path, "¿Cuánto rinden los plazos fijos?", {"plazo_fijo"}, "es")
     titles = [t for t, _ in out]
-    assert titles and all("plazo fijo" in t.lower() for t in titles)
+    # The three concept pages of the category, and the summary that declares the
+    # topic «plazo fijo» (`topics` in its front-matter), after them.
+    assert titles == ["Plazo fijo UVA", "Plazo fijo en dólares", "Plazo fijo tradicional", "10 Plazos Fijos"]
 
 
 def test_search_suggestions_are_wiki_pages(demo_db):

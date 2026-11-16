@@ -4,6 +4,7 @@ title: Riesgo de Crédito en Cauciones
 tags: [theme]
 sources:
   - resource: sources/12 Cauciones Bursátiles.docx
+topics: [aforo, incumplimiento]
 ---
 
 # Riesgo de Crédito en Cauciones

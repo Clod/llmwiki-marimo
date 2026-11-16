@@ -4,6 +4,7 @@ title: Bolsas y Mercados Argentinos
 tags: [entity]
 sources:
   - resource: sources/01 Acciones Locales.docx
+topics: [mercado bursátil, bolsa de valores]
 ---
 
 # Bolsas y Mercados Argentinos

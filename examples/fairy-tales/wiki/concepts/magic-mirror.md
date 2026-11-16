@@ -4,6 +4,7 @@ title: Magic Mirror
 tags: [instrument]
 sources:
   - resource: sources/Snow White and the Seven Dwarfs.pdf
+topics: [mirror]
 ---
 
 # Magic Mirror

@@ -4,6 +4,7 @@ title: Sociedad Depositaria
 tags: [entity]
 sources:
   - resource: sources/07 FCI Money Market.docx
+topics: [custodia, FCI]
 ---
 
 # Sociedad Depositaria

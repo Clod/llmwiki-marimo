@@ -4,6 +4,7 @@ title: Bonos Dólar Linked
 tags: [instrumento]
 sources:
   - resource: sources/05 Bonos Dólar Linked y Duales.docx
+topics: [devaluación, tipo de cambio oficial, cobertura cambiaria]
 ---
 
 # Bonos Dólar Linked

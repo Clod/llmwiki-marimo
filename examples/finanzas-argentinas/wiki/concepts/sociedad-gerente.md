@@ -4,6 +4,7 @@ title: Sociedad Gerente
 tags: [entity]
 sources:
   - resource: sources/07 FCI Money Market.docx
+topics: [honorarios de administración, FCI]
 ---
 
 # Sociedad Gerente

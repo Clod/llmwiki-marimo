@@ -4,6 +4,7 @@ title: Riesgo de inflación
 tags: [theme]
 sources:
   - resource: sources/10 Plazos Fijos.docx
+topics: [inflación, poder adquisitivo, aumento de precios]
 ---
 
 # Riesgo de inflación

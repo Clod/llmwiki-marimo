@@ -4,6 +4,7 @@ title: Plazo fijo UVA
 tags: [instrument]
 sources:
   - resource: sources/10 Plazos Fijos.docx
+topics: [inflación, depósito ajustado por inflación]
 ---
 
 # Plazo fijo UVA

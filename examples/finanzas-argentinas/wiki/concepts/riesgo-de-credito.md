@@ -4,6 +4,7 @@ title: Riesgo de crédito
 tags: [theme]
 sources:
   - resource: sources/07 FCI Money Market.docx
+topics: [incumplimiento, impago, contraparte]
 ---
 
 # Riesgo de crédito

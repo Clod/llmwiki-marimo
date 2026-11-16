@@ -4,6 +4,7 @@ title: Caperucita Roja
 tags: [entity]
 sources:
   - resource: sources/Caperucita Roja.pdf
+topics: [inocencia, extraños]
 ---
 
 # Caperucita Roja

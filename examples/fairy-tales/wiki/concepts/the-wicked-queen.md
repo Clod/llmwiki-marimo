@@ -4,6 +4,7 @@ title: The Wicked Queen
 tags: [entity]
 sources:
   - resource: sources/Snow White and the Seven Dwarfs.pdf
+topics: [queen, vanity, jealousy]
 ---
 
 # The Wicked Queen

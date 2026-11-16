@@ -4,6 +4,7 @@ title: Moraleja de Caperucita Roja
 tags: [theme]
 sources:
   - resource: sources/Caperucita Roja.pdf
+topics: [confiar en extraños, precaución]
 ---
 
 # Moraleja de Caperucita Roja

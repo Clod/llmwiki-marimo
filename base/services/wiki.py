@@ -13,7 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from domain.datasets.frontmatter import split_frontmatter
+from domain.datasets.frontmatter import parse_frontmatter, render_frontmatter, split_frontmatter
 from domain.messages import M_
 from domain.tools.db import get_connection, open_db, seed_workspace_row
 from domain.wiki_registry import is_wiki_dir
@@ -121,13 +121,62 @@ class PageConflict(RuntimeError):
     """The page changed after the editor loaded it."""
 
 
-def save_page(wiki: Wiki, page: str, body: str, expected_version: int | None) -> int | None:
-    """Save an edited page body; return the new version.
+def has_topics(page: str) -> bool:
+    """Whether `page` (`concepts/riesgo-de-inflacion`) declares topics: a concept or
+    summary page. The three fixed pages (`index`, `overview`, `log`) do not."""
+    return page.startswith(("concepts/", "summaries/"))
 
-    The front-matter block stays as it is on disk: the editor edits the body
-    only, so a manual edit cannot break the fields the code reads back. The save
-    refuses with `PageConflict` when the stored version differs from the one the
-    editor loaded. It then rebuilds the page's references and commits the wiki.
+
+def topic_suggestions(wiki: Wiki, exclude: list[str] = ()) -> list[str]:
+    """The topics the concept and summary pages of the wiki declare, sorted and
+    without repeats, for the topic field of the editor; `exclude` leaves out the
+    topics the page already has."""
+    from domain.chat.vocabulary import normalize
+    from domain.tools.wiki_fs import topic_pages
+
+    skip = {normalize(t) for t in exclude}
+    found: dict[str, str] = {}
+    for page in topic_pages(wiki.db_path, ready_only=False):
+        for topic in page.topics:
+            if normalize(topic) not in skip:
+                found.setdefault(normalize(topic), topic)
+    return sorted(found.values(), key=normalize)
+
+
+def clean_topics(topics: list[str]) -> list[str]:
+    """The topics as the editor saves them: stripped, without blanks, and without a
+    repeat once case and accents are folded («Inflación» repeats «inflación»)."""
+    from domain.chat.vocabulary import normalize
+
+    seen: set[str] = set()
+    kept: list[str] = []
+    for topic in topics:
+        key = normalize(topic)
+        if key and key not in seen:
+            seen.add(key)
+            kept.append(topic.strip())
+    return kept
+
+
+def _with_topics(block: str, topics: list[str]) -> str:
+    """The front-matter block with its `topics` replaced; an empty list removes the
+    field. The block is rendered again by `render_frontmatter`, the function that
+    writes the front-matter of every page `create_page` saves, so the other fields
+    keep their order and their form."""
+    fields = parse_frontmatter(block)
+    fields["topics"] = topics
+    return render_frontmatter(fields).rstrip("\n").removeprefix("---\n").removesuffix("\n---")
+
+
+def save_page(wiki: Wiki, page: str, body: str, expected_version: int | None,
+              topics: list[str] | None = None) -> int | None:
+    """Save an edited page body, and its topics; return the new version.
+
+    The front-matter block stays as it is on disk, except for `topics` when the
+    editor sends them (a concept or summary page): the editor edits the body and
+    the topics only, so a manual edit cannot break the fields the code reads back.
+    The save refuses with `PageConflict` when the stored version differs from the
+    one the editor loaded. It then rebuilds the page's references and commits the wiki.
     """
     from domain.tools.git_ops import auto_commit, init_wiki_repo
     from domain.tools.references import update_references
@@ -138,6 +187,8 @@ def save_page(wiki: Wiki, page: str, body: str, expected_version: int | None) ->
         raise PageConflict(M_("%(page)s changed since it was opened (version %(version)s)",
                               page=page, version=current))
     block, _ = split_frontmatter(read_page(wiki, page))
+    if topics is not None:
+        block = _with_topics(block or "", clean_topics(topics)) or None
     text = (f"---\n{block}\n---\n\n" if block is not None else "") + body.strip() + "\n"
 
     dir_path, slug = posixpath.split(page)

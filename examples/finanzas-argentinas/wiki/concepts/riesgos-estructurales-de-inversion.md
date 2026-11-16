@@ -4,6 +4,7 @@ title: Riesgos estructurales de inversión
 tags: [theme]
 sources:
   - resource: sources/01 Acciones Locales.docx
+topics: [riesgo de mercado, riesgo regulatorio, riesgo cambiario]
 ---
 
 # Riesgos estructurales de inversión

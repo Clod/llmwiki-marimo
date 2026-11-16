@@ -14,11 +14,26 @@ from domain.chat.config import load_config
 DEMO = Path(__file__).resolve().parents[2] / "examples" / "cuentos-de-hadas"
 
 
-def test_an_alias_is_replaced_by_the_name_it_stands_for():
+def test_an_alias_is_followed_by_the_name_it_stands_for():
     aliases = {"Cenicienta": ["Culocenizón"], "Hermanos Grimm": ["Jacob Grimm", "Wilhelm Grimm"]}
-    assert preretrieval.alias_titles(["culocenizon"], aliases) == ["Cenicienta"]
-    assert preretrieval.alias_titles(["Cenicienta", "Culocenizón"], aliases) == ["Cenicienta"]
+    assert preretrieval.alias_titles(["culocenizon"], aliases) == ["culocenizon", "Cenicienta"]
+    assert preretrieval.alias_titles(["Cenicienta", "Culocenizón"], aliases) == ["Cenicienta", "Culocenizón"]
     assert preretrieval.alias_titles(["plazo_fijo"], aliases) == ["plazo_fijo"]
+
+
+def test_an_alias_of_several_names_is_followed_by_every_name():
+    aliases = {"Plazo fijo UVA": ["UVA"], "Unidad de Valor Adquisitivo": ["UVA"]}
+    assert preretrieval.alias_titles(["UVA"], aliases) == ["UVA", "Plazo fijo UVA", "Unidad de Valor Adquisitivo"]
+    assert preretrieval.synonyms_line(["UVA"], aliases, "es") == (
+        "Sinónimos de esta wiki que usa la pregunta: «UVA» es otro nombre de «Plazo fijo UVA»; "
+        "«UVA» es otro nombre de «Unidad de Valor Adquisitivo».")
+
+
+def test_the_term_of_the_question_comes_before_the_name_of_its_alias():
+    # «Riesgo inflacionario» is the title of a page and, here, an alias of another one.
+    aliases = {"Riesgo de inflación": ["Riesgo inflacionario"]}
+    assert preretrieval.alias_titles(["Riesgo inflacionario"], aliases) == [
+        "Riesgo inflacionario", "Riesgo de inflación"]
 
 
 def test_a_question_that_names_an_alias_receives_the_page_of_the_name(tmp_path):

@@ -248,10 +248,9 @@ draft quality**.
 ## B5. Lint & repair — finding quality
 
 **Do:** run lint, then repair, from the ingest app's maintenance controls. Lint
-emits **twelve** kinds of finding: `orphan`, `stale`, `missing_xref`,
+emits **eleven** kinds of finding: `orphan`, `stale`, `missing_xref`,
 `missing_concept`, `contradiction`, `data_gap`, `gap_filled`, `thin_page`, and
-four vocabulary checks — `vocab_collision`, `vocab_stale`, `vocab_ambiguous`,
-`vocab_covered`.
+three vocabulary checks — `vocab_stale`, `vocab_ambiguous`, `vocab_covered`.
 
 **Accept (judgment — Part A already proves lint *runs* and repair adds edges):**
 
@@ -295,11 +294,10 @@ than guessed at. **It must not be auto-repaired** — `vocab_ambiguous` is
 advisory, so repair should report it as skipped, not "fixed" and not "unknown
 check type".
 
-What the other three would look like, for when you meet them:
+What the other two would look like, for when you meet them:
 
 | Check | Severity | Fires when | Repairable? |
 |---|---|---|---|
-| `vocab_collision` | error | an alias is really another covered concept's own name | **yes**, but only if it came from the generated file — a collision from your own `[alias_datos]` is reported and left alone, since the pipeline never rewrites what you wrote |
 | `vocab_stale` | warning | aliases still point at a concept whose page is gone | no — advisory |
 | `vocab_covered` | info | a term on your `[fuera_de_alcance]` blacklist now has a page or dataset | no — advisory; it is telling you the blacklist entry is obsolete |
 

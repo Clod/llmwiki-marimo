@@ -4,6 +4,7 @@ title: BYMA
 tags: [entity]
 sources:
   - resource: sources/12 Cauciones Bursátiles.docx
+topics: [cauciones, mercado bursátil]
 ---
 
 # BYMA

@@ -381,7 +381,7 @@ def test_editor_shows_the_body_without_the_front_matter(client):
     assert response.status_code == 200
     assert "glass slipper" in response.text
     assert "type: concept" not in response.text
-    assert "El bloque de front-matter no se edita: se conserva tal como está." in response.text
+    assert "El resto del bloque de front-matter no se edita: se conserva tal como está." in response.text
 
 
 def test_the_editor_shows_the_markdown_and_its_preview_side_by_side(client):
@@ -457,6 +457,66 @@ def test_an_error_text_with_url_characters_is_encoded_in_the_redirect(client, wi
     # And the editor shows the value unchanged, escaped by the template.
     shown = client.get(location).text
     assert "changed &amp; &lt;b&gt;x&lt;/b&gt; #1 100% ?a=b cambió desde que se abrió (versión 2)" in shown
+
+
+def _set_topics(wiki, page, topics):
+    from services.wiki import save_page
+    from domain.datasets.frontmatter import split_frontmatter
+    body = split_frontmatter(read_page(wiki, page))[1]
+    save_page(wiki, page, body, None, topics=topics)
+
+
+def test_the_editor_of_a_concept_or_summary_page_shows_its_topic_list(client, wiki):
+    _set_topics(wiki, "concepts/prince", ["royal ball", "glass slipper"])
+    _set_topics(wiki, "summaries/tale", ["stepmother"])
+    html = client.get(f"/w/{WIKI_ID}/edit/concepts/prince").text
+    topics = html[html.index('id="topic-list"'):html.index("</ul>", html.index('id="topic-list"'))]
+    assert 'value="royal ball"' in topics and 'value="glass slipper"' in topics
+    assert topics.count("data-remove-topic") == 2
+    # The field suggests the topics of the other pages, not the page's own.
+    suggestions = html[html.index('id="topic-suggestions"'):html.index("</datalist>")]
+    assert 'value="stepmother"' in suggestions and "royal ball" not in suggestions
+    assert '<script src="/static/js/topics.js">' in html
+    assert 'id="topic-list"' in client.get(f"/w/{WIKI_ID}/edit/summaries/tale").text
+
+
+def test_the_editor_of_a_fixed_page_has_no_topic_list(client):
+    html = client.get(f"/w/{WIKI_ID}/edit/overview").text
+    assert 'id="topic-list"' not in html and "topics.js" not in html
+    assert "El bloque de front-matter no se edita: se conserva tal como está." in html
+
+
+def test_save_writes_the_topics_and_keeps_the_other_fields(client, wiki):
+    from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
+    from domain.tools.wiki_fs import page_topics
+
+    page = "concepts/prince"
+    _set_topics(wiki, page, ["royal ball", "glass slipper"])
+    fields = parse_frontmatter(split_frontmatter(read_page(wiki, page))[0])
+    response = client.post(f"/w/{WIKI_ID}/edit/{page}", data={
+        "body": "A new body.", "version": str(page_version(wiki, page)), "topics_shown": "1",
+        "topics": ["royal ball", "Royal Ball", " ", "midnight"]})
+    assert response.status_code == 303
+    text = read_page(wiki, page)
+    assert page_topics(text) == ["royal ball", "midnight"]
+    after = parse_frontmatter(split_frontmatter(text)[0])
+    assert {k: v for k, v in after.items() if k != "topics"} == {k: v for k, v in fields.items() if k != "topics"}
+    assert "edit: concepts/prince" in git_log(wiki)
+
+
+def test_an_empty_topic_list_removes_the_field(client, wiki):
+    page = "concepts/prince"
+    _set_topics(wiki, page, ["royal ball"])
+    client.post(f"/w/{WIKI_ID}/edit/{page}", data={
+        "body": "Body.", "version": str(page_version(wiki, page)), "topics_shown": "1"})
+    assert "topics:" not in read_page(wiki, page)
+
+
+def test_without_the_topic_list_the_topics_are_kept(client, wiki):
+    page = "concepts/prince"
+    _set_topics(wiki, page, ["royal ball"])
+    client.post(f"/w/{WIKI_ID}/edit/{page}", data={"body": "Body.", "version": str(page_version(wiki, page))})
+    assert "topics: [royal ball]" in read_page(wiki, page)
 
 
 def test_editing_a_missing_page_is_a_404(client):

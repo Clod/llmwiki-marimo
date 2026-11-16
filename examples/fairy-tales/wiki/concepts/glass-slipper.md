@@ -4,6 +4,7 @@ title: Glass Slipper
 tags: [instrument]
 sources:
   - resource: sources/Cinderella.pdf
+topics: [slipper]
 ---
 
 # Glass Slipper

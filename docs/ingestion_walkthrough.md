@@ -220,9 +220,8 @@ is wrong in a way that reads as fluent and correct. The list acts as a delete
 filter when the two alias sources are merged: any alias a canonical must never
 have is removed from the result, so a generated alias that wrongly bridges the
 two never reaches the query path at all. Alias lists widen what the wiki will
-match; this one narrows it back where widening would do damage. The lint pass
-also uses it as its suggested remedy — when it finds an alias that is really
-another concept's name, what it tells you to do is add the pair here.
+match; this one narrows it back where widening would do damage. It is where a
+curator records an alias the ingestion generated and the curator judged false.
 
 **The blacklist and this list answer different questions.** The question is
 matched against the blacklist: if a listed term appears in it, the question is
@@ -274,12 +273,12 @@ each ingest reads it, adds the concepts from the document just processed,
 re-checks the whole map and writes it back. Ingesting the same document twice
 therefore adds the same alias once.
 
-That re-check enforces one rule: **an alias may not be the name of something
-else this wiki already covers.** An alias that breaks it is dropped instead of
-written, and the pipeline prints `⚠️ N alias collision(s) dropped`. The section
-[Wikis whose facts change](#wikis-whose-facts-change), further down, works
-through a real case: a document about CEDEARs whose proposed alias was already
-another concept page's name.
+That re-check cleans the map: it drops a blank alias, a repeat, and an alias
+equal to the name of its own concept. **It never judges whether an alias is
+false.** Every alias the file did not hold before is printed for a curator to
+review, as `⚠️ New aliases to review in the vocabulary screen: «BCBA» → «Bolsas y
+Mercados Argentinos»`. The section [Wikis whose facts change](#wikis-whose-facts-change),
+further down, works through why.
 
 What that re-check does **not** do is remove an entry whose page is gone. It
 checks the aliases, never the key, so if a concept page is deleted — or simply
@@ -808,8 +807,8 @@ The numbers above are Act 1's, so you can check every one of them against the
   entries look like this:
 
   ```text
-  slipper     →  153, 117, 127, 151, 152, 116, 109, 113
-  Cinderella  →  138, 152, 153, 151, 146, 127, 117, 112, 111, 115, 109, 116, …
+  slipper     →  158, 117, 169, 155, 156, 116, 109, 113
+  Cinderella  →  164, 156, 158, 155, 162, 169, 117, 112, 111, 115, 109, 116, …
   ```
 
   Those numbers are `rowid`s — internal row numbers, reassigned whenever the
@@ -849,28 +848,28 @@ The numbers above are Act 1's, so you can check every one of them against the
 
   | fragment | mentions | tokens | rank |
   |---:|---:|---:|---:|
-  | 153 | 5 | 305 | −2.08 |
+  | 158 | 6 | 310 | −2.14 |
   | 117 | 7 | 519 | −1.98 |
-  | 127 | 3 | 262 | −1.94 |
-  | 151 | 2 | 288 | −1.71 |
-  | 152 | 2 | 290 | −1.70 |
+  | 169 | 3 | 277 | −1.93 |
+  | 155 | 2 | 297 | −1.70 |
+  | 156 | 2 | 296 | −1.70 |
   | 116 | 3 | 471 | −1.58 |
   | 109 | 1 | 411 | −1.01 |
-  | 113 | 1 | 481 | −0.91 |
+  | 113 | 1 | 481 | −0.92 |
 
   That last column shows three behaviours worth knowing about.
 
   **Repeating a word counts, but less and less.** Among fragments of roughly 500
-  tokens, going from one mention to three (113 → 116) improves the rank by 0.67,
+  tokens, going from one mention to three (113 → 116) improves the rank by 0.66,
   while going from three to seven (116 → 117) improves it by only 0.40. The first
   few mentions establish that a passage is on the subject; later ones add little.
 
   **Length is taken into account.** Fragments 109 and 113 mention the word exactly
   once each, and the shorter one wins: one mention inside 411 tokens means the
   passage is more likely to be *about* the slipper than one mention spread across
-  481. The effect is very fine-grained — fragments 151 and 152 each have two
-  mentions and differ by just two tokens of length, and those two tokens change
-  their ranks by a hundredth.
+  481. The effect is very fine-grained — fragments 155 and 156 each have two
+  mentions and differ by one token of length, and their ranks differ by less
+  than a hundredth (−1.702 and −1.695).
 
   **Rare words count for more.** A word that appears in most fragments does not
   help tell them apart, so BM25 gives it less weight and favours the rarer words
@@ -1640,28 +1639,23 @@ vocabulary actually changed since the last scan — a second scan of an
 unchanged `datasets/` folder costs no model call, the same idempotence
 argument as Act 3a, applied to a different file.
 
-Generated aliases are validated against the wiki's **coverage roster** — the
+Generated aliases are not checked against the wiki's **coverage roster** — the
 closed list of terms this wiki considers itself to cover, built from the names of
-its own concept pages plus, in a wiki with datasets, the dataset vocabulary. The
-roster matters most on the query side, where it
-decides which questions get answered at all; here it plays a smaller role, as the
-list a proposed alias must not collide with.
+its own concept pages plus, in a wiki with datasets, the dataset vocabulary. An
+earlier version dropped an alias that was the name of another covered term, and
+printed `⚠️ N alias collision(s) dropped`. During a round of manual acceptance
+testing, ingesting a document about CEDEARs into a copy of this demo logged one
+such drop; the exact pair was not recorded.
 
-Anything that collides with an already-covered term is dropped rather than
-written, and the pipeline says so: `⚠️ N alias collision(s) dropped`
-(`ingestion/pipeline.py`, both the per-file and per-scan variants). That line is
-not hypothetical. During a round of manual acceptance testing on the vocabulary
-feature, ingesting a document about CEDEARs — Argentine certificates that
-represent shares in foreign companies — into a copy of this demo logged `⚠️ 1
-alias collision(s) dropped`: the model had proposed an alias that was already
-another covered term's own name, and the generator discarded it before it reached
-the file.
+That rule assumed that every page treats a different thing, and the shipped demo
+breaks the assumption: it has both «Riesgo de inflación» and «Riesgo
+inflacionario». The alias «Riesgo inflacionario» of «Riesgo de inflación» is right,
+and the rule dropped it. Only a curator can tell a false alias, so the pipeline now
+keeps every proposal and names each new one for review (`_report_new_aliases`,
+`ingestion/pipeline.py`, both the per-file and per-scan variants).
 
-The exact pair was not recorded — that run predates this document and its numbers
-came from a testing session rather than the regenerable appendix. So here is an
-**illustrative** example of the same shape, built from page names the shipped
-demo really has. Reading a document about CEDEARs, a model could reasonably
-propose:
+Here is an **illustrative** false alias, built from page names the shipped demo
+really has. Reading a document about CEDEARs, a model could reasonably propose:
 
 ```toml
 # what the model proposed
@@ -1669,20 +1663,19 @@ propose:
 ```
 
 It is an understandable mistake: a CEDEAR *is* a way to hold shares, and the
-document says so. But `Acciones locales` is already a concept page of its own in
-that wiki — local shares, an entirely different instrument. Accepting the alias
-would make every question about local shares also match CEDEARs. So the check
-refuses it:
+document says so. But `Acciones locales` is a concept page of its own in that
+wiki — local shares, an entirely different instrument. The pipeline prints:
 
 ```text
-⚠️ 1 alias collision(s) dropped
+⚠️ New aliases to review in the vocabulary screen: «Acciones locales» → «CEDEAR»
 ```
 
-and the file is written without it. The rule is narrow and mechanical: **an alias
-may not be the name of something else the wiki already covers.** It is the same
-confusion that `[falsos_sinonimos]` exists to make permanent — the demo's one
-entry, `cedear = ["accion", "acciones"]`, is a human writing down "do not let
-this happen again" after seeing it happen once.
+The curator rejects it in the vocabulary screen, which lists it under
+`[falsos_sinonimos]` — the demo's one entry, `cedear = ["accion", "acciones"]`,
+is a human writing down "do not let this happen again" after seeing it once. A
+search that names an alias also keeps the term the question used, and that term
+comes first: the question «¿Qué son las acciones locales?» would still get the
+page «Acciones locales» before the page «CEDEAR».
 
 The shipped demo has one of these, and the linter reports it.
 `examples/finanzas-argentinas/.llmwiki/aliases.generated.toml` currently contains

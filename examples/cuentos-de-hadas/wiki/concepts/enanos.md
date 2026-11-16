@@ -4,6 +4,7 @@ title: Enanos
 tags: [entity]
 sources:
   - resource: sources/Blancanieves.pdf
+topics: [siete enanos, refugio]
 ---
 
 # Enanos

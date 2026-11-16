@@ -4,6 +4,7 @@ title: Espejo mágico
 tags: [instrument]
 sources:
   - resource: sources/Blancanieves.pdf
+topics: [espejo]
 ---
 
 # Espejo mágico

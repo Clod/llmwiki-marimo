@@ -4,6 +4,7 @@ title: Coeficiente de Estabilización de Referencia
 tags: [instrument]
 sources:
   - resource: sources/04 Bonos CER y UVA.docx
+topics: [CER, IPC, índice de precios, INDEC]
 ---
 
 # Coeficiente de Estabilización de Referencia

@@ -4,6 +4,7 @@ title: Fairy Tale
 tags: [theme]
 sources:
   - resource: sources/Little Red Riding Hood.pdf
+topics: [folklore, fairies, moral lessons]
 ---
 
 # Fairy Tale

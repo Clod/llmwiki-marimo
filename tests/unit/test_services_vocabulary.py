@@ -34,7 +34,8 @@ def last_commit(wiki) -> tuple[str, list[str]]:
 def test_the_roster_holds_the_datasets_and_the_concept_pages_with_their_origin(wiki):
     entries = {e.name: e for e in vocab.read_vocabulary(wiki).roster}
     assert entries["Plazo fijo UVA"].origin == "concept" and entries["Plazo fijo UVA"].page == "concepts/plazo-fijo-uva"
-    assert {e.origin for e in entries.values()} == {"category", "key", "concept"}
+    assert {e.origin for e in entries.values()} == {"category", "key", "concept", "topic"}
+    assert entries["inflación"].origin == "topic"
     names = [e.name for e in vocab.read_vocabulary(wiki).roster]
     assert len(names) == len({n.casefold() for n in names})
 
@@ -68,13 +69,13 @@ def test_a_covered_name_cannot_go_to_the_blacklist(wiki):
         vocab.add_blacklist_term(wiki, "Acciones")      # a dataset category of the example
 
 
-def test_a_hand_alias_needs_a_covered_canonical_and_must_not_name_another_one(wiki):
+def test_a_hand_alias_needs_a_covered_canonical_and_may_name_another_one(wiki):
     with pytest.raises(vocab.VocabularyEditError) as refused:
         vocab.add_alias(wiki, "Bitcoin", "BTC")
     assert refused.value.code == "unknown_canonical"
-    with pytest.raises(vocab.VocabularyEditError) as refused:
-        vocab.add_alias(wiki, "Plazo fijo UVA", "Plazo fijo tradicional")
-    assert refused.value.code == "collision"
+    # The curator writes the alias: the screen does not judge whether it is false.
+    vocab.add_alias(wiki, "Riesgo de inflación", "Riesgo inflacionario")
+    assert "Riesgo inflacionario" in load_config(wiki.path).data_aliases["Riesgo de inflación"]
     vocab.add_alias(wiki, "Plazo fijo UVA", "PF UVA")
     assert "PF UVA" in load_config(wiki.path).data_aliases["Plazo fijo UVA"]
 
@@ -91,13 +92,13 @@ def test_a_hand_alias_belongs_to_the_name_the_user_typed(wiki):
 
 
 def test_rejecting_a_generated_alias_removes_it_for_good(wiki):
-    vocab.reject_alias(wiki, "Plazo fijo UVA", "UVA")
+    vocab.reject_alias(wiki, "Bonos Duales", "Duales")
     v = vocab.read_vocabulary(wiki)
-    assert ("Plazo fijo UVA", "UVA") in v.rejected
-    assert "Plazo fijo UVA" not in {c.canonical for c in v.aliases}
-    assert last_commit(wiki)[0] == 'vocabulary: reject alias "UVA" of "Plazo fijo UVA"'
-    vocab.unreject_alias(wiki, "Plazo fijo UVA", "UVA")
-    assert "Plazo fijo UVA" in {c.canonical for c in vocab.read_vocabulary(wiki).aliases}
+    assert ("Bonos Duales", "Duales") in v.rejected
+    assert "Bonos Duales" not in {c.canonical for c in v.aliases}
+    assert last_commit(wiki)[0] == 'vocabulary: reject alias "Duales" of "Bonos Duales"'
+    vocab.unreject_alias(wiki, "Bonos Duales", "Duales")
+    assert "Bonos Duales" in {c.canonical for c in vocab.read_vocabulary(wiki).aliases}
 
 
 def test_rejecting_a_hand_alias_also_removes_the_hand_copy(wiki):

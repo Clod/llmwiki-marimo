@@ -4,6 +4,7 @@ title: Unidad de Valor Adquisitivo
 tags: [instrument]
 sources:
   - resource: sources/04 Bonos CER y UVA.docx
+topics: [UVA, créditos hipotecarios, IPC]
 ---
 
 # Unidad de Valor Adquisitivo

@@ -4,6 +4,7 @@ title: Caución Bursátil
 tags: [instrument]
 sources:
   - resource: sources/12 Cauciones Bursátiles.docx
+topics: [cauciones, cauciones bursátiles]
 ---
 
 # Caución Bursátil

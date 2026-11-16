@@ -1,6 +1,7 @@
 ---
 type: summary
 title: Little Red Riding Hood
+topics: [wolf, grandmother]
 ---
 
 # Little Red Riding Hood

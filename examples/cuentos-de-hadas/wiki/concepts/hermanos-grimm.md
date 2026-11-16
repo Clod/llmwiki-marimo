@@ -4,6 +4,7 @@ title: Hermanos Grimm
 tags: [entity]
 sources:
   - resource: sources/Blancanieves.pdf
+topics: [Grimm, Jacob Grimm, Wilhelm Grimm]
 ---
 
 # Hermanos Grimm

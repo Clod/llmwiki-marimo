@@ -4,6 +4,7 @@ title: Riesgo inflacionario
 tags: [theme]
 sources:
   - resource: sources/07 FCI Money Market.docx
+topics: [inflación, poder adquisitivo, rendimiento real]
 ---
 
 # Riesgo inflacionario

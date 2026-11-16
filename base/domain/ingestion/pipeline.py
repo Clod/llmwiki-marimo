@@ -401,12 +401,10 @@ def _ingest_file(
                 try:
                     _alias_result = update_generated_aliases(
                         workspace,
-                        _all_concept_names(db_path),
                         [(c.name, c.aliases) for c in extraction.concepts],
                     )
-                    i7.set(collisions=len(_alias_result.collisions))
-                    if _alias_result.collisions:
-                        _cb(M_("⚠️ %(n)s alias collision(s) dropped", n=len(_alias_result.collisions)))
+                    i7.set(new_aliases=len(_alias_result.new))
+                    _report_new_aliases(_cb, _alias_result.new)
                 except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail ingest
                     i7.set(error=str(exc))
                     logger.warning("alias generation failed for %s: %s", file_path.name, exc)
@@ -603,6 +601,15 @@ def _rollback_wiki_pages(
     return acted
 
 
+def _report_new_aliases(cb: Callable[[str], None], new: Iterable[tuple[str, str]]) -> None:
+    """Name each alias the ingestion just generated, for a curator to review in the
+    vocabulary screen: only a curator can tell a false alias («UVA» is not another
+    name of «Plazo fijo UVA»)."""
+    pairs = "; ".join(f"«{alias}» → «{canonical}»" for canonical, alias in new)
+    if pairs:
+        cb(M_("⚠️ New aliases to review in the vocabulary screen: %(pairs)s", pairs=pairs))
+
+
 def _all_concept_names(db_path: str) -> list[str]:
     """Return names of all concept wiki pages currently in the DB."""
     from domain.tools.db import get_connection
@@ -671,14 +678,12 @@ def scan_and_ingest(
             try:
                 _ds = regenerate_dataset_aliases(
                     workspace,
-                    _all_concept_names(db_path),
                     lambda terms: extract_dataset_aliases(terms, llm_client, model, language=language),
                 )
                 i14.set(regenerated=_ds is not None)
-                if _ds and _ds.collisions:
-                    _cb(M_("⚠️ %(n)s dataset-alias collision(s) dropped", n=len(_ds.collisions)))
-                elif _ds:
+                if _ds:
                     _cb(M_("🔤 Generated aliases for %(n)s data term(s)", n=len(_ds.aliases)))
+                    _report_new_aliases(_cb, _ds.new)
             except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail the scan
                 i14.set(error=str(exc))
                 logger.warning("dataset alias generation failed: %s", exc)

@@ -4,6 +4,7 @@ title: Acciones locales
 tags: [instrument]
 sources:
   - resource: sources/01 Acciones Locales.docx
+topics: [acciones argentinas, mercado bursátil, capital social]
 ---
 
 # Acciones locales

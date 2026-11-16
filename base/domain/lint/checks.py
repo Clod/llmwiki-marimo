@@ -368,13 +368,14 @@ def gap_filled_check(db_path: str) -> list[LintIssue]:
 def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
     """Cross the effective alias vocabulary against the wiki's live coverage.
 
-    Pure (no LLM). The ingest-time generator drops collisions when it writes, so
-    this catches the drift it can't: a collision introduced by a hand override or
-    a newly-added dataset; an alias entry for a canonical the wiki no longer
-    covers; an alias mapping to two canonicals; and an off-limits term now covered.
+    Pure (no LLM). It catches the drift of the alias map: an alias entry for a
+    canonical the wiki no longer covers; an alias mapping to two canonicals; and an
+    off-limits term now covered. It never judges whether an alias is false: an alias
+    that is also the name of another covered thing may be right, as two pages can
+    treat the same thing. Only a curator can tell.
     """
     from domain.chat.config import load_config
-    from domain.chat.vocabulary import RosterKey, build_roster, validate_aliases
+    from domain.chat.vocabulary import RosterKey, build_roster
     from domain.datasets.source import LocalMarkdownSource
     from domain.ingestion.alias_generation import dataset_vocabulary
     from domain.tools.wiki_fs import concept_page_names
@@ -398,18 +399,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
     issues: list[LintIssue] = []
     artifact = ".llmwiki/aliases.generated.toml"
 
-    # 1. Collisions — an alias that is really another covered canonical's name.
-    for c in validate_aliases(aliases, roster, key).collisions:
-        issues.append(LintIssue(
-            check="vocab_collision", severity="error", page=artifact,
-            description=(
-                f"Alias '{c.alias}' of '{c.canonical}' is really the name of '{c.collides_with}'"
-            ),
-            suggestion=f"List '{c.alias}' under '{c.canonical}' in [falsos_sinonimos], or remove it",
-            alias=c.alias, terms=(c.alias, c.canonical, c.collides_with),
-        ))
-
-    # 2. Stale — an alias entry for a canonical the wiki no longer covers.
+    # 1. Stale — an alias entry for a canonical the wiki no longer covers.
     for canonical in aliases:
         if not covered(canonical):
             issues.append(LintIssue(
@@ -419,7 +409,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
                 terms=(canonical,),
             ))
 
-    # 3. Ambiguous — one alias mapping to two different canonicals.
+    # 2. Ambiguous — one alias mapping to two different canonicals.
     owners: dict[str, list[str]] = {}
     for canonical, alias_list in aliases.items():
         for alias in alias_list:
@@ -436,7 +426,7 @@ def vocabulary_check(db_path: str, workspace: Path) -> list[LintIssue]:
                 terms=(alias_norm, *sorted(set(canonicals))),
             ))
 
-    # 4. Covered — an off-limits term the wiki now actually covers.
+    # 3. Covered — an off-limits term the wiki now actually covers.
     for term in config.blacklist:
         if covered(term):
             issues.append(LintIssue(

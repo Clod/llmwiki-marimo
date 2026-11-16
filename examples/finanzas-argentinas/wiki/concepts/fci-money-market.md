@@ -4,6 +4,7 @@ title: FCI Money Market
 tags: [instrument]
 sources:
   - resource: sources/07 FCI Money Market.docx
+topics: [fondos comunes de inversión, FCI, liquidez inmediata]
 ---
 
 # FCI Money Market

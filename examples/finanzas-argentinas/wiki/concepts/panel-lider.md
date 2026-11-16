@@ -4,6 +4,7 @@ title: Panel Líder
 tags: [theme]
 sources:
   - resource: sources/01 Acciones Locales.docx
+topics: [mayor capitalización, acciones líderes]
 ---
 
 # Panel Líder

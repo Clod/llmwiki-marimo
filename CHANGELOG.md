@@ -13,6 +13,27 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **A concept page declares its topics.** The question «¿La inflación me puede
+  comer la ganancia?» ended in `R_NOT_IN_ROSTER`, although the wiki has the
+  page «Riesgo de inflación»: the coverage roster compares a title of several
+  words whole. A concept page can now declare `topics: [inflación, …]` in its
+  front-matter, and the roster counts each topic like a title, by stem
+  (`page_topics`, `concept_page_names`, `base/domain/tools/wiki_fs.py`). The
+  topics also reach the suggestions of a refusal and the «Roster» tab of the
+  vocabulary screen, with the origin «page topic». `create_page` keeps the
+  topics a page declares when the ingestion or a repair rewrites it. A summary
+  page declares topics too; its title stays out of the roster, as before. The
+  56 concept pages and the 12 summary pages of the three examples declare their
+  topics.
+
+- **The editor edits the topics of a page as a list.** A concept or summary
+  page shows its topics in the editor, each with «Quitar», and a field with
+  «Agregar» that suggests the topics of the other pages. «Guardar» writes the
+  topics with the body in one commit; the rest of the front-matter is kept
+  (`save_page`, `base/services/wiki.py`; `web/static/js/topics.js`). A change of
+  the front-matter alone keeps the sentence verification of the page:
+  `write_page_content` now deletes it only when the body changes.
+
 - **The sentence verification is a node of the path.** With «Verificar las
   oraciones» on, the web marks the unsupported sentences and splits the
   injected pages in the reference line after the path of the turn closed in
@@ -590,6 +611,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   with the marimo app now compares it with the templates of the web interface.
 
 ### Removed
+
+- **The alias collision check.** The ingestion dropped an alias that was the
+  name of another covered term, the linter reported it as `vocab_collision`
+  with an automatic repair, and the vocabulary screen refused it. The rule
+  assumed that every page treats a different thing, and the finance example
+  breaks it: «Riesgo de inflación» and «Riesgo inflacionario» are two pages, and
+  the alias «Riesgo inflacionario» of «Riesgo de inflación» was dropped. Only a
+  curator can tell a false alias: the ingestion now keeps every proposal and
+  names each new alias for review (`⚠️ New aliases to review in the vocabulary
+  screen: …`). A search that names an alias keeps the term of the question,
+  first, and then searches every name the alias stands for: «UVA» stands for
+  «Plazo fijo UVA» and for «Unidad de Valor Adquisitivo» (`alias_titles`,
+  `synonyms_line`, `base/domain/chat/preretrieval.py`).
 
 - **The marimo apps.** `marimo/` (the ingest app, the two read apps, the grid
   layout and the delete widget), their end-to-end tests in `tests/e2e/`,

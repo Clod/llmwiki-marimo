@@ -4,6 +4,7 @@ title: Cinderella
 tags: [entity]
 sources:
   - resource: sources/Cinderella.pdf
+topics: [stepfamily, mistreatment]
 ---
 
 # Cinderella

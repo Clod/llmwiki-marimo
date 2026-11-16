@@ -1,6 +1,7 @@
 ---
 type: summary
 title: La Cenicienta
+topics: [madrastra, hermanastras, hada madrina, baile real]
 ---
 
 # La Cenicienta

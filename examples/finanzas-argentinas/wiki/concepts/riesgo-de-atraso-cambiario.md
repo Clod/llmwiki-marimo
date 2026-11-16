@@ -4,6 +4,7 @@ title: Riesgo de atraso cambiario
 tags: [tema]
 sources:
   - resource: sources/05 Bonos Dólar Linked y Duales.docx
+topics: [atraso cambiario, tipo de cambio oficial]
 ---
 
 # Riesgo de atraso cambiario

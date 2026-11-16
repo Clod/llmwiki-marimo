@@ -1,6 +1,7 @@
 ---
 type: summary
 title: Caperucita Roja
+topics: [lobo, abuela, moraleja]
 ---
 
 # Caperucita Roja

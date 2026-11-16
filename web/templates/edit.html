@@ -9,12 +9,32 @@
     <div class="panel editor-bar">
       <strong>{{ _("Editing") }}</strong>
       <span class="mono muted editor-path">wiki/{{ page }}.md</span>
-      <span class="tag">{{ _("The front-matter block is not edited: it is kept as it is.") }}</span>
+      <span class="tag">{% if has_topics %}{{ _("The rest of the front-matter block is not edited: it is kept as it is.") }}{% else %}{{ _("The front-matter block is not edited: it is kept as it is.") }}{% endif %}</span>
       <div class="editor-actions">
         <a class="btn-link" href="/w/{{ wiki_id }}/pages/{{ page }}" title="{{ _('Back to the page without saving') }}">{{ _("Cancel") }}</a>
         <button class="btn btn-primary" title="{{ _('Save the changes and commit them to the git repository of the wiki') }}">{{ _("Save") }}</button>
       </div>
     </div>
+    {% if has_topics %}
+    <section class="panel editor-topics" aria-labelledby="h-topics">
+      <input type="hidden" name="topics_shown" value="1">
+      <div class="pane-head" id="h-topics" title="{{ _('The topics the page treats: a question that names one passes the coverage roster') }}">{{ _("Topics") }}</div>
+      <ul class="topic-list" id="topic-list">
+        {% for topic in topics %}
+        <li><span>{{ topic }}</span><input type="hidden" name="topics" value="{{ topic }}">
+          <button class="btn-link destructive" type="button" data-remove-topic title="{{ _('Remove the topic from the page') }}">{{ _("Remove") }}</button></li>
+        {% endfor %}
+      </ul>
+      <template id="topic-row"><li><span></span><input type="hidden" name="topics">
+        <button class="btn-link destructive" type="button" data-remove-topic title="{{ _('Remove the topic from the page') }}">{{ _("Remove") }}</button></li></template>
+      <div class="topic-add">
+        <input class="field" id="topic-new" list="topic-suggestions" placeholder="{{ _('A topic of the page') }}" aria-label="{{ _('New topic of the page') }}"
+               title="{{ _('Suggests the topics of the other pages; Enter adds it') }}" autocomplete="off">
+        <button class="btn" type="button" id="topic-add" title="{{ _('Add the topic to the list; it is saved with Save') }}">{{ _("Add") }}</button>
+        <datalist id="topic-suggestions">{% for s in topic_suggestions %}<option value="{{ s }}">{% endfor %}</datalist>
+      </div>
+    </section>
+    {% endif %}
     <div class="editor-panes">
       <section class="panel editor-pane" aria-label="{{ _('Markdown text') }}">
         <div class="pane-head muted">{{ _("Markdown") }}</div>
@@ -28,4 +48,5 @@
     </div>
   </form>
 </main>
+{% if has_topics %}<script src="/static/js/topics.js"></script>{% endif %}
 {% endblock %}
