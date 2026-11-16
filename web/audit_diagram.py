@@ -38,6 +38,7 @@ WORKFLOW_GRAPHS = {
 
 # The nodes that call the model between the two workflows of a mode.
 MODEL_CALLS = (*input_checks.AGENT_CALL_NODES, "T_AGENT")
+RETRIES = ("T_RETRY", "Q_RETRY_SOURCES")
 
 VISITED_STYLE = "classDef visited fill:#fde047,stroke:#a16207,stroke-width:3px,color:#1f2937"
 
@@ -103,14 +104,15 @@ def workflow_diagram(graph, path_ids) -> str:
 
 def model_call_chain(path_ids) -> list[str]:
     """The node of the call to the model and the nodes that follow it: the tools it called,
-    and the retry of the agent mode (T_RETRY) with its own tools, in the order of the path;
-    empty when the turn did not call the model."""
+    the retry of the agent mode (T_RETRY) with its own tools, and the retry of the
+    pre-retrieval mode (Q_RETRY_SOURCES) with its call to the model, in the order of the
+    path; empty when the turn did not call the model."""
     path_ids = list(path_ids)
     start = next((n for n, node in enumerate(path_ids) if node in MODEL_CALLS), None)
     if start is None:
         return []
     return [path_ids[start], *(node for node in path_ids[start + 1:]
-                               if _TOOL.fullmatch(node) or node == "T_RETRY")]
+                               if _TOOL.fullmatch(node) or node in RETRIES or node in MODEL_CALLS)]
 
 
 def model_call_diagram(path_ids) -> str:

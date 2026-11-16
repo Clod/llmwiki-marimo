@@ -22,6 +22,7 @@ from domain.chat.config import DEFAULT_NUMBER_TOLERANCE
 from domain.chat.dataset_tools import format_rows_as_table
 from domain.chat.refusal import (
     Refusal,
+    fixed_sentence,
     render,
     roster_suggestions,
     search_suggestions,
@@ -200,6 +201,15 @@ def retrieve_source_chunks(
     return _format_hits(
         search_chunks(db_path, _fts_query(query, language), limit=limit, scope="sources", language=language)
     )
+
+
+def source_query(turn: PreRetrievalTurn) -> str:
+    """The text of the source search (node Q_SEARCH_SOURCES and the retry Q_RETRY_SOURCES):
+    the question, and the names its aliases stand for, as Q_SEARCH_WIKI searches them.
+    «montero» also finds the fragments of «cazador». Only the replaced names are added:
+    a term of the question is already in `turn.search`."""
+    names = [name for name in alias_titles(turn.matched, turn.config.data_aliases) if name not in turn.matched]
+    return " ".join([turn.search, *names])
 
 
 def retrieve_collection_pages(workspace) -> list[str]:
@@ -797,6 +807,38 @@ def refuse(node_id: str, turn: PreRetrievalTurn, refusal: Refusal, *, raw: str =
     return text
 
 
+def is_model_refusal(text: str, language: str | None) -> bool:
+    """The answer opens with the fixed refusal sentence: the test of node Q_MODEL_REFUSED."""
+    return text.lstrip().startswith(fixed_sentence(language))
+
+
+async def _retry_with_sources(turn: PreRetrievalTurn, result, run_agent, on_context):
+    """The retry Q_RETRY_SOURCES: the model refused with the wiki pages, and the datum can be
+    only in a source document («los lacayos volvían a ser lagartos», only in La Cenicienta.pdf).
+    The code searches the source documents, as Q_SEARCH_SOURCES does, and calls the model
+    again with the fragments (Q_AGENT_FRAGMENTS): the output workflow then checks a Tier-2
+    answer. With no fragment, the first answer stays, and the output workflow ends in
+    R_MODEL. A retrieval, not a check: it runs between the two workflows, as the model calls do."""
+    query = source_query(turn)
+    with tracing.node("Q_RETRY_SOURCES", tracing.READING, refused_output=result.output,
+                      fts_query=_fts_query(query, turn.language)) as retry:
+        hits = retrieve_source_chunks(turn.db_path, query, language=turn.stem_language)
+        retry.set(fragments=_hit_labels(hits))
+    if not hits:
+        return result
+    turn.doc_hits = hits
+    turn.plan = tier2_plan(hits)
+    turn.prompt = build_prompt(turn.plan.context, turn.synonyms, turn.asked, turn.language)
+    if on_context is not None:
+        on_context([context_passage(block) for block in turn.plan.blocks])
+    with tracing.node("Q_AGENT_FRAGMENTS", tracing.READING, tier=turn.plan.tier,
+                      context_chars=len(turn.plan.context or "")) as answer_node:
+        answer_node.payload("prompt", turn.prompt, channel="prompts")
+        result = await run_agent(turn.prompt, turn.history)
+        answer_node.set(raw_output=result.output)
+    return result
+
+
 async def _pre_retrieval_turn(
     question: str, *, config, db_path, workspace, history, language, run_agent, on_trace,
     open_page: str | None = None, on_context=None, condense=None, conversation=(), on_figures=None,
@@ -836,6 +878,8 @@ async def _pre_retrieval_turn(
         answer_node.payload("prompt", prompt, channel="prompts")
         result = await run_agent(prompt, turn.history)
         answer_node.set(raw_output=result.output)
+    if outcome.node == "Q_AGENT_PAGES" and is_model_refusal(result.output, language):
+        result = await _retry_with_sources(turn, result, run_agent, on_context)
 
     checks = output_checks.AnswerChecks(
         result.output, result.all_messages(), language, result=result, turn=turn,
