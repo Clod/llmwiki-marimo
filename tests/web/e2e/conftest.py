@@ -5,16 +5,43 @@ The tests are skipped when Playwright cannot start a browser. No test calls a
 model: the agents are simulated, and the ingestion services are replaced. The
 one exception is `test_lint_live.py`, which runs only with `E2E_FULL=1` and
 calls the model of `.env` (`server.serve_live`).
+
+Every test records a Playwright trace: a screenshot and the page before each action.
+When the test fails, the trace is kept as `test-results/<test>.zip` (the CI job uploads
+the folder as the artifact `e2e-traces`); when it passes, the trace is dropped. To see
+one: `gh run download <run id> -n e2e-traces`, then
+`uv run playwright show-trace test-results/<test>.zip`.
 """
 
 from __future__ import annotations
 
 import glob
 import os
+import re
+from pathlib import Path
 
 import pytest
 
 from tests.web.e2e.server import WIKI_ID, serve  # noqa: F401 — WIKI_ID is imported by the tests
+
+
+TRACES = Path(__file__).resolve().parents[3] / "test-results"
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Keep the report of each phase on the test, for the `context` fixture to know
+    whether the test failed."""
+    outcome = yield
+    report = outcome.get_result()
+    setattr(item, f"rep_{report.when}", report)
+
+
+def trace_path(nodeid: str) -> Path:
+    """The file of the trace of the test `nodeid`: its name, with anything that is not a
+    letter, a digit, `.`, `_` or `-` replaced by `_`."""
+    name = nodeid.split("::", 1)[-1]
+    return TRACES / (re.sub(r"[^\w.-]+", "_", name)[:150] + ".zip")
 
 
 def chromium_fallback() -> str | None:
@@ -70,12 +97,19 @@ def live(tmp_path):
 
 
 @pytest.fixture
-def context(browser):
+def context(browser, request):
     ctx = browser.new_context(viewport={"width": 1440, "height": 900})
     ctx.set_default_timeout(15000)
     # The flows assert Spanish texts: they run with the Spanish interface (`test_language.py` switches it).
     ctx.add_cookies([{"name": "ui_lang", "value": "es", "domain": "127.0.0.1", "path": "/"}])
+    ctx.tracing.start(screenshots=True, snapshots=True)
     yield ctx
+    failed = getattr(getattr(request.node, "rep_call", None), "failed", False)
+    if failed:
+        TRACES.mkdir(exist_ok=True)
+        ctx.tracing.stop(path=str(trace_path(request.node.nodeid)))
+    else:
+        ctx.tracing.stop()
     ctx.close()
 
 
