@@ -210,7 +210,7 @@ agent_calls = {node: _agent_call(node) for node in AGENT_CALL_NODES}
 AGENT_LABELS = (
     N_("wiki pages injected"),
     N_("overview and index injected"),
-    N_("nothing injected"),
+    N_("no wiki page: the dataset or nothing injected"),
     N_("fragments of the source documents injected"),
 )
 
@@ -296,8 +296,10 @@ g.add(
         .branch(g.match(PreRetrievalTurn).label(N_("no overview or index read")).to(data_question))
     ),
     g.edge_from(data_question).to(
+        # A data question with no wiki page reads the dataset as the page path does: the
+        # model receives the rows or the key names, and keeps the data tools.
         g.decision(node_id="after_Q_IS_DATA", note=N_("Does the question name data?"))
-        .branch(g.match(PreRetrievalTurn, matches=_has_data).label(N_("names data")).to(open_page_note))
+        .branch(g.match(PreRetrievalTurn, matches=_has_data).label(N_("names data")).to(dataset_categories))
         .branch(g.match(PreRetrievalTurn).label(N_("names no data")).to(source_fragments))
     ),
     g.edge_from(source_fragments).to(

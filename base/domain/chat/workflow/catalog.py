@@ -420,9 +420,8 @@ async def dataset_keys(ctx: InCtx) -> PreRetrievalTurn:
 def _inject_block(turn: PreRetrievalTurn, block: str) -> None:
     """Add a dataset block to the injection and to the context of the plan."""
     turn.injection.blocks.append(block)
-    turn.plan = replace(
-        turn.plan, context=f"{turn.plan.context or ''}\n\n{block}", blocks=(*turn.plan.blocks, block),
-    )
+    context = f"{turn.plan.context}\n\n{block}" if turn.plan.context else block
+    turn.plan = replace(turn.plan, context=context, blocks=(*turn.plan.blocks, block))
 
 
 async def dataset_rows(ctx: InCtx) -> PreRetrievalTurn:
@@ -465,7 +464,8 @@ async def collection(ctx: InCtx) -> PreRetrievalTurn:
 
 async def data_question(ctx: InCtx) -> PreRetrievalTurn:
     """A question that names known data goes to the data tools before any
-    source fragment: the plan injects nothing."""
+    source fragment. The plan has no tier; the dataset nodes that follow
+    (Q_NAMES_CATEGORY to Q_KEY_NAMES) inject the dataset the question names."""
     turn = ctx.state
     tracing.mark("Q_IS_DATA", R, answer=turn.has_data)
     if turn.has_data:

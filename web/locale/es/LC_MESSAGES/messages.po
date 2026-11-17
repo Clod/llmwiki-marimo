@@ -3281,9 +3281,9 @@ msgstr "páginas de la wiki inyectadas"
 msgid "overview and index injected"
 msgstr "resumen e índice inyectados"
 
-#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/output_checks.py
-msgid "nothing injected"
-msgstr "nada inyectado"
+#: base/domain/chat/workflow/input_checks.py
+msgid "no wiki page: the dataset or nothing injected"
+msgstr "sin página de la wiki: el dataset o nada inyectado"
 
 #: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/output_checks.py
 msgid "fragments of the source documents injected"
@@ -3586,8 +3586,8 @@ msgid "Overview and index given to the model"
 msgstr "Resumen general e índice entregados al modelo"
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "No page given: the model calls the data tools"
-msgstr "No se entrega ninguna página: el modelo llama a las herramientas de datos"
+msgid "No page given: the dataset named by the question, and the data tools"
+msgstr "No se entrega ninguna página: el dataset que nombra la pregunta y las herramientas de datos"
 
 #: base/domain/chat/workflow/node_texts.py
 msgid "Source fragments given to the model"
@@ -3752,6 +3752,10 @@ msgstr "fragmentos de los documentos originales, sin el verificador de oraciones
 #: base/domain/chat/workflow/output_checks.py
 msgid "fragments of the source documents, with the sentence verifier later"
 msgstr "fragmentos de los documentos originales, con el verificador de oraciones después"
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "nothing injected"
+msgstr "nada inyectado"
 
 #: base/domain/chat/workflow/output_checks.py
 msgid "wiki pages or data injected"
@@ -4205,4 +4209,7 @@ msgstr "%(filename)s no es una fuente de esta wiki"
 
 #~ msgid "The code searches the wiki before calling the model and refuses the questions the wiki does not cover."
 #~ msgstr "El código busca en la wiki antes de llamar al modelo y rechaza las preguntas que la wiki no cubre."
+
+#~ msgid "No page given: the model calls the data tools"
+#~ msgstr "No se entrega ninguna página: el modelo llama a las herramientas de datos"
 

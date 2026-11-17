@@ -192,10 +192,21 @@ def _turn(question, output, demo_db):
 
 
 def test_data_answer_without_tool_evidence_is_cause_4(demo_db, monkeypatch):
-    # Force the data path: the question names data, and no wiki page is found.
+    # Force the data path with nothing injected: the question names data, no wiki page is
+    # found, and no dataset category is named, so the answer needs a tool call.
     monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda *a, **k: [])
+    monkeypatch.setattr(preretrieval, "named_categories", lambda *a, **k: [])
     out = _turn("¿A cuánto está el dólar MEP?", "El MEP está a 1200.", demo_db)
     assert out.startswith("No encontré en las páginas ni en los documentos")
+
+
+def test_data_answer_on_the_injected_row_is_shown_with_its_source(demo_db, monkeypatch):
+    # The data path with the row of «MEP» injected: the row grounds the answer, no tool
+    # call is required, and the answer cites the dataset file and the origin of the row.
+    monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda *a, **k: [])
+    out = _turn("¿A cuánto está el dólar MEP?", "El MEP está a 1200.", demo_db)
+    assert out.startswith("El MEP está a 1200.")
+    assert "Referencia: dolar.md" in out
 
 
 def test_model_fixed_sentence_is_cause_5(demo_db):

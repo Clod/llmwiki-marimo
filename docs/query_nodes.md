@@ -150,8 +150,10 @@ Two kinds of node send a request to the model:
   «¿Y qué riesgos tiene?» into «¿Qué riesgos tiene la caución bursátil?».
 - **Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS** are the agent call. Each node injects a different text: the
   wiki pages (Tier 1, with the dataset rows of Q_KEY_ROWS or the key names of Q_KEY_NAMES),
-  the overview and the index, nothing, or the source fragments (Tier 2). With
-  nothing injected (Q_AGENT_TOOLS), the model calls the data tools of section 5.
+  the overview and the index, the dataset alone, or the source fragments (Tier 2). A data
+  question with no wiki page (Q_AGENT_TOOLS) receives the rows of Q_KEY_ROWS or the key
+  names of Q_KEY_NAMES when the question names a dataset category, and nothing otherwise;
+  the model keeps the data tools of section 5.
 - **Q_RETRY_SOURCES** runs after Q_AGENT_PAGES when the answer opens with the fixed
   refusal sentence, the test of Q_MODEL_REFUSED. The datum can be only in a source
   document: «¿En qué se convertían los lacayos de Cenicienta a la medianoche?» gets the
@@ -242,12 +244,12 @@ Each workflow declares the list of the catalog nodes that the workflow runs
 | Q_PROMPT | Builds the prompt that the model receives: the synonyms line and the injected text of the plan in the inject template, followed by the question with the note of C_OPEN_PAGE_NOTE; with no injected text, the synonyms line and the question | `base/domain/chat/preretrieval.py`, `build_prompt`; `base/domain/chat/workflow/catalog.py`, `prompt`; the template: `prompts/inject_template.en.md` | `injected`, `prompt_chars` | code |
 | Q_AGENT_PAGES | Injects the wiki pages, with the dataset rows of Q_KEY_ROWS or the key names of Q_KEY_NAMES; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn`; the template: `prompts/inject_template.en.md` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q_AGENT_COLLECTION | Injects `overview.md` and `index.md`; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
-| Q_AGENT_TOOLS | Injects nothing; the model calls the data tools of section 5 | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
+| Q_AGENT_TOOLS | Injects the dataset that the question names (Q_KEY_ROWS or Q_KEY_NAMES), or nothing when the question names no dataset category; the model keeps the data tools of section 5 | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q_RETRY_SOURCES | The answer of Q_AGENT_PAGES opens with the fixed refusal sentence: searches the source documents by the text of Q_SEARCH_SOURCES; with fragments, Q_AGENT_FRAGMENTS calls the model again with them | `base/domain/chat/preretrieval.py`, `_retry_with_sources`, `is_model_refusal`, `source_query` | `refused_output`, `fts_query`, `fragments` | code |
 | Q_AGENT_FRAGMENTS | Injects the source fragments; the model answers from the injected text | `base/domain/chat/preretrieval.py`, `_answer_node`, `_pre_retrieval_turn` | `tier`, `context_chars`, `prompt` (a payload file), `raw_output` | code |
 | Q_IS_GROUNDED | Checks that the answer is grounded in the fragments, with the stop words of the wiki's language, stemming and the configured threshold. Skipped when the sentence verifier checks the answer (the checkbox «Verificar las oraciones» of the web interface, with the verifier installed): the verifier is then the only comparison of the answer against the fragments | `base/domain/chat/overlap.py`, `coverage`; `base/domain/chat/workflow/catalog.py`, `fragment_coverage` | `answer`, `coverage`, `min_coverage` | code |
 | Q_SOURCE_WARNING | Appends the fixed Tier-2 warning to the answer | `base/domain/i18n.py`, `get_locale`; `base/domain/chat/workflow/catalog.py`, `tier2_warning` | no attributes | code |
-| Q_TOOL_EVIDENCE | Asks whether a data tool returned evidence | `base/domain/chat/guardrail.py`, `has_grounding`; `base/domain/chat/workflow/catalog.py`, `tool_evidence` | `answer` | code |
+| Q_TOOL_EVIDENCE | Asks whether a data tool returned evidence. Runs only when nothing was injected: injected rows or key names ground the answer without a tool call | `base/domain/chat/guardrail.py`, `has_grounding`; `base/domain/chat/workflow/catalog.py`, `tool_evidence` | `answer` | code |
 | Q_MODEL_REFUSED | Asks whether the answer opens with the fixed refusal sentence of the model | `base/domain/chat/refusal.py`, `fixed_sentence`; `base/domain/chat/workflow/catalog.py`, `model_refusal` | `answer` | code |
 | Q_ADVISORY_TABLE | Appends the advisory table when the advisory tool returned one | `base/domain/chat/postprocess.py`, `answer_with_table`; `base/domain/chat/workflow/catalog.py`, `table` | `table_added` | code |
 | Q_OFFER_KEYS | Offers the keys with data when the model asked for a key without data | `base/domain/chat/preretrieval.py`, `offer_available_keys`; `base/domain/chat/workflow/catalog.py`, `keys` | `keys_offered` | code |

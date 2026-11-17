@@ -77,7 +77,8 @@ def _verified_by_sentences(checks: AnswerChecks) -> bool:
 
 def _no_context(checks: AnswerChecks) -> bool:
     """Injected context is the grounding of Tier 1 and Tier 2: the tool-based
-    guardrail applies only to a data question, with no injected context."""
+    guardrail applies only to a data question with nothing injected: injected
+    dataset rows or key names ground the answer without a tool call."""
     return checks.turn.plan.context is None
 
 

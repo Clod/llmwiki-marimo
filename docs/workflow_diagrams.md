@@ -77,7 +77,7 @@ flowchart TD
   Q_AGENT_COLLECTION["Q_AGENT_COLLECTION · Overview and index given to the model"]
   Q_AGENT_FRAGMENTS["Q_AGENT_FRAGMENTS · Source fragments given to the model"]
   Q_AGENT_PAGES["Q_AGENT_PAGES · Wiki pages given to the model, which writes the answer"]
-  Q_AGENT_TOOLS["Q_AGENT_TOOLS · No page given: the model calls the data tools"]
+  Q_AGENT_TOOLS["Q_AGENT_TOOLS · No page given: the dataset named by the question, and the data tools"]
   Q_KEY_NAMES["Q_KEY_NAMES · Key names of the category read from the dataset"]
   Q_KEY_ROWS["Q_KEY_ROWS · Rows of the key read from the dataset"]
   Q_ROSTER_REFUSAL["Q_ROSTER_REFUSAL · Refusal chosen by the coverage roster"]
@@ -136,7 +136,7 @@ flowchart TD
   Q_NAMES_CATEGORY --> after_Q_NAMES_CATEGORY
   Q_RW_NAMES_DATA --> Q_RW_IN_ROSTER
   Q_RW_IN_ROSTER --> Q_CONDENSED
-  after_Q_IS_DATA -->|"names data"| C_OPEN_PAGE_NOTE
+  after_Q_IS_DATA -->|"names data"| Q_NAMES_CATEGORY
   after_Q_NAMES_CATEGORY -->|"names no dataset category"| C_OPEN_PAGE_NOTE
   Q_SYNONYMS --> Q_PROMPT
   after_Q_IS_DATA -->|"names no data"| Q_FRAGMENT_FOUND
@@ -151,7 +151,7 @@ flowchart TD
   agent -->|"overview and index injected"| Q_AGENT_COLLECTION
   agent -->|"fragments of the source documents injected"| Q_AGENT_FRAGMENTS
   agent -->|"wiki pages injected"| Q_AGENT_PAGES
-  agent -->|"nothing injected"| Q_AGENT_TOOLS
+  agent -->|"no wiki page: the dataset or nothing injected"| Q_AGENT_TOOLS
   Q_AGENT_COLLECTION --> wf_end
   Q_AGENT_FRAGMENTS --> wf_end
   Q_AGENT_PAGES --> wf_end

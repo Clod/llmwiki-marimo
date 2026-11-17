@@ -3140,8 +3140,8 @@ msgstr ""
 msgid "overview and index injected"
 msgstr ""
 
-#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/output_checks.py
-msgid "nothing injected"
+#: base/domain/chat/workflow/input_checks.py
+msgid "no wiki page: the dataset or nothing injected"
 msgstr ""
 
 #: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/output_checks.py
@@ -3445,7 +3445,7 @@ msgid "Overview and index given to the model"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
-msgid "No page given: the model calls the data tools"
+msgid "No page given: the dataset named by the question, and the data tools"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
@@ -3610,6 +3610,10 @@ msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py
 msgid "fragments of the source documents, with the sentence verifier later"
+msgstr ""
+
+#: base/domain/chat/workflow/output_checks.py
+msgid "nothing injected"
 msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py

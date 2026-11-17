@@ -181,9 +181,12 @@ def test_collection_question_goes_to_q14(patched):
 
 def test_data_question_goes_to_q15(patched):
     patched["vocab"] = {"dolar"}                  # «billete verde» is an alias of a data term
-    out, path = _run(_turn("¿a cuánto está el billete verde?"))
+    turn = _turn("¿a cuánto está el billete verde?")
+    out, path = _run(turn)
     assert out == AgentCall("Q_AGENT_TOOLS")
-    assert path[-5:] == ["Q_IS_COLLECTION", "Q_IS_DATA"] + PROMPT
+    # The source has no category: Q_NAMES_CATEGORY finds none, and nothing is injected.
+    assert path[-6:] == ["Q_IS_COLLECTION", "Q_IS_DATA", "Q_NAMES_CATEGORY"] + PROMPT
+    assert turn.plan.context is None
 
 
 def test_a_data_question_with_a_collection_expression_goes_to_the_data_tools(patched):
@@ -194,8 +197,46 @@ def test_a_data_question_with_a_collection_expression_goes_to_the_data_tools(pat
     turn = _turn("¿cuánto vale el billete verde en cada banco?")
     out, path = _run(turn)
     assert out == AgentCall("Q_AGENT_TOOLS")
-    assert path[-5:] == ["Q_IS_COLLECTION", "Q_IS_DATA"] + PROMPT
+    assert path[-6:] == ["Q_IS_COLLECTION", "Q_IS_DATA", "Q_NAMES_CATEGORY"] + PROMPT
     assert turn.plan.tier is None
+
+
+# The vocabulary of `_TwoCategories`: its two categories and their keys.
+TWO_CATEGORIES_VOCAB = {"plazo_fijo", "dolar", "Banco Galicia", "Banco Nación", "MEP"}
+
+
+def _data_turn(question):
+    turn = PreRetrievalTurn(
+        question, CFG, "db", Path("/tmp/wp"), [], "es", stem_language="es", source=_TwoCategories(),
+    )
+    return turn
+
+
+def test_a_data_question_without_a_page_receives_the_rows_of_the_key_it_names(patched):
+    """No wiki page: Q_IS_DATA goes on to the dataset nodes, as Q_PAGE_FOUND does, and the
+    row of «MEP» reaches the model with the data tools (Q_AGENT_TOOLS)."""
+    patched["vocab"] = TWO_CATEGORIES_VOCAB
+    turn = _data_turn("¿A cuánto está el dólar MEP?")
+    out, path = _run(turn)
+    assert out == AgentCall("Q_AGENT_TOOLS")
+    assert path[path.index("Q_IS_DATA"):] == ["Q_IS_DATA", "Q_NAMES_CATEGORY", "Q_NAMES_KEY", "Q_KEY_ROWS"] + PROMPT
+    assert turn.plan.tier is None
+    assert turn.plan.context.startswith("[datasets/dolar.md]")
+    assert "1200" in turn.plan.context
+    assert turn.prompt.startswith("Respondé la pregunta usando EXCLUSIVAMENTE")
+    assert turn.injection.references == ["dolar.md"] and turn.injection.fuentes == ["ambito.com"]
+
+
+def test_a_data_question_that_names_only_the_category_receives_the_key_names(patched):
+    """«billete verde» is an alias of the category `dolar` and names no key: the model
+    receives the key names of `dolar`, without values."""
+    patched["vocab"] = TWO_CATEGORIES_VOCAB
+    turn = _data_turn("¿A cuánto está el billete verde?")
+    out, path = _run(turn)
+    assert out == AgentCall("Q_AGENT_TOOLS")
+    assert path[path.index("Q_IS_DATA"):] == ["Q_IS_DATA", "Q_NAMES_CATEGORY", "Q_NAMES_KEY", "Q_KEY_NAMES"] + PROMPT
+    assert "- MEP" in turn.plan.context and "1200" not in turn.plan.context
+    assert turn.injection.references == [] and turn.injection.key_names == {"dolar": ("entidad", ["MEP"])}
 
 
 def test_source_fragments_go_to_q16(patched):
