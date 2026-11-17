@@ -154,6 +154,9 @@ async def ingest_post(request: Request, wiki_id: str, files: list[UploadFile], f
         results = ingest_service.ingest_uploads(entry.wiki, uploads, client, model,
                                                 full_repair=full_repair, progress=progress,
                                                 **verifier, **_vision(state))
+        # The uploaded files went through the ingestion: the warning stops naming them.
+        names = {upload.name for upload in uploads}
+        entry.unprocessed = tuple(n for n in entry.unprocessed if n not in names)
         return summary_line(_("Ingestion"), results)
 
     return _log(request, templates, wiki_id, state.start_operation(entry, work))
@@ -169,10 +172,15 @@ def scan_post(request: Request, wiki_id: str, verify: bool = Form(False), state:
     except LLMNotConfigured as exc:
         return _unconfigured(exc)
     verifier = _verifier(state, verify)
-    return _log(request, templates, wiki_id, state.start_operation(
-        entry, lambda progress: summary_line(
-            _("Scan"), ingest_service.scan_sources(entry.wiki, client, model, progress=progress,
-                                                   **verifier, **_vision(state)))))
+
+    def work(progress):
+        results = ingest_service.scan_sources(entry.wiki, client, model, progress=progress,
+                                              **verifier, **_vision(state))
+        # Every file of the warning went through the ingestion: the warning ends.
+        entry.unprocessed = ()
+        return summary_line(_("Scan"), results)
+
+    return _log(request, templates, wiki_id, state.start_operation(entry, work))
 
 
 @router.post("/w/{wiki_id}/regenerate", response_class=HTMLResponse)

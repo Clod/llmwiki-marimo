@@ -16,21 +16,11 @@ describe how the system actually behaves, measured rather than asserted.
 
 **Smaller items**, each a real gap rather than a nicety:
 
-- **Deepen `data_gap`.** The check only reads concept *titles*, and its repair
-  inserts a generic TODO into the most-related page. Deepening it to read page
-  bodies, and having the repair name specific sub-questions, is the open work.
 - **Give scan and regenerate the same automatic tail as ingest.** Ingestion now
   closes with a lint+repair pass scoped to the pages it touched. `scan_and_ingest`
   and `regenerate_wiki_pages` still do not reconcile afterwards.
 - **Document `scan_and_ingest` for end users** — what it touches, and when
   `batch_ingest` is the better call.
-- **Select the tools by the type of question.** In pre-retrieval mode the
-  model always receives the same tools: the data tools of the wiki and of its
-  active domains (`services/chat.py`, `build_agents`). The type of question
-  (node Q10: a named data term, or an advisory question with an amount or a
-  term) only decides whether the code injects text. The open work: give the
-  model only the tools that type needs, for example the dataset query for a
-  dated value and the alternatives estimate for an advisory question.
 - **OCR for scanned PDFs — built** (commit `01497f0`; see `CHANGELOG.md`).
   `OCR_ENGINE` selects `none`, `tesseract` or `vision`. The engine interface is in
   `base/domain/ingestion/ocr.py`; another engine (RapidOCR, docTR, Surya) is one

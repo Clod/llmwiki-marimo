@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from domain.i18n import SUPPORTED_LANGUAGES
 from domain.wiki_registry import clean_path_input, is_wiki_dir, load_recent, prune_recent, push_recent, remove_recent
 from domain.wiki_settings import load_wiki_language
-from services.ingest import peek_stats
+from services.ingest import peek_stats, unprocessed_sources
 from services.wiki import list_pages, open_wiki
 from web.deps import get_state, get_templates
 from web.i18n import _
@@ -174,8 +174,16 @@ def open_path(path: str = Form(...), create: bool = Form(False), language: str =
     push_recent(str(folder), load_recent(recent_file), recent_file=recent_file)
     for wiki_id, wiki_path in state.wiki_options().items():
         if Path(wiki_path).expanduser().resolve() == folder:
-            return RedirectResponse(f"/w/{quote(wiki_id)}/", status_code=303)
+            return RedirectResponse(f"/w/{quote(wiki_id)}/?opened=1", status_code=303)
     return RedirectResponse("/", status_code=303)
+
+
+@router.post("/w/{wiki_id}/unprocessed/dismiss", response_class=HTMLResponse)
+def dismiss_unprocessed(wiki_id: str, state: AppState = Depends(get_state)):
+    """Hide the warning about the files of sources/ without ingestion until the user
+    chooses the wiki again. The empty answer replaces the warning."""
+    state.get_wiki(wiki_id).unprocessed = ()
+    return HTMLResponse("")
 
 
 @router.post("/recent/remove")
@@ -186,13 +194,20 @@ def recent_remove(path: str = Form(...), state: AppState = Depends(get_state)):
 
 
 @router.get("/w/{wiki_id}/")
-def wiki_home(wiki_id: str, state: AppState = Depends(get_state)):
+def wiki_home(wiki_id: str, opened: bool = False, state: AppState = Depends(get_state)):
     """The wiki on its Home screen; a wiki without pages opens on Ingest.
 
     Every way of opening a wiki goes through this route (the picker, the wiki selector
     of the header), so the wiki goes to the front of the recent list here: the tag
-    "last opened" follows the wiki last opened, not only the form "Open"."""
-    pages = list_pages(state.get_wiki(wiki_id).wiki)
+    "last opened" follows the wiki last opened, not only the form "Open".
+
+    The tab Read goes through this route too. Only the ways of choosing the wiki send
+    `opened`: then the files of sources/ without ingestion are looked up once, and every
+    screen of the wiki warns about them until the user dismisses the warning."""
+    entry = state.get_wiki(wiki_id)
+    if opened:
+        entry.unprocessed = tuple(unprocessed_sources(entry.wiki))
+    pages = list_pages(entry.wiki)
     recent_file = state.settings.recent_file
     push_recent(state.wiki_options()[wiki_id], load_recent(recent_file), recent_file=recent_file)
     if not pages:

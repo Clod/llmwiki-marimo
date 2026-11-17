@@ -1,0 +1,14 @@
+{# The files of sources/ without ingestion when the user chose the wiki (`OpenWiki.unprocessed`).
+   «Dismiss» hides the warning until the user chooses the wiki again. #}
+{% set files = unprocessed_sources(request, wiki_id) %}
+{% if files %}
+<p class="notice dismissible unprocessed-warning" role="status">
+  <span>{{ ngettext("%(num)s document of sources/ without ingestion: %(files)s.",
+                    "%(num)s documents of sources/ without ingestion: %(files)s.",
+                    files | length, files=files | join(", ")) }}
+    <a href="/w/{{ wiki_id }}/ingest">{{ _("Ingest them from the Ingest tab") }}</a></span>
+  <button class="btn btn-sm" type="button" hx-post="/w/{{ wiki_id }}/unprocessed/dismiss"
+          hx-target="closest .unprocessed-warning" hx-swap="outerHTML"
+          title="{{ _('Hide this warning until you choose the wiki again') }}">{{ _("Dismiss") }}</button>
+</p>
+{% endif %}

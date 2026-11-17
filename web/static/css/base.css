@@ -98,6 +98,7 @@ select.field { cursor: pointer; }
 .notice-close { flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: var(--radius-sm); background: none;
                 color: inherit; font: inherit; font-size: var(--text-md); line-height: 1; cursor: pointer; }
 .notice-close:hover, .notice-close:focus-visible { background: var(--color-attention-border); }
+.unprocessed-warning { flex: none; margin: var(--space-2) var(--space-4); align-items: center; }
 .warn::before, .error::before { content: "⚠ "; }
 .error { color: var(--color-danger); }
 

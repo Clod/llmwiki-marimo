@@ -62,6 +62,11 @@ def current_url(request: Request) -> str:
     return request.url.path + (f"?{query}" if query else "")
 
 
+def unprocessed_sources(request: Request, wiki_id: str) -> tuple[str, ...]:
+    """The files of sources/ the warning of the wiki names (`AppState.unprocessed`)."""
+    return request.app.state.web.unprocessed(wiki_id)
+
+
 def make_templates() -> Jinja2Templates:
     """The Jinja2 templates with the translation callables installed. They read the
     language of the running request (`web.i18n`), so one environment serves every language."""
@@ -70,7 +75,8 @@ def make_templates() -> Jinja2Templates:
     templates.env.policies["ext.i18n.trimmed"] = True   # a `{% trans %}` block collapses its whitespace, as the extraction does
     templates.env.install_gettext_callables(i18n.raw_gettext, i18n.raw_ngettext, newstyle=True,
                                             pgettext=i18n.raw_pgettext, npgettext=i18n.raw_npgettext)
-    templates.env.globals.update(languages=i18n.LANGUAGES, status_label=status_label, get_language=i18n.get_language, current_url=current_url)
+    templates.env.globals.update(languages=i18n.LANGUAGES, status_label=status_label, get_language=i18n.get_language, current_url=current_url,
+                                 unprocessed_sources=unprocessed_sources)
     return templates
 
 

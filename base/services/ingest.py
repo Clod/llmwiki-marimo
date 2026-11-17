@@ -423,6 +423,21 @@ def peek_stats(db_path: str | Path) -> dict[str, int] | None:
     return {"sources": sources, "pages": pages}
 
 
+def unprocessed_sources(wiki: Wiki) -> list[str]:
+    """The files of the sources folder the scan would ingest: new, changed, or whose
+    last ingestion failed. Each name is relative to sources/. No model is called, and
+    an unchanged file costs only the comparison of its modification time."""
+    from domain.ingestion import scan_candidates
+    from domain.ingestion.detector import needs_ingestion
+
+    candidates = scan_candidates(wiki.path)
+    if not candidates:
+        return []
+    with get_connection(wiki.db_path) as conn:
+        return [p.relative_to(wiki.sources_dir).as_posix() for p in candidates
+                if needs_ingestion(p, conn)[0]]
+
+
 def wiki_stats(wiki: Wiki) -> dict[str, int]:
     """The number of source documents and of wiki pages in the index."""
     with get_connection(wiki.db_path) as conn:

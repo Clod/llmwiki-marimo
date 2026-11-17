@@ -84,6 +84,10 @@ class OpenWiki:
     busy: threading.Lock = field(default_factory=threading.Lock)
     # The files of `datasets/` when the agents were built (`datasets_fingerprint`).
     datasets: tuple = ()
+    # The files of `sources/` without ingestion when the user chose the wiki
+    # (`services.ingest.unprocessed_sources`). Every screen of the wiki warns about
+    # them until the user dismisses the warning or a scan or an upload ends.
+    unprocessed: tuple[str, ...] = ()
 
 
 @dataclass
@@ -162,6 +166,12 @@ class AppState:
                 wiki_id, n = f"{base}-{n}", n + 1
             options[wiki_id] = path
         return options
+
+    def unprocessed(self, wiki_id: str) -> tuple[str, ...]:
+        """The files of the warning of an open wiki; empty for a wiki not open. The
+        wiki is not opened: the warning only exists once the user chose the wiki."""
+        entry = self._open.get(wiki_id)
+        return entry.unprocessed if entry is not None else ()
 
     def recent_only(self) -> set[str]:
         """The listed paths that come only from the recent list: the ones the owner can
