@@ -516,6 +516,17 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The tables of a PDF reach the wiki.** Every table of a PDF, and of a `.docx`,
+  `.doc`, `.odt` or `.rtf` (converted to PDF before reading), was dropped: the six
+  documents of the finance example end with a «summary of attributes» table, and
+  the extracted text ended at its title. opendataloader-pdf returns a table as a
+  `table` element with rows and cells, and `_element_to_markdown`
+  (`base/domain/ingestion/pdf_extract.py`) left out every type it did not know. A
+  table now becomes a Markdown table at its place on the page, one line per row; a
+  spanning cell leaves the positions it covers empty, and a `|` in a cell is
+  escaped. **An existing wiki gets its tables back with «Rebuild the index»**, which
+  extracts every source again without the model; the summary pages include them
+  after «Regenerate summary pages» or a new ingestion.
 - **The scan and the regeneration of the summaries end with the review the upload
   ends with.** Two concept pages written from one report by «Scan sources/»
   stayed without a link to each other; the same report uploaded from the Ingest

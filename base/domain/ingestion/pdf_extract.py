@@ -51,8 +51,44 @@ def _element_to_markdown(el: dict, doc_id: str | None = None) -> str:
     if t == "caption":
         return f"*{content}*" if content else ""
 
+    if t == "table":
+        return _table_to_markdown(el, doc_id)
+
     # Skip headers, footers, and unknown types
     return ""
+
+
+def _children(el: dict, key: str) -> list[dict]:
+    """The children of `el` under `key`, or under `kids` when `key` is absent."""
+    return el.get(key) or el.get("kids") or []
+
+
+def _table_to_markdown(el: dict, doc_id: str | None = None) -> str:
+    """A `table` element as a Markdown table; the first row is the header.
+
+    opendataloader-pdf nests `table row` elements in `rows`, `table cell` elements in
+    `cells`, and the content of a cell in `kids`. Each cell is written at its row and
+    column number, on one line: its elements are joined with a space, and a `|` is
+    escaped. The positions a spanning cell covers stay empty, so no cell shifts. A
+    table with no text in any cell gives an empty string."""
+    cells = [cell for row in _children(el, "rows") for cell in _children(row, "cells")]
+    n_rows = max([el.get("number of rows") or 0] + [c.get("row number") or 0 for c in cells])
+    n_cols = max([el.get("number of columns") or 0] + [c.get("column number") or 0 for c in cells])
+    if not n_rows or not n_cols:
+        return ""
+    grid = [[""] * n_cols for _ in range(n_rows)]
+    for cell in cells:
+        row, col = cell.get("row number"), cell.get("column number")
+        if not row or not col:
+            continue
+        parts = (_element_to_markdown(kid, doc_id) for kid in cell.get("kids") or [])
+        text = " ".join(" ".join(p.split()) for p in parts if p.strip())
+        grid[row - 1][col - 1] = text.replace("|", r"\|")
+    if not any(any(row) for row in grid):
+        return ""
+    lines = ["| " + " | ".join(row) + " |" for row in grid]
+    lines.insert(1, "| " + " | ".join(["---"] * n_cols) + " |")
+    return "\n".join(lines)
 
 
 def _elements_to_pages(elements: list[dict], total_pages: int,
