@@ -142,6 +142,34 @@ def test_data_answer_with_evidence_is_shown():
     assert out.startswith("El dólar blue está a 1200.")
 
 
+ROWS_BLOCK = "[datasets/dolar.md]\n| clave | valor |\n|---|---|\n| MEP | 1200 |"
+KEY_NAMES_BLOCK = "[datasets/dolar.md] Valores de `entidad` con datos en este dataset:\n- MEP"
+
+
+def _data_turn(block, *, references=(), fuentes=()):
+    """A data question with no wiki page, whose dataset block the input workflow injected."""
+    turn = _turn(RetrievalPlan("invoke", None, block, False, (block,)))
+    turn.injection = preretrieval.DatasetInjection([block], list(references), list(fuentes))
+    return turn
+
+
+def test_data_answer_on_injected_rows_skips_the_tool_evidence():
+    """The rows passed to the model ground the answer: no tool call is required, and the
+    answer cites the dataset file and the origin of the row."""
+    turn = _data_turn(ROWS_BLOCK, references=["dolar.md"], fuentes=["ambito.com"])
+    out, path = _run(AnswerChecks("El dólar MEP está a 1200.", [], "es", turn=turn))
+    assert path == ["Q_MODEL_REFUSED", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "C_FIGURES", "Q_SHOWN"]
+    assert out.startswith("El dólar MEP está a 1200.")
+    assert "dolar.md" in out and "ambito.com" in out
+
+
+def test_data_answer_on_injected_key_names_skips_the_tool_evidence():
+    """Key names alone are data passed to the model too (owner, 2026-11-17)."""
+    out, path = _run(AnswerChecks("Hay datos del dólar MEP.", [], "es", turn=_data_turn(KEY_NAMES_BLOCK)))
+    assert path[0] == "Q_MODEL_REFUSED" and "Q_TOOL_EVIDENCE" not in path
+    assert out.startswith("Hay datos del dólar MEP.")
+
+
 def test_model_refusal_ends_in_r5():
     raw = f"{fixed_sentence('es')} No hay datos."
     out, path = _run(AnswerChecks(raw, [], "es", turn=_turn(TIER1)))

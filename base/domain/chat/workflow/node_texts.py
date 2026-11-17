@@ -52,7 +52,7 @@ NODE_TEXTS: dict[str, str] = {
     "Q_PROMPT": N_("Prompt built from the injected text and the question"),
     "Q_AGENT_PAGES": N_("Wiki pages given to the model, which writes the answer"),
     "Q_AGENT_COLLECTION": N_("Overview and index given to the model"),
-    "Q_AGENT_TOOLS": N_("No page given: the model calls the data tools"),
+    "Q_AGENT_TOOLS": N_("No page given: the dataset named by the question, and the data tools"),
     "Q_AGENT_FRAGMENTS": N_("Source fragments given to the model"),
     "Q_RETRY_SOURCES": N_("The model refused with the wiki pages: search the source documents and ask again"),
     "Q_IS_GROUNDED": N_("Is the answer grounded in the fragments?"),

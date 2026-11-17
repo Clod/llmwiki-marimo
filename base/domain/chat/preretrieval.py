@@ -463,7 +463,9 @@ def tier1_plan(hits: list[str]) -> RetrievalPlan:
 
 
 def data_plan() -> RetrievalPlan:
-    """The plan of a data question: inject nothing, the model calls the data tools."""
+    """The plan of a data question with no wiki page: no tier. The input workflow then
+    injects the dataset the question names (Q_KEY_ROWS, Q_KEY_NAMES), if any; the model
+    keeps the data tools."""
     return RetrievalPlan("invoke", None, None, False)
 
 
