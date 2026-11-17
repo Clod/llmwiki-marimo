@@ -2,5 +2,13 @@
 # Hand overrides live in wiki_config.toml [alias_datos]; this file is merged UNDER them.
 
 [alias_datos]
+"Big Bad Wolf" = ["Gaffer Wolf", "the Wolf"]
 "Cinderella" = ["Cinderwench"]
-"The Wicked Queen" = ["The Queen"]
+"Fairy godmother" = ["godmother", "fairy"]
+"Grandmother" = ["grandmamma"]
+"Little Red Riding Hood" = ["Little Red Riding-Hood"]
+"Magic mirror" = ["the mirror"]
+"Midnight curfew" = ["midnight deadline"]
+"Poisoned apple" = ["poison apple"]
+"Seven Dwarfs" = ["the Dwarfs"]
+"Stepmother and stepsisters" = ["wicked stepmother", "ugly sisters", "stepmother"]

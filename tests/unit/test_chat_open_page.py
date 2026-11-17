@@ -10,7 +10,7 @@ import pytest
 from domain.chat.preretrieval import pre_retrieval_answer
 from services.chat import _with_open_page
 
-DEMO = Path(__file__).resolve().parents[2] / "examples" / "finanzas-argentinas"
+DEMO = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "wikis" / "finanzas-argentinas"
 
 
 @pytest.fixture

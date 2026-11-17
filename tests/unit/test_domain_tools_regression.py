@@ -114,7 +114,7 @@ WIKI_TOOLS = ["read_wiki_page", "search_source_chunks", "search_wiki_fts"]
     ("fairy-tales", WIKI_TOOLS, []),
 ])
 def test_build_agents_tool_names(tmp_path, example, agent_tools, pre_retrieval_tools):
-    shutil.copytree(ROOT / "examples" / example, tmp_path / example)
+    shutil.copytree(ROOT / "tests" / "fixtures" / "wikis" / example, tmp_path / example)
     agents = chat.build_agents(open_wiki(tmp_path / example), **URL)
     assert _names(agents.agent) == agent_tools
     assert _names(agents.agent_pre_retrieval) == pre_retrieval_tools

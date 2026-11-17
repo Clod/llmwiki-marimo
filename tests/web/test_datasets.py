@@ -11,7 +11,7 @@ import pytest
 from tests.web.conftest import WIKI_ID
 
 URL = f"/w/{WIKI_ID}/data"
-DEMO_DATASETS = Path(__file__).resolve().parents[2] / "examples" / "finanzas-argentinas" / "datasets"
+DEMO_DATASETS = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "wikis" / "finanzas-argentinas" / "datasets"
 DEMO_FILES = ("acciones", "caucion", "dolar", "fci_money_market", "plazo_fijo")
 
 

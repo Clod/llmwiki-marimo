@@ -1,29 +1,32 @@
 ---
 type: concept
 title: Little Red Riding Hood
+description: The title character of a well-known European folk tale, a young girl
+  named for her red hooded cloak who is sent to visit her grandmother.
 tags: [entity]
 sources:
   - resource: sources/Little Red Riding Hood.pdf
-topics: [red hood, grandmother]
+topics: [deception and disguise, danger of talking to strangers, family obligation, forest
+    journey]
 ---
 
 # Little Red Riding Hood
 
 ## Definition
-Little Red Riding Hood is a young girl known for her distinctive red hood, who encounters a cunning wolf while traveling to visit her grandmother (Little Red Riding Hood.pdf).
+Little Red Riding Hood is a young female character in a fairy tale who travels through the woods and is deceived by a wolf. The story centers on her trusting nature and the wolf's disguise as her grandmother.
 
 ## Key Characteristics
-- **Red Hood**: The character is famously identified by her red hood, which is a central element of her appearance (Little Red Riding Hood.pdf).
-- **Young Girl**: She is portrayed as a young and innocent girl, which makes her susceptible to the wolf's deception (Little Red Riding Hood.pdf).
-- **Encounter with the Wolf**: During her journey to her grandmother's house, she becomes the victim of a cunning wolf, highlighting themes of danger and deception (Little Red Riding Hood.pdf).
+- Presented as trusting and easily distracted.
+- Shares her route with the wolf, which leads to her being deceived.
+- Is tricked into believing the wolf is her grandmother.
 
 ## Context
-Little Red Riding Hood is a classic fairy tale character that embodies themes of innocence, danger, and the consequences of straying from the path. The story is often used to teach lessons about the importance of caution and awareness of one's surroundings. It is part of a broader tradition of folklore that uses narrative to impart moral lessons to children.
+Little Red Riding Hood serves as the protagonist of a story in which a naive character's trust is exploited by a deceptive antagonist. Her characterization as trusting and distractible is central to the plot, since it explains how the wolf's deception succeeds.
 
 ## See also
 
-- [The Wolf](the-wolf.md)
-- [Fairy Tale](fairy-tale.md)
+- [Big Bad Wolf](big-bad-wolf.md)
+- [Grandmother](grandmother.md)
 - [Little Red Riding Hood](../summaries/little-red-riding-hood.md)
 
 ## Sources

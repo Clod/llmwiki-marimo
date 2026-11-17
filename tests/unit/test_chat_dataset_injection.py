@@ -15,7 +15,7 @@ from domain.chat.postprocess import ensure_citation
 from domain.chat.preretrieval import dataset_injection, pre_retrieval_answer
 from domain.datasets.source import LocalMarkdownSource
 
-DATASETS = Path(__file__).resolve().parents[2] / "examples" / "finanzas-argentinas" / "datasets"
+DATASETS = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "wikis" / "finanzas-argentinas" / "datasets"
 SOURCE = LocalMarkdownSource(DATASETS)
 ALIASES = {"dolar": ["billete verde", "divisa"]}
 BANKS = ["Banco Nación", "Banco Galicia", "Banco Provincia", "Banco Santander",

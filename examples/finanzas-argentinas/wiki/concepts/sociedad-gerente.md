@@ -1,28 +1,32 @@
 ---
 type: concept
 title: Sociedad Gerente
+description: Entidad regulada por la CNV que administra un fondo común de inversión
+  y toma sus decisiones de inversión.
 tags: [entity]
 sources:
   - resource: sources/07 FCI Money Market.docx
-topics: [honorarios de administración, FCI]
+topics: [honorarios de administración, riesgo de gestión, regulación CNV]
 ---
 
 # Sociedad Gerente
 
 ## Definición
-La Sociedad Gerente es la entidad encargada de administrar los Fondos Comunes de Inversión (FCI) Money Market y se encarga de cobrar honorarios de administración anuales (07 FCI Money Market.docx).
+La sociedad gerente es la entidad responsable de la administración de un fondo común de inversión (FCI), incluidas las decisiones de asignación de su patrimonio. Su remuneración consiste en honorarios de administración.
 
 ## Características clave
-- Administra los FCI Money Market.
-- Cobra honorarios de administración anuales por sus servicios.
-- Es una entidad especializada en la gestión de inversiones.
+- Cobra honorarios anuales de administración.
+- Los honorarios se descuentan diariamente sobre el patrimonio del fondo.
+- No hay un cobro separado de estos honorarios.
+- Riesgo de gestión: sus decisiones de asignación pueden ser subóptimas, lo que haría que el fondo rinda menos que sus competidores.
 
 ## Contexto
-La Sociedad Gerente juega un papel crucial en el ámbito de los Fondos Comunes de Inversión, especialmente en los Money Market. Su función es garantizar una gestión eficiente y profesional de los fondos, lo que es esencial para maximizar el rendimiento de las inversiones de los participantes. Al ser responsable de la administración de estos fondos, la Sociedad Gerente debe cumplir con regulaciones específicas y mantener la confianza de los inversores.
+La sociedad gerente se vincula con el funcionamiento económico del fondo en dos planos. Por un lado, al descontarse los honorarios diariamente sobre el patrimonio, su costo recae sobre el patrimonio del fondo y no se factura por separado. Por otro lado, la calidad de sus decisiones de asignación incide en el rendimiento del fondo frente a otros fondos competidores. Ambos aspectos conectan a la sociedad gerente con la evaluación del desempeño del fondo.
 
 ## Véase también
 
 - [FCI Money Market](fci-money-market.md)
+- [CNV](cnv.md)
 - [07 Fci Money Market](../summaries/07-fci-money-market.md)
 
 ## Fuentes

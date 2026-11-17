@@ -1,5 +1,5 @@
 """Playwright flows of the web application, run against a copy of
-`examples/finanzas-argentinas`.
+`tests/fixtures/wikis/finanzas-argentinas`.
 
 The agents are simulated and the ingestion services are replaced (no model, no
 Java, no LibreOffice). The tests skip when no browser is installed."""
@@ -89,22 +89,23 @@ def test_edit_a_page_keeps_the_front_matter_and_commits(page, live):
 def test_the_topics_of_a_page_are_edited_as_a_list_and_saved_with_guardar(page, live):
     from domain.tools.wiki_fs import page_topics
 
-    slug = "concepts/riesgo-de-inflacion"
+    slug = "concepts/plazo-fijo"
     path = live.wiki_dir / "wiki" / f"{slug}.md"
-    assert page_topics(path.read_text()) == ["inflación", "poder adquisitivo", "aumento de precios"]
+    before = ["tasa de interés", "riesgo de inflación", "liquidez", "horizonte de inversión", "ticket mínimo"]
+    assert page_topics(path.read_text()) == before
     goto(page, live, f"edit/{slug}")
     topics = page.locator("#topic-list")
-    topics.locator("li", has_text="aumento de precios").get_by_role("button", name="Quitar").click()
+    topics.locator("li", has_text="ticket mínimo").get_by_role("button", name="Quitar").click()
     field = page.locator("#topic-new")
-    field.fill("suba de precios")
+    field.fill("monto mínimo")
     field.press("Enter")                       # Enter adds the topic, it does not submit
-    field.fill("Inflación")                    # a repeat, without case nor accents
+    field.fill("Liquidez")                     # a repeat, without case nor accents
     page.locator("#topic-add").click()
-    expect(topics.locator("li")).to_have_count(3)
-    assert page_topics(path.read_text()) == ["inflación", "poder adquisitivo", "aumento de precios"]
+    expect(topics.locator("li")).to_have_count(5)
+    assert page_topics(path.read_text()) == before
     page.locator("form button", has_text="Guardar").click()
     expect(page).to_have_url(f"{live.url}/w/{WIKI_ID}/pages/{slug}")
-    assert page_topics(path.read_text()) == ["inflación", "poder adquisitivo", "suba de precios"]
+    assert page_topics(path.read_text()) == [*before[:4], "monto mínimo"]
     assert f"edit: {slug}" in git_log(live)
 
 
@@ -601,7 +602,7 @@ def test_rebuild_the_index_from_the_maintenance_screen(page, live, monkeypatch):
     goto(page, live, "maintain")
     page.get_by_role("button", name="Reconstruir el índice").click()
     page.locator("#confirm-reindex").get_by_role("button", name="Reconstruir", exact=True).click()
-    expect(page.locator("#progress .log")).to_contain_text("🏁 Índice reconstruido: 6 fuentes, 35 páginas")
+    expect(page.locator("#progress .log")).to_contain_text("🏁 Índice reconstruido: 6 fuentes, 24 páginas")
     assert {r["relative_path"] for r in ingest_rows(live)} == before
     assert (live.wiki_dir / ".llmwiki" / "index.db.bak").is_file()
 

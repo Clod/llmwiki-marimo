@@ -1,30 +1,37 @@
 ---
 type: summary
 title: Caperucita Roja
-topics: [lobo, abuela, moraleja]
+sources:
+  - resource: sources/Caperucita Roja.pdf
+topics: [cuento popular, peligro del engaño, inocencia infantil, advertencia moral, moraleja
+    en verso]
 ---
 
 # Caperucita Roja
 
-**Fuente:** Caperucita Roja.pdf | **Tipo:** pdf | **Páginas:** 4 | **Ingerido:** 2026-07-08
+**Fuente:** Caperucita Roja.pdf | **Tipo:** pdf | **Páginas:** 4 | **Ingerido:** 2026-11-17
 
 ## Resumen
 
-Caperucita Roja es un cuento clásico de Charles Perrault sobre una niña que lleva una torta y mantequilla a su abuela enferma, pero es engañada por un lobo que se hace pasar por su abuela. El lobo finalmente devora tanto a la abuela como a Caperucita Roja, y el cuento concluye con una moraleja sobre los peligros de confiar en extraños, especialmente para las jóvenes. La historia destaca la importancia de la precaución y la desconfianza hacia aquellos que pueden tener intenciones ocultas.
+Versión escrita por Charles Perrault del cuento popular en el que una niña, camino a casa de su abuela, se detiene a conversar con un lobo que la engaña, devora a la abuela y luego a la niña. El texto cierra con una moraleja en verso que advierte sobre los peligros de escuchar a desconocidos, especialmente a los zalameros.
 
 ## Conceptos relacionados
 
 - [Caperucita Roja](../concepts/caperucita-roja.md)
+- [Lobo feroz](../concepts/lobo-feroz.md)
 - [Charles Perrault](../concepts/charles-perrault.md)
-- [El lobo en Caperucita Roja](../concepts/el-lobo-en-caperucita-roja.md)
-- [Moraleja de Caperucita Roja](../concepts/moraleja-de-caperucita-roja.md)
+- [Moraleja](../concepts/moraleja.md)
+
+## Figuras
+
+- [![Imagen, página 2](.llmwiki/cache/local/d883b4ce-f94c-4112-8664-32213d01ad5e/images/imageFile1.png)](.llmwiki/cache/local/d883b4ce-f94c-4112-8664-32213d01ad5e/images/imageFile1.png) **Página 2.**
 
 ## Información de la fuente
 
 - **Archivo:** Caperucita Roja.pdf
 - **Tipo:** pdf
 - **Páginas:** 4
-- **Ingerido:** 2026-07-08
+- **Ingerido:** 2026-11-17
 - **Analizador:** opendataloader
 
 [^1]: Caperucita Roja.pdf

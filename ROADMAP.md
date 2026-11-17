@@ -16,6 +16,11 @@ describe how the system actually behaves, measured rather than asserted.
 
 **Smaller items**, each a real gap rather than a nicety:
 
+- **Keep the images of a PDF as JPEG.** The extraction keeps every image of a PDF
+  as the PNG opendataloader-pdf writes: the 14 illustrations of the two tale
+  examples weigh 12.5 MB, 2.2 MB as JPEG at quality 80. The links of the pages,
+  the index and `figures.json` name the `.png` files, so the change touches the
+  extraction, the missing-image repair and the image descriptions.
 - **Document `scan_and_ingest` for end users** — what it touches, and when
   `batch_ingest` is the better call.
 - **OCR for scanned PDFs — built** (commit `01497f0`; see `CHANGELOG.md`).

@@ -5,7 +5,7 @@
 The files are named `<label>_<n>-<screen>_<width>.png`. The interface is in the language given (default
 `es`, the language the screens were first captured in): the labels the script clicks are looked up in
 the catalog of that language. The application runs over
-a copy of `examples/finanzas-argentinas` with simulated agents and a simulated
+a copy of `tests/fixtures/wikis/finanzas-argentinas` with simulated agents and a simulated
 scan: no model call.
 """
 

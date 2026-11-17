@@ -11,7 +11,7 @@ import pytest
 from domain.chat import config_writer as cw
 from domain.chat.config import load_config
 
-EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "finanzas-argentinas" / "wiki_config.toml"
+EXAMPLE = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "wikis" / "finanzas-argentinas" / "wiki_config.toml"
 
 
 @pytest.fixture
@@ -81,13 +81,13 @@ def test_removing_the_last_alias_of_a_canonical_removes_the_canonical(wiki):
 def test_rejecting_a_generated_alias_writes_a_false_synonym_and_drops_it_from_the_effective_map(wiki):
     (wiki / ".llmwiki").mkdir()
     shutil.copy(EXAMPLE.parent / ".llmwiki" / "aliases.generated.toml", wiki / ".llmwiki")
-    assert "Duales" in load_config(wiki).data_aliases["Bonos Duales"]
-    cw.reject_alias(wiki, "Bonos Duales", "Duales")
-    assert data(wiki)["falsos_sinonimos"]["Bonos Duales"] == ["Duales"]
-    assert "Bonos Duales" not in load_config(wiki).data_aliases       # its only alias is gone
-    cw.unreject_alias(wiki, "bonos duales", "duales")
-    assert "Bonos Duales" not in data(wiki).get("falsos_sinonimos", {})
-    assert "Duales" in load_config(wiki).data_aliases["Bonos Duales"]
+    assert "Merval" in load_config(wiki).data_aliases["S&P Merval"]
+    cw.reject_alias(wiki, "S&P Merval", "Merval")
+    assert data(wiki)["falsos_sinonimos"]["S&P Merval"] == ["Merval"]
+    assert "S&P Merval" not in load_config(wiki).data_aliases       # its only alias is gone
+    cw.unreject_alias(wiki, "s&p merval", "merval")
+    assert "S&P Merval" not in data(wiki).get("falsos_sinonimos", {})
+    assert "Merval" in load_config(wiki).data_aliases["S&P Merval"]
 
 
 def test_a_missing_file_and_missing_sections_are_created(tmp_path):

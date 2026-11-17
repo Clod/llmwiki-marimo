@@ -1,0 +1,20 @@
+[
+  {
+    "page": 1,
+    "file": "imageFile1.png",
+    "caption": "Charles Perrault",
+    "sha256": "937f2cd702315adc25ae79ed9c73eaee6e4727dad494502b9676449490edea86",
+    "width": 822,
+    "height": 822,
+    "description": ""
+  },
+  {
+    "page": 2,
+    "file": "imageFile2.png",
+    "caption": "",
+    "sha256": "dcd40c5b980257e59a83b31b4ffe6471969f9a8f709bb53f81d82e2ab107ca0a",
+    "width": 445,
+    "height": 615,
+    "description": ""
+  }
+]

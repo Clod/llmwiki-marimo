@@ -1,24 +1,35 @@
 ---
 type: concept
 title: Bonos Duales
-tags: [instrumento]
+description: Bonos en pesos que al vencimiento pagan el mayor entre el ajuste por
+  CER y el ajuste por Dólar Linked.
+tags: [instrument]
 sources:
   - resource: sources/05 Bonos Dólar Linked y Duales.docx
-topics: [inflación, devaluación]
+topics: [cobertura inflacionaria, cobertura cambiaria, riesgo de crédito soberano, seguro
+    bifronte, horizonte de inversión]
 ---
 
 # Bonos Duales
 
 ## Definición
-Los bonos duales son un tipo de instrumento financiero que ofrece protección al pagar el mayor ajuste entre la inflación y la devaluación al vencimiento, actuando como un seguro contra ambos riesgos económicos (05 Bonos Dólar Linked y Duales.docx).
+Los bonos duales son instrumentos de renta fija que buscan funcionar como un seguro bifronte: protegen al inversor tanto frente a la inflación como frente a la devaluación, sin que deba apostar de antemano a cuál de las dos variables terminará prevaleciendo.
 
 ## Características clave
-- Proporcionan un ajuste basado en la inflación o la devaluación, el que sea mayor (05 Bonos Dólar Linked y Duales.docx).
-- Funcionan como un seguro contra riesgos económicos relacionados con la inflación y la devaluación (05 Bonos Dólar Linked y Duales.docx).
-- Son atractivos en entornos económicos inestables donde la inflación y la devaluación son preocupaciones significativas (05 Bonos Dólar Linked y Duales.docx).
+- Actúan como cobertura simultánea contra inflación y devaluación, por lo que no requieren una apuesta sobre cuál de ambas variables gana.
+- No protegen del riesgo de crédito del Estado emisor: la cobertura cubre las variables mencionadas, pero no el riesgo de incumplimiento.
+- Suelen calibrarse para horizontes de 6 a 24 meses.
+- Su diseño tiende a estar asociado a eventos electorales o cambios de régimen.
 
 ## Contexto
-Los bonos duales se utilizan en mercados financieros como una herramienta para mitigar el riesgo asociado con la inflación y la devaluación de la moneda. Son particularmente relevantes en economías donde estos factores son volátiles y pueden afectar significativamente el valor de las inversiones. Al ofrecer un ajuste basado en el mayor de estos dos factores, los bonos duales proporcionan una capa adicional de seguridad para los inversores que buscan proteger su capital en entornos económicos inciertos.
+Los bonos duales se inscriben dentro de la categoría de instrumentos financieros. Se diferencian de otros bonos con cobertura cambiaria, como los dólar linked, en que su propósito declarado es cubrir de manera conjunta inflación y devaluación. Su horizonte temporal acotado y su vínculo con coyunturas políticas o de cambio de régimen los hacen especialmente relevantes en contextos de incertidumbre macroeconómica. Al no cubrir el riesgo crediticio del emisor, el inversor debe evaluar la solvencia del Estado por separado.
+
+## Véase también
+
+- [CER](cer.md)
+- [Bonos Dólar Linked](bonos-dolar-linked.md)
+- [Comunicación A3500](comunicacion-a3500.md)
+- [05 Bonos Dólar Linked Y Duales](../summaries/05-bonos-dolar-linked-y-duales.md)
 
 ## Fuentes
 - 05 Bonos Dólar Linked y Duales.docx

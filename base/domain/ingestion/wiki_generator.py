@@ -357,7 +357,7 @@ def build_concept_page(
         ],
         temperature=0.3,
     )
-    page = _strip_wrapping_fence(response.choices[0].message.content)
+    page = _strip_delimiter_lines(_strip_wrapping_fence(response.choices[0].message.content))
     if not page:
         return page   # no page to complete: an empty answer stays empty
     # The prompt asks the model to list the sources; the code makes sure the list
@@ -386,6 +386,25 @@ def ensure_sources_section(page: str, sources: list[str], heading: str) -> str:
     end = len(page) if nxt == -1 else nxt
     section = page[match.end():end].rstrip("\n")
     return f"{page[:match.end()]}{section}\n{bullets}\n{page[end:]}"
+
+
+def _strip_delimiter_lines(page: str) -> str:
+    """`page` without the bare `---` lines that open or close it.
+
+    The update prompt (`concept_update_template`) hands the existing page to the
+    model between two `---` lines, and the model may return them with the page: the
+    first one landed right after the front-matter and rendered as a horizontal rule
+    above the title (`concepts/bcra.md`, regenerated 2026-11-17)."""
+    lines = page.strip().splitlines()
+    while lines and lines[0].strip() == "---":
+        lines = lines[1:]
+        while lines and not lines[0].strip():
+            lines = lines[1:]
+    while lines and lines[-1].strip() == "---":
+        lines = lines[:-1]
+        while lines and not lines[-1].strip():
+            lines = lines[:-1]
+    return "\n".join(lines)
 
 
 def _strip_wrapping_fence(text: str | None) -> str:

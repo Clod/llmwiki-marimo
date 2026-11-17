@@ -1,28 +1,29 @@
 ---
 type: concept
 title: Espejo mágico
+description: Objeto encantado que responde preguntas y siempre dice la verdad.
 tags: [instrument]
 sources:
   - resource: sources/Blancanieves.pdf
-topics: [espejo]
+topics: [belleza, verdad, envidia]
 ---
 
 # Espejo mágico
 
 ## Definición
-El espejo mágico es un objeto encantado que siempre dice la verdad sobre quién es la más hermosa. Es un elemento central en la historia de Blancanieves, ya que motiva a la reina a intentar eliminar a Blancanieves (Blancanieves.pdf).
+El espejo mágico es un instrumento de la trama que, según Blancanieves.pdf, revela que Blancanieves es más bella que la reina, lo que desencadena la persecución.
 
 ## Características clave
-- Objeto encantado.
-- Siempre dice la verdad.
-- Determina quién es la más hermosa.
-- Central en la motivación de la reina en la historia de Blancanieves.
+- Actúa como el mecanismo que pone en marcha la trama.
+- Su revelación sobre la belleza de Blancanieves provoca la persecución.
+- Funciona como detonante de la acción, más que como un elemento decorativo o secundario.
 
 ## Contexto
-El espejo mágico es un elemento común en los cuentos de hadas, simbolizando la verdad absoluta y la obsesión por la belleza. En el cuento de Blancanieves, su función es crucial para el desarrollo de la trama, ya que desencadena los celos y las acciones de la reina malvada. Este tipo de objetos suelen representar el poder del conocimiento y la verdad en la narrativa fantástica.
+En el relato de Blancanieves, el espejo mágico es el punto de partida del conflicto entre la reina y Blancanieves. Su respuesta establece la rivalidad y origina la persecución que estructura la historia. Por eso se lo puede considerar un instrumento narrativo central para el desarrollo de la trama.
 
 ## Véase también
 
+- [Siete enanos](siete-enanos.md)
 - [Blancanieves](blancanieves.md)
 - [Blancanieves](../summaries/blancanieves.md)
 

@@ -1,0 +1,13 @@
+# Generated at ingest — do not edit by hand.
+# Hand overrides live in wiki_config.toml [alias_datos]; this file is merged UNDER them.
+
+[alias_datos]
+"Caperucita Roja" = ["Caperucita", "la niña de la caperucita roja"]
+"Cenicienta" = ["Culocenizón"]
+"Charles Perrault" = ["Perrault"]
+"Espejo mágico" = ["Espejito mágico"]
+"Hada madrina" = ["Madrina", "Hada"]
+"Hermanos Grimm" = ["Jacob y Wilhelm Grimm"]
+"Lobo feroz" = ["lobo", "compadre lobo", "lobo malo"]
+"Reina malvada" = ["Madrastra"]
+"Siete enanos" = ["Enanos"]

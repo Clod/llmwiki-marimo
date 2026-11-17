@@ -1,24 +1,29 @@
 ---
 type: concept
 title: Acciones locales
+description: Fracciones del capital social de empresas argentinas que cotizan en la
+  bolsa y dan al tenedor la calidad de socio.
 tags: [instrument]
 sources:
   - resource: sources/01 Acciones Locales.docx
-topics: [acciones argentinas, mercado bursátil, capital social]
+topics: [participación societaria, apreciación de capital, dividendos, riesgo de mercado,
+  exposición cambiaria]
 ---
 
 # Acciones locales
 
 ## Definición
-Las acciones locales son fracciones del capital social de empresas argentinas que cotizan en el mercado bursátil. Estas acciones ofrecen a los inversores la oportunidad de obtener exposición a sectores específicos de la economía local (01 Acciones Locales.docx).
+Las acciones locales son instrumentos de renta variable que se liquidan y cotizan en pesos. Su rendimiento depende de la apreciación del precio y de los dividendos, ninguno de los cuales está garantizado (01 Acciones Locales.docx).
 
 ## Características clave
-- Representan fracciones del capital social de empresas argentinas.
-- Cotizan en el mercado bursátil.
-- Ofrecen exposición a sectores específicos de la economía local (01 Acciones Locales.docx).
+- Se liquidan y cotizan en pesos (01 Acciones Locales.docx).
+- Tienen exposición indirecta al dólar (01 Acciones Locales.docx).
+- Tienen exposición indirecta a la economía real (01 Acciones Locales.docx).
+- Los rendimientos provienen de la apreciación del precio y de los dividendos, y ninguno de los dos está garantizado (01 Acciones Locales.docx).
+- El horizonte recomendado es de más de 2 a 3 años (01 Acciones Locales.docx).
 
 ## Contexto
-Las acciones locales son un instrumento financiero importante en el mercado de valores de Argentina. Permiten a los inversores participar en el crecimiento y desarrollo de empresas nacionales, al tiempo que diversifican sus carteras con activos que reflejan el desempeño de la economía local. Este tipo de acciones es relevante para aquellos interesados en invertir en mercados emergentes y que buscan oportunidades de inversión específicas en Argentina.
+Dentro de la categoría de instrumentos, las acciones locales se diferencian por su moneda de liquidación y cotización, que es el peso, y por la ausencia de rendimientos garantizados. Su exposición indirecta al dólar y a la economía real explica su comportamiento frente a estas variables. El horizonte recomendado de más de 2 a 3 años refleja la variabilidad de sus rendimientos (01 Acciones Locales.docx).
 
 ## Véase también
 

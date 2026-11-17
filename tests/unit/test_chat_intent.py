@@ -15,7 +15,7 @@ from domain.chat.config import load_config
 from domain.chat.config_writer import VocabularyEditError
 from domain.chat.intent import base_collection, base_lists, load_intent
 
-EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+EXAMPLES = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "wikis"
 
 
 def test_each_language_has_its_base_collection_list():

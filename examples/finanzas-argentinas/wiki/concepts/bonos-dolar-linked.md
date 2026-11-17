@@ -1,24 +1,34 @@
 ---
 type: concept
 title: Bonos Dólar Linked
-tags: [instrumento]
+description: Títulos en pesos cuyo valor y pagos se ajustan contractualmente a la
+  cotización del dólar oficial mayorista.
+tags: [instrument]
 sources:
   - resource: sources/05 Bonos Dólar Linked y Duales.docx
-topics: [devaluación, tipo de cambio oficial, cobertura cambiaria]
+topics: [dólar oficial, atraso cambiario, dólares nocionales, cupones en pesos, exposición
+    cambiaria]
 ---
 
 # Bonos Dólar Linked
 
 ## Definición
-Los Bonos Dólar Linked son instrumentos financieros emitidos en pesos argentinos cuyo valor y pagos están vinculados al tipo de cambio oficial mayorista. Estos bonos ofrecen protección contra la devaluación de la moneda local (05 Bonos Dólar Linked y Duales.docx).
+Bono cuyo pago se realiza en pesos equivalentes al dólar oficial. El capital se convierte en dólares nocionales al inicio y se multiplica por el tipo de cambio oficial vigente al momento del pago.
 
 ## Características clave
-- Emitidos en pesos argentinos.
-- Valor y pagos vinculados al tipo de cambio oficial mayorista.
-- Proporcionan cobertura contra la devaluación del peso argentino.
+- El capital se expresa en dólares nocionales al momento de la emisión o inicio.
+- El pago final en pesos se calcula multiplicando los dólares nocionales por el tipo de cambio oficial a la fecha de pago.
+- Otorga exposición al dólar oficial, no al dólar CCL ni al dólar MEP.
+- Su principal riesgo es el atraso cambiario.
 
 ## Contexto
-Los Bonos Dólar Linked son relevantes en economías con alta volatilidad cambiaria, como la argentina, donde los inversores buscan protegerse contra la devaluación de la moneda local. Al estar vinculados al tipo de cambio oficial mayorista, estos bonos ofrecen una forma de inversión que mitiga el riesgo cambiario, siendo atractivos para aquellos que desean mantener su poder adquisitivo en un entorno económico incierto.
+Los bonos dólar linked forman parte de los instrumentos que ofrecen exposición al tipo de cambio en pesos. Se diferencian de otros instrumentos vinculados al dólar porque su referencia es el dólar oficial, y no el CCL o el MEP. Esta distinción determina a qué tipo de cambio queda expuesto el inversor.
+
+## Véase también
+
+- [CER](cer.md)
+- [Comunicación A3500](comunicacion-a3500.md)
+- [05 Bonos Dólar Linked Y Duales](../summaries/05-bonos-dolar-linked-y-duales.md)
 
 ## Fuentes
 - 05 Bonos Dólar Linked y Duales.docx

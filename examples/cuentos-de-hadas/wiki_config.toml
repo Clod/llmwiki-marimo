@@ -78,3 +78,7 @@ suggested_prompts = [
     "¿Qué personajes y temas comparten los cuentos?",
     "Compara cómo termina cada historia",
 ]
+
+[images]
+# The tales keep the images of their PDFs: the summary pages show them under «Figures».
+ignore = false

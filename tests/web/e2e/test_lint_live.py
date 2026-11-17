@@ -3,7 +3,7 @@
 The test spends tokens and minutes: it runs only with `E2E_FULL=1`, and it is
 skipped when no ingestion model is configured. The wait for the end of the
 operation is `E2E_FULL_TIMEOUT_S` seconds (900 by default). The wiki is a copy
-of `examples/finanzas-argentinas` in `tmp_path`: the repair can rewrite and
+of `tests/fixtures/wikis/finanzas-argentinas` in `tmp_path`: the repair can rewrite and
 delete pages, and the example wiki does not change.
 
 The test asserts what the code decides, never what the model writes: the

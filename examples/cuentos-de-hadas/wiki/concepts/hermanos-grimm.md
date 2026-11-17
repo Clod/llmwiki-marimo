@@ -1,28 +1,31 @@
 ---
 type: concept
 title: Hermanos Grimm
+description: Autores alemanes del siglo XIX, recopiladores de cuentos populares tradicionales.
 tags: [entity]
 sources:
   - resource: sources/Blancanieves.pdf
-topics: [Grimm, Jacob Grimm, Wilhelm Grimm]
+topics: [cuentos populares, literatura infantil, recopilación]
 ---
 
 # Hermanos Grimm
 
 ## Definición
-Los Hermanos Grimm, Jacob y Wilhelm Grimm, fueron académicos alemanes conocidos por recopilar y publicar cuentos de hadas populares, como "Blancanieves", que han tenido un impacto duradero en la literatura infantil (Blancanieves.pdf).
+Los Hermanos Grimm son los autores de una recopilación de relatos cuya difusión llevó el cuento de Blancanieves a la literatura infantil.
 
 ## Características clave
-- Jacob y Wilhelm Grimm eran hermanos y académicos alemanes.
-- Se dedicaron a recopilar cuentos de hadas populares.
-- Su obra ha influido significativamente en la literatura infantil.
-- "Blancanieves" es uno de los cuentos más conocidos que recopilaron (Blancanieves.pdf).
+- Son autores de una recopilación de relatos.
+- Su recopilación difundió el relato de Blancanieves.
+- Esa difusión tuvo lugar en la literatura infantil.
+- El documento Blancanieves.pdf es una versión de su recopilación.
 
 ## Contexto
-Los Hermanos Grimm jugaron un papel crucial en la preservación y popularización de los cuentos de hadas tradicionales. Su trabajo no solo ha sido fundamental en la literatura infantil, sino que también ha influido en la cultura popular, el cine y el teatro, manteniendo vivos estos relatos a lo largo de las generaciones.
+La obra de los Hermanos Grimm se relaciona con el relato de Blancanieves a través de su recopilación, que lo dio a conocer en la literatura infantil. El documento Blancanieves.pdf es una versión de esa recopilación, por lo que sirve como fuente de referencia para este concepto.
 
 ## Véase también
 
+- [Espejo mágico](espejo-magico.md)
+- [Siete enanos](siete-enanos.md)
 - [Blancanieves](blancanieves.md)
 - [Blancanieves](../summaries/blancanieves.md)
 

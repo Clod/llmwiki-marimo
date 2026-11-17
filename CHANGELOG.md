@@ -213,6 +213,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The example wikis are regenerated** with Haiku 5.5 and the current code: the
+  tables of the documents, one page per concept with its `description`, «See also»
+  above the footnote, and no structure problem (`scripts/check_wiki.py`). The two
+  tale examples keep the images of their PDFs (`[images] ignore = false`), shipped
+  in `.llmwiki/cache/` so the «Figures» of a summary page show at once (12.5 MB).
+  The tests no longer read `examples/`: they read a frozen copy in
+  `tests/fixtures/wikis/` (without the images), so a future regeneration of the
+  examples does not break them. A test runs `check_wiki.py` on `examples/`.
+
 - **A data question with no wiki page receives the dataset it names.** In the
   pre-retrieval mode, a question that named data and found no wiki page reached
   the model alone, with the data tools; when the model called no tool, the turn
@@ -523,6 +532,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A concept page updated by a second document opened with a horizontal rule.**
+  The update prompt hands the existing page to the model between two `---` lines,
+  and the model returned one of them: `concepts/bcra.md` showed a rule above its
+  title. `build_concept_page` drops the bare `---` lines that open or close the
+  page, and `scripts/check_wiki.py` reports a body that opens with one.
 - **«See also» goes above the footnote of a summary page.** A summary page ended
   with the footnote `[^1]: source.pdf` followed by the «See also» section: the
   cross-links and the `missing_xref` repair placed the section above the sources

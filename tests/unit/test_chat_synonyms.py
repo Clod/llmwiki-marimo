@@ -9,7 +9,7 @@ import pytest
 
 from domain.chat.preretrieval import pre_retrieval_answer, synonyms_line
 
-DEMO = Path(__file__).resolve().parents[2] / "examples" / "finanzas-argentinas"
+DEMO = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "wikis" / "finanzas-argentinas"
 
 
 @pytest.fixture
