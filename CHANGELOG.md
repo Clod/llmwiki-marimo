@@ -199,6 +199,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **A data question with no wiki page receives the dataset it names.** In the
+  pre-retrieval mode, a question that named data and found no wiki page reached
+  the model alone, with the data tools; when the model called no tool, the turn
+  ended in the refusal R_NO_EVIDENCE although the row was in `datasets/`. The
+  turn now runs the dataset nodes of the wiki-page path after Q_IS_DATA: a named
+  key injects its rows, a named category its key names. The model keeps the data
+  tools, and Q_TOOL_EVIDENCE runs only when nothing was injected. «¿A cuánto está
+  el dólar MEP?» with no page gives the answer with `Fuente: ambito.com` and
+  `Referencia: dolar.md`.
+
 - **Three more service messages follow the interface language.** With the
   interface in Spanish, the editor showed «concepts/x changed since it was
   opened (version 3)», a missing source document answered «x.pdf is not a
@@ -498,6 +508,20 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   one row: Q3, the blacklist, runs in the pre-retrieval input workflow only.
 
 ### Fixed
+
+- **A new version of a source, uploaded with the same name, is ingested.** The
+  upload kept the file already in `sources/`, the ingestion found that file
+  unchanged, and the log said «already up to date»: the new version was dropped.
+  A file with the name of a source and other contents now replaces it, the log
+  says «replaced the previous version», and the ingestion reads the new contents.
+  An identical file is still skipped as already up to date.
+- **`guardrail.py` imports `is_refusal` from `domain.chat.refusal`.** It took
+  `refusal` from the package `domain.chat`, which is half-initialised while
+  `__init__.py` imports the agent and its tools; a name defined in `__init__.py`
+  would raise ImportError. A test lists the modules that importing `domain.chat`
+  loads and fails if one imports from the package.
+- **A failed Pydantic AI instrumentation logs a warning.** It was a debug line,
+  and the trace came out without the model spans and no reason.
 
 - **The search of the Relations screen keeps the page it found in view.** Typing a
   page and pressing Enter centred the page and zoomed to 4, and when the simulation

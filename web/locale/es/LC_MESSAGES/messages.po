@@ -4025,6 +4025,11 @@ msgstr "♻️ Reemplazando el índice; el anterior queda como index.db.bak"
 
 #: base/services/ingest.py
 #, python-format
+msgid "♻️ %(file)s — replaced the previous version"
+msgstr "♻️ %(file)s — se reemplazó la versión anterior"
+
+#: base/services/ingest.py
+#, python-format
 msgid "🩺 Running full LLM lint on %(n)s ingested page(s)…"
 msgstr "🩺 Corriendo el lint completo con el modelo sobre %(n)s página(s) ingerida(s)…"
 

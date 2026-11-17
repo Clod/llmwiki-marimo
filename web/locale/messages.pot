@@ -3882,6 +3882,11 @@ msgstr ""
 
 #: base/services/ingest.py
 #, python-format
+msgid "♻️ %(file)s — replaced the previous version"
+msgstr ""
+
+#: base/services/ingest.py
+#, python-format
 msgid "🩺 Running full LLM lint on %(n)s ingested page(s)…"
 msgstr ""
 

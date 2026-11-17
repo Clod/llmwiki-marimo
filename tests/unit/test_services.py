@@ -509,6 +509,32 @@ def test_ingest_uploads_cannot_write_outside_sources(wiki, monkeypatch, tmp_path
     assert not (wiki.sources_dir.parent.parent / "x.pdf").exists()
 
 
+def test_an_upload_with_the_name_of_a_source_replaces_it_when_the_contents_differ(wiki, monkeypatch):
+    """A new version of a source, uploaded with the same name, replaces the file on disk,
+    so the ingestion sees the change. It was dropped, and the log said «already up to date»."""
+    import domain.ingestion as ingestion
+
+    monkeypatch.setattr(ingestion, "ingest_file", lambda path, *a, **k: SimpleNamespace(
+        status="failed", doc_id=None))
+    (wiki.sources_dir / "a.pdf").write_bytes(b"old")
+    log = []
+    ingest.ingest_uploads(wiki, [ingest.Upload("a.pdf", b"new")], None, "m", progress=log.append)
+    assert (wiki.sources_dir / "a.pdf").read_bytes() == b"new"
+    assert "♻️ a.pdf — replaced the previous version" in log
+
+
+def test_an_upload_identical_to_a_source_leaves_it_alone(wiki, monkeypatch):
+    import domain.ingestion as ingestion
+
+    monkeypatch.setattr(ingestion, "ingest_file", lambda path, *a, **k: SimpleNamespace(
+        status="skipped", doc_id=None))
+    (wiki.sources_dir / "a.pdf").write_bytes(b"same")
+    log = []
+    ingest.ingest_uploads(wiki, [ingest.Upload("a.pdf", b"same")], None, "m", progress=log.append)
+    assert (wiki.sources_dir / "a.pdf").read_bytes() == b"same"
+    assert not any("replaced" in str(line) for line in log)
+
+
 def test_the_scoped_pass_after_an_ingestion_repairs_the_images_of_the_ingested_source(wiki, monkeypatch):
     """The image checks name a source by its path under sources/, so the scope
     holds the ingested sources as well as their pages."""
