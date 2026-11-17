@@ -15,6 +15,7 @@ Return JSON with this exact structure:
     {{
       "name": "Short canonical name — a noun phrase, no parentheses or vs-comparisons",
       "category": "entity|instrument|theme",
+      "description": "One sentence that says what the entity is, without referring to the document",
       "insight": "The specific new insight this document adds about this concept",
       "aliases": ["other names for the exact same thing", "abbreviations, synonyms"],
       "topics": ["the subjects this document treats about this concept"]

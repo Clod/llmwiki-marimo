@@ -120,6 +120,8 @@ OLD = {'ingest_system': {'en': 'You are a knowledge-base assistant. Your task is
                                  '      "name": "Short canonical name — a noun phrase, no '
                                  'parentheses or vs-comparisons",\n'
                                  '      "category": "entity|instrument|theme",\n'
+                                 '      "description": "One sentence that says what the '
+                                 'entity is, without referring to the document",\n'
                                  '      "insight": "The specific new insight this document '
                                  'adds about this concept",\n'
                                  '      "aliases": ["other names for the exact same thing", '

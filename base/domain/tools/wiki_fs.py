@@ -319,6 +319,14 @@ def _existing_topics(file_path: Path) -> list[str]:
         return []
 
 
+def _existing_description(file_path: Path) -> str:
+    """The `description` of a page already on disk, or "" if unreadable."""
+    try:
+        return page_description(file_path.read_text(encoding="utf-8"))
+    except OSError:
+        return ""
+
+
 def _lookup_source_document_filename(conn: sqlite3.Connection, source_document_id: str) -> str | None:
     """Look up a document's filename by id, for resolving the default `sources` value."""
     row = conn.execute(
@@ -342,6 +350,7 @@ def create_page(
     clear_stale: bool = False,
     language: str | None = None,
     topics: list[str] | None = None,
+    description: str | None = None,
 ) -> dict:
     """Write a wiki page to disk and insert/update the DB record.
 
@@ -379,6 +388,12 @@ def create_page(
     the topics the page already declares, which are all kept: the curator decides,
     and removes in the editor the ones that do not fit. A topic already declared,
     compared without case nor accents, is not added twice.
+
+    `description` is the sentence that says what a concept page is about; the
+    ingestion shows it to the extraction, which reuses the title of a concept the
+    wiki already has (`domain.ingestion.pipeline.known_concepts`). The description a
+    page already declares is kept, as the curator may have edited it; the one given
+    is written only when the page has none.
 
     Returns {"id": doc_id, "path": relative_path, "new_topics": [...]}, the last one
     the proposed topics the page did not have, for the ingestion to name them.
@@ -454,10 +469,17 @@ def create_page(
         new_topics = _new_topics(kept_topics, topics or [])
         topics = [*kept_topics, *new_topics]
 
+        # 7c. Keep the `description` the page already declares, the same way.
+        if replace_sources or not file_path.exists():
+            kept_description = page_description(content) if incoming_fm_block is not None else ""
+        else:
+            kept_description = _existing_description(file_path)
+        description = kept_description or (description or "").strip()
+
         # 8. Render the frontmatter block in code and prepend it to the body.
         frontmatter_block = render_frontmatter({
-            "type": page_type, "title": title, "tags": tags, "sources": merged_sources,
-            "topics": topics,
+            "type": page_type, "title": title, "description": description, "tags": tags,
+            "sources": merged_sources, "topics": topics,
         })
         final_content = frontmatter_block + body
 
@@ -686,6 +708,19 @@ def delete_page(
         file_path.unlink()
 
     return existed
+
+
+def page_description(text: str | None) -> str:
+    """The `description` a page declares in its front-matter, or "" when it has none
+    or the front-matter is invalid."""
+    block, _ = split_frontmatter(text or "")
+    if block is None:
+        return ""
+    try:
+        value = parse_frontmatter(block).get("description")
+    except ValueError:
+        return ""
+    return value.strip() if isinstance(value, str) else ""
 
 
 def page_topics(text: str | None) -> list[str]:

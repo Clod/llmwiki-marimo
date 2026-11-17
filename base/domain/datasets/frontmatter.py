@@ -79,7 +79,7 @@ def parse_frontmatter(block: str) -> dict[str, object]:
 
 # Fixed lead-in order for the keys wiki pages care about; anything else that
 # gets passed in follows, alphabetically.
-_LEAD_KEYS = ("type", "title", "tags", "sources")
+_LEAD_KEYS = ("type", "title", "description", "tags", "sources")
 
 
 def _is_empty(value: object) -> bool:
@@ -97,7 +97,7 @@ def render_frontmatter(fields: dict[str, object]) -> str:
     on its own line with a blank line before it — the shape every currently
     shipped wiki page already uses (`---\\n\\n# Title`).
 
-    Key order is fixed: `type`, `title`, `tags`, `sources`, then any remaining
+    Key order is fixed: `type`, `title`, `description`, `tags`, `sources`, then any remaining
     keys alphabetically. Keys whose value is `None` or an empty list/string are
     skipped (never emits e.g. `tags: []`). Values are rendered with
     `yaml.safe_dump` (not hand-rolled) so anything needing quoting — colons,

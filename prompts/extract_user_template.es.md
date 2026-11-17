@@ -15,6 +15,7 @@ Devolvé un JSON con exactamente esta estructura:
     {{
       "name": "Nombre canónico corto: un sintagma nominal, sin paréntesis ni comparaciones con vs",
       "category": "entity|instrument|theme",
+      "description": "Una oración que dice qué es la entidad, sin referirse al documento",
       "insight": "El aporte nuevo y específico de este documento sobre este concepto",
       "aliases": ["otros nombres para exactamente la misma cosa", "abreviaturas, sinónimos"],
       "topics": ["los asuntos que este documento trata sobre este concepto"]
