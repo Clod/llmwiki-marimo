@@ -542,7 +542,6 @@ def _snapshot_wiki_page(db_path: str, relative_path: str) -> dict | None:
     prior version instead of leaving merged-but-orphaned content behind.
     """
     import json
-    from domain.tools.db import get_connection
     from domain.verify.store import load_verification
     with get_connection(db_path) as conn:
         row = conn.execute(
@@ -629,7 +628,6 @@ def _report_new_topics(cb: Callable[[str], None], new: Iterable[tuple[str, str]]
 
 def _all_concept_names(db_path: str) -> list[str]:
     """Return names of all concept wiki pages currently in the DB."""
-    from domain.tools.db import get_connection
     with get_connection(db_path) as conn:
         rows = conn.execute(
             "SELECT title FROM documents "
@@ -719,20 +717,9 @@ def scan_and_ingest(
         _cb(M_("🏁 Scan complete — ingested: %(ingested)s, skipped: %(skipped)s, failed: %(failed)s",
                ingested=ingested, skipped=skipped, failed=failed))
 
-        # Final pass: now that every page exists, inject "See also" cross-links so a
-        # page created early can still link to concepts extracted from a later
-        # document. Deterministic; runs only when something was actually ingested.
-        if ingested:
-            touched = pages_touched_by(
-                db_path, [r.doc_id for r in results if r.status == "ingested" and r.doc_id]
-            )
-            with tracing.node("I_CROSSLINKS", tracing.WRITING, touched=len(touched)) as i16:
-                n_linked = crosslink_wiki_pages(
-                    workspace, db_path, language=language, progress_cb=_cb, touched=touched,
-                )
-                i16.set(linked=n_linked)
-            if n_linked:
-                _cb(M_("🔗 Cross-linked %(n)s page(s)", n=n_linked))
+        # The "See also" cross-links and the lint and repair of the pages this scan
+        # wrote run after it, in the final review of `services.ingest.scan_sources`,
+        # the same review the upload ends with.
 
     return results
 
@@ -832,29 +819,6 @@ def _crosslink_candidates(pages: list[dict], touched: Iterable[str]) -> list[dic
         if any(slug in text for slug in slug_texts):
             candidates.append(page)
     return candidates
-
-
-def pages_touched_by(db_path: str, source_doc_ids: list[str]) -> set[str]:
-    """Wiki pages written from the given sources: their summary pages plus every
-    page that cites them. Returned as relative paths (``wiki/concepts/x.md``),
-    the shape ``crosslink_wiki_pages(touched=...)`` takes."""
-    if not source_doc_ids:
-        return set()
-    placeholders = ",".join("?" * len(source_doc_ids))
-    with get_connection(db_path) as conn:
-        summaries = conn.execute(
-            f"SELECT relative_path FROM documents "
-            f"WHERE source_kind='wiki' AND source_document_id IN ({placeholders})",
-            source_doc_ids,
-        ).fetchall()
-        citing = conn.execute(
-            f"SELECT d.relative_path FROM document_references dr "
-            f"JOIN documents d ON dr.source_document_id = d.id "
-            f"WHERE dr.target_document_id IN ({placeholders}) "
-            f"AND dr.reference_type = 'cites' AND d.source_kind = 'wiki'",
-            source_doc_ids,
-        ).fetchall()
-    return {r["relative_path"] for r in summaries} | {r["relative_path"] for r in citing}
 
 
 def regenerate_wiki_pages(

@@ -38,7 +38,8 @@ whether the file changed. The node identifiers follow five groups:
 - **I**: the ingestion of one document (`I_VALIDATE` to `I_LINT`), the images
   of one document (`I_IMAGES_KEPT`, `I_IMAGE_DESCRIBED`, `I_IMAGE_SKIPPED`,
   inside `I_EXTRACT`), and the passes that run after the documents of a scan
-  or of an upload (`I_DATASET_ALIASES`, `I_UPLOAD_REPAIR`, `I_CROSSLINKS`).
+  of an upload or of a regeneration of the summaries (`I_DATASET_ALIASES`,
+  `I_FINAL_REVIEW`, `I_CROSSLINKS`).
 - **E**: the end state of one document (`E_INVALID`, `E_UNCHANGED`,
   `E_ROLLED_BACK`, `E_INGESTED`).
 - **W**: the path of one fragment, from the text to the index (`W_CHUNK`,
@@ -75,7 +76,7 @@ flowchart TD
         I_IMAGE_DESCRIBED["I_IMAGE_DESCRIBED · one image described<br/>one vision-model call, or a description reused<br/>from the cache of the images folder"]
         I_IMAGE_SKIPPED["I_IMAGE_SKIPPED · one image not described<br/>too_small, decorative, duplicate, over_limit or failed"]
         I_DATASET_ALIASES["I_DATASET_ALIASES · scan only: dataset aliases<br/>regenerate_dataset_aliases, one model call<br/>when the datasets/ fingerprint changed"]
-        I_UPLOAD_REPAIR["I_UPLOAD_REPAIR · upload only: reconciliation<br/>lint_wiki, then repair_wiki on the issues<br/>of the pages the upload touched"]
+        I_FINAL_REVIEW["I_FINAL_REVIEW · final review of an upload, a scan<br/>or a regeneration: lint_wiki, then repair_wiki<br/>on the issues of the pages the run touched"]
         I_CROSSLINKS["I_CROSSLINKS · See also cross-links<br/>crosslink_wiki_pages, no model call<br/>on the pages the run touched"]
 
         I_VALIDATE -->|no| E_INVALID
@@ -89,8 +90,9 @@ flowchart TD
         I_BATCH_END --> I_OVERVIEW
         I_OVERVIEW --> I_LOG --> I_COMMIT --> I_LINT
         I_LINT -->|single file| E_INGESTED
-        E_INGESTED -.->|after the last document of a scan| I_DATASET_ALIASES --> I_CROSSLINKS
-        E_INGESTED -.->|after the last document of an upload| I_UPLOAD_REPAIR --> I_CROSSLINKS
+        E_INGESTED -.->|after the last document of a scan| I_DATASET_ALIASES --> I_FINAL_REVIEW
+        E_INGESTED -.->|after the last document of an upload or a regeneration| I_FINAL_REVIEW
+        I_FINAL_REVIEW --> I_CROSSLINKS
         I_EXTRACT --> I_IMAGES_KEPT --> I_IMAGE_DESCRIBED
         I_IMAGES_KEPT --> I_IMAGE_SKIPPED
         I_EXTRACT -.->|exception| E_ROLLED_BACK
@@ -158,8 +160,8 @@ The columns of the node table:
 | I_COMMIT | Commits the wiki to the git repository of the wiki | `base/domain/tools/git_ops.py`, `auto_commit`; `base/domain/ingestion/pipeline.py`, `_ingest_file`; `base/domain/ingestion/batch.py`, `batch_ingest` | no attributes | code |
 | I_LINT | Runs the lint checks and appends the result of the lint checks to `wiki/log.md`, when the caller requests the lint checks | `base/domain/lint/runner.py`, `lint_wiki`; `base/domain/ingestion/pipeline.py`, `_ingest_file`; `base/domain/ingestion/batch.py`, `batch_ingest` | `issues` | code |
 | I_DATASET_ALIASES | After the documents of a scan: regenerates the aliases of the dataset terms with one model call, only when the fingerprint of `datasets/` changed | `base/domain/ingestion/alias_generation.py`, `regenerate_dataset_aliases`; `base/domain/ingestion/pipeline.py`, `scan_and_ingest` | `regenerated`, or `error` | code |
-| I_UPLOAD_REPAIR | After the documents of an upload: runs the lint checks, and repairs the issues of the pages the upload touched | `base/domain/lint/runner.py`, `lint_wiki`; `base/domain/repair/runner.py`, `repair_wiki`; `base/services/ingest.py`, `ingest_uploads` | `mode`, `pages`, `issues`, `fixable` | code |
-| I_CROSSLINKS | After a scan or an upload: adds "See also" cross-links to the pages the run touched, with no model call | `base/domain/ingestion/pipeline.py`, `crosslink_wiki_pages`, `scan_and_ingest`; `base/services/ingest.py`, `ingest_uploads` | `touched`, `linked` | code |
+| I_FINAL_REVIEW | After the documents of an upload, a scan or a regeneration of the summaries: runs the lint checks, and repairs the issues of the pages the run touched (with the model only for an upload with «Full repair»); the review commits what it wrote | `base/domain/lint/runner.py`, `lint_wiki`; `base/domain/repair/runner.py`, `repair_wiki`; `base/services/ingest.py`, `_final_review` | `mode`, `pages`, `issues`, `fixable` | code |
+| I_CROSSLINKS | After the final review: adds "See also" cross-links to the pages the run touched, with no model call | `base/domain/ingestion/pipeline.py`, `crosslink_wiki_pages`; `base/services/ingest.py`, `_final_review` | `touched`, `linked` | code |
 | I_IMAGES_KEPT | The images kept for a document: count and total bytes; recorded when the document has kept images | `base/domain/ingestion/describe.py`, `describe_images` | `count`, `total_bytes` | code |
 | I_IMAGE_DESCRIBED | One image described: the vision-model call, or the reuse of a description file whose `image_sha256` and `prompt_sha256` match; the call carries the image, and the trace of the request keeps a reference to the image instead (`wrap_openai`) | `base/domain/ingestion/describe.py`, `describe_images`, `call_vision`; `base/domain/tracing.py`, `wrap_openai` | `file`, `image_sha256`, `model`, `cached`, `tokens_input`, `tokens_output`, or `error` | code |
 | I_IMAGE_SKIPPED | One image not described, with its reason: `too_small`, `decorative`, `duplicate`, `over_limit` or `failed` | `base/domain/ingestion/describe.py`, `describe_images` | `file`, `reason` | code |
@@ -175,7 +177,7 @@ The columns of the node table:
 | M_LACKS_STEMS | On opening a wiki built before stemming existed, the schema guard finds that `document_chunks` lacks `content_stemmed` | `base/domain/tools/db.py`, `open_db`, `_verify_schema` | none: runs when a database is opened, outside any traced run | code |
 | M_LANGUAGE | Finds the wiki's language from the path of the database | `base/domain/wiki_settings.py`, `load_wiki_language` | none: runs when a database is opened, outside any traced run | code |
 | M_REBUILD_INDEX | Rebuilds the index with no model call, and logs one warning | `base/domain/tools/db.py`, `_rebuild_stemmed_index` | none: runs when a database is opened, outside any traced run | code |
-| M_LINT_NAMES | The lint vocabulary checks compare names the way the coverage roster compares names | `base/domain/lint/checks.py`, `vocabulary_check` | none: one lint check among many; the result of `vocabulary_check` is part of the `issues` of I_LINT and I_UPLOAD_REPAIR | code |
+| M_LINT_NAMES | The lint vocabulary checks compare names the way the coverage roster compares names | `base/domain/lint/checks.py`, `vocabulary_check` | none: one lint check among many; the result of `vocabulary_check` is part of the `issues` of I_LINT and I_FINAL_REVIEW | code |
 
 ## 3. A wiki page saved from the chat
 

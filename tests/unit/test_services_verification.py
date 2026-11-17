@@ -129,7 +129,8 @@ def test_regenerate_summaries_verifies_only_the_summaries(wiki, monkeypatch):
     lines = []
     ingest.regenerate_summaries(wiki, None, "m", verifier=FakeVerifier(), progress=lines.append)
     assert any(line.startswith("✔ summaries/a") for line in lines)
-    assert not any("concepts/uva" in line for line in lines)
+    # The final review may cross-link concepts/uva; the verification leaves it out.
+    assert not any(line.startswith("✔ concepts/uva") for line in lines)
 
 
 def test_ingest_uploads_verifies_after_the_cross_links(wiki, monkeypatch):

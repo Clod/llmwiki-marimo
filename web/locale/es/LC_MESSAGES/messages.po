@@ -3965,11 +3965,6 @@ msgstr "🔤 Se generaron alias para %(n)s término(s) de datos"
 msgid "🏁 Scan complete — ingested: %(ingested)s, skipped: %(skipped)s, failed: %(failed)s"
 msgstr "🏁 Revisión terminada: ingeridos %(ingested)s, omitidos %(skipped)s, fallidos %(failed)s"
 
-#: base/domain/ingestion/pipeline.py base/services/ingest.py
-#, python-format
-msgid "🔗 Cross-linked %(n)s page(s)"
-msgstr "🔗 Se enlazaron %(n)s página(s)"
-
 #: base/domain/ingestion/pipeline.py
 #, python-format
 msgid "🔗 cross-linked %(page)s"
@@ -4070,6 +4065,11 @@ msgstr "🔧 %(n)s problema(s) en las páginas ingeridas: reparando (determinist
 #: base/services/ingest.py
 msgid "✅ Ingested pages consistent — no repairs needed."
 msgstr "✅ Las páginas ingeridas son coherentes: no hace falta reparar."
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔗 Cross-linked %(n)s page(s)"
+msgstr "🔗 Se enlazaron %(n)s página(s)"
 
 #: base/services/ingest.py
 #, python-format

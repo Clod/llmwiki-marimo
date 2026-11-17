@@ -516,6 +516,17 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The scan and the regeneration of the summaries end with the review the upload
+  ends with.** Two concept pages written from one report by «Scan sources/»
+  stayed without a link to each other; the same report uploaded from the Ingest
+  screen left them linked. The upload ended with a lint and repair of the pages
+  it wrote (the repair of `missing_xref` links two pages that cite the same
+  source), the scan only with the cross-links by mention, and the regeneration
+  with neither. The three now end with one final review (`_final_review`,
+  `base/services/ingest.py`, node `I_FINAL_REVIEW`, formerly `I_UPLOAD_REPAIR`):
+  deterministic for the scan and the regeneration, with the model for an upload
+  with «Full repair». The review also commits what it writes: the pages it
+  repaired and cross-linked were left out of the history of the wiki.
 - **A new version of a source, uploaded with the same name, is ingested.** The
   upload kept the file already in `sources/`, the ingestion found that file
   unchanged, and the log said «already up to date»: the new version was dropped.
