@@ -664,3 +664,40 @@ def test_ingest_uploads_does_not_send_the_advisory_findings_to_the_repair(wiki, 
     monkeypatch.setattr(repair_runner, "repair_wiki", lambda report, *a, **k: sent.extend(i.check for i in report.issues))
     ingest.ingest_uploads(wiki, [ingest.Upload("a.pdf", b"x")], None, "m")
     assert sent == ["missing_xref"]
+
+
+# ── services.ingest.unprocessed_sources ──────────────────────────────────────
+def _record_ingested(wiki, name, status="ready"):
+    """Record sources/<name> in the index as the ingestion does: its hash and mtime."""
+    import uuid
+
+    from domain.ingestion.detector import compute_file_hash
+    from domain.tools.db import get_connection
+
+    path = wiki.sources_dir / name
+    with get_connection(wiki.db_path) as conn:
+        user_id = conn.execute("SELECT user_id FROM workspace LIMIT 1").fetchone()["user_id"]
+        with conn:
+            conn.execute(
+                "INSERT INTO documents (id, user_id, filename, title, path, relative_path, source_kind, "
+                "file_type, status, content_hash, mtime_ns) VALUES (?,?,?,?,'sources/',?,'source','md',?,?,?)",
+                (str(uuid.uuid4()), user_id, name, name, f"sources/{name}", status,
+                 compute_file_hash(path), path.stat().st_mtime_ns))
+
+
+def test_unprocessed_sources_lists_what_the_scan_would_ingest(wiki):
+    """New, changed and failed files are listed; an ingested unchanged file, a hidden file
+    and a type the wiki does not read are not."""
+    src = wiki.sources_dir
+    for name in ("done.md", "changed.md", "failed.md"):
+        (src / name).write_text(f"# {name}\n")
+        _record_ingested(wiki, name, status="failed" if name == "failed.md" else "ready")
+    (src / "changed.md").write_text("# changed, a new version\n")
+    (src / "new.md").write_text("# new\n")
+    (src / ".hidden.md").write_text("# hidden\n")
+    (src / "notes.csv").write_text("a,b\n")
+    assert ingest.unprocessed_sources(wiki) == ["changed.md", "failed.md", "new.md"]
+
+
+def test_unprocessed_sources_of_an_empty_sources_folder_is_empty(wiki):
+    assert ingest.unprocessed_sources(wiki) == []

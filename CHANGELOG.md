@@ -13,6 +13,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **A warning about the files of `sources/` without ingestion.** A file copied
+  into `sources/` outside the upload screen was not ingested until the user ran
+  «Scan sources/», and nothing said so. When the user chooses a wiki, the code
+  lists the files the scan would ingest (new, changed, or whose last ingestion
+  failed), without calling the model. Every screen of the wiki shows the list
+  with a «Dismiss» button until the user dismisses it or a scan ends; an upload
+  takes its own files out of the list. The tab Read does not run the check.
 - **The ingestion proposes the topics of each page.** The extraction call that
   returns the concepts and their aliases also returns the topics of each concept
   and of the document (`prompts/extract_*`). `create_page` adds them to the

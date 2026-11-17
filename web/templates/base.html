@@ -20,7 +20,7 @@
   <header class="bar">
     <a class="brand" href="/" title="{{ _('Back to the list of wikis') }}">llmwiki</a>
     {% if wiki_id %}
-    <select class="wiki-select" aria-label="{{ _('Wiki') }}" title="{{ _('Switch wiki') }}" onchange="location.href='/w/'+this.value+'/'">
+    <select class="wiki-select" aria-label="{{ _('Wiki') }}" title="{{ _('Switch wiki') }}" onchange="location.href='/w/'+this.value+'/?opened=1'">
       {% for wid in wikis %}<option value="{{ wid }}" {% if wid == wiki_id %}selected{% endif %}>{{ wid }}</option>{% endfor %}
     </select>
     <nav class="tabs" aria-label="{{ _('Sections') }}">
@@ -42,6 +42,7 @@
       </form>
     </div>
   </header>
+  {% if wiki_id %}{% include "_unprocessed_warning.html" %}{% endif %}
   {% block body %}{% endblock %}
   <div class="tip" id="tip" role="tooltip"></div>
   <script src="/static/js/tooltip.js"></script>

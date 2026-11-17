@@ -1304,6 +1304,25 @@ msgstr ""
 msgid "The tool takes no arguments."
 msgstr ""
 
+#: web/templates/_unprocessed_warning.html
+#, python-format
+msgid "%(num)s document of sources/ without ingestion: %(files)s."
+msgid_plural "%(num)s documents of sources/ without ingestion: %(files)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/_unprocessed_warning.html
+msgid "Ingest them from the Ingest tab"
+msgstr ""
+
+#: web/templates/_unprocessed_warning.html
+msgid "Hide this warning until you choose the wiki again"
+msgstr ""
+
+#: web/templates/_unprocessed_warning.html
+msgid "Dismiss"
+msgstr ""
+
 #: web/templates/_vocabulary_body.html
 msgid "Findings of the vocabulary review"
 msgstr ""

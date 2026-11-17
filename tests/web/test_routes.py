@@ -23,12 +23,12 @@ def git_log(wiki) -> str:
 def test_picker_lists_the_wikis_under_the_home(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "Elegí una wiki" in response.text and f'href="/w/{WIKI_ID}/"' in response.text
+    assert "Elegí una wiki" in response.text and f'href="/w/{WIKI_ID}/?opened=1"' in response.text
 
 
 def test_picker_is_a_table_with_the_language_the_sources_and_the_pages(client, wiki):
     html = client.get("/").text
-    row = html[html.index(f'href="/w/{WIKI_ID}/"'):]
+    row = html[html.index(f'href="/w/{WIKI_ID}/?opened=1"'):]
     row = row[:row.index("</tr>")]
     stats = wiki_stats(wiki)
     assert ">Idioma</th>" in html and ">Fuentes</th>" in html and ">Páginas</th>" in html
@@ -41,14 +41,14 @@ def test_picker_tags_the_most_recent_wiki_of_the_recent_list(client, settings, w
     client.post("/open", data={"path": str(wiki.path)})
     html = client.get("/").text
     assert html.count("última abierta") == 1
-    row = html[html.index(f'href="/w/{WIKI_ID}/"'):]
+    row = html[html.index(f'href="/w/{WIKI_ID}/?opened=1"'):]
     assert "última abierta" in row[:row.index("</tr>")]
     other = tmp_path / "other"
     other.mkdir()
     client.post("/open", data={"path": str(other), "create": "true"})
     html = client.get("/").text
     assert html.count("última abierta") == 1
-    assert "última abierta" not in html[html.index(f'href="/w/{WIKI_ID}/"'):].split("</tr>")[0]
+    assert "última abierta" not in html[html.index(f'href="/w/{WIKI_ID}/?opened=1"'):].split("</tr>")[0]
 
 
 def test_opening_a_wiki_from_its_link_tags_it_as_the_last_opened(client, wiki, tmp_path):
@@ -57,11 +57,11 @@ def test_opening_a_wiki_from_its_link_tags_it_as_the_last_opened(client, wiki, t
     other = tmp_path / "other"
     other.mkdir()
     client.post("/open", data={"path": str(other), "create": "true"})
-    assert "última abierta" not in client.get("/").text.split(f'href="/w/{WIKI_ID}/"')[1].split("</tr>")[0]
+    assert "última abierta" not in client.get("/").text.split(f'href="/w/{WIKI_ID}/?opened=1"')[1].split("</tr>")[0]
     client.get(f"/w/{WIKI_ID}/")
     html = client.get("/").text
     assert html.count("última abierta") == 1
-    assert "última abierta" in html[html.index(f'href="/w/{WIKI_ID}/"'):].split("</tr>")[0]
+    assert "última abierta" in html[html.index(f'href="/w/{WIKI_ID}/?opened=1"'):].split("</tr>")[0]
 
 
 def test_listing_the_wikis_creates_nothing_on_disk(client, tmp_path):
@@ -79,13 +79,13 @@ def test_listing_the_wikis_never_writes_to_their_index(client, wiki, monkeypatch
     index = wiki.path / ".llmwiki" / "index.db"
     before = (index.read_bytes(), index.stat().st_mtime_ns)
     monkeypatch.setattr(db, "open_db", lambda *a, **k: (_ for _ in ()).throw(AssertionError("open_db called")))
-    assert f'href="/w/{WIKI_ID}/"' in client.get("/").text
+    assert f'href="/w/{WIKI_ID}/?opened=1"' in client.get("/").text
     assert (index.read_bytes(), index.stat().st_mtime_ns) == before
 
 
 def test_the_picker_still_shows_the_counts(client, wiki):
     html = client.get("/").text
-    row = html[html.index(f'href="/w/{WIKI_ID}/"'):].split("</tr>")[0]
+    row = html[html.index(f'href="/w/{WIKI_ID}/?opened=1"'):].split("</tr>")[0]
     assert '<td class="num">0</td>' in row and '<td class="num">3</td>' in row
 
 
@@ -111,20 +111,20 @@ def test_open_adds_a_folder_to_the_recent_list(client, settings, tmp_path):
     other = tmp_path / "other"
     other.mkdir()
     response = client.post("/open", data={"path": str(other), "create": "true"})
-    assert response.status_code == 303 and response.headers["location"] == "/w/other/"
+    assert response.status_code == 303 and response.headers["location"] == "/w/other/?opened=1"
     assert str(other) in settings.recent_file.read_text()
     assert "other" in client.get("/").text
 
 
 def test_open_opens_a_wiki_already_in_the_list(client, wiki):
     response = client.post("/open", data={"path": str(wiki.path)})
-    assert response.headers["location"] == f"/w/{WIKI_ID}/"
+    assert response.headers["location"] == f"/w/{WIKI_ID}/?opened=1"
 
 
 def test_open_quotes_a_folder_name_with_spaces(client, tmp_path):
     folder = tmp_path / "Ciencia de datos"
     folder.mkdir()
-    assert client.post("/open", data={"path": str(folder), "create": "true"}).headers["location"] == "/w/Ciencia%20de%20datos/"
+    assert client.post("/open", data={"path": str(folder), "create": "true"}).headers["location"] == "/w/Ciencia%20de%20datos/?opened=1"
 
 
 def test_the_picker_offers_the_folder_browser_under_the_list_and_no_path_field(client):
@@ -208,7 +208,7 @@ def test_open_with_the_confirmation_creates_the_wiki_before_listing_it(client, s
     folder = tmp_path / "nueva"
     folder.mkdir()
     response = client.post("/open", data={"path": str(folder), "create": "true"})
-    assert response.headers["location"] == "/w/nueva/"
+    assert response.headers["location"] == "/w/nueva/?opened=1"
     assert (folder / "wiki").is_dir() and (folder / "sources").is_dir() and (folder / ".llmwiki" / "index.db").is_file()
     assert str(folder) in settings.recent_file.read_text()
 
@@ -255,9 +255,9 @@ def test_the_picker_drops_a_recent_wiki_that_no_longer_exists(client, settings, 
     folder = tmp_path / "gone-wiki"
     folder.mkdir()
     client.post("/open", data={"path": str(folder), "create": "true"})
-    assert 'href="/w/gone-wiki/"' in client.get("/").text
+    assert 'href="/w/gone-wiki/?opened=1"' in client.get("/").text
     shutil.rmtree(folder)
-    assert 'href="/w/gone-wiki/"' not in client.get("/").text
+    assert 'href="/w/gone-wiki/?opened=1"' not in client.get("/").text
     assert str(folder) not in settings.recent_file.read_text()
 
 
@@ -279,12 +279,12 @@ def test_remove_from_the_list_is_offered_only_for_recent_wikis(client, settings,
     folder.mkdir()
     client.post("/open", data={"path": str(folder), "create": "true"})
     html = client.get("/").text
-    elsewhere = html[html.index('href="/w/elsewhere/"'):].split("</tr>")[0]
-    home_row = html[html.index(f'href="/w/{WIKI_ID}/"'):].split("</tr>")[0]
+    elsewhere = html[html.index('href="/w/elsewhere/?opened=1"'):].split("</tr>")[0]
+    home_row = html[html.index(f'href="/w/{WIKI_ID}/?opened=1"'):].split("</tr>")[0]
     assert "Quitar de la lista" in elsewhere and "Quitar de la lista" not in home_row
     response = client.post("/recent/remove", data={"path": str(folder)})
     assert response.status_code == 303 and response.headers["location"] == "/"
-    assert 'href="/w/elsewhere/"' not in client.get("/").text and (folder / "wiki").is_dir()
+    assert 'href="/w/elsewhere/?opened=1"' not in client.get("/").text and (folder / "wiki").is_dir()
 
 
 def test_open_ignores_a_path_the_check_refuses(client, settings, tmp_path):
@@ -663,8 +663,8 @@ def test_a_wiki_id_that_moves_to_another_folder_opens_that_folder(client, app, t
     first, second = tmp_path / "a" / "trabajo", tmp_path / "b" / "trabajo"
     for folder in (first, second):
         folder.mkdir(parents=True)
-    assert client.post("/open", data={"path": str(first), "create": "true"}).headers["location"] == "/w/trabajo/"
+    assert client.post("/open", data={"path": str(first), "create": "true"}).headers["location"] == "/w/trabajo/?opened=1"
     assert app.state.web.get_wiki("trabajo").wiki.path == first.resolve()
-    assert client.post("/open", data={"path": str(second), "create": "true"}).headers["location"] == "/w/trabajo/"
+    assert client.post("/open", data={"path": str(second), "create": "true"}).headers["location"] == "/w/trabajo/?opened=1"
     assert app.state.web.get_wiki("trabajo").wiki.path == second.resolve()
     assert app.state.web.get_wiki("trabajo-2").wiki.path == first.resolve()

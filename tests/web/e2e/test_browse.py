@@ -76,11 +76,11 @@ def test_remove_from_the_list_takes_a_recent_wiki_out_of_the_picker(page, live, 
     (folder / "wiki").mkdir(parents=True)
     page.request.post(f"{live.url}/open", form={"path": str(folder)})
     page.goto(f"{live.url}/")
-    row = page.locator("table.wikis tr", has=page.locator('a[href="/w/reciente/"]'))
+    row = page.locator("table.wikis tr", has=page.locator('a[href="/w/reciente/?opened=1"]'))
     expect(row).to_have_count(1)
     row.get_by_role("button", name="Quitar de la lista").click()
     expect(page).to_have_url(f"{live.url}/")
-    expect(page.locator('a[href="/w/reciente/"]')).to_have_count(0)
+    expect(page.locator('a[href="/w/reciente/?opened=1"]')).to_have_count(0)
     assert (folder / "wiki").is_dir()
 
 

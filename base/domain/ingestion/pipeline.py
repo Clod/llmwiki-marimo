@@ -638,6 +638,29 @@ def _all_concept_names(db_path: str) -> list[str]:
     return [r["title"] for r in rows]
 
 
+def scan_candidates(workspace: Path) -> list[Path]:
+    """The files of workspace/sources/ the scan considers, sorted: the types the wiki
+    reads, no hidden entry below sources/, and no image a Markdown source references.
+    An empty list when sources/ does not exist."""
+    sources_dir = workspace / "sources"
+    if not sources_dir.is_dir():
+        return []
+    # A wiki that ignores images (`[images] ignore = true`) takes no image file as a source.
+    supported = supported_extensions(not load_images_config(workspace).ignore)
+    candidates = [
+        p for p in sorted(sources_dir.rglob("*"))
+        if p.is_file()
+        and p.suffix.lower() in supported
+        # Only consider the path *below* sources/ when skipping hidden entries —
+        # otherwise a workspace under a dot-directory (e.g. ~/.local/share/ws)
+        # would make every source look hidden and be skipped.
+        and not any(part.startswith(".") for part in p.relative_to(sources_dir).parts)
+    ]
+    # An image a Markdown source references is a figure of that source, not a source (D11).
+    referenced = referenced_images([p for p in candidates if p.suffix.lower() == ".md"])
+    return [p for p in candidates if p.resolve() not in referenced]
+
+
 def scan_and_ingest(
     workspace: Path,
     db_path: str,
@@ -653,24 +676,9 @@ def scan_and_ingest(
         if progress_cb:
             progress_cb(msg)
 
-    sources_dir = workspace / "sources"
-    sources_dir.mkdir(parents=True, exist_ok=True)
+    (workspace / "sources").mkdir(parents=True, exist_ok=True)
     _cb(M_("🔎 Scanning sources/..."))
-
-    # A wiki that ignores images (`[images] ignore = true`) takes no image file as a source.
-    supported = supported_extensions(not load_images_config(workspace).ignore)
-    candidates = [
-        p for p in sorted(sources_dir.rglob("*"))
-        if p.is_file()
-        and p.suffix.lower() in supported
-        # Only consider the path *below* sources/ when skipping hidden entries —
-        # otherwise a workspace under a dot-directory (e.g. ~/.local/share/ws)
-        # would make every source look hidden and be skipped.
-        and not any(part.startswith(".") for part in p.relative_to(sources_dir).parts)
-    ]
-    # An image a Markdown source references is a figure of that source, not a source (D11).
-    referenced = referenced_images([p for p in candidates if p.suffix.lower() == ".md"])
-    candidates = [p for p in candidates if p.resolve() not in referenced]
+    candidates = scan_candidates(workspace)
     _cb(M_("🔎 Found %(n)s candidate file(s)", n=len(candidates)))
 
     if not candidates:

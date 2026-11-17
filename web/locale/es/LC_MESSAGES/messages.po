@@ -1328,6 +1328,25 @@ msgstr "Valores permitidos"
 msgid "The tool takes no arguments."
 msgstr "La herramienta no tiene argumentos."
 
+#: web/templates/_unprocessed_warning.html
+#, python-format
+msgid "%(num)s document of sources/ without ingestion: %(files)s."
+msgid_plural "%(num)s documents of sources/ without ingestion: %(files)s."
+msgstr[0] "%(num)s documento de sources/ sin ingestar: %(files)s."
+msgstr[1] "%(num)s documentos de sources/ sin ingestar: %(files)s."
+
+#: web/templates/_unprocessed_warning.html
+msgid "Ingest them from the Ingest tab"
+msgstr "Ingestalos desde la pestaña Ingestar"
+
+#: web/templates/_unprocessed_warning.html
+msgid "Hide this warning until you choose the wiki again"
+msgstr "Ocultar esta advertencia hasta que vuelvas a elegir la wiki"
+
+#: web/templates/_unprocessed_warning.html
+msgid "Dismiss"
+msgstr "Descartar"
+
 #: web/templates/_vocabulary_body.html
 msgid "Findings of the vocabulary review"
 msgstr "Hallazgos de la revisión del vocabulario"
