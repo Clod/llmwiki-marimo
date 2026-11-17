@@ -54,6 +54,7 @@ class Locale:
     lbl_image_visible_text: str
     lbl_image_generated_short: str   # label of the folded block of the Figures section
     image_not_described: str   # marker of an image with no description
+    image_alt: str             # alt text of a thumbnail of the Figures section; takes `{page}`
     image_unavailable: str     # marker of a Markdown image that cannot be kept
     image_source_notice: str   # notice of a summary page whose source is an image file
     image_counts: str          # the ingestion log line
@@ -128,6 +129,7 @@ _EN = Locale(
     lbl_image_visible_text="Visible text",
     lbl_image_generated_short="Generated description",
     image_not_described="[Image not described, page {page}]",
+    image_alt="Image, page {page}",
     image_unavailable="[Image not available]",
     image_source_notice="The text of this source is a generated description of an image",
     image_counts="{images} images, {described} described",
@@ -190,6 +192,7 @@ _ES = Locale(
     lbl_image_visible_text="Texto visible",
     lbl_image_generated_short="Descripción generada",
     image_not_described="[Imagen sin describir, página {page}]",
+    image_alt="Imagen, página {page}",
     image_unavailable="[Imagen no disponible]",
     image_source_notice="El texto de esta fuente es una descripción generada de una imagen",
     image_counts="{images} imágenes, {described} descritas",

@@ -241,7 +241,7 @@ def figures_section(doc_id: str, figures: list[dict], language: str = "en") -> s
         link = f"{link_base(doc_id)}/{fig['file']}"
         answer = fig.get("answer") or {}
         text = _description_text(answer, loc) if answer and not answer.get("decorative") else ""
-        alt = f"Imagen, página {fig['page']}"
+        alt = loc.image_alt.format(page=fig['page'])
         if text:
             alt += ". " + _alt_text(answer.get("description") or text)
         item = f"- [![{alt}]({link})]({link}) **{loc.lbl_page} {fig['page']}.**"
