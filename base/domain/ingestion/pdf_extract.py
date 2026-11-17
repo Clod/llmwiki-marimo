@@ -14,7 +14,7 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 
-from .images import FIGURES_FILENAME, image_link, replace_dir
+from .images import FIGURES_FILENAME, compact_images, image_link, replace_dir
 
 
 def _element_to_markdown(el: dict, doc_id: str | None = None) -> str:
@@ -118,6 +118,19 @@ def _elements_to_pages(elements: list[dict], total_pages: int,
     return pages
 
 
+def _rename_sources(elements: list[dict], renames: dict[str, str]) -> None:
+    """Point each image element, at any depth, to the renamed file (`compact_images`)."""
+    if not renames:
+        return
+    for el in elements:
+        source = el.get("source")
+        if el.get("type") == "image" and source and Path(source).name in renames:
+            el["source"] = str(Path(source).with_name(renames[Path(source).name]))
+        for key in ("kids", "rows", "cells", "list items"):
+            if isinstance(el.get(key), list):
+                _rename_sources(el[key], renames)
+
+
 def _figures(elements: list[dict]) -> list[dict]:
     """The images of the document, in order: page, file and the caption that
     opendataloader-pdf linked to the image (empty when it found none)."""
@@ -165,6 +178,9 @@ def extract_pdf(pdf_path: str, images_dir: Path | None = None) -> list[tuple[int
                 # the temporary folder is deleted.
                 found = next((d for d in Path(extract_dir).glob("*_images") if d.is_dir()), None)
                 if found is not None:
+                    # JPEG where it weighs less, before the copy: `replace_dir` matches the
+                    # kept descriptions by the sha256 of the final files.
+                    _rename_sources(elements, compact_images(found))
                     replace_dir(found, images_dir)
                 elif images_dir.exists():
                     shutil.rmtree(images_dir)

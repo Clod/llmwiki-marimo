@@ -132,6 +132,44 @@ def _kept_descriptions(folder: Path) -> dict[str, bytes]:
     return kept
 
 
+# An image kept from a PDF goes to JPEG when the JPEG weighs less than this share of the
+# PNG; quality 80. Measured on the 14 illustrations of the two tale examples: 12.5 MB as
+# PNG, 2.2 MB as JPEG; a line drawing of «La Cenicienta» weighed 48 KB as PNG, 133 KB as JPEG.
+JPEG_QUALITY = 80
+JPEG_MAX_SHARE = 0.7
+
+
+def compact_images(folder: Path) -> dict[str, str]:
+    """Rewrite as JPEG each PNG of `folder` whose JPEG weighs less than 70 % of it and
+    that has no transparency; return the renames, {old name: new name}.
+
+    opendataloader-pdf writes every image of a PDF as PNG, and an illustration weighs
+    up to 2.3 MB that way. The conversion is deterministic, so the same PNG always gives
+    the same JPEG, and a description kept by the sha256 of the image is found again. A
+    file Pillow cannot read is left as it is."""
+    import io
+
+    from PIL import Image
+
+    renames: dict[str, str] = {}
+    for png in sorted(folder.glob("*.png")):
+        try:
+            with Image.open(png) as img:
+                if img.mode in ("RGBA", "LA", "PA") or "transparency" in img.info:
+                    continue
+                buffer = io.BytesIO()
+                img.convert("RGB").save(buffer, "JPEG", quality=JPEG_QUALITY, optimize=True)
+        except (OSError, ValueError):
+            continue
+        if buffer.tell() >= JPEG_MAX_SHARE * png.stat().st_size:
+            continue
+        jpg = png.with_suffix(".jpg")
+        jpg.write_bytes(buffer.getvalue())
+        png.unlink()
+        renames[png.name] = jpg.name
+    return renames
+
+
 def replace_dir(source: Path, dest: Path) -> None:
     """Replace the folder `dest` with a copy of `source`.
 

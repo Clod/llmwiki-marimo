@@ -24,7 +24,7 @@ Versión escrita por Charles Perrault del cuento popular en el que una niña, ca
 
 ## Figuras
 
-- [![Imagen, página 2](.llmwiki/cache/local/d883b4ce-f94c-4112-8664-32213d01ad5e/images/imageFile1.png)](.llmwiki/cache/local/d883b4ce-f94c-4112-8664-32213d01ad5e/images/imageFile1.png) **Página 2.**
+- [![Imagen, página 2](.llmwiki/cache/local/d883b4ce-f94c-4112-8664-32213d01ad5e/images/imageFile1.jpg)](.llmwiki/cache/local/d883b4ce-f94c-4112-8664-32213d01ad5e/images/imageFile1.jpg) **Página 2.**
 
 ## Información de la fuente
 

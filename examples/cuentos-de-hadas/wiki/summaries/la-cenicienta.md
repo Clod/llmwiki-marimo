@@ -26,7 +26,7 @@ Versión de Charles Perrault del cuento de La Cenicienta: una joven maltratada p
 ## Figuras
 
 - [![Imagen, página 1](.llmwiki/cache/local/c70da13e-0145-4b2f-bf5c-e261f4e03fd5/images/imageFile1.png)](.llmwiki/cache/local/c70da13e-0145-4b2f-bf5c-e261f4e03fd5/images/imageFile1.png) **Página 1.** *Charles Perrault*
-- [![Imagen, página 2](.llmwiki/cache/local/c70da13e-0145-4b2f-bf5c-e261f4e03fd5/images/imageFile2.png)](.llmwiki/cache/local/c70da13e-0145-4b2f-bf5c-e261f4e03fd5/images/imageFile2.png) **Página 2.**
+- [![Imagen, página 2](.llmwiki/cache/local/c70da13e-0145-4b2f-bf5c-e261f4e03fd5/images/imageFile2.jpg)](.llmwiki/cache/local/c70da13e-0145-4b2f-bf5c-e261f4e03fd5/images/imageFile2.jpg) **Página 2.**
 
 ## Información de la fuente
 

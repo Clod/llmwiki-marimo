@@ -1,90 +1,90 @@
 [
   {
     "page": 1,
-    "file": "imageFile1.png",
+    "file": "imageFile1.jpg",
     "caption": "",
-    "sha256": "3884d813f7e6236abe2cfa3f2cd459b8b5ef9e94c2a6d9503e524e6cb2d4073f",
+    "sha256": "29ef43ebcb784e9682a0676fb669f793e92eaf30ebbda9230f0a0eb4305ffecb",
     "width": 853,
     "height": 1190,
     "description": ""
   },
   {
     "page": 2,
-    "file": "imageFile2.png",
+    "file": "imageFile2.jpg",
     "caption": "",
-    "sha256": "4d160a271a109542b9ccae24f31988fd4e9c2d643156d71c856a99d649637272",
+    "sha256": "31d0513ceed9f72041536a962c10070c11ee9806b31f9f8308a974bfbe2eff64",
     "width": 651,
     "height": 520,
     "description": ""
   },
   {
     "page": 2,
-    "file": "imageFile3.png",
+    "file": "imageFile3.jpg",
     "caption": "Every day, the Queen looked in her magic mirror and asked:",
-    "sha256": "a87671fda34bdab028c6956f2fb1f9dfa54290b4b382e6c130a0f0cfdf8ab613",
+    "sha256": "c3cd316ce554062d5a8bfa52354d654669a19b254a64fa876a877e129ba1c397",
     "width": 651,
     "height": 457,
     "description": ""
   },
   {
     "page": 3,
-    "file": "imageFile4.png",
+    "file": "imageFile4.jpg",
     "caption": "",
-    "sha256": "c2eedf01826475fa73f3f5c85a586bd1ba9db6510020a036504e122ed14dc3bd",
+    "sha256": "986a052b81aff207392feaf8308e4064a39675c49c0356925e56c35e0e2fc4f0",
     "width": 651,
     "height": 543,
     "description": ""
   },
   {
     "page": 3,
-    "file": "imageFile5.png",
+    "file": "imageFile5.jpg",
     "caption": "",
-    "sha256": "72f74b522492892053311e3955b6361f4aeee1a016806788e523db40c5c55cfe",
+    "sha256": "2726f0b03ea81b587c130dcc1f1c53efe2633ba95bf171dcef92fa3f0a7b2909",
     "width": 649,
     "height": 549,
     "description": ""
   },
   {
     "page": 4,
-    "file": "imageFile6.png",
+    "file": "imageFile6.jpg",
     "caption": "A little table was set for dinner: seven little chairs, seven little bowls, seven little spoons, seven little knives, seven little forks, and seven little mugs. Snow White was hungry and thirsty. She thought: “I’ll have a little bread from each bowl. And I’ll drink a little wine from each mug.” Then, feeling so tired, she lay down on one of the seven little beds. And she fell asleep.",
-    "sha256": "e881fa0f55971f165c141d83dae67b29eca6734e72202c109e371f9d80f2b5a6",
+    "sha256": "425da61f7a7285b80b3b5c73965858fa010793377b967d0f1b04d7e26d5e299b",
     "width": 1700,
     "height": 718,
     "description": ""
   },
   {
     "page": 5,
-    "file": "imageFile7.png",
+    "file": "imageFile7.jpg",
     "caption": "",
-    "sha256": "d99fb10b3510d4ba738514d7d30156b179a6f5f1c6b345e86411434aa315456a",
+    "sha256": "38db35b9ec81f96a797b4570e59e15e8a2584fec7ff44dc5b0276aaf52d69e8e",
     "width": 651,
     "height": 439,
     "description": ""
   },
   {
     "page": 5,
-    "file": "imageFile8.png",
+    "file": "imageFile8.jpg",
     "caption": "",
-    "sha256": "2fb9ce3313105c6bb114959251cd6d2e30ce9e80167f47094705dcd234245e7c",
+    "sha256": "05a230c3e94f1700dbdeeb40801183bf0db563901ce359846d0fcd5e8115d98e",
     "width": 651,
     "height": 451,
     "description": ""
   },
   {
     "page": 6,
-    "file": "imageFile9.png",
+    "file": "imageFile9.jpg",
     "caption": "",
-    "sha256": "c49b4a15a40783911422b2bbfd96c687bc22932c7ff64ea55395f41dbdde3782",
+    "sha256": "1d275eb8fb1d76fd6581e88dda9a71825de4c313604294ca7f70d563b57779fe",
     "width": 651,
     "height": 562,
     "description": ""
   },
   {
     "page": 6,
-    "file": "imageFile10.png",
+    "file": "imageFile10.jpg",
     "caption": "",
-    "sha256": "0d4939217db9016c07981a6bdeeb0791d209d8a0832a6c95f339f4ac3c6e0a7e",
+    "sha256": "4f9a3b8759f9c3bd517538f82ee4452360e0092e7456e3ef83fcaae0f7fc8796",
     "width": 650,
     "height": 362,
     "description": ""

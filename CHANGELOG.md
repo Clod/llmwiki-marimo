@@ -13,6 +13,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **The images of a PDF are kept as JPEG when that weighs less.** opendataloader-pdf
+  writes every image as PNG, and an illustration weighed up to 2.3 MB: the 10 of
+  *Snow White* summed 10 MB. An image goes to JPEG (quality 80) when the JPEG weighs
+  less than 70 % of the PNG and the image has no transparency; a line drawing stays
+  PNG (`compact_images`, `base/domain/ingestion/images.py`). *Snow White*: 0.82 MB;
+  the images of the two tale examples: 12.5 MB → 1.3 MB. The conversion runs before
+  the kept descriptions are matched by sha256, and is deterministic. A wiki ingested
+  before keeps its `.png` links: the missing-image repair, when it extracts again,
+  points a link to `imageFile1.png` at `imageFile1.jpg`.
 - **A Playwright trace of every e2e test that fails.** `test_a_text_source_is_a_node_and_a_click_opens_its_view`
   fails now and then in CI and always passes locally, and nothing showed the page
   when it failed. Each e2e test now records a trace (a screenshot and the page before
