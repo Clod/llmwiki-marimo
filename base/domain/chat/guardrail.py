@@ -32,7 +32,10 @@ from types import SimpleNamespace
 
 from pydantic_ai.messages import ModelMessage, ToolReturnPart
 
-from domain.chat import refusal
+# The submodule, not the package: importing `domain.chat` runs agent.py, which imports
+# the chat tools, which import this module. A name taken from the package here would
+# meet it half-initialised and raise ImportError.
+from domain.chat.refusal import is_refusal
 
 # Refusal text, by wiki language. Must match the system prompt's exact phrase.
 # What the system could not do, not what the wiki holds: "Eso no está en mi base de
@@ -112,7 +115,7 @@ def _is_refused(message) -> bool:
     or one that opens with the fixed refusal sentence."""
     content = (getattr(message, "content", "") or "").strip()
     return getattr(message, "role", None) == "assistant" and (
-        content in (REFUSAL_ES, REFUSAL_EN, *LEGACY_REFUSALS) or refusal.is_refusal(content)
+        content in (REFUSAL_ES, REFUSAL_EN, *LEGACY_REFUSALS) or is_refusal(content)
     )
 
 
