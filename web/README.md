@@ -82,6 +82,8 @@ another verifier, as the tests do with `FakeVerifier`.
 
 The figure check runs in the three chat modes, with or without the verifier. Each figure of the answer that no passage, table or question supports is wrapped in `<mark class="unsupported-figure">` (red) with a tooltip that names the nearest authorised value and its origin, and a line "N cifras sin respaldo" follows the answer. The tolerance for rounded figures is `[verify] number_tolerance`. `web/render.py` `render_marked` draws both kinds of mark; a figure mark nests inside a sentence mark.
 
+Below an answer of the pre-retrieval and agent modes, a folded block "Datos que recibió el modelo (N filas)" holds the dataset tables the model received: the returns of the data tools and the row blocks that pre-retrieval injected (`web/render.py:data_tables_html`, from `Message.context`). The user compares the figures of the prose with those rows. The answer text does not change: the tables are not in the history, the verification or the save-to-wiki draft. The advisory table of `estimar_alternativas` stays open in the answer, and the streaming mode shows no block.
+
 ## Page verification
 
 The pages of the wiki are verified against their sources with the same core and

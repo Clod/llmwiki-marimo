@@ -70,6 +70,11 @@ body.chat-hidden .chat { display: none; }
 .a > :last-child { margin-bottom: 0; }
 .a table { border-collapse: collapse; font-size: var(--text-xs); }
 .a th, .a td { border-bottom: var(--border); padding: var(--space-1) var(--space-3) var(--space-1) 0; text-align: left; }
+.data-tables { margin-top: var(--space-2); font-size: var(--text-xs); }
+.data-tables summary { cursor: pointer; color: var(--color-accent-strong); font-weight: var(--weight-semibold); }
+.data-tables summary:hover { color: var(--color-accent-strong); }
+.data-tables .data-table-file { margin: var(--space-2) 0 var(--space-1); font-family: var(--font-mono); color: var(--color-text-muted); }
+.data-tables table { display: block; max-width: 100%; overflow-x: auto; }
 .meta { margin-top: calc(-1 * var(--space-2)); font-size: var(--text-xs); color: var(--color-text-muted); }
 .meta:empty { display: none; }
 .typing { display: inline-flex; gap: var(--space-1); padding: var(--space-2) 0; }

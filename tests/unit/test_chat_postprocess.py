@@ -304,7 +304,8 @@ def test_the_verification_splits_the_injected_pages_and_reports_the_shift():
     assert after == (
         "Una caución es un préstamo.\n\nReferencia según el verificador de oraciones: "
         "aparentemente usadas: byma.md. Aparentemente no usadas: caucion-bursatil.md. "
-        "Una página usada respalda al menos una oración de la respuesta."
+        "Una página cuenta como usada si el verificador juzga que dice lo mismo que al menos "
+        "una oración de la respuesta, con una seguridad de 0,5 o más en una escala de 0 a 1."
     )
     assert edits == [(before.index("Referencia:"), len(after) - len(before))]
 
@@ -315,6 +316,14 @@ def test_no_used_page_is_written_as_none():
     assert "apparently used: none. Apparently not used: caucion-bursatil.md, byma.md." in after
 
 
+def test_the_note_states_the_threshold_in_force_with_the_decimal_mark_of_the_language():
+    from domain.chat.postprocess import mark_injected, resolve_injected
+    english, _ = resolve_injected(mark_injected("It is a loan.", PAGES, "en"), PAGES, set(), "en", 0.75)
+    spanish, _ = resolve_injected(mark_injected("Es un préstamo.", PAGES, "es"), PAGES, set(), "es", 0.75)
+    assert "with a confidence of 0.75 or more on a scale from 0 to 1." in english
+    assert "con una seguridad de 0,75 o más en una escala de 0 a 1." in spanish
+
+
 def test_the_reference_line_of_the_model_is_labelled_and_the_split_goes_below_it():
     from domain.chat.postprocess import resolve_injected
     answer = "Es un préstamo.\n\n**Referencia:** byma.md, caucion-bursatil.md\nOtra línea."
@@ -322,8 +331,9 @@ def test_the_reference_line_of_the_model_is_labelled_and_the_split_goes_below_it
     assert after == (
         "Es un préstamo.\n\n**Referencia según el modelo:** byma.md, caucion-bursatil.md"
         "\n\nReferencia según el verificador de oraciones: aparentemente usadas: "
-        "caucion-bursatil.md. Aparentemente no usadas: byma.md. Una página usada respalda "
-        "al menos una oración de la respuesta.\nOtra línea."
+        "caucion-bursatil.md. Aparentemente no usadas: byma.md. Una página cuenta como usada "
+        "si el verificador juzga que dice lo mismo que al menos una oración de la respuesta, "
+        "con una seguridad de 0,5 o más en una escala de 0 a 1.\nOtra línea."
     )
     label_at = answer.index(":**")
     line_end = answer.index("\nOtra")
@@ -422,5 +432,6 @@ def test_the_verification_replaces_the_note_below_a_labelled_reference_of_the_mo
     after, _ = resolve_injected(before, PAGES, {"caucion-bursatil.md"}, "es")
     assert after.count("según el modelo") == 1
     assert "Además" not in after
-    assert after.endswith("Aparentemente no usadas: byma.md. Una página usada respalda al menos "
-                          "una oración de la respuesta.")
+    assert after.endswith("Aparentemente no usadas: byma.md. Una página cuenta como usada si el "
+                          "verificador juzga que dice lo mismo que al menos una oración de la "
+                          "respuesta, con una seguridad de 0,5 o más en una escala de 0 a 1.")

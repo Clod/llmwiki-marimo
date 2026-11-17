@@ -306,11 +306,13 @@ _INJECTED_EXTRA = {
 }
 _VERIFIED_NOTE = {
     "es": ("Referencia según el verificador de oraciones: aparentemente usadas: {used}. "
-           "Aparentemente no usadas: {unused}. Una página usada respalda al menos una "
-           "oración de la respuesta.", "ninguna"),
+           "Aparentemente no usadas: {unused}. Una página cuenta como usada si el verificador "
+           "juzga que dice lo mismo que al menos una oración de la respuesta, con una "
+           "seguridad de {threshold} o más en una escala de 0 a 1.", "ninguna"),
     "en": ("Reference according to the sentence verifier: apparently used: {used}. "
-           "Apparently not used: {unused}. A used page supports at least one sentence "
-           "of the answer.", "none"),
+           "Apparently not used: {unused}. A page counts as used when the verifier judges "
+           "that it says the same as at least one sentence of the answer, with a confidence "
+           "of {threshold} or more on a scale from 0 to 1.", "none"),
 }
 # The reference line the model wrote, and the label that names its author.
 _MODEL_REFERENCE = re.compile(
@@ -373,9 +375,11 @@ def mark_injected(answer: str, pages: list[str], language: str | None) -> str:
 
 def resolve_injected(
     answer: str, pages: list[str], used: Collection[str], language: str | None,
+    threshold: float = 0.5,
 ) -> tuple[str, list[tuple[int, int]]]:
     """`answer` with the note that splits the injected `pages` into apparently used
-    (in `used`) and apparently not used.
+    (in `used`) and apparently not used. The note states `threshold`, the probability
+    from which the verifier counts a sentence as supported.
 
     The note replaces the undetermined-reference note of `pages`. With no such note,
     the first reference line the model wrote is labelled as the model's, and the
@@ -387,9 +391,11 @@ def resolve_injected(
         return answer, []
     lang = _lang(language)
     template, none = _VERIFIED_NOTE[lang]
+    number = f"{threshold:g}"
     note = template.format(
         used=", ".join(p for p in pages if p in used) or none,
         unused=", ".join(p for p in pages if p not in used) or none,
+        threshold=number.replace(".", ",") if lang == "es" else number,
     )
     for variants in (*_INJECTED_NOTE.values(), *_INJECTED_EXTRA.values()):
         old = variants[len(pages) > 1].format(names=", ".join(pages))
