@@ -198,6 +198,7 @@ flowchart TD
 
   wf_start --> tier
   tier -->|"fragments of the source documents, without the sentence verifier"| Q_IS_GROUNDED
+  tier -->|"fragments of the source documents, and the model refused"| Q_MODEL_REFUSED
   tier -->|"fragments of the source documents, with the sentence verifier later"| Q_MODEL_REFUSED
   tier -->|"wiki pages or data injected"| Q_MODEL_REFUSED
   tier -->|"nothing injected"| Q_TOOL_EVIDENCE

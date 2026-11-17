@@ -105,6 +105,18 @@ def test_tier2_unsupported_ends_in_r3():
     assert traced[0]["refusal_substituted"] is True
 
 
+def test_tier2_model_refusal_ends_in_r5_whatever_the_fragments_say():
+    """A model refusal on source fragments is the model's refusal. Q_IS_GROUNDED ran first
+    and measured the words of the refusal sentence against the fragments: with fragments
+    that hold none of them, the user read «Encontré el documento…, pero no puedo
+    garantizar…» for an answer the model never gave (HALLAZGOS, 2026-11-17)."""
+    raw = f"{fixed_sentence('es')} Los fragmentos no dan la tasa."
+    checks = AnswerChecks(raw, [], "es", turn=_turn(TIER2, doc_hits=[FRAGMENT]))
+    out, path = _run(checks)
+    assert path == ["Q_MODEL_REFUSED", "R_MODEL"]
+    assert raw in out and "no puedo garantizar" not in out
+
+
 def test_tier2_supported_gets_the_warning():
     checks = AnswerChecks("La caución bursátil es un préstamo de corto plazo garantizado con títulos.",
                           [], "es", turn=_turn(TIER2, doc_hits=[FRAGMENT]))

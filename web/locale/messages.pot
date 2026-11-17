@@ -3624,6 +3624,10 @@ msgid "What was injected, and does the sentence verifier check the answer?"
 msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py
+msgid "fragments of the source documents, and the model refused"
+msgstr ""
+
+#: base/domain/chat/workflow/output_checks.py
 msgid "fragments of the source documents, without the sentence verifier"
 msgstr ""
 

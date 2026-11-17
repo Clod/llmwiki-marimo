@@ -175,6 +175,7 @@ def test_the_figures_section_folds_the_description_and_puts_it_in_the_alt_text()
     assert "Valores: Nación 35,0 %" in section and section.rstrip().endswith("</details>")
     english = figures_section("d", [FIG], "en")
     assert "<summary>Generated description</summary>" in english and "Values: Nación 35,0 %" in english
+    assert "![Image, page 3. Tasas de cinco bancos (a 30 días).](" in english
 
 
 def test_a_decorative_or_undescribed_image_keeps_the_plain_entry():
@@ -182,7 +183,7 @@ def test_a_decorative_or_undescribed_image_keeps_the_plain_entry():
     decorative = figures_section("d", [{"page": 3, "file": "a.png", "caption": "",
                                         "answer": {"decorative": True, "description": "frame"}}], "en")
     assert plain == decorative and "<details" not in plain
-    assert "![Imagen, página 3](" in plain
+    assert "![Image, page 3](" in plain
 
 
 def test_markup_inside_a_description_cannot_leave_the_folded_block():

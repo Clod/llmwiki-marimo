@@ -3,7 +3,8 @@
 Each graph starts with the answer of the agent and the messages of the run
 (`AnswerChecks`), and ends in the final answer of the turn.
 
-- `graph`, the pre-retrieval mode: Q_IS_GROUNDED and R_UNSUPPORTED (Tier 2 only), Q_TOOL_EVIDENCE and R_NO_EVIDENCE (no
+- `graph`, the pre-retrieval mode: Q_IS_GROUNDED and R_UNSUPPORTED (Tier 2 only, and not for a refusal
+  of the model, which goes to Q_MODEL_REFUSED first), Q_TOOL_EVIDENCE and R_NO_EVIDENCE (no
   injected context only), Q_MODEL_REFUSED and R_MODEL, then the additions: Q_ADVISORY_TABLE
   (`answer_with_table`), Q_OFFER_KEYS (`offer_available_keys`), Q_CITE_TOOLS
   (`ensure_citation`), Q_CITE_PAGES (`mark_injected`), Q_SOURCE_WARNING (Tier 2 only), C_FIGURES and Q_SHOWN. The first decision,
@@ -87,6 +88,12 @@ def _model_refused(checks: AnswerChecks) -> bool:
     return is_refusal(checks.raw)
 
 
+def _refused_on_fragments(checks: AnswerChecks) -> bool:
+    """A Tier-2 answer (raw source fragments) that is a refusal of the model: it skips
+    Q_IS_GROUNDED, which would measure the refusal sentence against the fragments."""
+    return checks.turn.plan.verify and is_refusal(checks.raw)
+
+
 def _ungrounded(checks: AnswerChecks) -> bool:
     return not checks.grounded
 
@@ -114,6 +121,12 @@ shown = register(g, "Q_SHOWN")
 g.add(
     g.edge_from(g.start_node).to(
         g.decision(node_id="tier", note=N_("What was injected, and does the sentence verifier check the answer?"))
+        # A refusal of the model on source fragments is checked as a refusal first: measuring
+        # the words of the refusal sentence against the fragments made the outcome depend on
+        # what the fragments happened to say.
+        .branch(g.match(AnswerChecks, matches=_refused_on_fragments)
+                .label(N_("fragments of the source documents, and the model refused"))
+                .to(model_refusal))
         .branch(g.match(AnswerChecks, matches=_verifies)
                 .label(N_("fragments of the source documents, without the sentence verifier"))
                 .to(fragment_coverage))

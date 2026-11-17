@@ -209,9 +209,6 @@ def test_data_answer_on_the_injected_row_is_shown_with_its_source(demo_db, monke
     assert "Referencia: dolar.md" in out
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "a model refusal on the retry with the original documents goes through Q_IS_GROUNDED "
-    "before Q_MODEL_REFUSED and ends in R_UNSUPPORTED (privado/HALLAZGOS.md, 2026-11-17)"))
 def test_model_fixed_sentence_is_cause_5(demo_db):
     raw = f"{fixed_sentence('es')} Las páginas no dan la tasa."
     out = _turn("¿Cuánto rinden los plazos fijos?", raw, demo_db)

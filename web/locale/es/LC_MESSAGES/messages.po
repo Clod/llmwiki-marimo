@@ -3765,6 +3765,10 @@ msgid "What was injected, and does the sentence verifier check the answer?"
 msgstr "¿Qué se inyectó, y el verificador de oraciones revisa la respuesta?"
 
 #: base/domain/chat/workflow/output_checks.py
+msgid "fragments of the source documents, and the model refused"
+msgstr "fragmentos de los documentos originales, y el modelo se negó"
+
+#: base/domain/chat/workflow/output_checks.py
 msgid "fragments of the source documents, without the sentence verifier"
 msgstr "fragmentos de los documentos originales, sin el verificador de oraciones"
 

@@ -41,8 +41,9 @@ def summary(ws: WorkspaceFixture) -> str:
 
 
 @pytest.mark.skipif(check_java() is None, reason="Java is missing: opendataloader-pdf needs it")
-@pytest.mark.parametrize("language, heading", [("en", "## Figures"), ("es", "## Figuras")])
-def test_ingesting_a_pdf_keeps_its_images_and_writes_the_figures_section(tmp_workspace, language, heading):
+@pytest.mark.parametrize("language, heading, alt", [("en", "## Figures", "![Image, page"),
+                                                  ("es", "## Figuras", "![Imagen, página")])
+def test_ingesting_a_pdf_keeps_its_images_and_writes_the_figures_section(tmp_workspace, language, heading, alt):
     ws = tmp_workspace
     doc_id = ingest(ws, language)
 
@@ -55,7 +56,7 @@ def test_ingesting_a_pdf_keeps_its_images_and_writes_the_figures_section(tmp_wor
 
     page = summary(ws)
     assert heading in page
-    assert page.count("![Imagen, página") == 10
+    assert page.count(alt) == 10
     assert page.index("A tale about a princess.") < page.index(heading) < page.index("[^1]:")
 
 

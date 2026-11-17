@@ -20,7 +20,7 @@ def test_the_section_has_one_thumbnail_per_image_with_page_and_caption_in_englis
     text = figures_section("doc1", FIGURES, "en")
     link = ".llmwiki/cache/local/doc1/images/imageFile2.png"
     assert text.startswith("\n## Figures\n")
-    assert f"- [![Imagen, página 2]({link})]({link}) **Page 2.** *A dwarf at work.*" in text
+    assert f"- [![Image, page 2]({link})]({link}) **Page 2.** *A dwarf at work.*" in text
     assert text.rstrip().endswith("**Page 3.**")  # no caption, no empty italics
     assert text.count("![") == 2
 
@@ -28,6 +28,17 @@ def test_the_section_has_one_thumbnail_per_image_with_page_and_caption_in_englis
 def test_the_section_is_in_the_wiki_language():
     text = figures_section("doc1", FIGURES, "es")
     assert "## Figuras" in text and "**Página 2.**" in text and "Figures" not in text
+    assert "![Imagen, página 2](" in text
+
+
+def test_the_page_of_a_thumbnail_is_read_back_in_both_languages():
+    """`alt_page` reads the page of an alt text written in English or in Spanish, with or
+    without the description after it."""
+    from domain.ingestion.images import alt_page
+
+    assert alt_page("Image, page 3. Five banks, 30 days") == 3
+    assert alt_page("Imagen, página 3. Tasas de cinco bancos (a 30 días).") == 3
+    assert alt_page("Image, page 12") == 12
 
 
 def test_no_figures_no_section():

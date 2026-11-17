@@ -532,6 +532,20 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The thumbnails of the Figures section speak the language of the wiki.** The
+  alt text of every thumbnail was Spanish: the English tale example showed «Imagen,
+  página 1» next to «**Page 1.**». It comes from the locale now (`image_alt`: «Image,
+  page N» / «Imagen, página N»), and `alt_page` reads the page back in both
+  languages. The Figures section of the English example is rewritten from its
+  `figures.json`, without the model.
+- **A model refusal on the source documents is shown as the model's refusal.** In
+  pre-retrieval, when the model answered «No encontré la respuesta en el texto que
+  recibí de la wiki.» on fragments of the original documents (the retry
+  `Q_RETRY_SOURCES`, or Tier 2), `Q_IS_GROUNDED` measured the words of that sentence
+  against the fragments first. With fragments that did not hold them, the user read
+  «Encontré el documento «05 Bonos…», pero no puedo garantizar…» for an answer the
+  model never gave; with other fragments the same refusal was shown right. A refusal
+  of the model now goes to `Q_MODEL_REFUSED` first, whatever the fragments say.
 - **A concept page updated by a second document opened with a horizontal rule.**
   The update prompt hands the existing page to the model between two `---` lines,
   and the model returned one of them: `concepts/bcra.md` showed a rule above its

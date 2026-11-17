@@ -52,8 +52,9 @@ OLD_IMAGE_LINK_RE = re.compile(
     r"!\[image\]\((?P<path>(?P<stem>[^)\n]*?)_images/(?P<file>[^)/\n]+))\)"
 )
 _PAGE_IN_ALT_RE = re.compile(r"(\d+)\s*$")
-# `Imagen, página 3. <description>`: the alt text of a thumbnail that carries a description.
-_PAGE_AT_START_RE = re.compile(r"^Imagen, página (\d+)\b")
+# `Imagen, página 3. <description>` / `Image, page 3. <description>`: the alt text of a
+# thumbnail of the Figures section, in the language of the wiki (`image_alt` of the locale).
+_PAGE_AT_START_RE = re.compile(r"^(?:Imagen, página|Image, page) (\d+)\b")
 
 
 def document_dir(workspace: Path, doc_id: str) -> Path:
