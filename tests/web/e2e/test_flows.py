@@ -623,17 +623,7 @@ def relations(page, live, query=""):
 
 
 def click_node(page, node_id):
-    """Click the node `node_id` of the relations graph, once its place on the screen holds
-    still: a click taken while the layout or the fit still moves lands beside the node
-    (it failed twice in CI, where the browser is slower, after «Mostrar fuentes»)."""
-    where = "id => { const p = window.relationsGraph.screenOf(id); return [p.x, p.y]; }"
-    x, y = page.evaluate(where, node_id)
-    for _ in range(40):
-        page.wait_for_timeout(150)
-        nx, ny = page.evaluate(where, node_id)
-        if abs(nx - x) < 0.5 and abs(ny - y) < 0.5:
-            break
-        x, y = nx, ny
+    x, y = page.evaluate("id => { const p = window.relationsGraph.screenOf(id); return [p.x, p.y]; }", node_id)
     box = page.locator("#stage canvas").first.bounding_box()
     page.mouse.move(box["x"] + x - 3, box["y"] + y)
     page.mouse.move(box["x"] + x, box["y"] + y)
