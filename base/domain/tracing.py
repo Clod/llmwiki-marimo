@@ -147,7 +147,12 @@ def _get_provider() -> TracerProvider:
                     InstrumentationSettings(tracer_provider=provider, include_content=True)
                 )
             except Exception:  # noqa: BLE001 — model spans are optional
-                logger.debug("pydantic-ai instrumentation failed", exc_info=True)
+                # A warning, not a debug line: the trace still runs, but without the
+                # model spans, and whoever reads it must know why they are missing.
+                logger.warning(
+                    "pydantic-ai instrumentation failed: the trace has no model spans",
+                    exc_info=True,
+                )
             _provider = provider
         return _provider
 

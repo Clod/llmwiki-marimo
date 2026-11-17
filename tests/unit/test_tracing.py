@@ -241,3 +241,21 @@ def test_wrap_openai_records_chat_span_with_token_usage(monkeypatch, tmp_path):
 def test_enabled_accepts_the_project_falsy_values(monkeypatch, value, expected):
     monkeypatch.setenv("WIKI_TRACE", value)
     assert tracing.enabled() is expected
+
+
+# ── A failed Pydantic AI instrumentation is reported, not hidden ────────────
+
+def test_failed_instrumentation_logs_a_warning(monkeypatch, tmp_path, caplog):
+    from pydantic_ai import Agent
+
+    def _fail(*_args, **_kwargs):
+        raise RuntimeError("instrumentation broke")
+
+    monkeypatch.setenv(tracing.ENV_VAR, "1")
+    monkeypatch.setattr(Agent, "instrument_all", _fail)
+    monkeypatch.setattr(tracing, "_provider", None)  # force a fresh provider build
+    with caplog.at_level("WARNING", logger=tracing.logger.name):
+        with tracing.root("turn", tmp_path):
+            pass
+    assert "pydantic-ai instrumentation failed" in caplog.text
+    assert len(_read_spans(tmp_path)) == 1  # the trace still runs
