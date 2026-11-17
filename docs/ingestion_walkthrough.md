@@ -1677,9 +1677,8 @@ search that names an alias also keeps the term the question used, and that term
 comes first: the question «¿Qué son las acciones locales?» would still get the
 page «Acciones locales» before the page «CEDEAR».
 
-The shipped demo has one of these, and the linter reports it.
-`examples/finanzas-argentinas/.llmwiki/aliases.generated.toml` currently contains
-both
+The shipped demo had one of these. The ingestion wrote both lines to
+`examples/finanzas-argentinas/.llmwiki/aliases.generated.toml`
 
 ```toml
 "Plazo fijo UVA" = ["UVA"]
@@ -1691,7 +1690,9 @@ both
 this as `vocab_ambiguous`: one alias mapping to two canonicals, a warning
 rather than an error because it is informational (§6.2 lists `vocab_ambiguous`
 among the advisory findings with no automatic repair — it is surfaced for a
-human to resolve, not auto-fixed).
+human to resolve, not auto-fixed). Here the curator resolved it: «UVA» is the
+unit, not another name of the deposit, so `wiki_config.toml` lists
+`"Plazo fijo UVA" = ['UVA']` under `[falsos_sinonimos]`, and the warning is gone.
 
 **One rule about datasets belongs here, even though it is enforced on the reading
 side: no number in an answer is ever computed by the model.** A tool reads the

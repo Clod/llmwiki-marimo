@@ -43,15 +43,15 @@ def test_the_roster_holds_the_datasets_and_the_concept_pages_with_their_origin(w
 def test_the_aliases_carry_their_origin(wiki):
     by_canonical = {c.canonical: {a.alias: a.origin for a in c.aliases} for c in vocab.read_vocabulary(wiki).aliases}
     assert by_canonical["dolar"] == {"billete verde": "hand", "divisa": "hand"}
-    assert by_canonical["Plazo fijo UVA"] == {"UVA": "generated"}
+    assert by_canonical["Bonos Duales"] == {"Duales": "generated"}
 
 
 def test_the_lists_and_the_findings(wiki):
     v = vocab.read_vocabulary(wiki)
     assert v.blacklist == ("cedear", "cedears", "cripto", "bitcoin")
-    assert v.rejected == (("cedear", "accion"), ("cedear", "acciones"))
-    ambiguous = [f for f in v.findings if f.check == "vocab_ambiguous"]
-    assert any(f.terms[0] == "uva" for f in ambiguous)
+    # «UVA» is the unit, not another name of the deposit: a curator rejected it.
+    assert v.rejected == (("cedear", "accion"), ("cedear", "acciones"), ("Plazo fijo UVA", "UVA"))
+    assert [f for f in v.findings if f.check == "vocab_ambiguous"] == []
 
 
 def test_a_blacklist_term_is_committed_and_refuses_the_next_question(wiki):

@@ -81,14 +81,13 @@ def test_removing_the_last_alias_of_a_canonical_removes_the_canonical(wiki):
 def test_rejecting_a_generated_alias_writes_a_false_synonym_and_drops_it_from_the_effective_map(wiki):
     (wiki / ".llmwiki").mkdir()
     shutil.copy(EXAMPLE.parent / ".llmwiki" / "aliases.generated.toml", wiki / ".llmwiki")
-    assert "UVA" in load_config(wiki).data_aliases["Plazo fijo UVA"]
-    cw.reject_alias(wiki, "Plazo fijo UVA", "UVA")
-    assert data(wiki)["falsos_sinonimos"]["Plazo fijo UVA"] == ["UVA"]
-    assert "Plazo fijo UVA" not in load_config(wiki).data_aliases       # its only alias is gone
-    assert "UVA" in load_config(wiki).data_aliases["Unidad de Valor Adquisitivo"]
-    cw.unreject_alias(wiki, "plazo fijo uva", "uva")
-    assert "Plazo fijo UVA" not in data(wiki)["falsos_sinonimos"]
-    assert "UVA" in load_config(wiki).data_aliases["Plazo fijo UVA"]
+    assert "Duales" in load_config(wiki).data_aliases["Bonos Duales"]
+    cw.reject_alias(wiki, "Bonos Duales", "Duales")
+    assert data(wiki)["falsos_sinonimos"]["Bonos Duales"] == ["Duales"]
+    assert "Bonos Duales" not in load_config(wiki).data_aliases       # its only alias is gone
+    cw.unreject_alias(wiki, "bonos duales", "duales")
+    assert "Bonos Duales" not in data(wiki).get("falsos_sinonimos", {})
+    assert "Duales" in load_config(wiki).data_aliases["Bonos Duales"]
 
 
 def test_a_missing_file_and_missing_sections_are_created(tmp_path):

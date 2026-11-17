@@ -6,9 +6,10 @@ tangential chunk (a bonds doc that merely name-drops "CEDEARs") can be used as a
 fig leaf to leak general knowledge.
 
 `coverage(answer, source)` = fraction of the answer's content words that also
-appear in the source. `is_supported` compares it to a LENIENT threshold: we only
-reject the clearly off-source, so a faithful paraphrase (which still reuses much
-of the domain vocabulary) is never false-rejected. Deterministic, no LLM.
+appear in the source. `is_supported` compares it to a LENIENT threshold, meant to
+reject only the clearly off-source. A faithful paraphrase that reuses the domain
+vocabulary passes; one written mostly in synonyms can score below the threshold and
+be rejected (the known limitation below). Deterministic, no LLM.
 
 Words are compared by Snowball stem in the wiki's language, after the stop
 words of that language are removed. Known limitation: single-word coverage — a

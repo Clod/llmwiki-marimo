@@ -673,8 +673,11 @@ def test_the_relations_tab_search_and_click_open_the_reading_screen(page, live):
     expect(page.locator("#counts")).to_contain_text("nodos")
     page.locator("#search").fill("Plazo fijo UVA")
     page.locator("#search").press("Enter")
-    page.wait_for_function("document.getElementById('relations').dataset.settled === '1'")
-    page.wait_for_timeout(600)   # the centring transition
+    # The search centres the node and zooms to 4, and centres it again when the
+    # simulation stops (`goTo`, relations.js); `data-centred` marks the end of that
+    # transition. A fixed wait could end before it on a loaded machine.
+    page.wait_for_selector("#relations[data-centred='1']")
+    assert abs(page.evaluate("window.relationsGraph.fg.zoom()") - 4) < 0.01
     click_node(page, CONCEPT)
     page.wait_for_url(f"**/w/{WIKI_ID}/pages/{CONCEPT}")
     expect(page.locator(".prose")).to_be_visible()

@@ -88,3 +88,4 @@ dolar = ["billete verde", "divisa"]
 # FALSOS sinónimos: pares que NO son lo mismo -> no cruzar en el paso de sinónimos.
 [falsos_sinonimos]
 cedear = ["accion", "acciones"]
+"Plazo fijo UVA" = ['UVA']
