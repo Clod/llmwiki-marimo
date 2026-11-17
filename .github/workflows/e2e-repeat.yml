@@ -1,0 +1,54 @@
+# Run one e2e test many times in a row, by hand, to catch an intermittent failure:
+# the run stops at the first failure and uploads its Playwright trace
+# (tests/web/e2e/conftest.py). Open it with `uv run playwright show-trace <file>.zip`.
+name: Repeat an e2e test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "pytest node id of the test"
+        default: "tests/web/e2e/test_integration_flow.py::test_a_text_source_is_a_node_and_a_click_opens_its_view"
+      times:
+        description: "how many runs"
+        default: "20"
+
+jobs:
+  repeat:
+    name: Repeat an e2e test
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --group dev --group web
+
+      - name: Install Chromium for Playwright
+        run: uv run playwright install --with-deps chromium
+
+      - name: Run the test repeatedly
+        env:
+          TEST: ${{ inputs.test }}
+          TIMES: ${{ inputs.times }}
+        run: |
+          for i in $(seq 1 "$TIMES"); do
+            echo "::group::run $i of $TIMES"
+            uv run --group web pytest -q "$TEST" || { echo "::endgroup::"; echo "failed on run $i"; exit 1; }
+            echo "::endgroup::"
+          done
+
+      - name: Upload the trace of the failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-traces
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 14

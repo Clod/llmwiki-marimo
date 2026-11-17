@@ -624,8 +624,7 @@ def relations(page, live, query=""):
 
 def click_node(page, node_id):
     """Click the node `node_id` of the relations graph, once its place on the screen holds
-    still: a click taken while the layout or the fit still moves lands beside the node
-    (it failed twice in CI, where the browser is slower, after «Mostrar fuentes»)."""
+    still and the graph has it under the pointer."""
     where = "id => { const p = window.relationsGraph.screenOf(id); return [p.x, p.y]; }"
     x, y = page.evaluate(where, node_id)
     for _ in range(40):
@@ -637,7 +636,15 @@ def click_node(page, node_id):
     box = page.locator("#stage canvas").first.bounding_box()
     page.mouse.move(box["x"] + x - 3, box["y"] + y)
     page.mouse.move(box["x"] + x, box["y"] + y)
-    page.wait_for_timeout(250)   # the canvas picks the hovered node on the next frame
+    # The graph takes the node under the pointer in its draw loop, after the move, and sets
+    # the cursor to `pointer` (`onNodeHover`, relations.js). A click before that hits no
+    # node: in CI one click in 20 came with an empty cursor, and the view never opened.
+    for _ in range(20):
+        page.wait_for_timeout(100)
+        if page.evaluate("document.getElementById('stage').style.cursor") == "pointer":
+            break
+        page.mouse.move(box["x"] + x - 1, box["y"] + y)
+        page.mouse.move(box["x"] + x, box["y"] + y)
     page.mouse.click(box["x"] + x, box["y"] + y)
 
 

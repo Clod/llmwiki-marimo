@@ -13,6 +13,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **A Playwright trace of every e2e test that fails.** `test_a_text_source_is_a_node_and_a_click_opens_its_view`
+  fails now and then in CI and always passes locally, and nothing showed the page
+  when it failed. Each e2e test now records a trace (a screenshot and the page before
+  each action); a failed test keeps it as `test-results/<test>.zip`, which the web
+  job uploads as the artifact `e2e-traces`. The manual workflow «Repeat an e2e test»
+  runs one test up to N times and uploads the trace of the first failure. To see a
+  trace: `uv run playwright show-trace <file>.zip`. The trace showed the cause: the
+  test clicked 250 ms after moving the mouse, and in one click out of 20 the graph had
+  not yet taken the node under the pointer. `click_node` now waits for the pointer
+  cursor (20 runs of the test and 3 of the web suite in CI, with no failure).
 - **`scripts/check_wiki.py`: the structure check of a generated wiki.** It lists,
   one per line, the defects of form the code produces: a concept or summary page
   without its front-matter fields (`description` for a concept page), a link to a
