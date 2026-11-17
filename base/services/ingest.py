@@ -135,8 +135,14 @@ def ingest_uploads(
     with tracing.root("ingest", wiki.path, kind="upload", files=len(uploads)):
         for upload in uploads:
             path = wiki.sources_dir / upload.name
+            # A file with the name of a source and other contents is a new version of it:
+            # it replaces the file, and the ingestion sees the change. An identical file
+            # is left alone, and the ingestion skips it as already up to date.
             if not path.exists():
                 path.write_bytes(upload.contents)
+            elif path.read_bytes() != upload.contents:
+                path.write_bytes(upload.contents)
+                progress(M_("♻️ %(file)s — replaced the previous version", file=upload.name))
             results.append(ingest_file(path, wiki.db_path, wiki.path, client, model,
                                        progress, language=wiki.language,
                                        **({"vision": vision} if vision is not None else {})))

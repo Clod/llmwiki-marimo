@@ -22,8 +22,6 @@ describe how the system actually behaves, measured rather than asserted.
 - **Give scan and regenerate the same automatic tail as ingest.** Ingestion now
   closes with a lint+repair pass scoped to the pages it touched. `scan_and_ingest`
   and `regenerate_wiki_pages` still do not reconcile afterwards.
-- **Warn on duplicate upload.** A file already ingested and unchanged is silently
-  skipped; the interface should say so.
 - **Document `scan_and_ingest` for end users** — what it touches, and when
   `batch_ingest` is the better call.
 - **Select the tools by the type of question.** In pre-retrieval mode the
