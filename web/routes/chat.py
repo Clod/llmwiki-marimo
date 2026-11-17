@@ -22,7 +22,8 @@ from services.wiki import list_pages, source_names
 from web.deps import BUSY, MODE_LABELS, described_marks, get_state, get_templates, index_groups
 from web.i18n import N_, _, format_number, ngettext
 from web.render import (
-    SENTENCE_CLASS, figure_marks, page_url, render_marked, render_markdown, render_verified,
+    SENTENCE_CLASS, data_tables_html, figure_marks, page_url, render_marked, render_markdown,
+    render_verified,
 )
 from web.state import AppState, Message, Turn, Verification
 
@@ -69,6 +70,12 @@ def _skipped_containment(path) -> bool:
     containment check (node Q_IS_GROUNDED) because the sentence verifier was to check it."""
     nodes = {step.get("node") for step in path or ()}
     return "Q_SOURCE_WARNING" in nodes and "Q_IS_GROUNDED" not in nodes
+
+
+def _data_tables(mode: str, context) -> str:
+    """The dataset tables the model received, folded below the answer
+    (`data_tables_html`). The streaming mode shows none: it runs no check."""
+    return "" if mode == chat_service.STREAMING else data_tables_html(context)
 
 
 def _verify_note(text: str, failed: bool = False) -> str:
@@ -211,8 +218,9 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
         meta = answer_meta(templates, wiki_id, answer, conversation_tokens(conversation))
         buttons = audit_buttons(templates, wiki_id, turn.conversation_id, conversation)
         pending = _verify_note(_("Verifying the sentences…")) if result is not None else ""
+        tables = _data_tables(turn.mode, context)
         yield {"event": "chunk",
-               "data": f'<div id="answer-{turn_id}" hx-swap-oob="innerHTML">{rendered}{figure_note}{pending}</div>'
+               "data": f'<div id="answer-{turn_id}" hx-swap-oob="innerHTML">{rendered}{figure_note}{pending}{tables}</div>'
                        f'<div id="meta-{turn_id}" hx-swap-oob="innerHTML">{meta}</div>{buttons}'}
         if result is not None:
             try:
@@ -225,7 +233,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 # reference line the model wrote, which is labelled as the model's.
                 injected = injected_pages(result.context)
                 used = {s.page.rsplit("/", 1)[-1] for s in report.sentences if s.supported and s.page}
-                text, edits = resolve_injected(full, injected, used, entry.wiki.language)
+                text, edits = resolve_injected(full, injected, used, entry.wiki.language, threshold)
                 node = _verification_node(
                     entry.wiki.path, checked=report.checked, unsupported=report.unsupported,
                     described=report.described, used=[p for p in injected if p in used],
@@ -245,7 +253,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                     answer, content=text, figures=_shifted(figures, shifted), path=(*answer.path, node),
                     verification=Verification(tuple(sentence_marks), tuple(described), summary))
                 marked = render_marked(wiki_id, text, marks, pages, sources, described=described)
-                body = marked + summary + figure_note
+                body = marked + summary + figure_note + tables
             except Exception:  # noqa: BLE001 — the answer stays as it is
                 # A Tier-2 answer that skipped Q_IS_GROUNDED was compared with nothing.
                 note = (_("Could not verify. The answer was not compared with the fragments "
@@ -255,7 +263,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 conversation[-1] = replace(
                     answer, path=(*answer.path, _verification_node(entry.wiki.path, failed=True)),
                     verification=Verification(note=failure, failed=True))
-                body = rendered + figure_note + failure
+                body = rendered + figure_note + failure + tables
             yield {"event": "verification",
                    "data": f'<div id="answer-{turn_id}" hx-swap-oob="innerHTML">{body}</div>'}
         yield {"event": "done", "data": ""}
@@ -267,13 +275,14 @@ def _answer_html(wiki_id: str, message: Message, pages, sources) -> str:
     """An answer of the thread as the stream left it: the figure marks and, when the
     sentence verification ran, its sentence marks and its line."""
     figure_note = _figure_summary(message.figures)
+    tables = _data_tables(message.mode, message.context)
     v = message.verification
     if v is None or v.failed:
         rendered = render_marked(wiki_id, message.content, figure_marks(message.figures), pages, sources)
-        return rendered + figure_note + (v.note if v else "")
+        return rendered + figure_note + (v.note if v else "") + tables
     marks = list(v.marks) + figure_marks(message.figures)
     marked = render_marked(wiki_id, message.content, marks, pages, sources, described=list(v.described))
-    return marked + v.note + figure_note
+    return marked + v.note + figure_note + tables
 
 
 @router.get("/w/{wiki_id}/chat/{conversation_id}/thread", response_class=HTMLResponse)

@@ -172,6 +172,13 @@ msgid "No data supports this figure; the nearest value is %(value)s (%(origin)s)
 msgstr ""
 
 #: web/render.py
+#, python-format
+msgid "Data the model received (%(n)s row)"
+msgid_plural "Data the model received (%(n)s rows)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/render.py
 msgid "No source of this page supports this sentence"
 msgstr ""
 

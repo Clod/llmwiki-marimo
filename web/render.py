@@ -315,6 +315,43 @@ def figure_marks(report) -> list[tuple[int, int, str, str]]:
     return [(f.figure.start, f.figure.end, FIGURE_CLASS, figure_title(f)) for f in report.unsupported()]
 
 
+# The header row of a dataset table (`domain.chat.dataset_tools.format_rows_as_table`):
+# the data tools return it, and pre-retrieval injects it (node Q_KEY_ROWS). A list of
+# key names (node Q_KEY_NAMES) has no such row.
+DATA_TABLE_HEADER = "| clave | metrica | valor | unidad | dims | as_of | fuente |"
+# The title line of that table, in English: "**3 dataset row(s)** for categoria='x':".
+_DATA_TABLE_TITLE = re.compile(r"\A\s*\*\*\d+ dataset row\(s\)\*\*[^\n]*\n")
+
+
+def data_tables_html(context: Iterable) -> str:
+    """The dataset tables the model received in a turn, folded below the answer.
+
+    `context` is the `ContextPassage` list of the answer (`Message.context`). A passage
+    is a dataset table when its page is a dataset file and its text holds the header
+    row `DATA_TABLE_HEADER`: a data tool return or a row block that pre-retrieval
+    injected. A table that came twice is shown once. Empty string when there is none.
+    """
+    seen: set[tuple[str, str]] = set()
+    tables: list[tuple[str, str]] = []
+    for passage in context:
+        if not passage.page.startswith("datasets/") or DATA_TABLE_HEADER not in passage.text:
+            continue
+        body = _DATA_TABLE_TITLE.sub("", passage.text.strip(), count=1)
+        if (passage.page, body) not in seen:
+            seen.add((passage.page, body))
+            tables.append((passage.page, body))
+    if not tables:
+        return ""
+    rows = sum(len([line for line in body.splitlines() if line.startswith("|")]) - 2
+               for _page, body in tables)
+    title = html.escape(ngettext("Data the model received (%(n)s row)",
+                                 "Data the model received (%(n)s rows)", rows))
+    parts = [f"<p class=\"data-table-file\">{html.escape(page)}</p>"
+             + sanitize_html(markdown.markdown(body, extensions=["tables"]))
+             for page, body in tables]
+    return f'<details class="data-tables"><summary>{title}</summary>{"".join(parts)}</details>'
+
+
 def render_source_markdown(text: str) -> str:
     """A .md source document as HTML, as it is: no link of the text is rewritten
     and its front-matter block is left out. Raw HTML passes through, as in

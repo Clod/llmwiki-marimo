@@ -21,8 +21,10 @@ The five steps:
 
 Recovered: every `documents` row (by `relative_path`), `document_pages`,
 `document_chunks`, `chunks_fts` and the reference graph. Not recoverable from the
-files: `version`, `document_number` and the creation dates (reset), and
-`stale_since`. A wiki page whose source file is gone is registered, but its
+files: `version`, `document_number` and the creation dates (reset),
+`stale_since`, and the sentence verifications of the pages (`page_verifications`,
+`verification_sentences`): a verified page shows "Not verified" until the user
+verifies it again. A wiki page whose source file is gone is registered, but its
 `cites` edge has no target.
 
 The fresh database is built beside the old one and swapped in only when it is
