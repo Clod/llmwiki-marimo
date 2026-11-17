@@ -13,6 +13,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **`scripts/check_wiki.py`: the structure check of a generated wiki.** It lists,
+  one per line, the defects of form the code produces: a concept or summary page
+  without its front-matter fields (`description` for a concept page), a link to a
+  missing file, «See also» after a footnote or after the sources, a heading twice
+  in a page, a page missing from `wiki/index.md`, and the extracted text of a
+  source that ends in an empty heading (a table the extraction dropped). The text
+  the model writes is not checked. The rules live in `base/domain/lint/structure.py`.
 - **A warning about the files of `sources/` without ingestion.** A file copied
   into `sources/` outside the upload screen was not ingested until the user ran
   «Scan sources/», and nothing said so. When the user chooses a wiki, the code
@@ -516,6 +523,12 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **«See also» goes above the footnote of a summary page.** A summary page ended
+  with the footnote `[^1]: source.pdf` followed by the «See also» section: the
+  cross-links and the `missing_xref` repair placed the section above the sources
+  heading, and a summary page has none, so they appended it at the end. Both now
+  use `insert_see_also` (`base/domain/ingestion/wiki_generator.py`): above the
+  sources heading, else above the first footnote, else at the end.
 - **A concept the wiki already has, named otherwise by another document, updates
   its page.** The finance example had two pages for the central bank, «BCRA» (from
   the fixed-term document) and «Banco Central de la República Argentina» (from the

@@ -646,11 +646,19 @@ def inject_see_also(
         section = content[heading.end():end].rstrip("\n")
         return f"{content[:heading.end()]}{section}\n{bullets}\n{content[end:]}"
 
-    see_also_block = f"\n## {loc.h_see_also}\n\n" + bullets + "\n"
+    return insert_see_also(content, f"## {loc.h_see_also}\n\n{bullets}", loc.h_sources)
 
-    # Insert before the localized ## Sources header if present, otherwise append.
-    # This must use the same locale as the page was generated with.
-    sources_marker = f"\n## {loc.h_sources}"
-    if sources_marker in content:
-        return content.replace(sources_marker, see_also_block + sources_marker, 1)
-    return content.rstrip() + "\n" + see_also_block
+
+def insert_see_also(content: str, block: str, h_sources: str) -> str:
+    """`content` with a new «See also» `block` at its place: just above the
+    `## <h_sources>` heading when the page has one, else just above the first
+    footnote definition (`[^1]: source.pdf`, the end of a summary page), else at the
+    end. A summary page has no sources heading, and the section was appended after
+    its footnote."""
+    heading = re.search(rf"(?m)^## {re.escape(h_sources)}[ \t]*$", content)
+    if heading is None:
+        heading = re.search(r"(?m)^\[\^[^\]]+\]:", content)
+    if heading is None:
+        return f"{content.rstrip()}\n\n{block}\n"
+    before = content[:heading.start()].rstrip()
+    return f"{before}\n\n{block}\n\n{content[heading.start():]}"
