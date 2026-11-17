@@ -1,0 +1,92 @@
+[
+  {
+    "page": 1,
+    "file": "imageFile1.png",
+    "caption": "",
+    "sha256": "3884d813f7e6236abe2cfa3f2cd459b8b5ef9e94c2a6d9503e524e6cb2d4073f",
+    "width": 853,
+    "height": 1190,
+    "description": ""
+  },
+  {
+    "page": 2,
+    "file": "imageFile2.png",
+    "caption": "",
+    "sha256": "4d160a271a109542b9ccae24f31988fd4e9c2d643156d71c856a99d649637272",
+    "width": 651,
+    "height": 520,
+    "description": ""
+  },
+  {
+    "page": 2,
+    "file": "imageFile3.png",
+    "caption": "Every day, the Queen looked in her magic mirror and asked:",
+    "sha256": "a87671fda34bdab028c6956f2fb1f9dfa54290b4b382e6c130a0f0cfdf8ab613",
+    "width": 651,
+    "height": 457,
+    "description": ""
+  },
+  {
+    "page": 3,
+    "file": "imageFile4.png",
+    "caption": "",
+    "sha256": "c2eedf01826475fa73f3f5c85a586bd1ba9db6510020a036504e122ed14dc3bd",
+    "width": 651,
+    "height": 543,
+    "description": ""
+  },
+  {
+    "page": 3,
+    "file": "imageFile5.png",
+    "caption": "",
+    "sha256": "72f74b522492892053311e3955b6361f4aeee1a016806788e523db40c5c55cfe",
+    "width": 649,
+    "height": 549,
+    "description": ""
+  },
+  {
+    "page": 4,
+    "file": "imageFile6.png",
+    "caption": "A little table was set for dinner: seven little chairs, seven little bowls, seven little spoons, seven little knives, seven little forks, and seven little mugs. Snow White was hungry and thirsty. She thought: “I’ll have a little bread from each bowl. And I’ll drink a little wine from each mug.” Then, feeling so tired, she lay down on one of the seven little beds. And she fell asleep.",
+    "sha256": "e881fa0f55971f165c141d83dae67b29eca6734e72202c109e371f9d80f2b5a6",
+    "width": 1700,
+    "height": 718,
+    "description": ""
+  },
+  {
+    "page": 5,
+    "file": "imageFile7.png",
+    "caption": "",
+    "sha256": "d99fb10b3510d4ba738514d7d30156b179a6f5f1c6b345e86411434aa315456a",
+    "width": 651,
+    "height": 439,
+    "description": ""
+  },
+  {
+    "page": 5,
+    "file": "imageFile8.png",
+    "caption": "",
+    "sha256": "2fb9ce3313105c6bb114959251cd6d2e30ce9e80167f47094705dcd234245e7c",
+    "width": 651,
+    "height": 451,
+    "description": ""
+  },
+  {
+    "page": 6,
+    "file": "imageFile9.png",
+    "caption": "",
+    "sha256": "c49b4a15a40783911422b2bbfd96c687bc22932c7ff64ea55395f41dbdde3782",
+    "width": 651,
+    "height": 562,
+    "description": ""
+  },
+  {
+    "page": 6,
+    "file": "imageFile10.png",
+    "caption": "",
+    "sha256": "0d4939217db9016c07981a6bdeeb0791d209d8a0832a6c95f339f4ac3c6e0a7e",
+    "width": 650,
+    "height": 362,
+    "description": ""
+  }
+]

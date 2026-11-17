@@ -1,7 +1,7 @@
 """The missing-image and orphan-image checks and their repairs. No model.
 
 Most tests replace the extraction of images with a fake; the last one runs the
-real opendataloader-pdf on a copy of `examples/fairy-tales` and skips without Java.
+real opendataloader-pdf on a copy of `tests/fixtures/wikis/fairy-tales` and skips without Java.
 """
 
 import shutil
@@ -229,7 +229,7 @@ def test_the_runner_runs_both_checks_and_repairs_them(tmp_workspace, fake_extrac
 @pytest.mark.skipif(check_java() is None, reason="Java is missing: opendataloader-pdf needs it")
 def test_the_repair_resolves_the_ten_links_of_snow_white_in_a_copy_of_the_demo(tmp_path):
     copy = tmp_path / "fairy-tales"
-    shutil.copytree(REPO / "examples" / "fairy-tales", copy)
+    shutil.copytree(REPO / "tests" / "fixtures" / "wikis" / "fairy-tales", copy)
     db_path = str(copy / ".llmwiki" / "index.db")
     name = "Snow White and the Seven Dwarfs.pdf"
 

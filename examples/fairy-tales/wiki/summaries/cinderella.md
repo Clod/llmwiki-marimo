@@ -1,35 +1,34 @@
 ---
 type: summary
 title: Cinderella
-topics: [stepmother, stepsisters, fairy godmother, royal ball]
+sources:
+  - resource: sources/Cinderella.pdf
+topics: [social class and status, cruelty and mistreatment in the household, magical transformation,
+  love and marriage, kindness rewarded, forgiveness, appearance versus inner goodness]
 ---
 
 # Cinderella
 
-**Source:** Cinderella.pdf | **Type:** pdf | **Pages:** 5 | **Ingested:** 2026-07-08
+**Source:** Cinderella.pdf | **Type:** pdf | **Pages:** 5 | **Ingested:** 2026-11-17
 
 ## Summary
 
-Cinderella is a fairy tale about a kind and beautiful young woman who is mistreated by her stepmother and stepsisters. With the help of her fairy godmother, she attends a royal ball in disguise, capturing the heart of the prince. After losing her glass slipper, the prince searches for her, and they eventually marry, leading to a happy ending for Cinderella and reconciliation with her stepsisters.
+A public-domain French fairy tale, retold by Andrew Lang from Charles Perrault, in which a mistreated stepdaughter, Cinderella, is transformed by her fairy godmother so she can attend the King's son's ball. She leaves behind a glass slipper, which the prince uses to find her, and she ultimately marries him while forgiving her stepsisters.
 
 ## Related Concepts
 
 - [Cinderella](../concepts/cinderella.md)
-- [Fairy Godmother](../concepts/fairy-godmother.md)
-- [Glass Slipper](../concepts/glass-slipper.md)
-- [Royal Ball](../concepts/royal-ball.md)
-- [Stepmother and Stepsisters](../concepts/stepmother-and-stepsisters.md)
+- [Fairy godmother](../concepts/fairy-godmother.md)
+- [Glass slipper](../concepts/glass-slipper.md)
+- [Stepmother and stepsisters](../concepts/stepmother-and-stepsisters.md)
+- [Midnight curfew](../concepts/midnight-curfew.md)
 
 ## Source Information
 
 - **File:** Cinderella.pdf
 - **Type:** pdf
 - **Pages:** 5
-- **Ingested:** 2026-07-08
+- **Ingested:** 2026-11-17
 - **Parser:** opendataloader
 
 [^1]: Cinderella.pdf
-
-## See also
-
-- [Fairy Tale](../concepts/fairy-tale.md)

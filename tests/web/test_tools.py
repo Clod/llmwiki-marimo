@@ -26,9 +26,9 @@ GENERIC_TOOLS = ("read_wiki_page", "search_wiki_fts", "search_source_chunks", "q
 
 
 def _client_for(example: str, tmp_path: Path, cookies: dict = SPANISH) -> TestClient:
-    """A client whose only wiki is a copy of `examples/<example>`, under the id `tales`."""
+    """A client whose only wiki is a copy of `tests/fixtures/wikis/<example>`, under the id `tales`."""
     home = tmp_path / "home"
-    shutil.copytree(ROOT / "examples" / example, home / WIKI_ID)
+    shutil.copytree(ROOT / "tests" / "fixtures" / "wikis" / example, home / WIKI_ID)
     settings = WebSettings(
         wiki_path=None, wiki_home=home, recent_file=tmp_path / "recent_wikis.json",
         llm_base_url="http://llm.invalid/v1", llm_api_key="key", llm_model="model",
@@ -124,7 +124,7 @@ def test_fairy_tales_wiki_still_lists_the_generic_tools(tales):
 
 def test_the_tools_listed_are_the_tools_the_agents_register(tmp_path):
     """The tab and the chat agents describe the same tools."""
-    shutil.copytree(ROOT / "examples" / "finanzas-argentinas", tmp_path / "w")
+    shutil.copytree(ROOT / "tests" / "fixtures" / "wikis" / "finanzas-argentinas", tmp_path / "w")
     agents = chat.build_agents(open_wiki(tmp_path / "w"), base_url="http://localhost:1/v1", api_key="k", model="m")
     registered = set(agents.agent._function_toolset.tools) - {"read_wiki_page", "search_wiki_fts", "search_source_chunks"}
     assert registered == set(FINANCE_TOOLS)

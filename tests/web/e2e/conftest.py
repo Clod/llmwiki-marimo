@@ -1,5 +1,5 @@
 """Fixtures of the Playwright tests: the application on a free port, over a copy
-of `examples/finanzas-argentinas`, with simulated agents (`server.py`).
+of `tests/fixtures/wikis/finanzas-argentinas`, with simulated agents (`server.py`).
 
 The tests are skipped when Playwright cannot start a browser. No test calls a
 model: the agents are simulated, and the ingestion services are replaced. The

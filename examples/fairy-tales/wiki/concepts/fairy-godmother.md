@@ -1,32 +1,33 @@
 ---
 type: concept
-title: Fairy Godmother
+title: Fairy godmother
+description: A magical helper figure in fairy tales who uses a wand to grant wishes
+  and transform objects and people.
 tags: [entity]
 sources:
   - resource: sources/Cinderella.pdf
-topics: [magic, carriage]
+topics: [magical transformation, kindness rewarded]
 ---
 
-# Fairy Godmother
+# Fairy godmother
 
 ## Definition
-The Fairy Godmother is a magical figure in the story of Cinderella who assists the protagonist by using magic to transform everyday objects into a grand carriage and attire for the royal ball (Cinderella.pdf).
+A fairy godmother is a magical helper figure who uses enchantment to transform objects and set conditions on that magic. In the Cinderella narrative, she is the character who performs the transformation that enables Cinderella's trip to the ball (Cinderella.pdf).
 
 ## Key Characteristics
-- Possesses magical powers (Cinderella.pdf)
-- Transforms ordinary items into extraordinary ones (Cinderella.pdf)
-- Acts as a benevolent helper to Cinderella (Cinderella.pdf)
+- Transforms ordinary objects into magical ones: a pumpkin becomes a coach, mice become horses, rats become a coachman and footmen, and lizards become footmen (Cinderella.pdf).
+- Imposes a midnight deadline on the enchantment, so the transformation is temporary and time-limited (Cinderella.pdf).
 
 ## Context
-The Fairy Godmother is a classic character in fairy tales, often depicted as a benevolent and magical entity who aids the protagonist in overcoming obstacles. In the story of Cinderella, she plays a crucial role in enabling Cinderella to attend the royal ball, highlighting themes of transformation and magical intervention in fairy tales (Cinderella.pdf).
+The fairy godmother's role centers on magical intervention that changes the circumstances of the protagonist. Her transformations are the mechanism by which the story's central event, attendance at the ball, becomes possible (Cinderella.pdf). The midnight deadline is a conditional element of her magic: the enchantment ends at a set time, which introduces a limit on the protagonist's time at the ball (Cinderella.pdf).
 
 ## See also
 
 - [Cinderella](cinderella.md)
-- [Royal Ball](royal-ball.md)
+- [Glass slipper](glass-slipper.md)
+- [Stepmother and stepsisters](stepmother-and-stepsisters.md)
+- [Midnight curfew](midnight-curfew.md)
 - [Cinderella](../summaries/cinderella.md)
-- [Glass Slipper](glass-slipper.md)
-- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)
 
 ## Sources
 - Cinderella.pdf

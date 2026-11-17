@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from domain.chat import preretrieval
 from domain.chat.config import load_config
 
-DEMO = Path(__file__).resolve().parents[2] / "examples" / "cuentos-de-hadas"
+DEMO = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "wikis" / "cuentos-de-hadas"
 
 
 def test_an_alias_is_followed_by_the_name_it_stands_for():

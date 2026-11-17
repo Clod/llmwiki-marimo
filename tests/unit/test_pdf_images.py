@@ -16,7 +16,7 @@ from domain.ingestion.extractor import check_java, extract
 from domain.ingestion.pdf_extract import extract_pdf
 
 REPO = Path(__file__).resolve().parents[2]
-SNOW_WHITE = REPO / "examples" / "fairy-tales" / "sources" / "Snow White and the Seven Dwarfs.pdf"
+SNOW_WHITE = REPO / "tests" / "fixtures" / "wikis" / "fairy-tales" / "sources" / "Snow White and the Seven Dwarfs.pdf"
 
 _ELEMENTS = [
     {"type": "paragraph", "id": 1, "page number": 1, "content": "Text one."},

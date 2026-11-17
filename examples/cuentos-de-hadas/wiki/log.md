@@ -1,19 +1,22 @@
 # Ingest Log
 
-## [2026-07-08 13:33] Ingested | Blancanieves.pdf
+## [2026-11-17 17:03] Ingested | Blancanieves.pdf
 
-Blancanieves es un cuento de los Hermanos Grimm sobre una princesa cuya belleza provoca la envidia de su madrastra, la reina. La madrastra intenta asesinarla varias veces, pero Blancanieves es protegi
+Cuento popular de los Hermanos Grimm en el que una reina envidiosa, celosa de la belleza de su hijastra, intenta matarla en varias ocasiones. Blancanieves sobrevive gracias a la protección de siete en
 
-Concepts: Blancanieves, Hermanos Grimm, Espejo mágico, Enanos, Manzana envenenada
+Concepts: Blancanieves, Reina malvada, Espejo mágico, Siete enanos, Hermanos Grimm
+1 imágenes, 0 descritas
 
-## [2026-07-08 13:33] Ingested | Caperucita Roja.pdf
+## [2026-11-17 17:04] Ingested | Caperucita Roja.pdf
 
-Caperucita Roja es un cuento clásico de Charles Perrault sobre una niña que lleva una torta y mantequilla a su abuela enferma, pero es engañada por un lobo que se hace pasar por su abuela. El lobo fin
+Versión escrita por Charles Perrault del cuento popular en el que una niña, camino a casa de su abuela, se detiene a conversar con un lobo que la engaña, devora a la abuela y luego a la niña. El texto
 
-Concepts: Caperucita Roja, Charles Perrault, El lobo en Caperucita Roja, Moraleja de Caperucita Roja
+Concepts: Caperucita Roja, Lobo feroz, Charles Perrault, Moraleja
+1 imágenes, 0 descritas
 
-## [2026-07-08 13:34] Ingested | La Cenicienta.pdf
+## [2026-11-17 17:05] Ingested | La Cenicienta.pdf
 
-La Cenicienta es un cuento de hadas escrito por Charles Perrault que narra la historia de una joven maltratada por su madrastra y hermanastras, quien gracias a la ayuda de su hada madrina asiste a un 
+Versión de Charles Perrault del cuento de La Cenicienta: una joven maltratada por su madrastra y sus hermanastras asiste al baile del hijo del rey gracias a la ayuda de un hada madrina, pierde una zap
 
-Concepts: Charles Perrault, Cenicienta, Hada Madrina, Zapatilla de Cristal, Moral del Cuento
+Concepts: Cenicienta, Charles Perrault, Moraleja, Reina malvada, Hada madrina
+2 imágenes, 0 descritas

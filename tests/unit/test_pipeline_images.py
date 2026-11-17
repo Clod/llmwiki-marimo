@@ -16,7 +16,7 @@ from domain.tools.db import get_connection
 from tests.helpers.workspace import WorkspaceFixture
 
 REPO = Path(__file__).resolve().parents[2]
-PDF = REPO / "examples" / "fairy-tales" / "sources" / "Snow White and the Seven Dwarfs.pdf"
+PDF = REPO / "tests" / "fixtures" / "wikis" / "fairy-tales" / "sources" / "Snow White and the Seven Dwarfs.pdf"
 
 _EXTRACTION = json.dumps({
     "document_summary": "A tale about a princess.",

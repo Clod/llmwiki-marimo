@@ -21,8 +21,8 @@ from domain.tools.db import get_connection
 from domain.tools.wiki_fs import concept_page_names, create_page, page_topics, write_page_content
 from tests.helpers.workspace import WorkspaceFixture
 
-EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "finanzas-argentinas"
-PAGE = "riesgo-de-inflacion"
+EXAMPLE = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "wikis" / "finanzas-argentinas"
+PAGE = "plazo-fijo"   # «Plazo fijo»: no word of QUESTION in its title
 QUESTION = "¿La inflación me puede comer la ganancia?"
 
 
@@ -48,7 +48,12 @@ def _set_topics(wiki: Path, slug: str, topics: list[str] | None, folder: str = "
     """Rewrite the `topics` line of a concept or summary page, on disk and in the index."""
     path = wiki / "wiki" / folder / f"{slug}.md"
     block, body = split_frontmatter(path.read_text(encoding="utf-8"))
-    lines = [line for line in block.splitlines() if not line.startswith("topics:")]
+    # A long `topics` list wraps onto indented lines: they go with it.
+    lines, in_topics = [], False
+    for line in block.splitlines():
+        in_topics = line.startswith("topics:") or (in_topics and line.startswith(" "))
+        if not in_topics:
+            lines.append(line)
     if topics is not None:
         lines.append(f"topics: [{', '.join(topics)}]")
     text = "---\n" + "\n".join(lines) + "\n---\n" + body + "\n"
@@ -159,7 +164,7 @@ def test_a_topic_of_two_words_matches_only_when_both_appear_in_a_row(wiki):
 def test_the_suggestions_include_the_page_of_a_named_topic(wiki):
     _set_topics(wiki, PAGE, ["inflación"])
     pages = roster_suggestions(_db(wiki), QUESTION, set(), "es")
-    assert ("Riesgo de inflación", f"/wiki/concepts/{PAGE}.md") in pages
+    assert ("Plazo fijo", f"/wiki/concepts/{PAGE}.md") in pages
 
 
 def test_the_roster_tab_shows_a_topic_with_its_page(wiki):
@@ -191,7 +196,7 @@ def test_the_title_of_a_summary_page_stays_out_of_the_roster(wiki):
     _set_topics(wiki, SUMMARY, ["precancelación"], "summaries")
     names = concept_page_names(_db(wiki))
     assert "precancelación" in names and "10 Plazos Fijos" not in names
-    assert "Riesgo de inflación" in names
+    assert "Plazo fijo" in names
 
 
 def test_the_roster_tab_links_a_summary_topic_to_its_page(wiki):
@@ -209,9 +214,9 @@ def test_a_topic_declared_by_two_pages_links_to_both(wiki):
     from services import vocabulary as vocab
     from services.wiki import open_wiki
 
-    _set_topics(wiki, "riesgo-de-credito", ["incumplimiento"])
-    _set_topics(wiki, "riesgo-de-credito-en-cauciones", ["incumplimiento"])
+    _set_topics(wiki, "cauciones-bursatiles", ["incumplimiento"])
+    _set_topics(wiki, "aforo", ["incumplimiento"])
     entries = {e.name: e for e in vocab.read_vocabulary(open_wiki(wiki)).roster}
     assert entries["incumplimiento"].origin == "topic"
     assert {page for page, _title in entries["incumplimiento"].pages} == {
-        "concepts/riesgo-de-credito", "concepts/riesgo-de-credito-en-cauciones"}
+        "concepts/cauciones-bursatiles", "concepts/aforo"}

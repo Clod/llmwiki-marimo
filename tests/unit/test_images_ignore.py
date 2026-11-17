@@ -28,7 +28,7 @@ from tests.helpers.image_ingest import CHART, COVER, config, fake_extract, inges
 from tests.helpers.pngs import write_png
 
 REPO = Path(__file__).resolve().parents[2]
-PDF = REPO / "examples" / "fairy-tales" / "sources" / "Snow White and the Seven Dwarfs.pdf"
+PDF = REPO / "tests" / "fixtures" / "wikis" / "fairy-tales" / "sources" / "Snow White and the Seven Dwarfs.pdf"
 needs_java = pytest.mark.skipif(check_java() is None, reason="Java is missing: opendataloader-pdf needs it")
 
 _EXTRACTION = json.dumps({

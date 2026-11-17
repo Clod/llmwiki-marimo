@@ -82,16 +82,22 @@ def _links(name: str, path: Path, wiki: Path) -> list[Problem]:
         if target.startswith("#") or re.match(r"^[a-z][a-z0-9+.-]*:", target, re.IGNORECASE):
             continue
         file = target.split("#", 1)[0]
-        if file and not (path.parent / file).resolve().is_file():
+        # A kept image is linked from the wiki folder (`.llmwiki/cache/local/<doc>/images/…`,
+        # `domain.ingestion.images`), not from the folder of the page.
+        base = wiki.parent if file.startswith(".llmwiki/") else path.parent
+        if file and not (base / file).resolve().is_file():
             problems.append(Problem(name, "link", f"link to a missing file: {target}"))
     return problems
 
 
 def _sections(name: str, text: str, see_also: str, sources: str) -> list[Problem]:
     _, body = split_frontmatter(text)
+    problems = []
+    first = next((line.strip() for line in body.splitlines() if line.strip()), "")
+    if first == "---":
+        problems.append(Problem(name, "sections", "the body opens with a bare `---` line"))
     body = _CODE_RE.sub("", body)
     headings = [(m.start(), m.group(2)) for m in _HEADING_RE.finditer(body) if len(m.group(1)) == 2]
-    problems = []
     seen: set[str] = set()
     for _, title in headings:
         if title in seen:

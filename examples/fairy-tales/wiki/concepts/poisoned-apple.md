@@ -1,32 +1,35 @@
 ---
 type: concept
-title: Poisoned Apple
+title: Poisoned apple
+description: A piece of fruit laced with deadly poison, used as a murder weapon in
+  fairy tales.
 tags: [instrument]
 sources:
   - resource: sources/Snow White and the Seven Dwarfs.pdf
-topics: [apple, poison, death-like sleep]
+topics: [poisoning and deception, wicked stepmother, disguise]
 ---
 
-# Poisoned Apple
+# Poisoned apple
 
 ## Definition
-The Poisoned Apple is a lethal instrument used by the Queen in the story "Snow White and the Seven Dwarfs" to induce a death-like sleep in Snow White, reflecting the Queen's cunning and malice (Snow White and the Seven Dwarfs.pdf).
+A poisoned apple is an apple laced with poison and used as an instrument of deception to harm another character. In *Snow White and the Seven Dwarfs*, it is the means by which the wicked stepmother attempts to carry out her plan.
 
 ## Key Characteristics
-- **Deadly Trap**: The apple is designed to put the victim into a deep, death-like slumber (Snow White and the Seven Dwarfs.pdf).
-- **Symbol of Deception**: It appears as an ordinary apple, masking its true, dangerous nature (Snow White and the Seven Dwarfs.pdf).
-- **Tool of Malice**: Used by the Queen to eliminate her rival, showcasing her evil intent (Snow White and the Seven Dwarfs.pdf).
+- Functions as an instrument of deception rather than open force.
+- Is delivered through a disguise: the Queen presents herself as an old apple seller.
+- Is designed to lure Snow White into taking a bite.
+- Reflects the wicked stepmother's reliance on trickery to pursue her goal.
 
 ## Context
-In the broader context of fairy tales, the Poisoned Apple is a classic example of how seemingly benign objects can be imbued with dark magic to serve nefarious purposes. It highlights themes of jealousy, betrayal, and the deceptive nature of appearances, common in folklore where magical objects often play pivotal roles in the narrative.
+The poisoned apple is a central object in the story's plot against Snow White. Its use shows how the wicked stepmother works through deception, concealing her identity to gain Snow White's trust. Within the broader domain of the story, the apple represents the Queen's cunning and the danger posed by appearances that hide harmful intent.
 
 ## See also
 
+- [Stepmother and stepsisters](stepmother-and-stepsisters.md)
+- [Seven Dwarfs](seven-dwarfs.md)
+- [Magic mirror](magic-mirror.md)
 - [Snow White](snow-white.md)
-- [The Seven Dwarfs](the-seven-dwarfs.md)
 - [Snow White And The Seven Dwarfs](../summaries/snow-white-and-the-seven-dwarfs.md)
-- [Magic Mirror](magic-mirror.md)
-- [The Wicked Queen](the-wicked-queen.md)
 
 ## Sources
 - Snow White and the Seven Dwarfs.pdf

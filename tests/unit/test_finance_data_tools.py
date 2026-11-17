@@ -31,7 +31,7 @@ from services import chat
 from services.wiki import open_wiki
 
 ROOT = Path(__file__).resolve().parents[2]
-EXAMPLE_DATASETS = ROOT / "examples" / "finanzas-argentinas" / "datasets"
+EXAMPLE_DATASETS = ROOT / "tests" / "fixtures" / "wikis" / "finanzas-argentinas" / "datasets"
 URL = dict(base_url="http://localhost:1234/v1", api_key="fake-key", model="fake-model")
 
 

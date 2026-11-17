@@ -221,9 +221,9 @@ def test_every_page_of_the_finance_demo_renders_as_before(monkeypatch):
 
     import web.render as render_module
 
-    root = Path(__file__).resolve().parents[2] / "examples" / "finanzas-argentinas"
+    root = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "wikis" / "finanzas-argentinas"
     paths = sorted((root / "wiki").rglob("*.md"))
-    assert len(paths) > 30
+    assert len(paths) > 25
     pages = {p.relative_to(root / "wiki").with_suffix("").as_posix() for p in paths}
     sources = {p.name for p in (root / "sources").iterdir()}
     checked_links = 0

@@ -413,7 +413,7 @@ def test_the_web_settings_carry_the_vision_group(monkeypatch):
 # ── the real converter ───────────────────────────────────────────────────────
 
 REPO = Path(__file__).resolve().parents[2]
-SNOW_WHITE = REPO / "examples" / "fairy-tales" / "sources" / "Snow White and the Seven Dwarfs.pdf"
+SNOW_WHITE = REPO / "tests" / "fixtures" / "wikis" / "fairy-tales" / "sources" / "Snow White and the Seven Dwarfs.pdf"
 
 
 @pytest.mark.skipif(check_java() is None, reason="Java is missing: opendataloader-pdf needs it")

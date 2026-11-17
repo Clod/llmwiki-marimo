@@ -1,4 +1,4 @@
-"""The application on a free port over a copy of `examples/finanzas-argentinas`.
+"""The application on a free port over a copy of `tests/fixtures/wikis/finanzas-argentinas`.
 
 `serve` runs it with simulated agents; the Playwright tests and `capture.py`
 use it. `serve_live` runs it with the model of `.env`; only the opt-in test
@@ -22,7 +22,7 @@ from tests.web.conftest import fake_agents
 from web.app import create_app
 from web.settings import WebSettings
 
-EXAMPLE = Path(__file__).resolve().parents[3] / "examples" / "finanzas-argentinas"
+EXAMPLE = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "wikis" / "finanzas-argentinas"
 WIKI_ID = "finanzas-argentinas"
 
 

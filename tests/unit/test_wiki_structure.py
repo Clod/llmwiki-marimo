@@ -126,3 +126,43 @@ def test_the_missing_xref_repair_puts_the_section_above_the_footnote(tmp_workspa
     page = (tmp_workspace.workspace / "wiki" / "summaries" / "a.md").read_text(encoding="utf-8")
     assert page.index("## See also") < page.index("[^1]: a.pdf")
     assert check_structure(tmp_workspace.workspace, tmp_workspace.db_path, "en") == []
+
+
+# ── the shipped examples ──────────────────────────────────────────────────────
+def test_the_example_wikis_have_no_structure_problem():
+    """The examples are regenerated with the current code: a change that brings back a
+    defect of form fails here."""
+    from pathlib import Path
+
+    from domain.wiki_settings import load_wiki_language
+
+    root = Path(__file__).resolve().parents[2] / "examples"
+    for wiki in sorted(p for p in root.iterdir() if (p / "wiki").is_dir()):
+        problems = check_structure(wiki, str(wiki / ".llmwiki" / "index.db"), load_wiki_language(wiki))
+        assert [str(p) for p in problems] == [], wiki.name
+
+
+def test_a_body_that_opens_with_a_bare_rule(tmp_workspace: WorkspaceFixture):
+    _wiki(tmp_workspace, alpha="---\n\n" + CONCEPT)
+    assert _rules(tmp_workspace) == ["sections"]
+
+
+def test_the_concept_page_loses_the_delimiters_the_update_prompt_gave():
+    """The update prompt wraps the existing page in `---` lines; the model returned them."""
+    from domain.ingestion.wiki_generator import ExtractedConcept, build_concept_page
+    from tests.helpers.fake_llm import FakeLLMClient
+
+    llm = FakeLLMClient(response_content="---\n\n# BCRA\n\n## Definition\nThe bank.\n\n---")
+    page = build_concept_page(ExtractedConcept("BCRA", "entity", "i"), "a.pdf", "# BCRA\n\nOld.\n", llm, "fake")
+    assert page.startswith("# BCRA") and "---" not in page
+
+
+def test_a_kept_image_is_linked_from_the_wiki_folder(tmp_workspace: WorkspaceFixture):
+    image = tmp_workspace.workspace / ".llmwiki" / "cache" / "local" / "d1" / "images" / "imageFile1.png"
+    image.parent.mkdir(parents=True)
+    image.write_bytes(b"png")
+    link = ".llmwiki/cache/local/d1/images/imageFile1.png"
+    _wiki(tmp_workspace, summary=SUMMARY.replace("The document.", f"The document.\n\n- [![Image, page 1]({link})]({link})"))
+    assert check_structure(tmp_workspace.workspace, tmp_workspace.db_path, "en") == []
+    image.unlink()
+    assert _rules(tmp_workspace) == ["link"]

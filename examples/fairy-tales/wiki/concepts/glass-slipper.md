@@ -1,31 +1,33 @@
 ---
 type: concept
-title: Glass Slipper
+title: Glass slipper
+description: A delicate footwear item that serves as a symbolic token used to identify
+  a person by fit.
 tags: [instrument]
 sources:
   - resource: sources/Cinderella.pdf
-topics: [slipper]
+topics: [love and marriage, magical transformation, appearance versus inner goodness]
 ---
 
-# Glass Slipper
+# Glass slipper
 
 ## Definition
-The glass slipper is a magical item left behind by Cinderella at the ball, which becomes the key to her identity and eventual marriage to the prince (Cinderella.pdf).
+The glass slipper is a slipper in the Cinderella story that the prince uses to identify Cinderella. It fits her foot perfectly, which establishes her identity.
 
 ## Key Characteristics
-- Made of glass, a material not typically used for footwear (Cinderella.pdf).
-- Serves as a unique identifier for Cinderella, as no other woman can fit into it (Cinderella.pdf).
-- Symbolizes the magical transformation and fleeting nature of Cinderella's experience at the ball (Cinderella.pdf).
+- Functions as the means by which the prince identifies Cinderella.
+- Fits Cinderella's foot perfectly, serving as proof of her identity (Cinderella.pdf).
+- Acts as an identifying object, linking the prince's search to the outcome of the story (Cinderella.pdf).
 
 ## Context
-In the broader context of fairy tales, the glass slipper is an iconic symbol of transformation and destiny. It plays a crucial role in the narrative of "Cinderella," where it acts as the pivotal element that leads to the protagonist's recognition and ultimate happiness. The slipper's unique properties highlight themes of identity and fate, common in many folklore traditions.
+The glass slipper is an instrument within the Cinderella narrative. Its role is practical: it allows the prince to recognize the person he is seeking. Because it fits only her foot, it turns a physical fit into proof of identity (Cinderella.pdf).
 
 ## See also
 
 - [Cinderella](cinderella.md)
+- [Stepmother and stepsisters](stepmother-and-stepsisters.md)
+- [Midnight curfew](midnight-curfew.md)
 - [Cinderella](../summaries/cinderella.md)
-- [Royal Ball](royal-ball.md)
-- [Stepmother and Stepsisters](stepmother-and-stepsisters.md)
 
 ## Sources
 - Cinderella.pdf

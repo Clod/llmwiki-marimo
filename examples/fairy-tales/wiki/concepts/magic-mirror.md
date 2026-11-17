@@ -1,32 +1,34 @@
 ---
 type: concept
-title: Magic Mirror
+title: Magic mirror
+description: An enchanted mirror that answers questions truthfully, used in fairy
+  tales to reveal hidden facts.
 tags: [instrument]
 sources:
   - resource: sources/Snow White and the Seven Dwarfs.pdf
-topics: [mirror]
+topics: [vanity and jealousy, truth and deception, magic and enchantment]
 ---
 
-# Magic Mirror
+# Magic mirror
 
 ## Definition
-The Magic Mirror is an enchanted object used by the Queen in "Snow White and the Seven Dwarfs" to affirm her beauty daily. It ultimately reveals Snow White's superior beauty, leading to the Queen's jealousy and subsequent actions. (Snow White and the Seven Dwarfs.pdf)
+A magic mirror is a mirror that answers questions posed to it, used as an instrument within a story. In *Snow White and the Seven Dwarfs*, the Queen consults it to learn who is the fairest.
 
 ## Key Characteristics
-- **Enchanted Object**: The mirror possesses magical properties that allow it to speak and reveal truths. (Snow White and the Seven Dwarfs.pdf)
-- **Consulted Daily**: The Queen uses the mirror regularly to confirm her status as the fairest of them all. (Snow White and the Seven Dwarfs.pdf)
-- **Truthful Revelations**: The mirror provides honest answers, which leads to the revelation of Snow White's beauty surpassing that of the Queen. (Snow White and the Seven Dwarfs.pdf)
+- Functions as an instrument the Queen repeatedly consults to learn who is the fairest.
+- Gives honest answers, which drive the plot.
+- Reveals that Snow White has survived.
+- Later confirms that the Queen is the fairest again.
 
 ## Context
-The Magic Mirror is a pivotal instrument in the fairy tale "Snow White and the Seven Dwarfs," serving as the catalyst for the Queen's envy and the subsequent plot against Snow White. Its role highlights themes of vanity and the consequences of jealousy within the narrative. (Snow White and the Seven Dwarfs.pdf)
+The magic mirror is an instrument in *Snow White and the Seven Dwarfs*. Its responses act as a plot device: because the mirror answers truthfully, its statements about Snow White's survival and the Queen's status shape the story's developments.
 
 ## See also
 
-- [Fairy Tale](fairy-tale.md)
+- [Stepmother and stepsisters](stepmother-and-stepsisters.md)
+- [Seven Dwarfs](seven-dwarfs.md)
 - [Snow White](snow-white.md)
-- [The Seven Dwarfs](the-seven-dwarfs.md)
 - [Snow White And The Seven Dwarfs](../summaries/snow-white-and-the-seven-dwarfs.md)
-- [The Wicked Queen](the-wicked-queen.md)
 
 ## Sources
 - Snow White and the Seven Dwarfs.pdf
