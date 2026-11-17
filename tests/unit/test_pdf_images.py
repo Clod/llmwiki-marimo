@@ -143,8 +143,13 @@ def test_real_converter_keeps_the_ten_images_of_snow_white(tmp_path):
     pages = extract_pdf(str(SNOW_WHITE), folder)
     links = [m for _, text in pages for m in images.IMAGE_LINK_RE.finditer(text)]
     assert len(links) == 10
-    assert len(list(folder.glob("*.png"))) == 10
+    # The illustrations are kept as JPEG: 10 MB as PNG, under 2.5 MB as JPEG.
+    kept = list(folder.glob("*.jpg"))
+    assert len(kept) == 10 and not list(folder.glob("*.png"))
+    assert sum(f.stat().st_size for f in kept) < 2_500_000
     assert all((folder / m.group("file")).is_file() for m in links)
+    figures = json.loads((folder.parent / "figures.json").read_text(encoding="utf-8"))
+    assert sorted(f["file"] for f in figures) == sorted(f.name for f in kept)
     assert [len(re_.findall(text)) for _, text in pages[:6] for re_ in [images.IMAGE_LINK_RE]] == [1, 2, 2, 1, 2, 2]
 
 

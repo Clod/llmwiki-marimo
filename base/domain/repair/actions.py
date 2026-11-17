@@ -540,6 +540,18 @@ def _figure_pages(workspace: Path, doc_id: str) -> dict[str, int]:
         return {}
 
 
+def _same_image_other_format(workspace: Path, doc: str, file: str) -> str | None:
+    """The name of the kept image of `doc` with the stem of `file` and the other format
+    (`.png` ↔ `.jpg`), or None."""
+    from domain.ingestion.images import image_path
+
+    stem, suffix = Path(file).stem, Path(file).suffix.lower()
+    other = {".png": ".jpg", ".jpg": ".png"}.get(suffix)
+    if other and image_path(workspace, doc, stem + other):
+        return stem + other
+    return None
+
+
 def _rewrite_image_links(
     text: str, workspace: Path, page: int | None, own_doc: str | None,
     by_stem: dict[str, str],
@@ -556,7 +568,20 @@ def _rewrite_image_links(
         alt_page, image_link, image_path, links_in, unavailable_text,
     )
 
-    out, last, restored, replaced = [], 0, 0, 0
+    restored = 0
+    # The extraction keeps an image as JPEG when that weighs less: a link of an older
+    # index to `imageFile1.png` finds `imageFile1.jpg`. Every occurrence of the path
+    # changes, so the link around a thumbnail of the Figures section follows.
+    for m, old in links_in(text):
+        if old or image_path(workspace, m.group("doc"), m.group("file")):
+            continue
+        other = _same_image_other_format(workspace, m.group("doc"), m.group("file"))
+        if other:
+            path = m.group("path")
+            text = text.replace(path, path[: -len(m.group("file"))] + other)
+            restored += 1
+
+    out, last, replaced = [], 0, 0
     for m, old in links_in(text):
         if old:
             doc = own_doc or by_stem.get(m.group("stem").rsplit("/", 1)[-1])

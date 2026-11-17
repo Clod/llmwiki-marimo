@@ -24,7 +24,7 @@ Cuento popular de los Hermanos Grimm en el que una reina envidiosa, celosa de la
 
 ## Figuras
 
-- [![Imagen, página 2](.llmwiki/cache/local/ac7720b4-5fa5-44a8-a352-2606707405d6/images/imageFile1.png)](.llmwiki/cache/local/ac7720b4-5fa5-44a8-a352-2606707405d6/images/imageFile1.png) **Página 2.** *Hermanos Grimm*
+- [![Imagen, página 2](.llmwiki/cache/local/ac7720b4-5fa5-44a8-a352-2606707405d6/images/imageFile1.jpg)](.llmwiki/cache/local/ac7720b4-5fa5-44a8-a352-2606707405d6/images/imageFile1.jpg) **Página 2.** *Hermanos Grimm*
 
 ## Información de la fuente
 
