@@ -9,6 +9,7 @@ All functions are synchronous.
 """
 
 import json
+import re
 import logging
 import sqlite3
 import uuid
@@ -45,7 +46,8 @@ from domain.text.stemming import stem_text
 from domain.i18n import get_locale
 from domain.wiki_settings import load_images_config
 from domain.tools.db import get_connection, open_db
-from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page
+from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
+from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page, page_description
 from domain.tools.references import update_references
 from domain.tools.git_ops import init_wiki_repo, auto_commit
 from domain.messages import M_
@@ -353,8 +355,10 @@ def _ingest_file(
             # ── Step 7: Structured extraction ─────────────────────────────────
             _cb(M_("🤖 Extracting knowledge structure..."))
             with tracing.node("I_CONCEPTS", W) as i5:
-                extraction = extract_structured(doc_meta, page_contents, llm_client, model, language=language)
-                i5.set(concepts=[c.name for c in extraction.concepts])
+                known = known_concepts(workspace, language)
+                extraction = extract_structured(doc_meta, page_contents, llm_client, model,
+                                                language=language, known=known)
+                i5.set(concepts=[c.name for c in extraction.concepts], known=len(known))
             _cb(M_("📋 Found %(n)s concept(s)", n=len(extraction.concepts)))
 
             # ── Step 8: Create/update concept pages ───────────────────────────
@@ -379,6 +383,7 @@ def _ingest_file(
                         clear_stale=True,
                         sources=[file_path.name],
                         topics=concept.topics,
+                        description=concept.description,
                     )
                     new_topics.extend((f"concepts/{slug}", t) for t in concept_result["new_topics"])
                     wiki_compensations.append({
@@ -634,6 +639,48 @@ def _all_concept_names(db_path: str) -> list[str]:
             "WHERE source_kind='wiki' AND path='/wiki/concepts/' AND status='ready'"
         ).fetchall()
     return [r["title"] for r in rows]
+
+
+def known_concepts(workspace: Path, language: str = "en") -> list[tuple[str, str]]:
+    """(title, description) of each concept page of the wiki, sorted by title: what the
+    extraction receives to reuse the title of a concept the wiki already has.
+
+    The description is the `description` of the front-matter. A page without one,
+    written before the field existed, gives the first sentence of its definition
+    section (`## Definición` in Spanish); a page with neither is listed by its title
+    alone, with an empty description."""
+    loc = get_locale(language)
+    concepts: list[tuple[str, str]] = []
+    for path in sorted((workspace / "wiki" / "concepts").glob("*.md")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        title = _front_title(text) or path.stem.replace("-", " ")
+        concepts.append((title, page_description(text) or _first_definition_sentence(text, loc.h_definition)))
+    return sorted(concepts, key=lambda c: c[0].lower())
+
+
+def _front_title(text: str) -> str:
+    """The `title` of a page's front-matter, or ""."""
+    block, _ = split_frontmatter(text)
+    if block is None:
+        return ""
+    try:
+        title = parse_frontmatter(block).get("title")
+    except ValueError:
+        return ""
+    return title.strip() if isinstance(title, str) else ""
+
+
+def _first_definition_sentence(text: str, heading: str) -> str:
+    """The first sentence of the `## <heading>` section of a page, or ""."""
+    match = re.search(rf"^##\s+{re.escape(heading)}\s*$(.*?)(?=^##\s|\Z)", text, re.MULTILINE | re.DOTALL)
+    if not match:
+        return ""
+    body = " ".join(match.group(1).split())
+    sentence = re.match(r"(.+?[.!?])(\s|$)", body)
+    return (sentence.group(1) if sentence else body).strip()
 
 
 def scan_candidates(workspace: Path) -> list[Path]:

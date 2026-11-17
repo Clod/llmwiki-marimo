@@ -516,6 +516,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A concept the wiki already has, named otherwise by another document, updates
+  its page.** The finance example had two pages for the central bank, «BCRA» (from
+  the fixed-term document) and «Banco Central de la República Argentina» (from the
+  dollar-linked document), each with half of what the wiki knows; the same for «FCI
+  Money Market» and «Fondo Money Market». The ingestion found the existing page by
+  the slug of the name the extraction returned, and the extraction did not see the
+  concepts of the wiki. Each concept page now declares a `description` in its
+  front-matter, one sentence that says what the entity is (written by the code from
+  the extraction, kept on every rewrite, editable in the file). The extraction
+  receives the list `title — description` of the concept pages (`known_concepts`;
+  a page without a description gives the first sentence of its definition) and is
+  asked to return exactly the title of an existing concept when the document treats
+  the same entity.
 - **The tables of a PDF reach the wiki.** Every table of a PDF, and of a `.docx`,
   `.doc`, `.odt` or `.rtf` (converted to PDF before reading), was dropped: the six
   documents of the finance example end with a «summary of attributes» table, and

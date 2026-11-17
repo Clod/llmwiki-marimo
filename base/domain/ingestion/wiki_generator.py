@@ -41,6 +41,7 @@ class ExtractedConcept:
     insight: str
     aliases: list[str] = field(default_factory=list)  # other names for the SAME thing
     topics: list[str] = field(default_factory=list)   # the subjects a question would name
+    description: str = ""  # one sentence: what the entity is, written to the front-matter
 
 
 @dataclass
@@ -56,8 +57,14 @@ def extract_structured(
     client,
     model: str,
     language: str = "en",
+    known: list[tuple[str, str]] | None = None,
 ) -> ExtractionResult:
     """Phase 1 of 3: call LLM to extract summary + concepts as structured JSON.
+
+    `known` is the list (title, description) of the concept pages the wiki has
+    (`pipeline.known_concepts`). The prompt then asks the model to return exactly the
+    title of an existing concept when the document treats the same entity, so the
+    ingestion updates that page instead of creating another one.
 
     The content-language directive is appended to the system prompt so LLM prose
     values (document_summary, concept insights) come back in the wiki language.
@@ -70,6 +77,9 @@ def extract_structured(
         page_count=doc_meta["page_count"],
         content=content,
     )
+    if known:
+        listing = "\n".join(f"- {title} — {description}" for title, description in known)
+        user_msg = f"{user_msg}\n\n{load_prompt('extract_known', language).strip().format(concepts=listing)}"
     base_prompt = load_prompt("extract_system", language)
     if has_descriptions(page_contents):
         base_prompt = f"{base_prompt}\n\n{image_note(language)}"
@@ -121,6 +131,7 @@ def _parse_extraction(raw: str, filename: str) -> ExtractionResult:
                 insight=c.get("insight", ""),
                 aliases=_clean_aliases(c.get("aliases")),
                 topics=_clean_aliases(c.get("topics")),
+                description=c.get("description", "").strip() if isinstance(c.get("description"), str) else "",
             )
             for c in data.get("concepts", [])
             if c.get("name")
