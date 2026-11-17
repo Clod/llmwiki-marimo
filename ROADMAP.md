@@ -16,9 +16,6 @@ describe how the system actually behaves, measured rather than asserted.
 
 **Smaller items**, each a real gap rather than a nicety:
 
-- **Give scan and regenerate the same automatic tail as ingest.** Ingestion now
-  closes with a lint+repair pass scoped to the pages it touched. `scan_and_ingest`
-  and `regenerate_wiki_pages` still do not reconcile afterwards.
 - **Document `scan_and_ingest` for end users** — what it touches, and when
   `batch_ingest` is the better call.
 - **OCR for scanned PDFs — built** (commit `01497f0`; see `CHANGELOG.md`).

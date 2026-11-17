@@ -1,9 +1,12 @@
 """Ingestion and maintenance of a wiki, for any user interface.
 
-`ingest_uploads` is the upload path of the Ingest screen: it ingests each file,
-then reconciles the pages it touched (node I_UPLOAD_REPAIR) and refreshes their "See also"
-cross-links (node I_CROSSLINKS), all under one `ingest` root span. The other functions
-are the maintenance passes and the read-only views of the sources.
+`ingest_uploads` is the upload path of the Ingest screen: it ingests each file, then
+runs the final review, all under one `ingest` root span. The final review
+(`_final_review`) reconciles the pages the run touched (node I_FINAL_REVIEW), refreshes
+their "See also" cross-links (node I_CROSSLINKS) and commits what it wrote; the scan
+(`scan_sources`) and the regeneration of the summaries (`regenerate_summaries`) end with
+it too. The other functions are the maintenance passes and the read-only views of the
+sources.
 """
 
 from __future__ import annotations
@@ -125,10 +128,7 @@ def ingest_uploads(
     vision model that describes the images of the sources when the wiki sets
     `[images] describe = true` (`domain.ingestion.describe.Vision`).
     """
-    from domain.ingestion import crosslink_wiki_pages, ingest_file
-    from domain.lint.report import LintReport
-    from domain.lint.runner import lint_wiki
-    from domain.repair.runner import repair_wiki
+    from domain.ingestion import ingest_file
 
     uploads = list(uploads)
     results: list = []
@@ -148,41 +148,63 @@ def ingest_uploads(
                                        **({"vision": vision} if vision is not None else {})))
 
         source_ids = [r.doc_id for r in results if r.status == "ingested" and getattr(r, "doc_id", None)]
-        touched = related_pages(wiki.db_path, source_ids)
-        repair_client = client if full_repair else None
-        mode = "full LLM" if full_repair else "deterministic"
-        progress(M_("🩺 Running full LLM lint on %(n)s ingested page(s)…", n=len(touched)) if full_repair
-                 else M_("🩺 Running deterministic lint on %(n)s ingested page(s)…", n=len(touched)))
-        with tracing.node("I_UPLOAD_REPAIR", tracing.WRITING, mode=mode, pages=len(touched)) as i15:
-            report = lint_wiki(wiki.db_path, wiki.path, client=repair_client, model=model,
-                               progress_cb=progress)
-            # The image checks report a source by its path under sources/.
-            scope = touched | _source_paths(wiki.db_path, source_ids)
-            fixable = [i for i in report.issues
-                       if i.check not in _NOT_REPAIRED_ON_INGEST and i.page in scope]
-            i15.set(issues=len(report.issues), fixable=len(fixable))
-            if fixable:
-                progress(M_("🔧 %(n)s issue(s) on ingested pages — repairing (full LLM)…", n=len(fixable)) if full_repair
-                         else M_("🔧 %(n)s issue(s) on ingested pages — repairing (deterministic)…", n=len(fixable)))
-                repair_wiki(LintReport(issues=fixable, checked_at=report.checked_at),
-                            wiki.db_path, wiki.path, llm_client=repair_client, model=model,
-                            progress_cb=progress, language=wiki.language)
-            else:
-                progress(M_("✅ Ingested pages consistent — no repairs needed."))
-
-        # Refresh "See also" cross-links: an older page may reference a newly
-        # added concept. Scoped to the touched pages; the wiki-wide sweep is
-        # quadratic in the page count and belongs to the wiki-wide button.
-        if source_ids:
-            with tracing.node("I_CROSSLINKS", tracing.WRITING, touched=len(touched)) as i16:
-                linked = crosslink_wiki_pages(wiki.path, wiki.db_path, language=wiki.language,
-                                              progress_cb=progress, touched=touched)
-                i16.set(linked=linked)
-            if linked:
-                progress(M_("🔗 Cross-linked %(n)s page(s)", n=linked))
+        _final_review(wiki, source_ids, client, model, full_repair=full_repair, progress=progress)
         if verifier is not None and source_ids:
             _verify_written(wiki, source_ids, verifier, progress)
     return results
+
+
+def _final_review(wiki: Wiki, source_ids: list[str], client, model: str, *, full_repair: bool,
+                  progress: Progress) -> None:
+    """The end of every ingestion: lint and repair of the pages it touched, then the
+    "See also" cross-links, then one commit of what the review wrote.
+
+    The upload, the scan and the regeneration of the summaries end with it, so the
+    three leave the same wiki. `full_repair` picks the depth: False runs the
+    deterministic checks and repairs only (no model calls). The `orphan` check is
+    excluded: a concept page this ingestion created may have no inbound link yet,
+    and its repair would delete it. `ingest_file` commits each file before this
+    review runs, so the review commits its own changes."""
+    from domain.ingestion import crosslink_wiki_pages
+    from domain.lint.report import LintReport
+    from domain.lint.runner import lint_wiki
+    from domain.repair.runner import repair_wiki
+    from domain.tools.git_ops import auto_commit, init_wiki_repo
+
+    touched = related_pages(wiki.db_path, source_ids)
+    repair_client = client if full_repair else None
+    mode = "full LLM" if full_repair else "deterministic"
+    progress(M_("🩺 Running full LLM lint on %(n)s ingested page(s)…", n=len(touched)) if full_repair
+             else M_("🩺 Running deterministic lint on %(n)s ingested page(s)…", n=len(touched)))
+    with tracing.node("I_FINAL_REVIEW", tracing.WRITING, mode=mode, pages=len(touched)) as i15:
+        report = lint_wiki(wiki.db_path, wiki.path, client=repair_client, model=model,
+                           progress_cb=progress)
+        # The image checks report a source by its path under sources/.
+        scope = touched | _source_paths(wiki.db_path, source_ids)
+        fixable = [i for i in report.issues
+                   if i.check not in _NOT_REPAIRED_ON_INGEST and i.page in scope]
+        i15.set(issues=len(report.issues), fixable=len(fixable))
+        if fixable:
+            progress(M_("🔧 %(n)s issue(s) on ingested pages — repairing (full LLM)…", n=len(fixable)) if full_repair
+                     else M_("🔧 %(n)s issue(s) on ingested pages — repairing (deterministic)…", n=len(fixable)))
+            repair_wiki(LintReport(issues=fixable, checked_at=report.checked_at),
+                        wiki.db_path, wiki.path, llm_client=repair_client, model=model,
+                        progress_cb=progress, language=wiki.language)
+        else:
+            progress(M_("✅ Ingested pages consistent — no repairs needed."))
+
+    # Refresh "See also" cross-links: an older page may reference a newly
+    # added concept. Scoped to the touched pages; the wiki-wide sweep is
+    # quadratic in the page count and belongs to the wiki-wide button.
+    if source_ids:
+        with tracing.node("I_CROSSLINKS", tracing.WRITING, touched=len(touched)) as i16:
+            linked = crosslink_wiki_pages(wiki.path, wiki.db_path, language=wiki.language,
+                                          progress_cb=progress, touched=touched)
+            i16.set(linked=linked)
+        if linked:
+            progress(M_("🔗 Cross-linked %(n)s page(s)", n=linked))
+    init_wiki_repo(wiki.path)
+    auto_commit(wiki.path, f"final review: {len(touched)} page(s)")
 
 
 def _source_paths(db_path: str, source_ids: list[str]) -> set[str]:
@@ -217,6 +239,8 @@ def scan_sources(wiki: Wiki, client, model: str, *, verifier: Verifier | None = 
     results = scan_and_ingest(wiki.path, wiki.db_path, client, model, progress, language=wiki.language,
                               **extra)
     source_ids = [r.doc_id for r in results if r.status == "ingested" and getattr(r, "doc_id", None)]
+    if source_ids:
+        _final_review(wiki, source_ids, client, model, full_repair=False, progress=progress)
     if verifier is not None and source_ids:
         _verify_written(wiki, source_ids, verifier, progress)
     return results
@@ -242,6 +266,8 @@ def regenerate_summaries(wiki: Wiki, client, model: str, *, verifier: Verifier |
         init_wiki_repo(wiki.path)
         auto_commit(wiki.path, f"regenerate summaries: {regenerated}")
     source_ids = [r.doc_id for r in results if r.status == "ingested" and getattr(r, "doc_id", None)]
+    if source_ids:
+        _final_review(wiki, source_ids, client, model, full_repair=False, progress=progress)
     if verifier is not None and source_ids:
         _verify_written(wiki, source_ids, verifier, progress, summaries_only=True)
     return results

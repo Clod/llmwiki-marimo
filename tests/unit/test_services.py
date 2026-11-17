@@ -701,3 +701,89 @@ def test_unprocessed_sources_lists_what_the_scan_would_ingest(wiki):
 
 def test_unprocessed_sources_of_an_empty_sources_folder_is_empty(wiki):
     assert ingest.unprocessed_sources(wiki) == []
+
+
+# ── the final review of the scan, the regeneration and the upload ─────────────
+def _two_concepts_of_one_source(wiki):
+    """What an ingestion of one report writes: the source, and two concept pages that
+    cite it and do not link to each other. Committed, as `ingest_file` commits."""
+    import uuid
+
+    from domain.tools.db import get_connection
+    from domain.tools.git_ops import auto_commit, init_wiki_repo
+    from domain.tools.references import update_references
+
+    source_id = str(uuid.uuid4())
+    (wiki.sources_dir / "informe.pdf").write_bytes(b"%PDF")
+    with get_connection(wiki.db_path) as conn:
+        user_id = conn.execute("SELECT user_id FROM workspace LIMIT 1").fetchone()["user_id"]
+        with conn:
+            conn.execute(
+                "INSERT INTO documents (id, user_id, filename, title, path, relative_path, source_kind, "
+                "file_type, status, content, document_number) "
+                "VALUES (?,?,'informe.pdf','informe.pdf','sources/','sources/informe.pdf','source','pdf','ready','',1)",
+                (source_id, user_id))
+    for slug, title in (("plazo-fijo", "Plazo fijo"), ("caucion", "Caución")):
+        body = f"# {title}\n\nUna inversión de renta fija.\n\n[^1]: informe.pdf\n"
+        page = create_page(wiki.db_path, wiki.path, "/wiki/concepts/", slug, title, body, [])
+        update_references(wiki.db_path, page["id"], body, "/wiki/concepts/")
+    init_wiki_repo(wiki.path)
+    auto_commit(wiki.path, "ingest: informe.pdf")
+    return SimpleNamespace(status="ingested", doc_id=source_id)
+
+
+def _linked(wiki):
+    """One of the two pages links to the other: the repair adds one link, in the order
+    of the page ids, and one link is enough for the lint."""
+    return ("caucion.md" in read_page(wiki, "concepts/plazo-fijo")
+            or "plazo-fijo.md" in read_page(wiki, "concepts/caucion"))
+
+
+def _wiki_tree_is_clean(wiki):
+    """No page change left out of the history of the wiki (`auto_commit` stages wiki/)."""
+    return subprocess.run(["git", "-C", str(wiki.path), "status", "--porcelain", "--", "wiki/"],
+                          capture_output=True, text=True).stdout == ""
+
+
+def test_a_scan_links_two_pages_that_cite_the_same_source(wiki, monkeypatch):
+    """The upload ends with a lint and repair of the pages it wrote; the scan did not, so
+    two concept pages of one report stayed without a link to each other."""
+    import domain.ingestion as ingestion
+
+    monkeypatch.setattr(ingestion, "scan_and_ingest",
+                        lambda *a, **k: [_two_concepts_of_one_source(wiki)])
+    ingest.scan_sources(wiki, None, "m")
+    assert _linked(wiki)
+    assert _wiki_tree_is_clean(wiki)
+
+
+def test_the_scan_review_does_not_call_the_model(wiki, monkeypatch):
+    import domain.ingestion as ingestion
+    import domain.lint.runner as runner
+
+    clients = []
+    real = runner.lint_wiki
+    monkeypatch.setattr(runner, "lint_wiki", lambda *a, client=None, **k: clients.append(client) or real(*a, **k))
+    monkeypatch.setattr(ingestion, "scan_and_ingest",
+                        lambda *a, **k: [_two_concepts_of_one_source(wiki)])
+    ingest.scan_sources(wiki, object(), "m")
+    assert clients == [None]
+
+
+def test_a_regeneration_links_the_pages_of_the_regenerated_source(wiki, monkeypatch):
+    import domain.ingestion as ingestion
+
+    monkeypatch.setattr(ingestion, "regenerate_wiki_pages",
+                        lambda *a, **k: [_two_concepts_of_one_source(wiki)])
+    ingest.regenerate_summaries(wiki, None, "m")
+    assert _linked(wiki)
+    assert _wiki_tree_is_clean(wiki)
+
+
+def test_the_upload_review_is_committed(wiki, monkeypatch):
+    import domain.ingestion as ingestion
+
+    monkeypatch.setattr(ingestion, "ingest_file", lambda *a, **k: _two_concepts_of_one_source(wiki))
+    ingest.ingest_uploads(wiki, [ingest.Upload("informe.pdf", b"%PDF")], None, "m")
+    assert _linked(wiki)
+    assert _wiki_tree_is_clean(wiki)

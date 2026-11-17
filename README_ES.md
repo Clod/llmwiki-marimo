@@ -537,6 +537,15 @@ para una wiki de prosa; Pre-retrieval conviene cuando una respuesta equivocada
 cueste plata, una dosis o un plazo legal. El template documenta la sección
 `[pre_retrieval]` y las tres listas de alcance que la acompañan.
 
+`[pre_retrieval] min_coverage` (por defecto `0.2`) es un valor inicial, no un valor
+medido. Cuando Pre-retrieval responde desde los documentos originales, el código cuenta
+la fracción de las palabras de contenido de la respuesta que contienen los fragmentos
+de esos documentos. Una respuesta por debajo del umbral se reemplaza por una negativa.
+El verificador de oraciones, si está instalado y activado, reemplaza este control. El
+valor adecuado depende de los documentos y de las preguntas de cada wiki: medilo sobre
+los tuyos. Un valor más alto rechaza más respuestas; uno más bajo deja pasar más
+respuestas que los fragmentos no respaldan.
+
 ### Idioma de contenido de la wiki
 
 El idioma de una wiki se elige al crearla: el navegador de carpetas del selector lo pregunta

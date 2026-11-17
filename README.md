@@ -531,6 +531,14 @@ Pre-retrieval suits a wiki where a wrong answer costs money, a dose or a legal
 date. The template documents the `[pre_retrieval]` section and the three scope
 lists that go with it.
 
+`[pre_retrieval] min_coverage` (default `0.2`) is a starting value, not a measured
+one. When Pre-retrieval answers from the original documents, the code counts the
+fraction of the content words of the answer that the document fragments contain. An
+answer below the threshold is replaced by a refusal. The sentence verifier, when
+installed and enabled, replaces this check. The right value depends on the documents
+and on the questions of each wiki: measure it on yours. A higher value refuses more
+answers; a lower one lets through more answers the fragments do not support.
+
 ### Wiki content language
 
 The language of a wiki is chosen when the wiki is created: the folder browser of the

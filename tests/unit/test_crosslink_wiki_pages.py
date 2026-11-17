@@ -5,7 +5,7 @@ Regression: pipeline-generated concept pages previously never linked to one
 another (inject_see_also was only wired into the chat "Save to wiki" path).
 """
 
-from domain.ingestion.pipeline import crosslink_wiki_pages, pages_touched_by
+from domain.ingestion.pipeline import crosslink_wiki_pages
 from domain.i18n import get_locale
 from domain.tools.wiki_fs import create_page, read_page
 from tests.helpers.workspace import WorkspaceFixture
@@ -110,32 +110,6 @@ def test_crosslink_touched_accepts_the_app_path_shape_and_empty_set(
     assert crosslink_wiki_pages(ws, db, language="en", touched=set()) == 0
     # A caller may pass "/wiki/concepts/x.md" (path || filename); tolerated.
     assert crosslink_wiki_pages(ws, db, language="en", touched={"/wiki/concepts/glass-slipper.md"}) == 1
-
-
-def test_pages_touched_by_returns_summary_and_citing_pages(tmp_workspace: WorkspaceFixture) -> None:
-    import uuid
-    from domain.tools.db import get_connection
-    from domain.tools.references import update_references
-
-    ws, db = tmp_workspace.workspace, tmp_workspace.db_path
-    src_id = str(uuid.uuid4())
-    with get_connection(db) as conn:
-        user_id = conn.execute("SELECT user_id FROM workspace LIMIT 1").fetchone()["user_id"]
-        with conn:
-            conn.execute(
-                "INSERT INTO documents (id, user_id, filename, title, path, relative_path, "
-                "source_kind, file_type, status) VALUES (?,?,?,?,'sources/',?,'source','pdf','ready')",
-                (src_id, user_id, "src.pdf", "Src", "sources/src.pdf"),
-            )
-    summary = create_page(db, ws, "/wiki/summaries/", "src", "Src", "# Src\n", [],
-                          source_document_id=src_id)
-    concept = create_page(db, ws, "/wiki/concepts/", "cinderella", "Cinderella",
-                          "# Cinderella\n\n## Sources\n- src.pdf\n", [])
-    update_references(db, concept["id"], "# Cinderella\n\n## Sources\n- src.pdf\n", "/wiki/concepts/")
-    _concept(db, ws, "unrelated", "Unrelated", "Nothing here.")
-
-    assert pages_touched_by(db, [src_id]) == {summary["path"], concept["path"]}
-    assert pages_touched_by(db, []) == set()
 
 
 def test_crosslink_matches_an_accented_mention(tmp_workspace: WorkspaceFixture) -> None:

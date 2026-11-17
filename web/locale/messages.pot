@@ -3824,11 +3824,6 @@ msgstr ""
 msgid "🏁 Scan complete — ingested: %(ingested)s, skipped: %(skipped)s, failed: %(failed)s"
 msgstr ""
 
-#: base/domain/ingestion/pipeline.py base/services/ingest.py
-#, python-format
-msgid "🔗 Cross-linked %(n)s page(s)"
-msgstr ""
-
 #: base/domain/ingestion/pipeline.py
 #, python-format
 msgid "🔗 cross-linked %(page)s"
@@ -3926,6 +3921,11 @@ msgstr ""
 
 #: base/services/ingest.py
 msgid "✅ Ingested pages consistent — no repairs needed."
+msgstr ""
+
+#: base/services/ingest.py
+#, python-format
+msgid "🔗 Cross-linked %(n)s page(s)"
 msgstr ""
 
 #: base/services/ingest.py
