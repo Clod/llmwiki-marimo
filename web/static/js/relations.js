@@ -158,6 +158,12 @@
   }
 
   function goTo(n) {
+    // The search takes the view: without this, the fit that runs when the simulation
+    // stops (`onEngineStop`) undid the centring and the zoom. The search wakes the
+    // simulation and the node keeps moving, so it is centred again when it stops.
+    touched = true;
+    centreOn = n;
+    root.dataset.centred = "0";
     if (n.kind === "summary") showSummary.checked = true;
     pinned = n; update();
     pinned = n; refocus();
@@ -174,7 +180,7 @@
   // The zoom buttons use the library's own zoom; once the user zooms the view stays put.
   // A click during the 250 ms animation of the previous one multiplies the zoom it aims
   // at, not the intermediate zoom of the animation: three quick clicks zoom by 1.5³.
-  let zoomTarget = null, zoomTimer = null;
+  let zoomTarget = null, zoomTimer = null, centreOn = null;
   function zoomBy(factor) {
     touched = true;
     zoomTarget = (zoomTarget ?? fg.zoom()) * factor;
@@ -200,6 +206,12 @@
     // Fit the graph on every settle until the user takes the view into their hands.
     fg.onEngineStop(() => {
       root.dataset.settled = "1";
+      if (centreOn) {
+        fg.centerAt(centreOn.x, centreOn.y, 300);
+        centreOn = null;
+        // For tests: the centring has ended, and a click lands on the node.
+        setTimeout(() => { root.dataset.centred = "1"; }, 320);
+      }
       if (touched) return;
       fg.zoomToFit(300, 80, () => true);
       setTimeout(() => { if (!touched && fg.zoom() > 2.5) fg.zoom(2.5, 200); }, 350);

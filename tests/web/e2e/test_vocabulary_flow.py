@@ -17,7 +17,8 @@ def test_search_the_roster_reject_an_alias_and_blacklist_a_term(page, live):
     page.goto(f"{live.url}/w/{WIKI_ID}/vocabulary")
     expect(page.locator(".tabs").get_by_role("link", name="Vocabulario")).to_have_attribute("aria-current", "page")
     assert page.evaluate("document.documentElement.scrollHeight") == 900     # the screen fills the window
-    expect(page.locator(".vocab-findings")).to_contain_text("«uva»")
+    # The finance example has no finding: a curator rejected «UVA» of «Plazo fijo UVA».
+    expect(page.locator(".vocab-findings")).to_have_count(0)
 
     roster = page.locator("#roster-list li[data-name]:visible")
     total = roster.count()
@@ -30,11 +31,11 @@ def test_search_the_roster_reject_an_alias_and_blacklist_a_term(page, live):
     page.get_by_label("Buscar en el padrón").fill("")
     expect(roster).to_have_count(total)
 
-    group = page.locator(".alias-group", has=page.get_by_role("heading", name="Plazo fijo UVA", exact=True))
+    group = page.locator(".alias-group", has=page.get_by_role("heading", name="Bonos Duales", exact=True))
     group.get_by_role("button", name="Descartar").click()
     settled(page)
-    expect(page.locator("#h-rejected")).to_contain_text("Alias descartados · 3")
-    assert "Plazo fijo UVA" not in load_config(live.wiki_dir).data_aliases
+    expect(page.locator("#h-rejected")).to_contain_text("Alias descartados · 4")
+    assert "Bonos Duales" not in load_config(live.wiki_dir).data_aliases
 
     page.get_by_label("Término nuevo de la lista negra").fill("futuros")
     page.locator("section:has(#h-blacklist)").get_by_role("button", name="Agregar").click()

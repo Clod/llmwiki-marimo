@@ -499,6 +499,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The search of the Relations screen keeps the page it found in view.** Typing a
+  page and pressing Enter centred the page and zoomed to 4, and when the simulation
+  stopped the graph fitted itself again, at zoom 2.5, with the page off centre. The
+  search now takes the view, and centres the page again when the simulation stops
+  (`goTo`, `web/static/js/relations.js`). The flow test waited a fixed 600 ms, which
+  hid the defect; it waits for `data-centred` instead.
+
+- **A false alias in the finance example.** The ingestion had recorded «UVA» as
+  another name of «Plazo fijo UVA», and the vocabulary screen warned that «uva»
+  belongs to two names. The UVA is the unit, not the deposit: the example's
+  `wiki_config.toml` lists the pair under `[falsos_sinonimos]`, as a curator does
+  with «Reject», and the warning is gone.
+
 - **Maintenance.**
   - The web server no longer prints Pydantic AI's first-run banner («observability:
     off — …») with the first question: `pydantic_ai.BANNER_ENABLED` is off
