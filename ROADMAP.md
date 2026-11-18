@@ -305,11 +305,6 @@ What is still open: the provider's structured-output parameter would constrain
 generation to the declared schema, so most invalid replies would not happen. It would be
 one more branch before the retry; nothing is built.
 
-**The documentation link checker cannot see a link cut in two.** When a markdown
-link is split across lines, both halves can resolve as separate links and the
-check passes while the page renders wrong. It verifies that targets exist, not
-that a link is one link. No such link exists in the repo today.
-
 **A guard exists for a step that was never built.**
 `scope.drop_false_synonyms` filters a model's proposed synonyms against pairs
 declared not to be synonyms (`cedear` ≠ `acción`). Nothing calls it: it was

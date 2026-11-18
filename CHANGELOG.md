@@ -559,6 +559,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The documentation link checker reads links whose text runs over two lines.** It
+  read one line at a time, so a link like `[Programmer` / `Manual](manual/…)` was
+  never checked: 12 such links were in the docs (all alive today). It now reads each
+  file whole, and a target cut by a line break is reported as dead
+  (`tests/unit/test_docs_links.py`).
 - **Deleting a source deletes the pages that only it supported, and leaves no link
   to anything deleted.** Deleting `La Cenicienta.pdf` from the Spanish tale example
   used to delete only its summary: `cenicienta.md` and `hada-madrina.md`, which cite
