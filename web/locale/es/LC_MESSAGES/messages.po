@@ -3968,7 +3968,7 @@ msgstr "🌐 Reescribiendo el resumen general del lote..."
 msgid "🩺 Running lint on batch result..."
 msgstr "🩺 Corriendo el lint sobre el resultado del lote..."
 
-#: base/domain/ingestion/batch.py base/domain/ingestion/pipeline.py
+#: base/domain/ingestion/batch.py base/domain/ingestion/workflow.py
 #, python-format
 msgid "🩺 Lint: %(summary)s"
 msgstr "🩺 Lint: %(summary)s"
@@ -3987,67 +3987,6 @@ msgstr "⚠️ El OCR falló en la página %(page)s de %(file)s: %(error)s"
 #, python-format
 msgid "🔍 OCR (%(engine)s) on %(n)s pages of %(file)s"
 msgstr "🔍 OCR (%(engine)s) en %(n)s páginas de %(file)s"
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "🔍 Validating %(file)s"
-msgstr "🔍 Validando %(file)s"
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "⏭ %(file)s — already up to date"
-msgstr "⏭ %(file)s: ya está al día"
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "⚙️ Extracting text from %(file)s"
-msgstr "⚙️ Extrayendo el texto de %(file)s"
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "✅ Extracted %(n)s pages"
-msgstr "✅ Se extrajeron %(n)s páginas"
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "✂️ Chunked into %(n)s chunks"
-msgstr "✂️ Dividido en %(n)s fragmentos"
-
-#: base/domain/ingestion/pipeline.py
-msgid "🤖 Extracting knowledge structure..."
-msgstr "🤖 Extrayendo la estructura de conceptos..."
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "📋 Found %(n)s concept(s)"
-msgstr "📋 Se encontraron %(n)s concepto(s)"
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "💡 Updating concept: %(name)s"
-msgstr "💡 Actualizando el concepto: %(name)s"
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "💡 Creating concept: %(name)s"
-msgstr "💡 Creando el concepto: %(name)s"
-
-#: base/domain/ingestion/pipeline.py
-msgid "📄 Writing summary page..."
-msgstr "📄 Escribiendo la página de resumen..."
-
-#: base/domain/ingestion/pipeline.py
-msgid "🌐 Updating overview..."
-msgstr "🌐 Actualizando el resumen general..."
-
-#: base/domain/ingestion/pipeline.py
-msgid "🩺 Running lint checks..."
-msgstr "🩺 Corriendo las comprobaciones del lint..."
-
-#: base/domain/ingestion/pipeline.py
-#, python-format
-msgid "✅ Done: %(file)s (%(pages)s pages, %(chunks)s chunks%(counts)s)"
-msgstr "✅ Listo: %(file)s (%(pages)s páginas, %(chunks)s fragmentos%(counts)s)"
 
 #: base/domain/ingestion/pipeline.py
 #, python-format
@@ -4106,6 +4045,71 @@ msgstr "🤖 Regenerando la página de la wiki de %(file)s..."
 #: base/domain/ingestion/pipeline.py
 msgid "🏁 Regeneration complete"
 msgstr "🏁 Regeneración terminada"
+
+#: base/domain/ingestion/workflow.py
+#, python-format
+msgid "🔍 Validating %(file)s"
+msgstr "🔍 Validando %(file)s"
+
+#: base/domain/ingestion/workflow.py
+#, python-format
+msgid "⏭ %(file)s — already up to date"
+msgstr "⏭ %(file)s: ya está al día"
+
+#: base/domain/ingestion/workflow.py
+#, python-format
+msgid "⚙️ Extracting text from %(file)s"
+msgstr "⚙️ Extrayendo el texto de %(file)s"
+
+#: base/domain/ingestion/workflow.py
+#, python-format
+msgid "✅ Extracted %(n)s pages"
+msgstr "✅ Se extrajeron %(n)s páginas"
+
+#: base/domain/ingestion/workflow.py
+#, python-format
+msgid "✂️ Chunked into %(n)s chunks"
+msgstr "✂️ Dividido en %(n)s fragmentos"
+
+#: base/domain/ingestion/workflow.py
+msgid "🤖 Extracting knowledge structure..."
+msgstr "🤖 Extrayendo la estructura de conceptos..."
+
+#: base/domain/ingestion/workflow.py
+#, python-format
+msgid "📋 Found %(n)s concept(s)"
+msgstr "📋 Se encontraron %(n)s concepto(s)"
+
+#: base/domain/ingestion/workflow.py
+msgid "🔁 The extraction is not valid JSON: asking the model again"
+msgstr "🔁 La extracción no es un JSON válido: se la pide de nuevo al modelo"
+
+#: base/domain/ingestion/workflow.py
+#, python-format
+msgid "💡 Updating concept: %(name)s"
+msgstr "💡 Actualizando el concepto: %(name)s"
+
+#: base/domain/ingestion/workflow.py
+#, python-format
+msgid "💡 Creating concept: %(name)s"
+msgstr "💡 Creando el concepto: %(name)s"
+
+#: base/domain/ingestion/workflow.py
+msgid "📄 Writing summary page..."
+msgstr "📄 Escribiendo la página de resumen..."
+
+#: base/domain/ingestion/workflow.py
+msgid "🌐 Updating overview..."
+msgstr "🌐 Actualizando el resumen general..."
+
+#: base/domain/ingestion/workflow.py
+msgid "🩺 Running lint checks..."
+msgstr "🩺 Corriendo las comprobaciones del lint..."
+
+#: base/domain/ingestion/workflow.py
+#, python-format
+msgid "✅ Done: %(file)s (%(pages)s pages, %(chunks)s chunks%(counts)s)"
+msgstr "✅ Listo: %(file)s (%(pages)s páginas, %(chunks)s fragmentos%(counts)s)"
 
 #: base/domain/lint/checks.py
 #, python-format
