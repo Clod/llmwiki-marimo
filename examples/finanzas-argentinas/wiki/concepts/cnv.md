@@ -7,7 +7,8 @@ sources:
   - resource: sources/01 Acciones Locales.docx
   - resource: sources/07 FCI Money Market.docx
 topics: [regulación, información de empresas, balances trimestrales, hechos relevantes, regulación
-    de fondos comunes, verificación de autorización, normativa de liquidez]
+    de fondos comunes, verificación de autorización, normativa de liquidez, regulación
+    de fondos, supervisión del mercado de capitales]
 ---
 
 # CNV

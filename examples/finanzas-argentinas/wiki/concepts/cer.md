@@ -8,7 +8,8 @@ sources:
   - resource: sources/04 Bonos CER y UVA.docx
   - resource: sources/05 Bonos Dólar Linked y Duales.docx
 topics: [índices de ajuste por inflación, rezago inflacionario, medición del IPC por el INDEC,
-  cobertura de capital, cobertura inflacionaria, ajuste por inflación, Bonos Duales]
+  cobertura de capital, cobertura inflacionaria, ajuste por inflación, Bonos Duales,
+  cobertura contra inflación y devaluación]
 ---
 
 # CER
@@ -19,7 +20,7 @@ El CER es un índice de ajuste vinculado a la inflación que se utiliza como ref
 ## Características clave
 - Presenta un rezago de 30 a 45 días respecto de la inflación (04 Bonos CER y UVA.docx).
 - Ese rezago puede retrasar la cobertura frente a shocks inflacionarios bruscos (04 Bonos CER y UVA.docx).
-- En los Bonos Duales, el ajuste por CER se compara con el ajuste por Dólar Linked, y el bono paga el mayor de los dos, lo que le da cobertura frente a la inflación (05 Bonos Dólar Linked y Duales.docx).
+- En los Bonos Duales, el ajuste por CER compite con el ajuste por Dólar Linked, y el bono paga al vencimiento el mayor de los dos. Así, el CER actúa como cobertura frente a la inflación cuando la devaluación oficial queda rezagada (05 Bonos Dólar Linked y Duales.docx).
 
 ## Contexto
 El CER se trata en el documento sobre bonos CER y UVA, donde se analiza como referencia de ajuste de estos instrumentos (04 Bonos CER y UVA.docx). Su rezago temporal es relevante para evaluar qué tan bien protege a los inversores cuando la inflación sube de forma repentina (04 Bonos CER y UVA.docx).

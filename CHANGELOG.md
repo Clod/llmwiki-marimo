@@ -559,6 +559,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A table cut by a page break keeps its header on the next page.** The PDF
+  extractor writes each page on its own and makes the first row of every table its
+  header, so the second half of a cut table took a data row as header: in
+  `05 Bonos Dólar Linked y Duales.docx`, page 3 started with «Moneda de cotización» as
+  a column title. The header of the table that ends a page is now repeated at the top
+  of the table that starts the next page, when the columns match
+  (`base/domain/ingestion/tables.py`). Each row stays on its page, so citations keep
+  their page numbers. Of the 102 stored pages of the example and test wikis, two
+  change: page 3 of that document and of `07 FCI Money Market.docx`. A wiki ingested
+  before needs the document ingested again.
 - **The documentation link checker reads links whose text runs over two lines.** It
   read one line at a time, so a link like `[Programmer` / `Manual](manual/…)` was
   never checked: 12 such links were in the docs (all alive today). It now reads each

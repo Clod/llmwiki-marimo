@@ -9,7 +9,7 @@ sources:
   - resource: sources/12 Cauciones Bursátiles.docx
 topics: [liquidez inmediata, rescate T+0, capitalización de cuotapartes, horizonte de muy
     corto plazo, riesgo inflacionario, inversión de corto plazo, comparación de rendimientos,
-  liquidez transitoria]
+  liquidez transitoria, cuotaparte, horizonte de inversión corto, riesgo de inflación]
 ---
 
 # FCI Money Market
@@ -22,10 +22,14 @@ Un FCI Money Market es un fondo común de inversión cuyo rasgo definitorio es e
 - **Funcionamiento transaccional:** opera de manera similar a una cuenta que devenga interés, con disponibilidad inmediata de los fondos.
 - **Capitalización del rendimiento:** el rendimiento se incorpora al valor de la cuotaparte, sin distribución de dividendos.
 - **Sin cobertura directa:** no ofrece protección directa contra la inflación ni contra la variación del dólar.
+- **Horizonte recomendado:** de 1 a 30 días.
+- **Ticket mínimo:** ronda los $1.000.
 - **Competencia con cauciones:** compite directamente con las cauciones bursátiles por los saldos transitorios, de modo que el inversor debe comparar el rendimiento de la caución con el del fondo disponible para decidir dónde colocar sus pesos.
 
 ## Contexto
 Dentro del universo de los fondos comunes de inversión, este instrumento se distingue por su liquidez inmediata, ya que el rescate T+0 dentro del horario de mercado lo acerca al uso de una cuenta transaccional. Al capitalizar el rendimiento en la cuotaparte en lugar de distribuir dividendos, el retorno se refleja en el valor de la cuota. Por otra parte, la ausencia de cobertura directa frente a la inflación y al dólar es un aspecto a considerar al evaluar su rol dentro de una cartera.
+
+Su horizonte recomendado, de 1 a 30 días, y su ticket mínimo, que ronda los $1.000, orientan su uso hacia colocaciones de corto plazo y montos accesibles.
 
 En cuanto a su uso para saldos transitorios, el FCI Money Market compite directamente con las cauciones bursátiles. Para decidir dónde colocar los pesos disponibles, el inversor debe comparar el rendimiento de la caución con el del fondo.
 

@@ -35,3 +35,15 @@ Concepts: Plazo fijo, Plazo fijo UVA, SEDESA, BCRA
 Las cauciones bursátiles son operaciones de muy corto plazo, de 1 a 120 días, en las que un ahorrista coloca pesos a cambio de una tasa, garantizada por activos que el tomador deposita en BYMA con un 
 
 Concepts: Cauciones bursátiles, BYMA, FCI Money Market, Aforo
+
+## [2026-11-18 16:20] Ingested | 05 Bonos Dólar Linked y Duales.docx
+
+El documento describe los bonos Dólar Linked y Duales, títulos en pesos indexados al tipo de cambio oficial mayorista (Comunicación A3500 del BCRA), y los Duales, que pagan al vencimiento el mayor ent
+
+Concepts: Bonos Dólar Linked, Bonos Duales, Comunicación A3500, BCRA, CER
+
+## [2026-11-18 16:20] Ingested | 07 FCI Money Market.docx
+
+Describe los FCI Money Market, fondos comunes de inversión que invierten en instrumentos de cortísimo plazo y alta calidad crediticia, con rescates acreditados el mismo día (T+0). Explica el flujo de 
+
+Concepts: FCI Money Market, Sociedad Gerente, Sociedad Depositaria, Cauciones bursátiles, CNV
