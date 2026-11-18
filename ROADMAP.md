@@ -286,7 +286,11 @@ Measured on the finance demo: "¿las cauciones son riesgosas?" now matches the t
 `cauciones` and the dataset category `caucion`. What C does not cover: the ingestion
 can propose a topic that fits any work of the same kind (`cautionary tale` for a
 fairy tale), which lets a question about another work pass; the ingestion names
-every topic it adds, and the curator removes that kind.
+every topic it adds, and the curator removes that kind. The prompt asks for topics
+in the words of the document; on the Spanish tale example 31 of 39 were not in the
+text, `cuento popular` among them. The console marks those for review first. They
+are kept, not removed: «¿Qué cuentos hablan del castigo?» passes the rule through the
+topic `castigo`, which the text never uses although it tells the queen's punishment.
 
 **A malformed extraction is retried, then rejected (built).** `extract_structured`
 asks for JSON in the prompt. The ingestion of a file is a graph
