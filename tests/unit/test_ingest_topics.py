@@ -99,3 +99,24 @@ def test_a_reingestion_keeps_the_topics_of_the_curator_and_adds_the_new_ones(tmp
     report = next(line for line in lines if line.startswith("⚠️ New topics to review"))
     assert "«magic mirror» → concepts/evil-queen" in report
     assert "«jealousy» → concepts/evil-queen" not in report
+
+
+def test_the_new_topics_not_in_the_text_of_the_document_are_marked_not_removed(tmp_workspace: WorkspaceFixture):
+    """The prompt asks for topics in the words of the document; nothing enforced it. On
+    the Spanish tale example, 31 of 39 topics were not in the text (2026-11-18). The
+    console names them for review; the pages keep them (owner: mark, do not block)."""
+    lines = _ingest(tmp_workspace)
+    marked = [line for line in lines if line.startswith("⚠️ Of those, not in the text of the document")]
+    assert marked == ["⚠️ Of those, not in the text of the document (review them first): «jealousy», «poisoned apple»"]
+    assert _topics(tmp_workspace, "concepts/snow-white") == ["princess", "beauty"]   # nothing removed
+
+
+def test_the_mark_compares_by_stem():
+    from domain.ingestion.pipeline import _report_new_topics
+    lines: list[str] = []
+    _report_new_topics(lines.append, [("concepts/reina", "castigos"), ("concepts/reina", "cuento popular")],
+                       "La reina recibió su castigo al final.", "es")
+    assert lines[-1] == "⚠️ Of those, not in the text of the document (review them first): «cuento popular»"
+    lines.clear()
+    _report_new_topics(lines.append, [("concepts/reina", "castigo")], "La reina recibió su castigo.", "es")
+    assert len(lines) == 1      # every topic is in the text: no second line

@@ -286,7 +286,11 @@ Measured on the finance demo: "¿las cauciones son riesgosas?" now matches the t
 `cauciones` and the dataset category `caucion`. What C does not cover: the ingestion
 can propose a topic that fits any work of the same kind (`cautionary tale` for a
 fairy tale), which lets a question about another work pass; the ingestion names
-every topic it adds, and the curator removes that kind.
+every topic it adds, and the curator removes that kind. The prompt asks for topics
+in the words of the document; on the Spanish tale example 31 of 39 were not in the
+text, `cuento popular` among them. The console marks those for review first. They
+are kept, not removed: «¿Qué cuentos hablan del castigo?» passes the rule through the
+topic `castigo`, which the text never uses although it tells the queen's punishment.
 
 **A malformed extraction is retried, then rejected (built).** `extract_structured`
 asks for JSON in the prompt. The ingestion of a file is a graph
@@ -301,26 +305,6 @@ What is still open: the provider's structured-output parameter would constrain
 generation to the declared schema, so most invalid replies would not happen. It would be
 one more branch before the retry; nothing is built.
 
-**"Regenerate and diff" is a weaker check than the ingestion walkthrough claims.**
-That document says a disagreement between its prose and a regenerated appendix
-"is a signal the pipeline changed". But pages are model-written at temperature
-0.2–0.4, so a difference can equally be model variance — a point the same
-document makes elsewhere. The claim is stronger than the mechanism supports, and
-it bears on how much of the docs can be pinned by tests.
-
-**The documentation link checker cannot see a link cut in two.** When a markdown
-link is split across lines, both halves can resolve as separate links and the
-check passes while the page renders wrong. It verifies that targets exist, not
-that a link is one link. No such link exists in the repo today.
-
-**A guard exists for a step that was never built.**
-`scope.drop_false_synonyms` filters a model's proposed synonyms against pairs
-declared not to be synonyms (`cedear` ≠ `acción`). Nothing calls it: it was
-written for a query-time "synonym rescue" step — widen a question's terms when
-the first search returns nothing — that was never implemented. Kept rather than
-deleted because it is precisely what would keep such a step safe. The decision
-to build it or delete it is open; the function documents both directions.
-
 **Staleness does not travel along page-to-page links, and the graph to make it
 travel already exists.** Today `staleness_check` (`base/domain/lint/checks.py`) follows
 `cites` only — wiki page to source document. It compares a page's timestamp
@@ -332,6 +316,13 @@ caller at all — two tests use it and nothing else does.
 
 What looks like propagation today is not. If B cites the same source as A and
 that source changes, B is flagged on its own account, not because A changed.
+
+*How often it happens today: almost never.* Measured on 2026-11-18 over the three
+example wikis, regenerated on 2026-11-17: 227 lines link to another page (63, 62 and
+102), and none of them is inside a sentence. Every link is a list item under "See
+also" or "Related concepts", so no page restates another page next to a link. The
+case appears only when a curator writes a link inside a sentence by hand, or in a
+page saved from the chat.
 
 *Why this matters.* Page B may reference A because it touches, in passing, a
 subject A treats in full. If what A says about that subject changed, B's

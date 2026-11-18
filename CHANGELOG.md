@@ -13,6 +13,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **The ingestion marks the new topics that are not in the text of the document.**
+  The extraction prompt asks for topics in the words of the document, and nothing
+  checked it: on the Spanish tale example, 31 of 39 topics were not in the text,
+  among them the generic ones that let a question about another work pass the
+  coverage rule (`cuento popular`, `transformación mágica`). After the list of new
+  topics, the console names those for review first (compared by stem). The topics
+  are kept: removing them would refuse «¿Qué cuentos hablan del castigo?», which the
+  wiki covers through the topic `castigo`.
 - **The images of a PDF are kept as JPEG when that weighs less.** opendataloader-pdf
   writes every image as PNG, and an illustration weighed up to 2.3 MB: the 10 of
   *Snow White* summed 10 MB. An image goes to JPEG (quality 80) when the JPEG weighs
@@ -551,6 +559,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The documentation link checker reads links whose text runs over two lines.** It
+  read one line at a time, so a link like `[Programmer` / `Manual](manual/…)` was
+  never checked: 12 such links were in the docs (all alive today). It now reads each
+  file whole, and a target cut by a line break is reported as dead
+  (`tests/unit/test_docs_links.py`).
 - **Deleting a source deletes the pages that only it supported, and leaves no link
   to anything deleted.** Deleting `La Cenicienta.pdf` from the Spanish tale example
   used to delete only its summary: `cenicienta.md` and `hada-madrina.md`, which cite
@@ -812,6 +825,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Removed
 
+- **`scope.drop_false_synonyms`, which nothing called.** It filtered synonyms a model
+  would propose at question time, for a step that was never built (search again with
+  wider terms when the first search finds nothing). The aliases already enter the
+  first search (`alias_titles`), and `[falsos_sinonimos]` keeps filtering them when
+  the generated and hand-written aliases are merged (`vocabulary.merge_aliases`).
 - **The `[pre_retrieval] enabled` key and its checkbox.** The settings screen showed
   a checkbox «Pre-retrieval · Enabled», and unticking it changed nothing: the
   chat opens in the Pre-retrieval mode and the **Mode** selector chooses the mode

@@ -3929,6 +3929,11 @@ msgid "⚠️ New topics to review in the editor of each page: %(pairs)s"
 msgstr ""
 
 #: base/domain/ingestion/pipeline.py
+#, python-format
+msgid "⚠️ Of those, not in the text of the document (review them first): %(topics)s"
+msgstr ""
+
+#: base/domain/ingestion/pipeline.py
 msgid "🔎 Scanning sources/..."
 msgstr ""
 

@@ -13,7 +13,6 @@ from pathlib import Path
 from domain.chat.scope import advisory_intent as _advisory_intent
 from domain.extensions import finance_argentina
 from domain.chat.scope import (
-    drop_false_synonyms,
     is_blacklisted,
     mentions_known_data,
 )
@@ -112,19 +111,3 @@ def test_advisory_intent_needs_amount_or_horizon():
 
 def test_advisory_intent_off_topic_number_is_false():
     assert advisory_intent("¿Cuántos días tiene febrero de 2024?") is False
-
-
-# ── drop_false_synonyms (filter the model's proposals) ──────────────────────
-
-FALSE_SYN = {"cedears": ["accion", "acciones"]}
-
-
-def test_drops_forbidden_synonym():
-    proposals = ["accion", "certificado de deposito"]
-    kept = drop_false_synonyms("¿conviene comprar cedears?", proposals, FALSE_SYN)
-    assert kept == ["certificado de deposito"]  # "accion" dropped (CEDEAR ≠ acción)
-
-
-def test_keeps_proposals_when_no_false_synonym_applies():
-    proposals = ["divisa", "billete verde"]
-    assert drop_false_synonyms("¿a cuánto el dólar?", proposals, FALSE_SYN) == proposals

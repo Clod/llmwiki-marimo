@@ -11,8 +11,6 @@ instead of) invoking the model:
   - `advisory_intent`, `collection_intent`: is the question an investment
     calculation, or about the wiki as a whole? Their expressions come from the
     `[intent]` section of the wiki or from the base lists (`intent.py`).
-  - `drop_false_synonyms`: filter a model's proposed synonyms against known
-    FALSE synonyms (e.g. CEDEAR ≠ acción). NOT WIRED — see its own docstring.
 
 Matching is accent- and case-insensitive, treats `_` as a space, and is by
 WHOLE WORD so short keys ("cer", "mep") don't match inside other words. The
@@ -23,7 +21,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 
 
 def _normalize(text: str) -> str:
@@ -179,36 +177,3 @@ def collection_intent(question: str, cues: Iterable[str], language: str) -> bool
     if any(cue_matches(q, cue) for cue in cues):
         return True
     return any(pattern.search(q) for pattern in _COLLECTION_PATTERNS.get(language, ()))
-
-
-def drop_false_synonyms(
-    question: str, proposals: Iterable[str], false_synonyms: Mapping[str, Iterable[str]]
-) -> list[str]:
-    """Filter `proposals` (the model's synonym suggestions), dropping any that a
-    term present in the question forbids (e.g. question mentions "cedear" and
-    `false_synonyms["cedear"]` lists "accion").
-
-    **NOT WIRED — kept deliberately.** Nothing in the production path calls this;
-    its only caller is `test_chat_scope.py`. It was written in 6e95b8f alongside
-    the rest of the scope gate, for a query-time "synonym rescue" step (widen a
-    question's terms when the first search comes back empty, then ask again)
-    that was never built. Retained because the step is still a plausible
-    addition and this is the piece that would keep it safe: without it, a rescue
-    pass would happily bridge `cedear` → `accion` and reintroduce exactly the
-    leak the roster gate closes.
-
-    `[falsos_sinonimos]` itself IS live, via a different route:
-    `vocabulary.merge_aliases` uses it as a delete filter when the generated and
-    hand-written alias maps are merged. So the config section does real work
-    today; this particular consumer of it does not.
-
-    If a synonym-rescue step is ever added, call this on the model's proposals
-    before searching with them. If it is decided against, delete this function
-    and its tests rather than leaving it to rot.
-    """
-    q = _normalize(question)
-    forbidden: set[str] = set()
-    for term, bad_targets in false_synonyms.items():
-        if _mentions(q, term):
-            forbidden.update(_normalize(t) for t in bad_targets)
-    return [p for p in proposals if _normalize(p) not in forbidden]

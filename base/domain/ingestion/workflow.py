@@ -353,7 +353,7 @@ async def summary_page(ctx: Ctx) -> IngestFile:
         )
         s.new_topics.extend((f"summaries/{wiki_slug}", t) for t in summary_result["new_topics"])
         i8.set(new_topics=len(s.new_topics))
-        p._report_new_topics(s.cb, s.new_topics)
+        p._report_new_topics(s.cb, s.new_topics, s.full_content, s.language)
         s.wiki_compensations.append({
             "dir_path": "/wiki/summaries/", "slug": wiki_slug,
             "category": "summaries", "prior": prior_summary,

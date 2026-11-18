@@ -33,9 +33,13 @@ _FENCE_RE = re.compile(r"^\s*(```|~~~)")
 # Same reasoning for inline code spans. The manual is full of prose like
 # "`[text](concepts/foo.md)` links to a non-existent file" — that is a link being
 # QUOTED, not followed, and its target is a deliberate placeholder.
-_INLINE_CODE_RE = re.compile(r"`[^`]*`")
-# Inline and image links: [text](target) / ![alt](target).
+_INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+# Inline and image links: [text](target) / ![alt](target). The link text may run over
+# several lines, as markdown allows: the regex is applied to the whole file, not to
+# one line at a time, which skipped the 12 links whose text was cut in two (2026-11-18).
 _LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+# A target cut by a line break renders as broken text: it is reported as a dead link.
+_CUT_TARGET_RE = re.compile(r"!?\[[^\]]*\]\(([^)\s]*)\n")
 _SKIP_PREFIXES = ("http://", "https://", "mailto:", "tel:", "#")
 
 
@@ -49,20 +53,27 @@ def _maintained_markdown() -> list[Path]:
 
 
 def _links_outside_code(md: Path) -> list[str]:
-    """Relative link targets in `md`, ignoring anything inside a fenced block."""
-    targets: list[str] = []
+    """Relative link targets in `md`, ignoring fenced blocks and inline code spans.
+
+    A target cut by a line break is returned with a trailing "⏎", so it never
+    resolves and the test reports it."""
+    kept: list[str] = []
     in_fence = False
     for line in md.read_text(encoding="utf-8").splitlines():
         if _FENCE_RE.match(line):
             in_fence = not in_fence
+            kept.append("")
             continue
-        if in_fence:
+        kept.append("" if in_fence else _INLINE_CODE_RE.sub("", line))
+    text = "\n".join(kept)
+    found = [(m.start(), m.group(1)) for m in _LINK_RE.finditer(text)]
+    found += [(m.start(), m.group(1) + "⏎") for m in _CUT_TARGET_RE.finditer(text)]
+    targets: list[str] = []
+    for _, raw in sorted(found):
+        target = raw.strip().strip("<>")
+        if not target or target.startswith(_SKIP_PREFIXES):
             continue
-        for raw in _LINK_RE.findall(_INLINE_CODE_RE.sub("", line)):
-            target = raw.strip().strip("<>")
-            if not target or target.startswith(_SKIP_PREFIXES):
-                continue
-            targets.append(target)
+        targets.append(target)
     return targets
 
 
@@ -103,6 +114,19 @@ def test_extractor_finds_real_links_and_ignores_quoted_ones(tmp_path: Path) -> N
     )
     found = _links_outside_code(md)
     assert found == ["manual.md", "assets/x.png"], found
+
+
+def test_a_link_whose_text_runs_over_two_lines_is_checked(tmp_path: Path) -> None:
+    """The checker read one line at a time and skipped a link whose text was cut in
+    two; 12 such links were in the docs on 2026-11-18. A cut target renders broken
+    and is reported."""
+    md = tmp_path / "sample.md"
+    md.write_text(
+        "See the [Programmer\nManual](manual.md) and the [ingestion\nwalkthrough](gone.md).\n"
+        "A [cut](docs/\nfoo.md) target.\n",
+        encoding="utf-8",
+    )
+    assert _links_outside_code(md) == ["manual.md", "gone.md", "docs/⏎"]
 
 
 def test_the_checker_actually_scans_the_docs() -> None:

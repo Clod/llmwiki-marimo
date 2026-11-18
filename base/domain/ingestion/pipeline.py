@@ -55,6 +55,7 @@ from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_
 from domain.tools.references import update_references
 from domain.tools.git_ops import init_wiki_repo, auto_commit  # noqa: F401
 from domain.messages import M_
+from domain.text.stemming import stem_text
 
 logger = logging.getLogger(__name__)
 
@@ -352,13 +353,31 @@ def _report_new_aliases(cb: Callable[[str], None], new: Iterable[tuple[str, str]
         cb(M_("⚠️ New aliases to review in the vocabulary screen: %(pairs)s", pairs=pairs))
 
 
-def _report_new_topics(cb: Callable[[str], None], new: Iterable[tuple[str, str]]) -> None:
+def _report_new_topics(cb: Callable[[str], None], new: Iterable[tuple[str, str]],
+                       source_text: str = "", language: str = "en") -> None:
     """Name each topic the ingestion just added to a page, for a curator to review in
     the editor of the page. A topic the curator removed can come back with a later
-    ingestion: this line names it again."""
+    ingestion: this line names it again.
+
+    The extraction prompt asks for topics in the words of the document, and nothing
+    enforces it: on the Spanish tale example, 31 of 39 topics were not in the text,
+    among them the generic ones that let a question about another work pass the
+    coverage rule («cuento popular»). A second line names the new topics that are not
+    in `source_text`, compared by stem as the coverage rule compares. The topics are
+    kept: they are marked for review, not removed."""
+    new = list(new)
     pairs = "; ".join(f"«{topic}» → {page}" for page, topic in new)
-    if pairs:
-        cb(M_("⚠️ New topics to review in the editor of each page: %(pairs)s", pairs=pairs))
+    if not pairs:
+        return
+    cb(M_("⚠️ New topics to review in the editor of each page: %(pairs)s", pairs=pairs))
+    if not source_text:
+        return
+    text = f" {stem_text(source_text, language)} "
+    absent = list(dict.fromkeys(topic for _, topic in new
+                                if f" {stem_text(topic, language)} " not in text))
+    if absent:
+        cb(M_("⚠️ Of those, not in the text of the document (review them first): %(topics)s",
+              topics=", ".join(f"«{t}»" for t in absent)))
 
 
 def _all_concept_names(db_path: str) -> list[str]:
@@ -668,7 +687,8 @@ def regenerate_wiki_pages(
                     source_document_id=doc_id,
                     topics=extraction.document_topics,
                 )
-                _report_new_topics(_cb, [(f"summaries/{wiki_slug}", t) for t in regenerated["new_topics"]])
+                _report_new_topics(_cb, [(f"summaries/{wiki_slug}", t) for t in regenerated["new_topics"]],
+                                   "\n\n".join(md for _, md in page_contents), language)
                 _cb(f"  ✅ {filename} → wiki/summaries/{wiki_slug}.md")
                 results.append(IngestResult(file_path, "ingested", "wiki page regenerated", doc_id))
             except Exception as exc:
