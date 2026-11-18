@@ -1,0 +1,1 @@
+Before answering, copy from the CONTEXT, without changing any word, the sentence that answers the question. Start the answer with a line of this form: Evidence: «sentence copied from the context». If no sentence of the context answers the question, write the line Evidence: none, and say that it is not enough.

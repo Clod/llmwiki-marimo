@@ -344,7 +344,7 @@ def test_the_reading_header_shows_the_chat_model(client):
 
 def test_the_mode_is_a_select_with_the_three_modes(client):
     html = client.get(f"/w/{WIKI_ID}/pages/overview").text
-    assert 'type="radio"' not in html
+    assert 'type="radio" name="mode"' not in html
     select = html[html.index('<select class="field mode-select"'):]
     select = select[:select.index("</select>")]
     assert 'name="mode"' in select

@@ -2707,6 +2707,54 @@ msgid "Verify the sentences"
 msgstr "Verificar las oraciones"
 
 #: web/templates/page.html
+msgid ""
+"After an answer from the wiki pages, how the code checks that the pages answer the question. When the check fails, "
+"the code searches the source documents"
+msgstr ""
+"Después de una respuesta con las páginas de la wiki, cómo comprueba el código que las páginas responden la pregunta. "
+"Si la comprobación falla, el código busca en los documentos originales"
+
+#: web/templates/page.html
+msgid "Only the Pre-retrieval mode checks that the wiki pages answer the question"
+msgstr "Solo el modo Pre-retrieval comprueba que las páginas de la wiki responden la pregunta"
+
+#: web/templates/page.html
+msgid "Check that the pages answer the question"
+msgstr "Comprobar que las páginas responden la pregunta"
+
+#: web/templates/page.html
+msgid "No check: the answer from the wiki pages is shown as it is"
+msgstr "Sin comprobación: la respuesta con las páginas de la wiki se muestra tal cual"
+
+#: web/templates/page.html
+msgid "No check"
+msgstr "Ninguna"
+
+#: web/templates/page.html
+msgid "The model copies the sentence of the pages that answers the question, and the code looks for it in the pages"
+msgstr "El modelo copia la frase de las páginas que responde la pregunta, y el código la busca en las páginas"
+
+#: web/templates/page.html
+msgid "Evidence quote"
+msgstr "Cita de evidencia"
+
+#: web/templates/page.html
+msgid "A separate call to the model says whether the pages answer the question"
+msgstr "Una llamada aparte al modelo dice si las páginas responden la pregunta"
+
+#: web/templates/page.html
+msgid "Judge"
+msgstr "Juez"
+
+#: web/templates/page.html
+msgid "Alternative: a relevance model of TypeSafe judges each fragment. It is not implemented yet"
+msgstr "Alternativa: un modelo de relevancia de TypeSafe juzga cada fragmento. Falta implementarla"
+
+#: web/templates/page.html
+msgid "Jev — not implemented"
+msgstr "Jev — sin implementar"
+
+#: web/templates/page.html
 msgid "Change the width of the index"
 msgstr "Cambiar el ancho del índice"
 
@@ -3315,7 +3363,7 @@ msgstr "sin página de la wiki: el dataset o nada inyectado"
 msgid "fragments of the source documents injected"
 msgstr "fragmentos de los documentos originales inyectados"
 
-#: base/domain/chat/workflow/input_checks.py
+#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/model_calls.py
 msgid "What text was injected into the prompt?"
 msgstr "¿Qué texto se inyectó en el prompt?"
 
@@ -3471,6 +3519,58 @@ msgstr "queda una categoría nombrada"
 msgid "no named category is left"
 msgstr "no queda ninguna categoría nombrada"
 
+#: base/domain/chat/workflow/model_calls.py
+msgid "Did the model refuse with the wiki pages?"
+msgstr "¿El modelo se negó a responder con las páginas de la wiki?"
+
+#: base/domain/chat/workflow/model_calls.py base/domain/chat/workflow/output_checks.py
+msgid "the model refused"
+msgstr "el modelo se negó a responder"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "the model answered"
+msgstr "el modelo respondió"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "How is it checked that the wiki pages answer the question?"
+msgstr "¿Cómo se comprueba que las páginas de la wiki responden la pregunta?"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "evidence quote"
+msgstr "cita de evidencia"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "judge"
+msgstr "juez"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "no check"
+msgstr "sin comprobación"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "Do the wiki pages answer the question?"
+msgstr "¿Las páginas de la wiki responden la pregunta?"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "the pages answer the question"
+msgstr "las páginas responden la pregunta"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "the pages do not answer the question"
+msgstr "las páginas no responden la pregunta"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "Were fragments of the source documents found?"
+msgstr "¿Se encontraron fragmentos de los documentos originales?"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "fragments found"
+msgstr "se encontraron fragmentos"
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "no fragment found"
+msgstr "no se encontró ningún fragmento"
+
 #: base/domain/chat/workflow/node_texts.py
 msgid "History of the turn counted: prior messages, refused ones, messages the model receives"
 msgstr "Conteo del historial del turno: mensajes previos, intercambios con negativa, mensajes que recibe el modelo"
@@ -3622,6 +3722,18 @@ msgstr "Fragmentos de los documentos entregados al modelo"
 #: base/domain/chat/workflow/node_texts.py
 msgid "The model refused with the wiki pages: search the source documents and ask again"
 msgstr "El modelo se negó con las páginas de la wiki: búsqueda en los documentos fuente y nueva pregunta"
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Is the sentence that the answer quotes in the wiki pages?"
+msgstr "¿La frase que cita la respuesta está en las páginas de la wiki?"
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "A separate call to the model: do the wiki pages answer the question?"
+msgstr "Una llamada aparte al modelo: ¿las páginas de la wiki responden la pregunta?"
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Warning appended: the check says that the wiki pages do not answer the question"
+msgstr "Aviso agregado: la comprobación dice que las páginas de la wiki no responden la pregunta"
 
 #: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
 msgid "Is the answer grounded in the fragments?"
@@ -3820,16 +3932,16 @@ msgid "Were fragments of the source documents injected?"
 msgstr "¿Se inyectaron fragmentos de los documentos originales?"
 
 #: base/domain/chat/workflow/output_checks.py
+msgid "the check said that the wiki pages do not answer the question"
+msgstr "la comprobación dijo que las páginas de la wiki no responden la pregunta"
+
+#: base/domain/chat/workflow/output_checks.py
 msgid "no fragments of the source documents injected"
 msgstr "sin fragmentos de los documentos originales inyectados"
 
 #: base/domain/chat/workflow/output_checks.py
 msgid "Did a tool return evidence, or did the model refuse?"
 msgstr "¿Una herramienta devolvió evidencia, o el modelo se negó a responder?"
-
-#: base/domain/chat/workflow/output_checks.py
-msgid "the model refused"
-msgstr "el modelo se negó a responder"
 
 #: base/domain/chat/workflow/output_checks.py
 msgid "no tool returned evidence"

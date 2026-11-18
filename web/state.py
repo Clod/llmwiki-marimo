@@ -98,6 +98,9 @@ class Turn:
     mode: str
     open_page: str | None
     verify: bool = False
+    # How the pre-retrieval mode checks that the wiki pages answer the question
+    # (`domain/chat/relevance.py`): "none", "evidence" or "judge".
+    relevance: str = "none"
 
 
 @dataclass

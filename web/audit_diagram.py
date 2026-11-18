@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from domain.chat.workflow import flowchart as conversion
-from domain.chat.workflow import input_checks, output_checks
+from domain.chat.workflow import input_checks, model_calls, output_checks
 from domain.chat.workflow.flowchart import END, START, steps  # noqa: F401 — END and START for the callers
 from web import audit_nodes
 from web.i18n import N_, _
@@ -35,6 +35,10 @@ WORKFLOW_GRAPHS = {
     "pre-retrieval": (input_checks.graph, output_checks.graph),
     "agent": (input_checks.agent_graph, output_checks.agent_graph),
 }
+
+# The graph of the calls to the model, per mode. The agent mode has none: its call to the
+# model is drawn as a chain (`model_call_diagram`).
+MODEL_GRAPHS = {"pre-retrieval": model_calls.graph}
 
 # The nodes that call the model between the two workflows of a mode.
 MODEL_CALLS = (*input_checks.AGENT_CALL_NODES, "T_AGENT")
@@ -129,6 +133,17 @@ def model_call_diagram(path_ids) -> str:
     return _with_style("\n".join(lines), ids)
 
 
+def _model_diagram(mode: str, path_ids) -> str:
+    """The diagram of the calls to the model: the model workflow of the mode, with the path
+    marked, or the chain of the call for a mode without one; empty when the turn did not
+    call the model."""
+    if not model_call_chain(path_ids):
+        return ""
+    if mode in MODEL_GRAPHS:
+        return workflow_diagram(MODEL_GRAPHS[mode], path_ids)
+    return model_call_diagram(path_ids)
+
+
 def diagrams_for(mode: str, path_ids) -> list[Diagram]:
     """The diagrams of a turn, with its path marked: the input workflow, the call to the model
     and the output workflow for a mode with workflows; the overview for the streaming mode."""
@@ -137,7 +152,7 @@ def diagrams_for(mode: str, path_ids) -> list[Diagram]:
         entry, exit_ = WORKFLOW_GRAPHS[mode]
         return [
             Diagram(TITLES["input"], workflow_diagram(entry, path_ids)),
-            Diagram(TITLES["model"], model_call_diagram(path_ids)),
+            Diagram(TITLES["model"], _model_diagram(mode, path_ids)),
             Diagram(TITLES["output"], workflow_diagram(exit_, path_ids)),
         ]
     found = blocks()

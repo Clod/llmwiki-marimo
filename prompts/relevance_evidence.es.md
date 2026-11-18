@@ -1,0 +1,1 @@
+Antes de responder, copiá del CONTEXTO, sin cambiar ninguna palabra, la frase que responde la pregunta. Empezá la respuesta con una línea con esta forma: Evidencia: «frase copiada del contexto». Si ninguna frase del contexto responde la pregunta, escribí la línea Evidencia: ninguna, y decí que no alcanza.

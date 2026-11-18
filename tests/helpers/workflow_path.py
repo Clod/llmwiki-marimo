@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from pydantic_graph.decision import Decision
 
-from domain.chat.workflow import input_checks, output_checks
+from domain.chat.workflow import input_checks, model_calls, output_checks
 
 DECISIONS = frozenset(
     node.id
-    for graph in (input_checks.graph, output_checks.graph, output_checks.agent_graph)
+    for graph in (input_checks.graph, model_calls.graph, output_checks.graph, output_checks.agent_graph)
     for node in graph.nodes.values()
     if isinstance(node, Decision)
 )

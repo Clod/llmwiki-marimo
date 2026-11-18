@@ -24,7 +24,7 @@ from pydantic_ai.messages import (
 
 from domain import tracing
 from domain.chat.agent import create_agent
-from domain.chat import figure_check
+from domain.chat import figure_check, relevance
 from domain.chat.config import DEFAULT_NUMBER_TOLERANCE, WikiAssistantConfig, load_config
 from domain.chat.guardrail import has_grounding, strip_refused_exchanges
 # `model_history` is imported here under the same name: callers use `chat.model_history`.
@@ -66,6 +66,9 @@ class ChatAgents:
     # The agent that rewrites a follow-up into a question that stands alone
     # (query condensation, `domain/chat/condense.py`); None turns it off.
     condenser: Any = None
+    # The agent that judges whether the injected wiki pages answer the question (the
+    # "judge" check of `domain/chat/relevance.py`); None makes that check pass.
+    judge: Any = None
 
 
 def build_agents(wiki: Wiki, base_url: str, api_key: str, model: str) -> ChatAgents:
@@ -94,8 +97,12 @@ def build_agents(wiki: Wiki, base_url: str, api_key: str, model: str) -> ChatAge
         base_url, api_key, model, system_prompt=condense_prompt(config.language),
         language=config.language, include_wiki_tools=False, name="question_condenser",
     )
+    judge = create_agent(
+        base_url, api_key, model, system_prompt=relevance.judge_system_prompt(config.language),
+        language=config.language, include_wiki_tools=False, name="relevance_judge",
+    )
     return ChatAgents(config=config, agent=agent, agent_pre_retrieval=agent_pre_retrieval,
-                      condenser=condenser)
+                      condenser=condenser, judge=judge)
 
 
 def plain_history(messages: Sequence[Any]) -> list:
@@ -254,10 +261,25 @@ def _condenser(agents: ChatAgents, language: str | None, tokens: _Tokens | None 
     return condense
 
 
+def _judge(agents: ChatAgents, language: str | None, tokens: _Tokens | None = None):
+    """The `judge(question, context)` call of a turn, or None when the wiki has no judge.
+    Its tokens go to `tokens`."""
+    if getattr(agents, "judge", None) is None:
+        return None
+
+    async def judge(question: str, context: str) -> str:
+        result = await agents.judge.run(relevance.judge_user_prompt(question, context, language))
+        if tokens is not None:
+            tokens.add(result)
+        return str(result.output)
+
+    return judge
+
+
 async def chat_turn_with_context(
     wiki: Wiki, agents: ChatAgents, messages: Sequence[Any], *,
     mode: str, conversation_id: str | None = None, open_page: str | None = None,
-    sentence_verifier: bool = False,
+    sentence_verifier: bool = False, relevance_check: str = "none",
 ) -> ChatResult:
     """Answer the last message of `messages` in the pre-retrieval or agent mode.
 
@@ -265,6 +287,8 @@ async def chat_turn_with_context(
     does not depend on `WIKI_TRACE`. `sentence_verifier` is True when the caller
     checks the answer with the sentence verifier after it is shown: in the
     pre-retrieval mode, a Tier-2 answer then skips the containment check (Q_IS_GROUNDED).
+    `relevance_check` chooses how the pre-retrieval mode checks that the injected wiki
+    pages answer the question (`domain/chat/relevance.py`); the agent mode ignores it.
 
     Each mode runs its two workflows (`domain/chat/workflow/`). The pre-retrieval
     mode runs them in `pre_retrieval_answer`. The agent mode runs here the input
@@ -305,6 +329,7 @@ async def chat_turn_with_context(
                 on_context=injected.extend, condense=_condenser(agents, language, tokens),
                 conversation=figure_check.conversation_sources(messages), on_figures=checked.append,
                 sentence_verifier=sentence_verifier,
+                relevance=relevance_check, judge=_judge(agents, language, tokens),
             )
             run_messages = ran[-1] if ran else []
             table = advisory_table(run_messages)

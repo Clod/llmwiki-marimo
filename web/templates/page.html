@@ -131,6 +131,15 @@ try {
         <input type="checkbox" name="verify" id="verify-box" value="1"{% if not verifier_available %} disabled{% endif %}>
         {{ _("Verify the sentences") }}
       </label>
+      <fieldset class="relevance-choice" id="relevance-choice" data-mode="pre-retrieval"
+                title="{{ _('After an answer from the wiki pages, how the code checks that the pages answer the question. When the check fails, the code searches the source documents') }}"
+                data-tip-other="{{ _('Only the Pre-retrieval mode checks that the wiki pages answer the question') }}">
+        <legend>{{ _("Check that the pages answer the question") }}</legend>
+        <label title="{{ _('No check: the answer from the wiki pages is shown as it is') }}"><input type="radio" name="relevance" value="none" checked>{{ _("No check") }}</label>
+        <label title="{{ _('The model copies the sentence of the pages that answers the question, and the code looks for it in the pages') }}"><input type="radio" name="relevance" value="evidence">{{ _("Evidence quote") }}</label>
+        <label title="{{ _('A separate call to the model says whether the pages answer the question') }}"><input type="radio" name="relevance" value="judge">{{ _("Judge") }}</label>
+        <label class="disabled" title="{{ _('Alternative: a relevance model of TypeSafe judges each fragment. It is not implemented yet') }}"><input type="radio" name="relevance" value="jev" disabled>{{ _("Jev — not implemented") }}</label>
+      </fieldset>
     </form>
   </aside>
 

@@ -1,6 +1,6 @@
 """The flowchart of each chat workflow, generated from the graphs.
 
-`WORKFLOWS` names the four workflows, in the order of a turn, with one sentence
+`WORKFLOWS` names the five workflows, in the order of a turn, with one sentence
 that says what each workflow does. `markdown()` writes one section per workflow,
 with its Mermaid flowchart in English (`flowchart.flowchart`, the conversion that
 the audit page uses), without the marks of a turn.
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import textwrap
 
-from domain.chat.workflow import input_checks, output_checks
+from domain.chat.workflow import input_checks, model_calls, output_checks
 from domain.chat.workflow.flowchart import flowchart
 
 # (title of the section, graph, what the workflow does), in the order of a turn.
@@ -21,6 +21,10 @@ WORKFLOWS = (
     ("Pre-retrieval, input", input_checks.graph,
      "The input workflow of the pre-retrieval mode builds the history, checks the question, "
      "retrieves the text that the prompt injects and ends in a refusal or in a call to the model."),
+    ("Pre-retrieval, model", model_calls.graph,
+     "The model workflow of the pre-retrieval mode calls the model with the prompt that the input "
+     "workflow built and, when the model refused with the wiki pages, searches the source documents "
+     "and calls the model again with their fragments."),
     ("Pre-retrieval, output", output_checks.graph,
      "The output workflow of the pre-retrieval mode checks the answer of the model, adds the table, "
      "the citations and the warning, and ends in the answer or in a refusal."),
@@ -48,9 +52,10 @@ short text. A diamond is a decision, with its question. An arrow that leaves a
 decision carries the label of its branch. The small filled circle is the start
 of the workflow, and the framed circle is its end.
 
-What each node does is in [`query_nodes.md`](query_nodes.md). The calls to the
-model run between the two workflows of a mode, outside both. The streaming mode
-has no workflows.
+What each node does is in [`query_nodes.md`](query_nodes.md). In the
+pre-retrieval mode the calls to the model are a workflow of their own, between
+the input and the output workflow. In the agent mode the call to the model runs
+between the two workflows, outside both. The streaming mode has no workflows.
 """
 
 

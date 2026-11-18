@@ -47,7 +47,7 @@ from domain.chat.workflow.catalog import N_, AnswerChecks, register, trace_decis
 # compares each list with its graph, and `docs/workflow_nodes.md` is generated
 # from the lists (`table.py`).
 PRE_RETRIEVAL_NODES = (
-    "Q_IS_GROUNDED", "Q_TOOL_EVIDENCE", "Q_MODEL_REFUSED", "R_UNSUPPORTED", "R_NO_EVIDENCE", "R_MODEL", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "Q_SOURCE_WARNING", "C_FIGURES", "Q_SHOWN",
+    "Q_IS_GROUNDED", "Q_TOOL_EVIDENCE", "Q_MODEL_REFUSED", "R_UNSUPPORTED", "R_NO_EVIDENCE", "R_MODEL", "Q_ADVISORY_TABLE", "Q_OFFER_KEYS", "Q_CITE_TOOLS", "Q_CITE_PAGES", "Q_SOURCE_WARNING", "Q_RELEVANCE_WARNING", "C_FIGURES", "Q_SHOWN",
 )
 AGENT_NODES = ("T_TOOL_EVIDENCE", "T_NO_EVIDENCE_WARNING", "T_ADVISORY_TABLE", "T_CITE_TOOLS", "T_MARK_UNCITED", "C_FIGURES", "T_SHOWN")
 OWN_STEPS: tuple[str, ...] = ()
@@ -115,6 +115,7 @@ keys = register(g, "Q_OFFER_KEYS")
 citation = register(g, "Q_CITE_TOOLS")
 injected_reference = register(g, "Q_CITE_PAGES")
 tier2_warning = register(g, "Q_SOURCE_WARNING")
+relevance_warning = register(g, "Q_RELEVANCE_WARNING")
 figures = register(g, "C_FIGURES")
 shown = register(g, "Q_SHOWN")
 
@@ -158,8 +159,11 @@ g.add(
     g.edge_from(injected_reference).to(
         g.decision(node_id="after_Q_CITE_PAGES", note=N_("Were fragments of the source documents injected?"))
         .branch(g.match(AnswerChecks, matches=_tier2).label(N_("fragments of the source documents injected")).to(tier2_warning))
+        .branch(g.match(AnswerChecks, matches=lambda c: c.turn.relevance_failed)
+                .label(N_("the check said that the wiki pages do not answer the question")).to(relevance_warning))
         .branch(g.match(AnswerChecks).label(N_("no fragments of the source documents injected")).to(figures))
     ),
+    g.edge_from(relevance_warning).to(figures),
     g.edge_from(tier2_warning).to(figures),
     g.edge_from(figures).to(shown),
     g.edge_from(refuse_unsupported, refuse_ungrounded, refuse_model, shown).to(g.end_node),

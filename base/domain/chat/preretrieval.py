@@ -20,6 +20,7 @@ from typing import Any
 from domain import tracing
 from domain.chat.config import DEFAULT_NUMBER_TOLERANCE
 from domain.chat.dataset_tools import format_rows_as_table
+from domain.chat import relevance as relevance_check
 from domain.chat.refusal import (
     Refusal,
     fixed_sentence,
@@ -546,6 +547,8 @@ async def pre_retrieval_answer(
     on_figures=None,
     sentence_verifier: bool = False,
     prior: list | None = None,
+    relevance: str = "none",
+    judge=None,
 ) -> str:
     """Run one turn through the hybrid pre-retrieval flow and return the answer.
 
@@ -586,6 +589,10 @@ async def pre_retrieval_answer(
     C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES of the input workflow build the history of the model from them.
     A caller without `prior` passes the history already built in `history`, and
     C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES leave that history as it is.
+
+    `relevance` chooses how the model workflow checks that the injected wiki pages answer
+    the question (`domain/chat/relevance.py`): "none", "evidence" or "judge". `judge`, if
+    given, is an async `judge(question, context) -> str`, the call of the "judge" check.
     """
     with tracing.root(
         "turn", workspace, mode="pre-retrieval", question=question, language=language,
@@ -596,6 +603,7 @@ async def pre_retrieval_answer(
             on_trace=on_trace, open_page=open_page, on_context=on_context, condense=condense,
             conversation=conversation, on_figures=on_figures,
             sentence_verifier=sentence_verifier, prior=prior,
+            relevance=relevance, judge=judge,
         )
 
 
@@ -690,6 +698,11 @@ class PreRetrievalTurn:
     # The sentence verifier checks the answer after it is shown: a Tier-2 answer
     # skips the containment check (node Q_IS_GROUNDED).
     sentence_verifier: bool = False
+    # How the model workflow checks that the injected wiki pages answer the question
+    # (`domain/chat/relevance.py`), and whether the check failed with no source fragment to
+    # retry with (the output workflow then appends Q_RELEVANCE_WARNING).
+    relevance: str = "none"
+    relevance_failed: bool = False
     # What the gate and the search examine: the question, or its rewrite (Q_RW_ACCEPTED).
     search: str = ""
     blacklisted: bool = False
@@ -832,74 +845,80 @@ def is_model_refusal(text: str, language: str | None) -> bool:
     return text.lstrip().startswith(fixed_sentence(language))
 
 
-async def _retry_with_sources(turn: PreRetrievalTurn, result, run_agent, on_context):
-    """The retry Q_RETRY_SOURCES: the model refused with the wiki pages, and the datum can be
-    only in a source document («los lacayos volvían a ser lagartos», only in La Cenicienta.pdf).
-    The code searches the source documents, as Q_SEARCH_SOURCES does, and calls the model
-    again with the fragments (Q_AGENT_FRAGMENTS): the output workflow then checks a Tier-2
-    answer. With no fragment, the first answer stays, and the output workflow ends in
-    R_MODEL. A retrieval, not a check: it runs between the two workflows, as the model calls do."""
-    query = source_query(turn)
-    with tracing.node("Q_RETRY_SOURCES", tracing.READING, refused_output=result.output,
-                      fts_query=_fts_query(query, turn.language)) as retry:
-        hits = retrieve_source_chunks(turn.db_path, query, language=turn.stem_language)
-        retry.set(fragments=_hit_labels(hits))
-    if not hits:
-        return result
-    turn.doc_hits = hits
-    turn.plan = tier2_plan(hits)
-    turn.prompt = build_prompt(turn.plan.context, turn.synonyms, turn.asked, turn.language)
-    if on_context is not None:
-        on_context([context_passage(block) for block in turn.plan.blocks])
-    with tracing.node("Q_AGENT_FRAGMENTS", tracing.READING, tier=turn.plan.tier,
-                      context_chars=len(turn.plan.context or "")) as answer_node:
+async def call_agent(turn: PreRetrievalTurn, node: str, run_agent):
+    """Call the model with the prompt of the turn and record the call as `node`
+    (Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS): a step of
+    the model workflow (`domain/chat/workflow/model_calls.py`)."""
+    plan = turn.plan
+    with tracing.node(node, tracing.READING, tier=plan.tier or "data",
+                      context_chars=len(plan.context or "")) as answer_node:
         answer_node.payload("prompt", turn.prompt, channel="prompts")
         result = await run_agent(turn.prompt, turn.history)
         answer_node.set(raw_output=result.output)
     return result
 
 
+def search_sources_for_retry(turn: PreRetrievalTurn, refused_output: str, on_context) -> bool:
+    """The retry Q_RETRY_SOURCES: the model refused with the wiki pages, and the datum can be
+    only in a source document («los lacayos volvían a ser lagartos», only in La Cenicienta.pdf).
+    The code searches the source documents, as Q_SEARCH_SOURCES does. With fragments, the
+    plan and the prompt of the turn become the ones of a Tier-2 answer, and the model
+    workflow calls the model again (Q_AGENT_FRAGMENTS). With no fragment, the first answer
+    stays, and the output workflow ends in R_MODEL. Returns whether fragments were found.
+    A retrieval, not a check: a step of the model workflow, as the model calls are."""
+    query = source_query(turn)
+    with tracing.node("Q_RETRY_SOURCES", tracing.READING, refused_output=refused_output,
+                      fts_query=_fts_query(query, turn.language)) as retry:
+        hits = retrieve_source_chunks(turn.db_path, query, language=turn.stem_language)
+        retry.set(fragments=_hit_labels(hits))
+    if not hits:
+        return False
+    turn.doc_hits = hits
+    turn.plan = tier2_plan(hits)
+    turn.prompt = build_prompt(turn.plan.context, turn.synonyms, turn.asked, turn.language)
+    if on_context is not None:
+        on_context([context_passage(block) for block in turn.plan.blocks])
+    return True
+
+
 async def _pre_retrieval_turn(
     question: str, *, config, db_path, workspace, history, language, run_agent, on_trace,
     open_page: str | None = None, on_context=None, condense=None, conversation=(), on_figures=None,
-    sentence_verifier: bool = False, prior: list | None = None,
+    sentence_verifier: bool = False, prior: list | None = None, relevance: str = "none", judge=None,
 ) -> str:
     """The body of `pre_retrieval_answer`, inside the turn's root span.
 
     The input workflow (`domain/chat/workflow/input_checks.py`, `graph`) builds
     the history (C_COUNT_HISTORY, C_WHICH_MODE, C_MARK_REFUSED, C_DROP_TABLES, C_TRIM_TURNS and C_ORIGIN_LINES), runs the checks of the question and builds the
     prompt (C_OPEN_PAGE_NOTE, Q_SYNONYMS, Q_PROMPT). When the input workflow ends in a refusal, the model
-    is not called. Else the agent runs here, between the two workflows, and
-    records Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS. The output workflow
+    is not called. Else the model workflow (`domain/chat/workflow/model_calls.py`, `graph`)
+    calls the agent and records Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or
+    Q_AGENT_FRAGMENTS, and the retry Q_RETRY_SOURCES. The output workflow
     (`domain/chat/workflow/output_checks.py`, `graph`) runs the checks of the
     answer and the additions Q_ADVISORY_TABLE, Q_OFFER_KEYS, Q_CITE_TOOLS and Q_CITE_PAGES.
     """
-    from domain.chat.workflow import input_checks, output_checks
+    from domain.chat.workflow import input_checks, model_calls, output_checks
 
     turn = PreRetrievalTurn(
         question, config, db_path, workspace, history, language,
         stem_language=language or language_for_db(db_path),
         source=LocalMarkdownSource(workspace / "datasets"),
         open_page=open_page, condense=condense, on_trace=on_trace,
-        sentence_verifier=sentence_verifier, prior=prior,
+        sentence_verifier=sentence_verifier, prior=prior, relevance=relevance_check.choice(relevance),
     )
     outcome = await input_checks.graph.run(state=turn, inputs=turn)
     if isinstance(outcome, input_checks.Refused):
         return outcome.text
 
     # The nodes C_OPEN_PAGE_NOTE, Q_SYNONYMS and Q_PROMPT of the input workflow built the prompt.
-    plan, prompt = turn.plan, turn.prompt
     if on_context is not None:
-        on_context([context_passage(block) for block in plan.blocks])
-    with tracing.node(
-        outcome.node, tracing.READING,
-        tier=plan.tier or "data", context_chars=len(plan.context or ""),
-    ) as answer_node:
-        answer_node.payload("prompt", prompt, channel="prompts")
-        result = await run_agent(prompt, turn.history)
-        answer_node.set(raw_output=result.output)
-    if outcome.node == "Q_AGENT_PAGES" and is_model_refusal(result.output, language):
-        result = await _retry_with_sources(turn, result, run_agent, on_context)
+        on_context([context_passage(block) for block in turn.plan.blocks])
+    if turn.relevance == relevance_check.EVIDENCE and outcome.node == "Q_AGENT_PAGES":
+        turn.prompt = f"{turn.prompt}\n\n{relevance_check.evidence_prompt(language)}"
+    # The model workflow calls the model, checks that the wiki pages answer the question, and
+    # retries with the source documents when the model refused or the check failed.
+    calls = model_calls.ModelCalls(turn, outcome.node, run_agent, on_context, judge=judge)
+    result = (await model_calls.graph.run(state=calls, inputs=calls)).result
 
     checks = output_checks.AnswerChecks(
         result.output, result.all_messages(), language, result=result, turn=turn,

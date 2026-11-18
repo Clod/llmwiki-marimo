@@ -35,6 +35,7 @@ from pydantic_graph.paths import LabelMarker
 from domain import tracing
 from domain.chat import condense as condensation
 from domain.chat import figure_check, history, preretrieval
+from domain.chat import relevance
 from domain.chat.config import DEFAULT_NUMBER_TOLERANCE
 from domain.chat.figure_check import FigureCheck
 from domain.chat.guardrail import (
@@ -634,6 +635,38 @@ async def tier2_warning(ctx: OutCtx) -> AnswerChecks:
     return checks
 
 
+async def relevance_warning(ctx: OutCtx) -> AnswerChecks:
+    """The check of the model workflow said that the wiki pages do not answer the question,
+    and the retry found no fragment of the source documents: the answer is shown with a
+    warning that names the check. Mark, don't block."""
+    checks = ctx.state
+    checks.answer = f"{checks.answer}\n\n{relevance.warning(checks.turn.relevance, checks.language)}"
+    tracing.mark("Q_RELEVANCE_WARNING", R, check=checks.turn.relevance)
+    return checks
+
+
+async def evidence_check(ctx) -> Any:
+    """Q_EVIDENCE_QUOTE, a step of the model workflow: the sentence of the evidence line of
+    the answer is in the injected context (`relevance.quote_found`)."""
+    calls = ctx.state
+    quote = relevance.evidence_quote(calls.result.output)
+    calls.passed = relevance.quote_found(quote, calls.turn.plan.context or "")
+    tracing.mark("Q_EVIDENCE_QUOTE", R, quote=quote, found=calls.passed)
+    return calls
+
+
+async def judge_check(ctx) -> Any:
+    """Q_JUDGE_PAGES, a step of the model workflow: a separate call to the model says whether
+    the injected pages answer the question (`relevance.judge_says_yes`). With no judge, the
+    check passes."""
+    calls = ctx.state
+    verdict = await calls.judge(calls.turn.search or calls.turn.question, calls.turn.plan.context or "") \
+        if calls.judge else ""
+    calls.passed = relevance.judge_says_yes(verdict)
+    tracing.mark("Q_JUDGE_PAGES", R, verdict=verdict, passed=calls.passed)
+    return calls
+
+
 async def figures(ctx: OutCtx) -> AnswerChecks:
     """The figure check of the prose (`domain/chat/figure_check.py`). The text of the
     model is not edited; a note is appended when the prose has rounded figures."""
@@ -768,6 +801,9 @@ CATALOG = {
     "Q_CITE_TOOLS": citation,
     "Q_CITE_PAGES": injected_reference,
     "Q_SHOWN": shown,
+    "Q_RELEVANCE_WARNING": relevance_warning,
+    "Q_EVIDENCE_QUOTE": evidence_check,
+    "Q_JUDGE_PAGES": judge_check,
     "R_BLACKLIST": refuse_blacklist,
     "R_NOT_IN_ROSTER": refuse_not_in_roster,
     "R_NOTHING_FOUND": refuse_nothing_found,

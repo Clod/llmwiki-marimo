@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from web.audit_diagram import WORKFLOW_GRAPHS, workflow_diagram
+from web.audit_diagram import MODEL_GRAPHS, WORKFLOW_GRAPHS, workflow_diagram
 from web.i18n import LANGUAGES, use_language
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -53,7 +53,14 @@ def test_each_generated_flowchart_renders_without_error(mermaid_page, mode, side
     assert mermaid_page.evaluate(RENDER, text) == ""
 
 
+@pytest.mark.parametrize("lang", ["en", "es"])
+def test_the_model_workflow_renders_without_error(mermaid_page, lang):
+    with use_language(lang):
+        text = workflow_diagram(MODEL_GRAPHS["pre-retrieval"], [])
+    assert mermaid_page.evaluate(RENDER, text) == ""
+
+
 def test_each_flowchart_of_the_document_renders_without_error(mermaid_page):
     blocks = re.findall(r"^```mermaid\n(.*?)^```", DOCUMENT.read_text(encoding="utf-8"), re.S | re.M)
-    assert len(blocks) == 4
-    assert [mermaid_page.evaluate(RENDER, text) for text in blocks] == [""] * 4
+    assert len(blocks) == 5
+    assert [mermaid_page.evaluate(RENDER, text) for text in blocks] == [""] * 5
