@@ -6,6 +6,7 @@
 # Local or transient, never part of the example:
 .llmwiki/cache/
 .llmwiki/traces/
+.llmwiki/snapshots/
 .llmwiki/*.db-wal
 .llmwiki/*.db-shm
 

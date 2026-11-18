@@ -7,7 +7,8 @@ tags: [instrument]
 sources:
   - resource: sources/05 Bonos Dólar Linked y Duales.docx
 topics: [cobertura inflacionaria, cobertura cambiaria, riesgo de crédito soberano, seguro
-    bifronte, horizonte de inversión]
+    bifronte, horizonte de inversión, cobertura contra inflación y devaluación, ajuste
+    por CER, riesgo de crédito del Estado, perfiles conservadores]
 ---
 
 # Bonos Duales
@@ -17,7 +18,8 @@ Los bonos duales son instrumentos de renta fija que buscan funcionar como un seg
 
 ## Características clave
 - Actúan como cobertura simultánea contra inflación y devaluación, por lo que no requieren una apuesta sobre cuál de ambas variables gana.
-- No protegen del riesgo de crédito del Estado emisor: la cobertura cubre las variables mencionadas, pero no el riesgo de incumplimiento.
+- Protegen del desfase temporal entre inflación y devaluación, de modo que la cobertura no depende de que ambas variables se muevan al mismo ritmo.
+- No protegen del riesgo de crédito del Estado emisor: la cobertura cubre las variables mencionadas, pero no el riesgo de incumplimiento (default), que sigue siendo el riesgo crediticio del Estado.
 - Suelen calibrarse para horizontes de 6 a 24 meses.
 - Su diseño tiende a estar asociado a eventos electorales o cambios de régimen.
 
@@ -30,6 +32,7 @@ Los bonos duales se inscriben dentro de la categoría de instrumentos financiero
 - [Bonos Dólar Linked](bonos-dolar-linked.md)
 - [Comunicación A3500](comunicacion-a3500.md)
 - [05 Bonos Dólar Linked Y Duales](../summaries/05-bonos-dolar-linked-y-duales.md)
+- [BCRA](bcra.md)
 
 ## Fuentes
 - 05 Bonos Dólar Linked y Duales.docx

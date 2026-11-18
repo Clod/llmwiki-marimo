@@ -22,6 +22,7 @@ from .images import IMAGE_LINK_RE, IMAGES_DIRNAME, drop_kept, enrich_figures  # 
 from .ocr import OcrNotConfiguredError, apply_ocr  # noqa: E402,F401
 from .formats import IMAGE_EXTENSIONS, TEXT_EXTENSIONS, sorted_extensions, supported_extensions  # noqa: E402
 from .pdf_extract import extract_pdf  # noqa: E402
+from .tables import repeat_split_table_headers  # noqa: E402
 from .text_extract import extract_image_file, extract_text_file  # noqa: E402
 
 
@@ -176,6 +177,8 @@ def extract(
     missing.
     Raises OcrNotConfiguredError when a PDF needs OCR and OCR_ENGINE is `none`.
     Raises RuntimeError on extraction failure, including an empty text file.
+    A table of a PDF or an office file cut by a page break gets its header repeated on
+    the next page (`tables.repeat_split_table_headers`).
     The images of a PDF (or an office file) are kept in `cache_dir/images/`, the
     document's ingestion folder, and the markdown links to them (domain/ingestion/images.py).
     With `keep_images` false (`[images] ignore = true`), no image is kept and the text has
@@ -200,8 +203,11 @@ def extract(
         raise JavaNotInstalledError(file_path.name)
     with _java_on_path(java):
         if ext == ".pdf":
-            return _extract_pdf(file_path, cache_dir, language, progress_cb, keep_images=keep_images)
-        return _extract_office(file_path, cache_dir, keep_images=keep_images)
+            pages, parser = _extract_pdf(file_path, cache_dir, language, progress_cb, keep_images=keep_images)
+        else:
+            pages, parser = _extract_office(file_path, cache_dir, keep_images=keep_images)
+    # A table cut by a page break keeps its header on the next page (domain/ingestion/tables.py).
+    return repeat_split_table_headers(pages), parser
 
 
 def extract_images(file_path: Path, cache_dir: Path) -> None:
