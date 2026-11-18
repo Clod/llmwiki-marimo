@@ -776,6 +776,23 @@ luego guarda la conversación como página de wiki con **Guardar**. El agente so
 revisas el borrador en un diálogo y el guardado es tu clic explícito — así que el paso con humano en el bucle es posterior, no durante la  
 ingesta.
 
+- **Borrar una fuente deja su aporte en las páginas que comparte.** Una página que  
+cita solo la fuente borrada se borra, y no queda ningún enlace a ella. Una página que  
+cita además otra fuente se conserva, queda marcada como obsoleta y deja de citar el  
+archivo borrado; pero su texto y sus alias generados pueden conservar lo que ese  
+archivo aportó, porque una página no registra de qué fuente salió cada oración. Vale  
+igual para un borrado desde la pestaña **Ingestar** y para un archivo quitado a mano  
+de `sources/`, que la wiki borra al abrirla. La única forma de quitar ese texto es  
+reconstruir toda la wiki a partir de las fuentes que quedan:  
+  1. En la lista de wikis, crea una wiki nueva en una carpeta vacía.  
+  2. En su pestaña **Ingestar**, sube los documentos fuente que quedan.  
+  3. Copia `wiki_config.toml` de la wiki vieja: tiene la lista negra y los alias  
+     escritos a mano.  
+  
+  Los cambios hechos a mano en la wiki vieja (páginas editadas, temas quitados) no  
+  pasan a la nueva. **Reconstruir el índice**, en la pestaña **Mantener**, no hace esto:  
+  reconstruye la base de búsqueda a partir de las páginas tal como están.
+
 El fundamento de cada recorte y el plan para revisitarlos viven en  
 [`ROADMAP.md`](ROADMAP.md).
 

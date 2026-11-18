@@ -157,6 +157,8 @@ async def ingest_post(request: Request, wiki_id: str, files: list[UploadFile], f
         # The uploaded files went through the ingestion: the warning stops naming them.
         names = {upload.name for upload in uploads}
         entry.unprocessed = tuple(n for n in entry.unprocessed if n not in names)
+        # The ingestion wrote new generated aliases: the next question reads them.
+        state.reset_agents(wiki_id)
         return summary_line(_("Ingestion"), results)
 
     return _log(request, templates, wiki_id, state.start_operation(entry, work))
@@ -178,6 +180,7 @@ def scan_post(request: Request, wiki_id: str, verify: bool = Form(False), state:
                                               **verifier, **_vision(state))
         # Every file of the warning went through the ingestion: the warning ends.
         entry.unprocessed = ()
+        state.reset_agents(wiki_id)
         return summary_line(_("Scan"), results)
 
     return _log(request, templates, wiki_id, state.start_operation(entry, work))
@@ -235,7 +238,9 @@ def reindex_post(request: Request, wiki_id: str, state: AppState = Depends(get_s
 
     def work(progress):
         try:
-            return reindex_line(wiki_service.reindex(entry.wiki, progress=progress))
+            line = reindex_line(wiki_service.reindex(entry.wiki, progress=progress))
+            state.reset_agents(wiki_id)
+            return line
         except NothingExtracted as exc:
             # The message of base/ (`M_`) in the interface language; the first error is quoted as it is.
             raise RuntimeError(translate_message(exc.args[0])) from exc
@@ -341,14 +346,25 @@ def source_delete(request: Request, wiki_id: str, doc_id: str, filename: str = F
             raise RuntimeError(_("Could not delete the source “%(filename)s”: %(error)s",
                                  filename=filename, error=result.message))
         for page in result.deleted_pages:
-            progress(_("Deleted the summary page %(page)s", page=_page_id(page)))
+            progress(_("Deleted the page %(page)s", page=_page_id(page)))
         if result.stale_pages:
             pages = ", ".join(_page_id(p) for p in result.stale_pages)
             progress(ngettext("%(count)s page marked as stale: %(pages)s",
                               "%(count)s pages marked as stale: %(pages)s",
                               len(result.stale_pages), count=len(result.stale_pages), pages=pages))
+        if result.edited_pages:
+            pages = ", ".join(_page_id(p) for p in result.edited_pages)
+            progress(ngettext("Citations and links to what was deleted removed from %(count)s page: %(pages)s",
+                              "Citations and links to what was deleted removed from %(count)s pages: %(pages)s",
+                              len(result.edited_pages), count=len(result.edited_pages), pages=pages))
+        if result.config_mentions:
+            progress(_("⚠️ wiki_config.toml still names: %(names)s", names=", ".join(result.config_mentions)))
+        if result.stale_pages:
+            progress(_("⚠️ The pages kept may still hold text and aliases that came from the deleted document. "
+                       "Only rebuilding the whole wiki from the remaining sources removes them."))
         if result.file_removed:
             progress(_("Removed the file from sources/"))
+        state.reset_agents(wiki_id)
         return _("🏁 Deleted the source “%(filename)s”.", filename=result.filename or filename)
 
     return _log(request, templates, wiki_id, state.start_operation(entry, work))

@@ -241,9 +241,15 @@ pages, and either "● index copy" or "no copy". The newest point is "current". 
 - **Go back to this point** loads a confirmation (`GET …/history/commit/{sha}/confirm`)
   that says what changes and how the index comes back, or why the return is refused:
   there are uncommitted changes in `wiki/` or in `wiki_config.toml`, or the index cannot
-  be restored. A point covers `wiki/`, `.gitignore` and `wiki_config.toml`: going back
-  restores the vocabulary lists too, and the confirmation says so when they change. A
-  point from before `wiki_config.toml` was tracked keeps the current file.
+  be restored. A point covers `wiki/`, `.gitignore`, `wiki_config.toml`, `datasets/` and
+  the generated aliases (`.llmwiki/aliases.generated.toml`, added with `git add -f`
+  because the wiki ignores `.llmwiki/`): going back restores the vocabulary lists and
+  the aliases of the pages that come back, and the confirmation says so when the
+  configuration changes. A point from before `wiki_config.toml` or the alias file was
+  tracked keeps the current file. `sources/` never changes: the confirmation names the
+  documents the pages of the point cite that are no longer in `sources/`
+  (`revert.missing_sources`), because the next opening of the wiki would delete them
+  again (§6.9).
   `POST …/history/commit/{sha}/revert` runs the return as a streamed operation. The
   return is a new commit; the history is not rewritten (`base/domain/rollback/`).
 - `GET …/history/page/{page}` lists the commits of one page; `…/at/{sha}` shows the page

@@ -495,8 +495,8 @@ msgstr "No se pudo borrar la fuente «%(filename)s»: %(error)s"
 
 #: web/routes/ingest.py
 #, python-format
-msgid "Deleted the summary page %(page)s"
-msgstr "Borrada la página de resumen %(page)s"
+msgid "Deleted the page %(page)s"
+msgstr "Se borró la página %(page)s"
 
 #: web/routes/ingest.py
 #, python-format
@@ -504,6 +504,26 @@ msgid "%(count)s page marked as stale: %(pages)s"
 msgid_plural "%(count)s pages marked as stale: %(pages)s"
 msgstr[0] "%(count)s página marcada como obsoleta: %(pages)s"
 msgstr[1] "%(count)s páginas marcadas como obsoletas: %(pages)s"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "Citations and links to what was deleted removed from %(count)s page: %(pages)s"
+msgid_plural "Citations and links to what was deleted removed from %(count)s pages: %(pages)s"
+msgstr[0] "Se quitaron las citas y los enlaces a lo borrado de %(count)s página: %(pages)s"
+msgstr[1] "Se quitaron las citas y los enlaces a lo borrado de %(count)s páginas: %(pages)s"
+
+#: web/routes/ingest.py
+#, python-format
+msgid "⚠️ wiki_config.toml still names: %(names)s"
+msgstr "⚠️ wiki_config.toml todavía nombra: %(names)s"
+
+#: web/routes/ingest.py
+msgid ""
+"⚠️ The pages kept may still hold text and aliases that came from the deleted document. Only rebuilding the whole wiki"
+" from the remaining sources removes them."
+msgstr ""
+"⚠️ Las páginas que se conservan pueden tener todavía texto y alias que salieron del documento borrado. Solo "
+"reconstruir toda la wiki a partir de las fuentes que quedan los quita."
 
 #: web/routes/ingest.py
 msgid "Removed the file from sources/"
@@ -1033,6 +1053,21 @@ msgid "<code>sources/</code> does not change: the documents you added after this
 msgstr "<code>sources/</code> no cambia: los documentos que agregaste después de este punto siguen en la carpeta."
 
 #: web/templates/_history_confirm.html
+#, python-format
+msgid ""
+"This point includes %(files)s, which is no longer in sources/. Copy it back to sources/ before opening the wiki "
+"again, or it will be deleted again with its pages."
+msgid_plural ""
+"This point includes %(files)s, which are no longer in sources/. Copy them back to sources/ before opening the wiki "
+"again, or they will be deleted again with their pages."
+msgstr[0] ""
+"Este punto incluye %(files)s, que ya no está en sources/. Copialo de nuevo en sources/ antes de volver a abrir la "
+"wiki, o se borrará otra vez con sus páginas."
+msgstr[1] ""
+"Este punto incluye %(files)s, que ya no están en sources/. Copialos de nuevo en sources/ antes de volver a abrir la "
+"wiki, o se borrarán otra vez con sus páginas."
+
+#: web/templates/_history_confirm.html
 msgid "The search index goes back to the copy saved at this point, instantly."
 msgstr "El índice de búsqueda vuelve a la copia guardada en este punto, al instante."
 
@@ -1167,6 +1202,44 @@ msgstr "Escribe este modelo en .env. Vale desde la próxima pregunta"
 msgid "Save anyway"
 msgstr "Guardar igual"
 
+#: web/templates/_removed_sources_notice.html
+#, python-format
+msgid "%(num)s document was removed from sources/ by hand. It was deleted from the wiki:"
+msgid_plural "%(num)s documents were removed from sources/ by hand. They were deleted from the wiki:"
+msgstr[0] "%(num)s documento se quitó a mano de sources/. Se borró de la wiki:"
+msgstr[1] "%(num)s documentos se quitaron a mano de sources/. Se borraron de la wiki:"
+
+#: web/templates/_removed_sources_notice.html
+#, python-format
+msgid "Pages deleted: %(pages)s."
+msgstr "Páginas borradas: %(pages)s."
+
+#: web/templates/_removed_sources_notice.html
+#, python-format
+msgid "Pages kept and marked stale: %(pages)s."
+msgstr "Páginas conservadas y marcadas como obsoletas: %(pages)s."
+
+#: web/templates/_removed_sources_notice.html
+#, python-format
+msgid "wiki_config.toml still names: %(names)s."
+msgstr "wiki_config.toml todavía nombra: %(names)s."
+
+#: web/templates/_removed_sources_notice.html
+msgid ""
+"The pages kept may still hold text and aliases that came from the deleted document. Only rebuilding the whole wiki "
+"from the remaining sources removes them."
+msgstr ""
+"Las páginas que se conservan pueden tener todavía texto y alias que salieron del documento borrado. Solo reconstruir "
+"toda la wiki a partir de las fuentes que quedan los quita."
+
+#: web/templates/_removed_sources_notice.html
+msgid "Hide this notice until you choose the wiki again"
+msgstr "Ocultar este aviso hasta que vuelvas a elegir la wiki"
+
+#: web/templates/_removed_sources_notice.html web/templates/_unprocessed_warning.html
+msgid "Dismiss"
+msgstr "Descartar"
+
 #: web/templates/_review_dialog.html
 msgid "Review the page"
 msgstr "Revisar la página"
@@ -1266,10 +1339,13 @@ msgstr "Borrar"
 
 #: web/templates/_sources_panel.html
 #, python-format
-msgid "Delete the source “%(filename)s”? Its summary page is deleted. The pages that cite it are kept and marked as stale."
+msgid ""
+"Delete the source “%(filename)s”? Its summary page and the pages that cite only it are deleted. The pages that also "
+"cite another source are kept, marked as stale, and stop citing it. No link to a deleted page is left."
 msgstr ""
-"¿Borrar la fuente «%(filename)s»? Se borra su página de resumen. Las páginas que la citan se conservan y quedan "
-"marcadas como obsoletas."
+"¿Borrar la fuente «%(filename)s»? Se borran su página de resumen y las páginas que citan solo esa fuente. Las páginas"
+" que citan además otra fuente se conservan, quedan marcadas como obsoletas y dejan de citarla. No queda ningún enlace"
+" a una página borrada."
 
 #: web/templates/_sources_panel.html
 msgid "Without this option, the file stays in sources/, and the next scan of sources/ ingests it again"
@@ -1349,10 +1425,6 @@ msgstr "Ingestalos desde la pestaña Ingestar"
 #: web/templates/_unprocessed_warning.html
 msgid "Hide this warning until you choose the wiki again"
 msgstr "Ocultar esta advertencia hasta que vuelvas a elegir la wiki"
-
-#: web/templates/_unprocessed_warning.html
-msgid "Dismiss"
-msgstr "Descartar"
 
 #: web/templates/_vocabulary_body.html
 msgid "Findings of the vocabulary review"
@@ -4145,6 +4217,11 @@ msgstr "📄 Indexando la fuente %(file)s"
 msgid "📝 Indexing page %(page)s"
 msgstr "📝 Indexando la página %(page)s"
 
+#: base/domain/tools/reindex.py base/services/ingest.py
+#, python-format
+msgid "🗑 %(file)s is no longer in sources/: deleted with %(n)s page(s)"
+msgstr "🗑 %(file)s ya no está en sources/: se borró con %(n)s página(s)"
+
 #: base/domain/tools/reindex.py
 msgid "🗄 Creating a fresh index"
 msgstr "🗄 Creando un índice nuevo"
@@ -4363,4 +4440,13 @@ msgstr "%(filename)s no es una fuente de esta wiki"
 
 #~ msgid "No page given: the model calls the data tools"
 #~ msgstr "No se entrega ninguna página: el modelo llama a las herramientas de datos"
+
+#~ msgid "Deleted the summary page %(page)s"
+#~ msgstr "Borrada la página de resumen %(page)s"
+
+#~ msgid "Delete the source “%(filename)s”? Its summary page is deleted. The pages that cite it are kept and marked as stale."
+#~ msgstr ""
+#~ "¿Borrar la fuente «%(filename)s»? Se borra su página de "
+#~ "resumen. Las páginas que la citan se conservan y quedan "
+#~ "marcadas como obsoletas."
 

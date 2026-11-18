@@ -15,6 +15,7 @@ pages and the index back from a backup taken first.
 from __future__ import annotations
 
 import logging
+import re
 import shutil
 import subprocess
 import tempfile
@@ -25,7 +26,7 @@ from typing import Literal
 
 from domain.ingestion import extractor
 from domain.rollback import snapshots
-from domain.tools.git_ops import autocommit_enabled, head_sha
+from domain.tools.git_ops import GENERATED_ALIASES, autocommit_enabled, head_sha
 from domain.ingestion.formats import IMAGE_EXTENSIONS, OFFICE_EXTENSIONS, TEXT_EXTENSIONS
 from domain.tools.reindex import SOURCE_SUFFIXES, NothingExtracted, ReindexReport, reindex_from_disk
 from domain.messages import M_
@@ -39,7 +40,12 @@ Progress = Callable[[str], None]
 # hold it: going back to that point keeps the current configuration.
 CONFIG = "wiki_config.toml"
 DATASETS = "datasets"
-_TRACKED = ("wiki", ".gitignore", CONFIG, DATASETS)
+# The generated aliases, read by the chat's coverage rule: going back to a point before a
+# page was deleted brings its aliases back. A point from before they were tracked keeps
+# the current file, as for the configuration.
+ALIASES = GENERATED_ALIASES
+_TRACKED = ("wiki", ".gitignore", CONFIG, DATASETS, ALIASES)
+_KEPT_WHEN_ABSENT = {CONFIG, ALIASES}
 
 
 class RevertError(RuntimeError):
@@ -118,6 +124,26 @@ def config_changes(workspace: Path, target_sha: str) -> bool:
     return held and _git(workspace, "diff", "--quiet", target_sha, "--", CONFIG, check=False).returncode != 0
 
 
+_RESOURCE_RE = re.compile(r"""resource:\s*['"]?sources/(.+?)['"]?\s*$""")
+
+
+def missing_sources(workspace: Path, target_sha: str) -> list[str]:
+    """The source documents the pages of `target_sha` cite (header `sources`) that are
+    not in `sources/` today, sorted.
+
+    Going back never touches `sources/`. A source deleted together with its file comes
+    back in the pages and the index but not on disk, and the next opening of the wiki
+    deletes it again (`deletion.remove_missing_sources`): the confirmation names them
+    so the user copies them back first. One `git grep` over the tree of the commit.
+    """
+    result = _git(workspace, "grep", "-h", "-I", "-e", "resource: *['\"]*sources/", target_sha, "--", "wiki",
+                  check=False)
+    if result.returncode not in (0, 1):
+        return []
+    names = {m.group(1).strip() for line in result.stdout.splitlines() if (m := _RESOURCE_RE.search(line))}
+    return sorted(n for n in names if not (Path(workspace) / "sources" / n).exists())
+
+
 def require_history(workspace: Path) -> None:
     """Raise `RevertUnavailable` unless the wiki has a git history to go back to."""
     if not autocommit_enabled():
@@ -172,6 +198,7 @@ def _backup(workspace: Path, directory: Path) -> None:
         if src.is_dir():
             shutil.copytree(src, directory / name)
         elif src.is_file():
+            (directory / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, directory / name)
     live = workspace / ".llmwiki" / "index.db"
     if live.is_file():
@@ -187,8 +214,9 @@ def _undo(workspace: Path, directory: Path, db_replaced: bool) -> None:
         shutil.copytree(directory / "wiki", wiki)
     if (directory / ".gitignore").is_file():
         shutil.copy2(directory / ".gitignore", workspace / ".gitignore")
-    if (directory / CONFIG).is_file():
-        shutil.copy2(directory / CONFIG, workspace / CONFIG)
+    for name in _KEPT_WHEN_ABSENT:
+        if (directory / name).is_file():
+            shutil.copy2(directory / name, workspace / name)
     _git(workspace, "reset", "-q", "--", *_TRACKED, check=False)
     if db_replaced and (directory / "index.db").is_file():
         snapshots.install_db(workspace, directory / "index.db")
@@ -207,7 +235,7 @@ def _restore_files(workspace: Path, target_sha: str) -> None:
                          *_TRACKED).stdout.split("\0")) - {""}
     in_head = set(_git(workspace, "ls-files", "-z", "--", *_TRACKED).stdout.split("\0")) - {""}
     keeps_datasets = not any(f.startswith(f"{DATASETS}/") for f in in_target)
-    extra = sorted(f for f in in_head - in_target - {CONFIG}   # a point without the config keeps the current one
+    extra = sorted(f for f in in_head - in_target - _KEPT_WHEN_ABSENT   # a point without them keeps the current ones
                    if not (keeps_datasets and f.startswith(f"{DATASETS}/")))
     for i in range(0, len(extra), 200):
         _git(workspace, "rm", "-q", "-f", "--", *extra[i:i + 200])
@@ -297,7 +325,9 @@ def _scratch(workspace: Path) -> Path:
 
 def _commit(workspace: Path, target_sha: str) -> str | None:
     """Commit the staged restore; the new sha, or None when it changed nothing."""
-    _git(workspace, "add", "-A", "--", *[n for n in _TRACKED if (workspace / n).exists()])
+    _git(workspace, "add", "-A", "--", *[n for n in _TRACKED if n != ALIASES and (workspace / n).exists()])
+    if (workspace / ALIASES).exists():
+        _git(workspace, "add", "-f", "--", ALIASES)     # in .llmwiki/, which the wiki ignores
     if _git(workspace, "diff", "--cached", "--quiet", check=False).returncode == 0:
         return None
     _git(workspace, "commit", "-q", "-m", f"revert: restore wiki to {target_sha[:7]}")

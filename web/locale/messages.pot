@@ -488,7 +488,7 @@ msgstr ""
 
 #: web/routes/ingest.py
 #, python-format
-msgid "Deleted the summary page %(page)s"
+msgid "Deleted the page %(page)s"
 msgstr ""
 
 #: web/routes/ingest.py
@@ -497,6 +497,24 @@ msgid "%(count)s page marked as stale: %(pages)s"
 msgid_plural "%(count)s pages marked as stale: %(pages)s"
 msgstr[0] ""
 msgstr[1] ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "Citations and links to what was deleted removed from %(count)s page: %(pages)s"
+msgid_plural "Citations and links to what was deleted removed from %(count)s pages: %(pages)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/routes/ingest.py
+#, python-format
+msgid "⚠️ wiki_config.toml still names: %(names)s"
+msgstr ""
+
+#: web/routes/ingest.py
+msgid ""
+"⚠️ The pages kept may still hold text and aliases that came from the deleted document. Only rebuilding the whole wiki"
+" from the remaining sources removes them."
+msgstr ""
 
 #: web/routes/ingest.py
 msgid "Removed the file from sources/"
@@ -1020,6 +1038,17 @@ msgid "<code>sources/</code> does not change: the documents you added after this
 msgstr ""
 
 #: web/templates/_history_confirm.html
+#, python-format
+msgid ""
+"This point includes %(files)s, which is no longer in sources/. Copy it back to sources/ before opening the wiki "
+"again, or it will be deleted again with its pages."
+msgid_plural ""
+"This point includes %(files)s, which are no longer in sources/. Copy them back to sources/ before opening the wiki "
+"again, or they will be deleted again with their pages."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/_history_confirm.html
 msgid "The search index goes back to the copy saved at this point, instantly."
 msgstr ""
 
@@ -1147,6 +1176,42 @@ msgstr ""
 msgid "Save anyway"
 msgstr ""
 
+#: web/templates/_removed_sources_notice.html
+#, python-format
+msgid "%(num)s document was removed from sources/ by hand. It was deleted from the wiki:"
+msgid_plural "%(num)s documents were removed from sources/ by hand. They were deleted from the wiki:"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/_removed_sources_notice.html
+#, python-format
+msgid "Pages deleted: %(pages)s."
+msgstr ""
+
+#: web/templates/_removed_sources_notice.html
+#, python-format
+msgid "Pages kept and marked stale: %(pages)s."
+msgstr ""
+
+#: web/templates/_removed_sources_notice.html
+#, python-format
+msgid "wiki_config.toml still names: %(names)s."
+msgstr ""
+
+#: web/templates/_removed_sources_notice.html
+msgid ""
+"The pages kept may still hold text and aliases that came from the deleted document. Only rebuilding the whole wiki "
+"from the remaining sources removes them."
+msgstr ""
+
+#: web/templates/_removed_sources_notice.html
+msgid "Hide this notice until you choose the wiki again"
+msgstr ""
+
+#: web/templates/_removed_sources_notice.html web/templates/_unprocessed_warning.html
+msgid "Dismiss"
+msgstr ""
+
 #: web/templates/_review_dialog.html
 msgid "Review the page"
 msgstr ""
@@ -1244,7 +1309,9 @@ msgstr ""
 
 #: web/templates/_sources_panel.html
 #, python-format
-msgid "Delete the source “%(filename)s”? Its summary page is deleted. The pages that cite it are kept and marked as stale."
+msgid ""
+"Delete the source “%(filename)s”? Its summary page and the pages that cite only it are deleted. The pages that also "
+"cite another source are kept, marked as stale, and stop citing it. No link to a deleted page is left."
 msgstr ""
 
 #: web/templates/_sources_panel.html
@@ -1324,10 +1391,6 @@ msgstr ""
 
 #: web/templates/_unprocessed_warning.html
 msgid "Hide this warning until you choose the wiki again"
-msgstr ""
-
-#: web/templates/_unprocessed_warning.html
-msgid "Dismiss"
 msgstr ""
 
 #: web/templates/_vocabulary_body.html
@@ -4000,6 +4063,11 @@ msgstr ""
 #: base/domain/tools/reindex.py
 #, python-format
 msgid "📝 Indexing page %(page)s"
+msgstr ""
+
+#: base/domain/tools/reindex.py base/services/ingest.py
+#, python-format
+msgid "🗑 %(file)s is no longer in sources/: deleted with %(n)s page(s)"
 msgstr ""
 
 #: base/domain/tools/reindex.py

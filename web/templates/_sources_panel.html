@@ -17,7 +17,7 @@
       <form class="confirm" hx-post="/w/{{ wiki_id }}/sources/{{ s.id }}/delete" hx-target="#progress" hx-swap="innerHTML"
             hx-on::after-request="toggle('confirm-src-{{ loop.index }}', false)">
         <input type="hidden" name="filename" value="{{ s.filename }}">
-        <p>{{ _("Delete the source “%(filename)s”? Its summary page is deleted. The pages that cite it are kept and marked as stale.", filename=s.filename) }}</p>
+        <p>{{ _("Delete the source “%(filename)s”? Its summary page and the pages that cite only it are deleted. The pages that also cite another source are kept, marked as stale, and stop citing it. No link to a deleted page is left.", filename=s.filename) }}</p>
         <div class="actions">
           <label title="{{ _('Without this option, the file stays in sources/, and the next scan of sources/ ingests it again') }}"><input type="checkbox" name="also_delete_file" value="true">{{ _("Also remove file from sources/") }}</label>
           <button class="btn btn-danger" title="{{ _('Delete the source from the wiki') }}">{{ _("Delete the source") }}</button>

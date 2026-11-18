@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from domain.i18n import SUPPORTED_LANGUAGES
 from domain.wiki_registry import clean_path_input, is_wiki_dir, load_recent, prune_recent, push_recent, remove_recent
 from domain.wiki_settings import load_wiki_language
-from services.ingest import peek_stats, unprocessed_sources
+from services.ingest import peek_stats, remove_missing_sources, unprocessed_sources
 from services.wiki import list_pages, open_wiki
 from web.deps import get_state, get_templates
 from web.i18n import _
@@ -186,6 +186,14 @@ def dismiss_unprocessed(wiki_id: str, state: AppState = Depends(get_state)):
     return HTMLResponse("")
 
 
+@router.post("/w/{wiki_id}/removed/dismiss", response_class=HTMLResponse)
+def dismiss_removed(wiki_id: str, state: AppState = Depends(get_state)):
+    """Hide the notice of the sources removed by hand until the user chooses the wiki
+    again. The empty answer replaces the notice."""
+    state.get_wiki(wiki_id).removed = ()
+    return HTMLResponse("")
+
+
 @router.post("/recent/remove")
 def recent_remove(path: str = Form(...), state: AppState = Depends(get_state)):
     """Take a folder out of the recent list; the folder and its wiki stay on disk."""
@@ -202,10 +210,19 @@ def wiki_home(wiki_id: str, opened: bool = False, state: AppState = Depends(get_
     "last opened" follows the wiki last opened, not only the form "Open".
 
     The tab Read goes through this route too. Only the ways of choosing the wiki send
-    `opened`: then the files of sources/ without ingestion are looked up once, and every
-    screen of the wiki warns about them until the user dismisses the warning."""
+    `opened`: then the sources removed from sources/ by hand are deleted from the wiki
+    with the pages only they supported, the files of sources/ without ingestion are
+    looked up once, and every screen of the wiki reports both until the user
+    dismisses the notice. The deletion is skipped while an operation holds the wiki."""
     entry = state.get_wiki(wiki_id)
     if opened:
+        if entry.busy.acquire(blocking=False):
+            try:
+                entry.removed = tuple(remove_missing_sources(entry.wiki))
+            finally:
+                entry.busy.release()
+            if entry.removed:
+                state.reset_agents(wiki_id)
         entry.unprocessed = tuple(unprocessed_sources(entry.wiki))
     pages = list_pages(entry.wiki)
     recent_file = state.settings.recent_file

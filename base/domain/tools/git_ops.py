@@ -23,6 +23,9 @@ __pycache__/
 
 _AUTOCOMMIT_OFF = {"0", "false", "no", "off"}
 
+# The generated aliases (`domain.chat.vocabulary.GENERATED_ALIASES_REL`), part of every point.
+GENERATED_ALIASES = ".llmwiki/aliases.generated.toml"
+
 # Git failures (missing binary, command error) are swallowed so they can't fail
 # an ingest. Warn only once per process so a batch run doesn't spam the log.
 _git_warned = False
@@ -68,7 +71,8 @@ def init_wiki_repo(workspace: Path) -> None:
 
 
 def auto_commit(workspace: Path, message: str) -> None:
-    """Stage wiki/, .gitignore, wiki_config.toml and datasets/, and commit. Silent if nothing to commit.
+    """Stage wiki/, .gitignore, wiki_config.toml, datasets/ and the generated aliases, and commit.
+    Silent if nothing to commit.
 
     No-op when WIKI_AUTOCOMMIT is disabled; graceful skip when git is unavailable.
     A git failure here never propagates — it must not fail an ingest.
@@ -85,6 +89,11 @@ def auto_commit(workspace: Path, message: str) -> None:
         paths = ["wiki/", ".gitignore"] + [name for name in ("wiki_config.toml", "datasets")
                                             if (workspace / name).exists()]
         _run(["git", "add", *paths], workspace)
+        # So is the file of generated aliases: the chat's coverage rule reads it, and going
+        # back to a point before a page was deleted brings the page's aliases back. It lives
+        # in .llmwiki/, which the wiki ignores, so it is added by name with -f.
+        if (workspace / GENERATED_ALIASES).exists():
+            _run(["git", "add", "-f", "--", GENERATED_ALIASES], workspace)
         result = _run(
             ["git", "commit", "-m", message],
             workspace,

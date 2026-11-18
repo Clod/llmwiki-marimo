@@ -235,6 +235,10 @@ def scan_sources(wiki: Wiki, client, model: str, *, verifier: Verifier | None = 
     the images (see `ingest_uploads`)."""
     from domain.ingestion import scan_and_ingest
 
+    # A file removed from sources/ by hand since the wiki was opened leaves first.
+    for removed in remove_missing_sources(wiki):
+        progress(M_("🗑 %(file)s is no longer in sources/: deleted with %(n)s page(s)",
+                    file=removed.filename or removed.page, n=len(removed.deleted_pages)))
     extra = {"vision": vision} if vision is not None else {}
     results = scan_and_ingest(wiki.path, wiki.db_path, client, model, progress, language=wiki.language,
                               **extra)
@@ -374,9 +378,10 @@ def list_stale_pages(wiki: Wiki) -> list[dict]:
 def delete_source(wiki: Wiki, doc_id: str, *, also_delete_file: bool = False) -> tuple[bool, str]:
     """Delete a source document from the index; return (success, message).
 
-    Its summary page is deleted, and the pages that cite it are kept and marked
-    stale (domain/tools/deletion.py). With `also_delete_file` the file leaves
-    the sources folder too. The deletion commits the wiki.
+    Its summary page and the pages that cite only it are deleted; the pages that
+    also cite another source are kept, marked stale, and stop citing it
+    (domain/tools/deletion.py). With `also_delete_file` the file leaves the
+    sources folder too. The deletion commits the wiki.
     """
     from domain.tools.deletion import delete_source as _delete_source
 
@@ -386,8 +391,8 @@ def delete_source(wiki: Wiki, doc_id: str, *, also_delete_file: bool = False) ->
 
 def remove_source(wiki: Wiki, doc_id: str, *, also_delete_file: bool = False):
     """Delete a source as `delete_source` does, and return the `SourceDeletion`:
-    the summary pages deleted, the pages marked stale, whether the file left
-    sources/. The caller holds the wiki's lock."""
+    the pages deleted, the pages marked stale, the files rewritten, whether the
+    file left sources/. The caller holds the wiki's lock."""
     from domain.tools.deletion import delete_source as _delete_source
 
     return _delete_source(wiki.db_path, wiki.path, doc_id, also_delete_file=also_delete_file)
@@ -447,6 +452,16 @@ def peek_stats(db_path: str | Path) -> dict[str, int] | None:
     finally:
         conn.close()
     return {"sources": sources, "pages": pages}
+
+
+def remove_missing_sources(wiki: Wiki) -> list:
+    """Delete from the wiki every source whose file was removed from sources/ by
+    hand, with the pages only it supported (`deletion.remove_missing_sources`);
+    return one `SourceDeletion` per source. With nothing missing, nothing is
+    written. No model is called. The caller holds the wiki's lock."""
+    from domain.tools.deletion import remove_missing_sources as _remove_missing
+
+    return _remove_missing(wiki.db_path, wiki.path)
 
 
 def unprocessed_sources(wiki: Wiki) -> list[str]:

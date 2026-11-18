@@ -345,3 +345,58 @@ def test_a_data_file_edited_by_hand_becomes_a_point_instead_of_stopping_the_reve
     assert dirty_files(ws.workspace) == ["datasets/dolar.md"]
     assert uncommitted(open_wiki(ws.workspace)) == []
     assert "datasets: data files edited by hand" in git(ws.workspace, "log", "-1", "--format=%s")
+
+
+# ── The generated aliases are part of a point ───────────────────────────────
+
+def test_going_back_before_a_page_deletion_brings_its_aliases_back(history):
+    """Deleting a page removes its generated aliases (`wiki_fs.delete_page`). Measured on
+    2026-11-18 before they were tracked: going back to the point before the deletion
+    brought the page back without its aliases, and the coverage rule refused a
+    question that named one."""
+    from domain.chat.vocabulary import read_generated_aliases, write_generated_aliases
+    from domain.tools.git_ops import auto_commit, head_sha
+    from domain.tools.wiki_fs import delete_page
+
+    ws, shas = history
+    write_generated_aliases(ws.workspace, {"Royal Ball": ["the ball"], "Glass Slipper": ["slipper"]})
+    auto_commit(ws.workspace, "aliases")
+    with_aliases = head_sha(ws.workspace)
+    assert ".llmwiki/aliases.generated.toml" in git(ws.workspace, "ls-files").split()
+    assert delete_page(ws.db_path, ws.workspace, "/wiki/concepts/", "royal-ball")
+    auto_commit(ws.workspace, "delete: concepts/royal-ball")
+    assert "Royal Ball" not in read_generated_aliases(ws.workspace)
+    assert dirty_files(ws.workspace) == []
+
+    revert_wiki(ws.workspace, with_aliases)
+    assert read_generated_aliases(ws.workspace)["Royal Ball"] == ["the ball"]
+    assert (ws.workspace / "wiki" / "concepts" / "royal-ball.md").exists()
+    revert_wiki(ws.workspace, "HEAD~1")
+    assert "Royal Ball" not in read_generated_aliases(ws.workspace)
+
+
+def test_a_point_from_before_the_aliases_were_tracked_keeps_the_current_file(history):
+    from domain.chat.vocabulary import read_generated_aliases, write_generated_aliases
+    from domain.tools.git_ops import auto_commit, head_sha
+
+    ws, shas = history
+    git(ws.workspace, "rm", "-q", "--cached", "--ignore-unmatch", ".llmwiki/aliases.generated.toml")
+    git(ws.workspace, "commit", "-q", "--allow-empty", "-m", "a point with no alias file")
+    untracked = head_sha(ws.workspace)
+    write_generated_aliases(ws.workspace, {"Royal Ball": ["the ball"]})
+    auto_commit(ws.workspace, "aliases")
+    revert_wiki(ws.workspace, untracked)
+    assert read_generated_aliases(ws.workspace) == {"Royal Ball": ["the ball"]}
+
+
+# ── A source deleted with its file does not come back ───────────────────────
+
+def test_the_sources_of_a_point_missing_from_sources_are_named(history):
+    """Going back never touches sources/. Measured on 2026-11-18: after deleting a
+    source together with its file and going back, the next opening of the wiki
+    deleted the source again. The confirmation names those files first."""
+    ws, shas = history
+    assert revert_mod.missing_sources(ws.workspace, shas["B"]) == []
+    (ws.workspace / "sources" / "Tale One.pdf").unlink()
+    assert revert_mod.missing_sources(ws.workspace, shas["B"]) == ["Tale One.pdf"]
+    assert revert_mod.missing_sources(ws.workspace, shas["A"]) == ["Tale One.pdf"]

@@ -29,11 +29,20 @@ describe how the system actually behaves, measured rather than asserted.
 
 Things measured and found wanting, kept here rather than quietly carried.
 
-**A rebuilt index cannot recover what only the sources held.** `reindex_from_disk`
-(`base/domain/tools/reindex.py`) rebuilds `index.db` from `sources/` and `wiki/`
-without the model, but `document_pages` repopulates only while the source files are
-still there to re-extract, and a wiki page whose source was deleted re-registers
-fine while its `cites` edge stays dangling.
+**A page kept after a source is deleted still holds what that source contributed.**
+Deleting `La Cenicienta.pdf` from the fairy-tale demo deletes the three pages that
+cite only that source: the summary, `cenicienta.md` and `hada-madrina.md`. The page
+`moraleja.md` cites `Caperucita Roja.pdf` too, so it is kept, marked stale, and stops
+citing the deleted file. Its sentences about the two morals of *La Cenicienta* stay.
+A concept page is written by accumulation (`build_concept_page` rewrites the
+existing text), so no record says which sentence came from which source; the
+page's generated aliases have the same problem. Code cannot remove that text; the
+answer checks are what flag it. The only remedy is rebuilding the whole wiki from
+the remaining sources (README, Limitations). The deletion itself
+(`base/domain/tools/deletion.py`) is complete: it runs the same way from the
+Ingest screen and for a file removed from `sources/` by hand (when the wiki is
+opened, before a scan, before a rebuild of the index), and leaves no link to
+anything deleted.
 
 **Citation is guaranteed on one path and merely requested on the other.**
 `postprocess.ensure_citation` appends attribution the answer is missing by

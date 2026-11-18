@@ -757,6 +757,23 @@ as a wiki page with **Save**. The agent only drafts and proposes — you review
 the draft in a dialog and the save is your explicit  
 click — so the human-in-the-loop step is post-hoc rather than during ingestion.
 
+- **Deleting a source leaves its contribution in the pages it shares.** A page  
+that cites only the deleted source is deleted, and no link to it is left. A page  
+that also cites another source is kept, marked stale, and stops citing the deleted  
+file — but its text and its generated aliases may still hold what that file  
+contributed, because a page does not record which sentence came from which  
+source. This applies equally to a deletion from the **Ingest** tab and to a file  
+removed from `sources/` by hand, which the wiki deletes when you open it. The only  
+way to remove that text is to rebuild the whole wiki from the remaining sources:  
+  1. In the wiki list, create a new wiki in an empty folder.  
+  2. In its **Ingest** tab, upload the remaining source documents.  
+  3. Copy `wiki_config.toml` from the old wiki: it holds the blacklist and the  
+     hand-written aliases.  
+  
+  Changes made by hand in the old wiki (edited pages, removed topics) are not  
+  carried over. **Rebuild the index** in the **Maintain** tab does not do this: it  
+  rebuilds the search database from the pages as they are.
+
 The rationale for each cut and the revisit plan live in  
 [`ROADMAP.md`](ROADMAP.md).
 

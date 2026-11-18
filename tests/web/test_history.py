@@ -330,3 +330,14 @@ def test_threads_are_not_needed_to_serialize_two_reverts(client, wiki, commits):
     assert first[-1].startswith("🏁")
     again = op_lines(client, client.post(f"{H}/commit/{commits[0].sha}/revert"))
     assert again[-1].startswith("🏁") and threading.active_count() >= 1
+
+
+def test_the_confirmation_names_the_sources_of_the_point_missing_from_sources(client, commits, monkeypatch):
+    """Going back does not bring a file back to sources/, and the next opening of the
+    wiki would delete the source again (`revert.missing_sources`)."""
+    from domain.rollback import revert as revert_mod
+    assert "ya no está en sources/" not in client.get(f"{H}/commit/{commits[2].sha}/confirm").text
+    monkeypatch.setattr(revert_mod, "missing_sources", lambda workspace, sha: ["La Cenicienta.pdf"])
+    text = client.get(f"{H}/commit/{commits[2].sha}/confirm").text
+    assert ("Este punto incluye La Cenicienta.pdf, que ya no está en sources/. Copialo de nuevo en sources/ "
+            "antes de volver a abrir la wiki, o se borrará otra vez con sus páginas.") in text
