@@ -24,8 +24,12 @@ Recovered: every `documents` row (by `relative_path`), `document_pages`,
 files: `version`, `document_number` and the creation dates (reset),
 `stale_since`, and the sentence verifications of the pages (`page_verifications`,
 `verification_sentences`): a verified page shows "Not verified" until the user
-verifies it again. A wiki page whose source file is gone is registered, but its
-`cites` edge has no target.
+verifies it again.
+
+A source the user removed from `sources/` by hand is first deleted from the old
+index with its pages (`deletion.remove_missing_sources`), as the Ingest screen
+deletes it. With no old index there is nothing to compare: a page that cites a
+missing file is registered, and its `cites` edge is not recorded.
 
 The fresh database is built beside the old one and swapped in only when it is
 complete, so a failure leaves the old index as it was. A rebuild in which the
@@ -276,6 +280,25 @@ def _swap_in(fresh: Path, db_path: Path) -> None:
     os.replace(fresh, db_path)
 
 
+def _delete_missing_sources(workspace: Path, db_file: Path, progress: Progress) -> None:
+    """A source removed from `sources/` by hand is deleted from the old index first,
+    with its pages (`deletion.remove_missing_sources`), so the rebuild applies the
+    same deletion as the Ingest screen. A damaged old index is skipped: the rebuild
+    is the remedy for it."""
+    from domain.tools.deletion import remove_missing_sources
+
+    if not db_file.exists():
+        return
+    try:
+        results = remove_missing_sources(str(db_file), workspace)
+    except sqlite3.Error:
+        logger.warning("the old index could not be read; missing sources not deleted", exc_info=True)
+        return
+    for result in results:
+        progress(M_("🗑 %(file)s is no longer in sources/: deleted with %(n)s page(s)",
+                    file=result.filename or result.page, n=len(result.deleted_pages)))
+
+
 def reindex_from_disk(workspace: Path, db_path: str, *, progress: Progress = _noop) -> ReindexReport:
     """Write a fresh `index.db` from `sources/` and `wiki/`; return what it holds.
 
@@ -287,6 +310,7 @@ def reindex_from_disk(workspace: Path, db_path: str, *, progress: Progress = _no
     started = time.monotonic()
     workspace, db_file = Path(workspace), Path(db_path)
     language = load_wiki_language(workspace)
+    _delete_missing_sources(workspace, db_file, progress)
     fresh = Path(f"{db_file}.reindex")
     _remove_database(fresh)
 

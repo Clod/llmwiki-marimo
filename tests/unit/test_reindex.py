@@ -246,8 +246,25 @@ def test_a_link_to_a_page_created_later_is_found(original, fake_extractor):
 
 # ── Sources that are gone or cannot be read ─────────────────────────────────
 
-def test_a_page_whose_source_file_is_gone_is_registered_with_a_dangling_citation(original, fake_extractor):
+def test_a_source_removed_by_hand_is_deleted_with_its_pages_before_the_rebuild(original, fake_extractor):
+    """The old index still lists the removed file: the rebuild first deletes it as the
+    Ingest screen does (`deletion.remove_missing_sources`), so no page is left that
+    only that source supported, and no citation of it."""
     (original.workspace / "sources" / "Tale One.pdf").unlink()
+    report = reindex_from_disk(original.workspace, original.db_path)
+    after = snapshot(original.db_path)
+    assert "sources/Tale One.pdf" not in after["documents"]
+    assert "wiki/summaries/tale-one.md" not in after["documents"]
+    assert not (original.workspace / "wiki" / "summaries" / "tale-one.md").exists()
+    assert not [r for r in after["references"] if r[1] == "sources/Tale One.pdf"]
+    assert report.sources_indexed == 1
+
+
+def test_with_no_old_index_a_page_whose_source_file_is_gone_is_registered(original, fake_extractor):
+    """A lost index: nothing records that the file existed, so its pages are
+    registered as they are, and their citation of it is not recorded (§6.9)."""
+    (original.workspace / "sources" / "Tale One.pdf").unlink()
+    Path(original.db_path).unlink()
     report = reindex_from_disk(original.workspace, original.db_path)
     after = snapshot(original.db_path)
     assert "sources/Tale One.pdf" not in after["documents"]

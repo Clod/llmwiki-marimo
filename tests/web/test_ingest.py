@@ -300,32 +300,51 @@ def test_one_operation_runs_at_a_time_per_wiki(client, wiki, monkeypatch, agents
 
 # ── Deletions ────────────────────────────────────────────────────────────────
 
-def _summary_and_citing_page_of(wiki, doc_id):
-    """The summary page `tale` derives from `doc_id`, and the concept `prince` cites it."""
+def _summary_and_citing_page_of(wiki, doc_id, also_cites=None):
+    """The summary page `tale` derives from `doc_id`, and the concept `prince` cites it,
+    and also the source `also_cites` when given."""
     import uuid
     with get_connection(wiki.db_path) as conn:
         conn.execute("UPDATE documents SET source_document_id = ? WHERE relative_path = 'wiki/summaries/tale.md'",
                      (doc_id,))
         prince = conn.execute("SELECT id FROM documents WHERE relative_path = 'wiki/concepts/prince.md'").fetchone()[0]
-        conn.execute("INSERT INTO document_references (id, source_document_id, target_document_id, reference_type) "
-                     "VALUES (?, ?, ?, 'cites')", (str(uuid.uuid4()), prince, doc_id))
+        for target in (doc_id, also_cites):
+            if target:
+                conn.execute("INSERT INTO document_references (id, source_document_id, target_document_id, "
+                             "reference_type) VALUES (?, ?, ?, 'cites')", (str(uuid.uuid4()), prince, target))
         conn.commit()
 
 
 def test_source_delete_streams_its_steps_and_removes_the_file(client, wiki):
     add_source(wiki, "d1", "Tale.pdf")
+    add_source(wiki, "d2", "Other.pdf")
     (wiki.sources_dir / "Tale.pdf").write_bytes(b"%PDF")
-    _summary_and_citing_page_of(wiki, "d1")
+    (wiki.sources_dir / "Other.pdf").write_bytes(b"%PDF")
+    _summary_and_citing_page_of(wiki, "d1", also_cites="d2")
     response = client.post(f"/w/{WIKI_ID}/sources/d1/delete",
                            data={"filename": "Tale.pdf", "also_delete_file": "true"})
     assert lines_of(client, response) == [
         "🗑 Borrando la fuente «Tale.pdf»",
-        "Borrada la página de resumen summaries/tale",
+        "Se borró la página summaries/tale",
         "1 página marcada como obsoleta: concepts/prince",
+        "Se quitaron las citas y los enlaces a lo borrado de 1 página: concepts/prince",
+        "⚠️ Las páginas que se conservan pueden tener todavía texto y alias que salieron del documento borrado. "
+        "Solo reconstruir toda la wiki a partir de las fuentes que quedan los quita.",
         "Archivo quitado de sources/",
         "🏁 Se borró la fuente «Tale.pdf».",
     ]
-    assert ingest.list_sources(wiki) == [] and not (wiki.sources_dir / "Tale.pdf").exists()
+    assert [s["filename"] for s in ingest.list_sources(wiki)] == ["Other.pdf"]
+    assert not (wiki.sources_dir / "Tale.pdf").exists()
+
+
+def test_a_page_that_cites_only_the_deleted_source_is_deleted_too(client, wiki):
+    add_source(wiki, "d1", "Tale.pdf")
+    (wiki.sources_dir / "Tale.pdf").write_bytes(b"%PDF")
+    _summary_and_citing_page_of(wiki, "d1")
+    response = client.post(f"/w/{WIKI_ID}/sources/d1/delete", data={"filename": "Tale.pdf"})
+    lines = lines_of(client, response)
+    assert "Se borró la página concepts/prince" in lines and "Se borró la página summaries/tale" in lines
+    assert not (wiki.path / "wiki" / "concepts" / "prince.md").exists()
 
 
 def test_source_delete_keeps_the_file_by_default(client, wiki):

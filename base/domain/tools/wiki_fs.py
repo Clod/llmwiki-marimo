@@ -23,6 +23,7 @@ import re
 # Standard SQLite database library
 import sqlite3
 # Generator for unique random IDs (Universally Unique Identifiers)
+import urllib.parse
 import uuid
 # Cross-platform file path management library
 from dataclasses import dataclass
@@ -119,90 +120,151 @@ def _insert_chunks(
     tracing.mark("W_INSERT_CHUNKS", tracing.WRITING, document_id=doc_id, fragments=len(chunks))
 
 
-def _strip_dead_links(
-    conn: sqlite3.Connection,
-    workspace: Path,
-    doc_id: str,
-    relative_path: str,
-) -> None:
-    """Remove markdown links pointing at relative_path from all wiki pages that reference it.
+_LINK_RE = re.compile(r"(!?)\[([^\]]*)\]\(([^)]+)\)")
+# A list item whose whole content is one link, optionally followed by a description
+# after a dash or a colon: `- [Cenicienta](cenicienta.md)`, and the `index.md` form
+# `- [La Cenicienta](summaries/la-cenicienta.md) — Versión de…`.
+_LINK_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+!?\[[^\]]*\]\(([^)]+)\)\s*(?:[—–:-].*)?$")
+_FENCE_RE = re.compile(r"^\s*(```|~~~)")
 
-    If we delete a page (e.g. 'wiki/concepts/old.md'), we don't want other pages
-    in our wiki containing broken links like '[Old Stuff](wiki/concepts/old.md)'.
 
-    This function finds every page that links to the deleted page, strips the link
-    brackets and URLs, leaving just the plain text (e.g., 'Old Stuff'), and saves
-    the updated pages both to disk and the database chunks.
+def _resolves_to(href: str, from_dir: str, targets: set[str]) -> bool:
+    """True if `href`, written inside a file of `from_dir`, points at one of `targets`.
+
+    A target is a workspace-relative path: a file (`wiki/concepts/x.md`,
+    `sources/a.pdf`) or a folder ending in `/` (the ingestion folder of a source,
+    whose images a page embeds). Two readings of the href are accepted: page
+    relative, the one the pipeline writes between pages, and workspace-root
+    relative (`wiki/concepts/x.md`, `.llmwiki/cache/local/<id>/images/1.png`), the
+    one older pages and the image links carry. The href is URL-decoded first.
     """
-    # 1. Find all documents that reference our about-to-be-deleted doc_id
-    refs = conn.execute(
-        "SELECT d.id, d.relative_path, d.content "
-        "FROM document_references dr "
-        "JOIN documents d ON dr.source_document_id = d.id "
-        "WHERE dr.target_document_id = ? AND d.source_kind = 'wiki'",
-        (doc_id,),
-    ).fetchall()
+    clean = urllib.parse.unquote(href.split("#", 1)[0].split("?", 1)[0].strip().strip("<>"))
+    if not clean or "://" in clean or clean.startswith(("mailto:", "data:")):
+        return False
+    readings = {
+        posixpath.normpath(posixpath.join(from_dir, clean)),
+        posixpath.normpath(clean.lstrip("/")),
+    }
+    for target in targets:
+        if target.endswith("/"):
+            if any((r + "/").startswith(target) for r in readings):
+                return True
+        elif target in readings:
+            return True
+    return False
 
-    # If no other files link to this page, we can safely exit!
-    if not refs:
-        return
 
-    # 2. Match EVERY markdown link, then decide per link whether it resolves to the
-    #    page being deleted. Matching a fixed spelling of the path does not work:
-    #    pages link by relative href — `[Title](other.md)` between neighbours,
-    #    `[Title](../summaries/other.md)` across folders — which is what
-    #    inject_see_also and repair_missing_xref emit. A pattern built from the
-    #    full 'wiki/concepts/x.md' form never matches any of them, so deleting a
-    #    page used to leave a broken link in every page that pointed at it.
-    any_link = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-    target = posixpath.normpath(relative_path)
+def _without_links_to(text: str, from_dir: str, targets: set[str]) -> str:
+    """`text` with every link to one of `targets` removed.
 
-    def _resolves_to_target(href: str, from_dir: str) -> bool:
-        """True if `href`, written inside a page in `from_dir`, points at the target.
-
-        Two readings are accepted. Page-relative is the correct one and the only
-        one the pipeline emits. Workspace-root-relative ("wiki/concepts/x.md",
-        with or without a leading slash) is what older pages carry, and this is a
-        cleanup pass — matching both leaves fewer broken links behind.
-        """
-        clean = href.split("#", 1)[0].split("?", 1)[0].strip()
-        if not clean or "://" in clean:
-            return False
-        readings = {
-            posixpath.normpath(posixpath.join(from_dir, clean)),  # page-relative
-            posixpath.normpath(clean.lstrip("/")),                # workspace-root
-        }
-        return target in readings
-
-    # 3. Iterate through each referencing document, clean the text, and save
-    for ref in refs:
-        content = ref["content"] or ""
-        from_dir = posixpath.dirname(ref["relative_path"] or "")
-        new_content = any_link.sub(
-            lambda m: m.group(1) if _resolves_to_target(m.group(2), from_dir) else m.group(0),
-            content,
-        )
-
-        # If no replacement was actually made (already clean), skip updating
-        if new_content == content:
+    A list item that is only that link is removed whole, and so is an image; any
+    other link becomes its text. A section left empty by those removals («## Véase
+    también» whose every item went) is removed with its heading. Fenced code blocks
+    are left as they are.
+    """
+    out: list[str] = []
+    emptied: set[int] = set()     # indexes in `out` of the headings whose section lost a line
+    heading: int | None = None
+    fenced = False
+    for line in text.split("\n"):
+        if _FENCE_RE.match(line):
+            fenced = not fenced
+            out.append(line)
+            continue
+        if not fenced and line.startswith("#"):
+            heading = len(out)
+        if fenced or "](" not in line:
+            out.append(line)
+            continue
+        item = _LINK_ITEM_RE.match(line)
+        if item and _resolves_to(item.group(1), from_dir, targets):
+            if heading is not None:
+                emptied.add(heading)
             continue
 
-        # Write the updated text to the physical file on disk
-        file_path = workspace / ref["relative_path"]
-        if file_path.exists():
-            file_path.write_text(new_content, encoding="utf-8")
+        def _replace(m: re.Match) -> str:
+            if not _resolves_to(m.group(3), from_dir, targets):
+                return m.group(0)
+            return "" if m.group(1) else m.group(2)
 
-        # Run a transaction to update database records and re-generate search chunks
+        new = _LINK_RE.sub(_replace, line)
+        if new != line and not new.strip():
+            if heading is not None:
+                emptied.add(heading)
+            continue
+        out.append(new)
+    return "\n".join(_without_empty_sections(out, emptied))
+
+
+def _without_empty_sections(lines: list[str], emptied: set[int]) -> list[str]:
+    """`lines` without the headings of `emptied` whose section has no text left."""
+    drop: set[int] = set()
+    for start in emptied:
+        end = start + 1
+        while end < len(lines) and not lines[end].startswith("#"):
+            end += 1
+        if not any(line.strip() for line in lines[start + 1:end]):
+            drop.update(range(start, end))
+    kept = [line for i, line in enumerate(lines) if i not in drop]
+    while len(kept) > 1 and not kept[-1].strip() and not kept[-2].strip():
+        kept.pop()
+    return kept
+
+
+def strip_links_to(conn: sqlite3.Connection, workspace: Path, targets: set[str]) -> list[str]:
+    """Remove every link to one of `targets` from every markdown file of `wiki/`.
+
+    The pass reads the files on disk, not the `links_to` edges of the index: a
+    page with no index row (`index.md`, `overview.md`, `log.md`) or with an edge
+    the index missed is cleaned too. A page with an index row gets its text and
+    search fragments rewritten. Returns the workspace-relative paths of the files
+    that changed.
+    """
+    changed: list[str] = []
+    wiki_dir = workspace / "wiki"
+    if not wiki_dir.is_dir():
+        return changed
+    language = load_wiki_language(workspace)
+    for path in sorted(wiki_dir.rglob("*.md")):
+        relative = path.relative_to(workspace).as_posix()
+        if relative in targets:
+            continue
+        content = path.read_text(encoding="utf-8")
+        new_content = _without_links_to(content, posixpath.dirname(relative), targets)
+        if new_content == content:
+            continue
+        path.write_text(new_content, encoding="utf-8")
+        changed.append(relative)
+        row = conn.execute("SELECT id FROM documents WHERE relative_path=?", (relative,)).fetchone()
+        if row is None:
+            continue
         with conn:
             conn.execute(
                 "UPDATE documents SET content=?, version=version+1, "
                 "updated_at=datetime('now') WHERE id=?",
-                (new_content, ref["id"]),
+                (new_content, row["id"]),
             )
-            # Remove old search chunks
-            conn.execute("DELETE FROM document_chunks WHERE document_id=?", (ref["id"],))
-            # Insert brand new search chunks for the cleaned content
-            _insert_chunks(conn, ref["id"], new_content, load_wiki_language(workspace))
+            conn.execute("DELETE FROM document_chunks WHERE document_id=?", (row["id"],))
+            _insert_chunks(conn, row["id"], new_content, language)
+    return changed
+
+
+def remove_generated_aliases(workspace: Path, titles: set[str]) -> list[str]:
+    """Remove the generated aliases of the pages titled `titles`
+    (`.llmwiki/aliases.generated.toml`); return the titles removed.
+
+    The chat merges those aliases into the coverage rule (`chat/config.py`), so the
+    aliases of a deleted page would let a question about it pass. The hand-written
+    aliases of `wiki_config.toml` are not touched.
+    """
+    from domain.chat.vocabulary import read_generated_aliases, write_generated_aliases
+
+    aliases = read_generated_aliases(workspace)
+    wanted = {t.casefold() for t in titles if t}
+    removed = [name for name in aliases if name.casefold() in wanted]
+    if removed:
+        write_generated_aliases(workspace, {k: v for k, v in aliases.items() if k not in removed})
+    return removed
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -643,7 +705,12 @@ def delete_page(
     dir_path: str,
     slug: str,
 ) -> bool:
-    """Delete a wiki page from disk and the DB. Returns True if it existed."""
+    """Delete a wiki page from disk and the DB. Returns True if it existed.
+
+    No link to the page is left in any markdown file of `wiki/` (`strip_links_to`),
+    the page leaves `index.md`, and its generated aliases leave
+    `.llmwiki/aliases.generated.toml` (`remove_generated_aliases`).
+    """
     # 1. Formulate paths
     dir_path = _normalize_dir_path(dir_path)
     relative_path = dir_path.lstrip("/") + f"{slug}.md"
@@ -652,22 +719,25 @@ def delete_page(
     # 2. Note whether the page exists (file or DB row decide the return value).
     existed = file_path.exists()
 
+    title = _page_title(file_path)
+
     # 3. Clean up the database FIRST. If a DB step raises (e.g. inside
-    #    _strip_dead_links), the file is still on disk, so the page stays
+    #    strip_links_to), the file is still on disk, so the page stays
     #    consistent rather than leaving an orphan DB row pointing at a deleted file.
     conn = open_db(db_path)
     try:
+        # A. Strip every link to this page from every markdown file of wiki/, so
+        #    no page, nor index.md, overview.md or log.md, links to a missing file.
+        strip_links_to(conn, workspace, {relative_path})
+
         # Retrieve the document ID to find its related child rows
         row = conn.execute(
-            "SELECT id FROM documents WHERE relative_path=?", (relative_path,)
+            "SELECT id, title FROM documents WHERE relative_path=?", (relative_path,)
         ).fetchone()
 
         if row:
             doc_id = row["id"]
-
-            # A. Find and strip out all inbound links pointing to this deleted page
-            #    so other pages don't have broken/dead links pointing here.
-            _strip_dead_links(conn, workspace, doc_id, relative_path)
+            title = title or row["title"]
 
             with conn:
                 # B. Remove all search text chunks belonging to this document
@@ -703,11 +773,30 @@ def delete_page(
     except Exception:  # noqa: BLE001 — the page itself is still deleted below
         logger.warning("could not remove %s from index.md", relative_path, exc_info=True)
 
-    # 5. Remove the physical file LAST, once the DB is consistent.
+    # 5. The generated aliases of the page: the chat merges them into the coverage
+    #    rule, where they would let a question about the deleted page pass.
+    if title:
+        remove_generated_aliases(workspace, {title})
+
+    # 6. Remove the physical file LAST, once the DB is consistent.
     if file_path.exists():
         file_path.unlink()
 
     return existed
+
+
+def _page_title(file_path: Path) -> str:
+    """The `title` of a page's front-matter, or "" when there is none."""
+    if not file_path.exists():
+        return ""
+    block, _ = split_frontmatter(file_path.read_text(encoding="utf-8"))
+    if block is None:
+        return ""
+    try:
+        value = parse_frontmatter(block).get("title")
+    except ValueError:
+        return ""
+    return value.strip() if isinstance(value, str) else ""
 
 
 def page_description(text: str | None) -> str:

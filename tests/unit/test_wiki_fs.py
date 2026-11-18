@@ -352,7 +352,7 @@ def test_delete_page_strips_links_written_the_way_pages_actually_write_them(
     sibling = create_page(
         tmp_workspace.db_path, tmp_workspace.workspace,
         "/wiki/concepts/", "sibling", "Sibling",
-        f"# Sibling\n\n{_LONG}\n\n## See also\n\n- [Target Page](target.md)\n", [],
+        f"# Sibling\n\nIt quotes [Target Page](target.md) here. {_LONG}\n\n## See also\n\n- [Target Page](target.md)\n", [],
     )
     # other folder → ../concepts/…
     cousin = create_page(
@@ -379,8 +379,11 @@ def test_delete_page_strips_links_written_the_way_pages_actually_write_them(
 
     assert "(target.md)" not in same_dir, f"same-folder link survived:\n{same_dir}"
     assert "(../concepts/target.md)" not in cross_dir, f"cross-folder link survived:\n{cross_dir}"
-    # the label text stays, so the sentence still reads
-    assert "Target Page" in same_dir and "Target Page" in cross_dir
+    # in prose the label text stays, so the sentence still reads; a list item that
+    # was only the link leaves whole (owner, 2026-11-18: no link to a deleted page)
+    assert "It quotes Target Page here." in same_dir
+    assert "- Target Page" not in same_dir and "Target Page" not in cross_dir
+    assert "## See also" not in cross_dir     # the section had only that item
 
 
 def test_delete_page_removes_the_entry_from_index_md(
@@ -526,7 +529,8 @@ def test_deleting_every_stale_page_leaves_the_wiki_consistent(
     survivor = read_page(
         tmp_workspace.db_path, tmp_workspace.workspace, "/wiki/concepts/", "keeper")
     assert "(doomed.md)" not in survivor, f"survivor still links to the deleted page:\n{survivor}"
-    assert "Doomed" in survivor, "the link label should survive as plain text"
+    # the «See also» item was only the link: it leaves whole, and the section with it
+    assert "Doomed" not in survivor and "## See also" not in survivor
 
     index_text = (tmp_workspace.workspace / "wiki" / "index.md").read_text(encoding="utf-8")
     assert "doomed.md" not in index_text

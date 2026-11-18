@@ -30,6 +30,8 @@ def wiki(tmp_path):
             (doc_id, user, "a.pdf", "a", "/sources/", "sources/a.pdf", SOURCE))
         conn.execute("INSERT INTO document_pages (document_id, page, content) VALUES (?,1,?)", (doc_id, SOURCE))
         conn.commit()
+    # The file is on disk: a scan deletes a source whose file was removed by hand.
+    (w.path / "sources" / "a.pdf").write_bytes(b"%PDF-1.4")
     object.__setattr__(w, "source_id", doc_id)
     return w
 

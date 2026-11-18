@@ -88,6 +88,10 @@ class OpenWiki:
     # (`services.ingest.unprocessed_sources`). Every screen of the wiki warns about
     # them until the user dismisses the warning or a scan or an upload ends.
     unprocessed: tuple[str, ...] = ()
+    # The sources removed from `sources/` by hand and deleted from the wiki when the
+    # user chose it (`services.ingest.remove_missing_sources`), one `SourceDeletion`
+    # each. Every screen of the wiki reports them until the user dismisses the notice.
+    removed: tuple = ()
 
 
 @dataclass
@@ -175,6 +179,11 @@ class AppState:
         wiki is not opened: the warning only exists once the user chose the wiki."""
         entry = self._open.get(wiki_id)
         return entry.unprocessed if entry is not None else ()
+
+    def removed(self, wiki_id: str) -> tuple:
+        """The deletions of the notice of an open wiki; empty for a wiki not open."""
+        entry = self._open.get(wiki_id)
+        return entry.removed if entry is not None else ()
 
     def recent_only(self) -> set[str]:
         """The listed paths that come only from the recent list: the ones the owner can

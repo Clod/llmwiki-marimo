@@ -240,5 +240,6 @@ def delete(wiki_id: str, page: str, title: str = Form(""), state: AppState = Dep
         raise HTTPException(status_code=404, detail=_("The page does not exist.")) from exc
     if not existed:
         raise HTTPException(status_code=404, detail=_("The page does not exist."))
+    state.reset_agents(wiki_id)     # the chat reloads the aliases, without those of the page
     return RedirectResponse(f"/w/{wiki_id}/pages/overview?deleted={urllib.parse.quote(title or page)}",
                             status_code=303)

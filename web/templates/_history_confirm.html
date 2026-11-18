@@ -21,6 +21,11 @@
   {% endfor %}
   {% if plan.config_changes %}<p>{% trans %}The configuration of the wiki (<code>wiki_config.toml</code>, with its vocabulary lists) goes back to the one of this point.{% endtrans %}</p>{% endif %}
   <p>{% trans %}<code>sources/</code> does not change: the documents you added after this point stay in the folder.{% endtrans %}</p>
+  {% if plan.missing_sources %}
+  <p class="warn">{{ ngettext("This point includes %(files)s, which is no longer in sources/. Copy it back to sources/ before opening the wiki again, or it will be deleted again with its pages.",
+                              "This point includes %(files)s, which are no longer in sources/. Copy them back to sources/ before opening the wiki again, or they will be deleted again with their pages.",
+                              plan.missing_sources | length, files=plan.missing_sources | join(", ")) }}</p>
+  {% endif %}
   {% if plan.db_via == 'snapshot' %}
   <p>{{ _("The search index goes back to the copy saved at this point, instantly.") }}</p>
   {% else %}

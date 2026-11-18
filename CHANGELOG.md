@@ -551,6 +551,44 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **Deleting a source deletes the pages that only it supported, and leaves no link
+  to anything deleted.** Deleting `La Cenicienta.pdf` from the Spanish tale example
+  used to delete only its summary: `cenicienta.md` and `hada-madrina.md`, which cite
+  no other source, stayed, and the chat still found them. A file removed from
+  `sources/` by hand changed nothing: the chat still answered «Baja al jardín,
+  encontrarás seis lagartos…» from a file that was gone. Now the summary and every
+  page citing only the deleted source are deleted; a page that cites another source
+  too is kept, marked stale, and stops citing the deleted file (header `sources`,
+  sources section, footnotes). No markdown file of `wiki/` keeps a link to a deleted
+  page, to the source file or to its images: a list item that is only the link goes
+  whole, a link in prose becomes its text (`strip_links_to`,
+  `base/domain/tools/wiki_fs.py`; the page «Delete» button uses it too). The
+  generated aliases of a deleted page go, so «¿Quién es el hada?» no longer passes
+  the coverage rule. A file removed by hand is deleted the same way when the wiki is
+  opened, before a scan and before a rebuild of the index
+  (`remove_missing_sources`, `base/domain/tools/deletion.py`), and a notice names
+  what was deleted. `wiki_config.toml` is never edited: the deleted pages it still
+  names are reported. The text a kept page took from the deleted source stays; the
+  README «Limitations» explains how to rebuild the whole wiki to remove it.
+- **Going back to a History point brings the generated aliases back.** Deleting a
+  page removes its aliases from `.llmwiki/aliases.generated.toml`; going back to the
+  point before the deletion brought the page back without them, and the coverage rule
+  refused «¿Quién es el hada?» although `hada-madrina.md` was there again. Every point
+  now holds the alias file (`auto_commit`, added with `git add -f` because the wiki
+  ignores `.llmwiki/`), and going back restores it. A point from before it was
+  tracked keeps the current file.
+- **The History confirmation names the sources that going back cannot bring back.**
+  Going back never touches `sources/`. After deleting `La Cenicienta.pdf` together
+  with its file, going back to the point before restored the pages, and the next
+  opening of the wiki deleted them again because the file was missing. The
+  confirmation now says «This point includes La Cenicienta.pdf, which is no longer in
+  sources/. Copy it back…» (`missing_sources`, `base/domain/rollback/revert.py`).
+- **The chat uses the aliases of an upload without a restart.** The chat keeps the
+  configuration of the wiki, aliases included, in the agents it builds for the first
+  question. An upload from the Ingest tab writes new generated aliases and did not
+  drop the agents: an alias written by the ingestion was not used until the server
+  restarted (measured with «Isengrín» added to «Lobo feroz»). The upload, the scan,
+  the rebuild of the index and every deletion now drop them.
 - **The thumbnails of the Figures section speak the language of the wiki.** The
   alt text of every thumbnail was Spanish: the English tale example showed «Imagen,
   página 1» next to «**Page 1.**». It comes from the locale now (`image_alt`: «Image,

@@ -470,13 +470,18 @@ class RevertPlan:
     files: tuple[str, ...] = ()
     index_code: str = ""       # with problem_code "index": why (IndexUnavailable.code)
     config_changes: bool = False   # going back also changes wiki_config.toml (the vocabulary lists)
+    # The sources the pages of the point cite that are not in sources/ today: going back
+    # does not bring a file back, and the next opening of the wiki would delete them again.
+    missing_sources: tuple[str, ...] = ()
 
 
 def revert_plan(wiki: Wiki, sha: str) -> RevertPlan:
     """Check a revert without doing it: the pages it changes, how the index would
     be restored, and whether anything stops it (uncommitted changes, no way to
     restore the index). Raises `ValueError` for a commit that does not exist."""
-    from domain.rollback.revert import IndexUnavailable, RevertError, config_changes, index_route, require_history
+    from domain.rollback.revert import (
+        IndexUnavailable, RevertError, config_changes, index_route, missing_sources, require_history,
+    )
 
     full = commit_id(wiki, sha)
     changes = changes_since(wiki, full)
@@ -491,7 +496,8 @@ def revert_plan(wiki: Wiki, sha: str) -> RevertPlan:
         return RevertPlan(full, changes, None, exc.reason, exc.reason, "index", index_code=exc.code)
     except RevertError as exc:
         return RevertPlan(full, changes, None, "", str(exc), "unavailable")
-    return RevertPlan(full, changes, via, reason, "", "", config_changes=config_changes(wiki.path, full))
+    return RevertPlan(full, changes, via, reason, "", "", config_changes=config_changes(wiki.path, full),
+                      missing_sources=tuple(missing_sources(wiki.path, full)))
 
 
 def revert(wiki: Wiki, sha: str, *, force: bool = False, progress: Callable[[str], None] = lambda _: None):

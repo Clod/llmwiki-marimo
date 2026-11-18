@@ -1,0 +1,29 @@
+{# The sources removed from sources/ by hand and deleted from the wiki when the user
+   chose it (`OpenWiki.removed`, one `SourceDeletion` each). «Dismiss» hides the
+   notice until the user chooses the wiki again. #}
+{% set removed = removed_sources(request, wiki_id) %}
+{% if removed %}
+<div class="notice dismissible removed-sources" role="status">
+  <div>
+    <p>{{ ngettext("%(num)s document was removed from sources/ by hand. It was deleted from the wiki:",
+                   "%(num)s documents were removed from sources/ by hand. They were deleted from the wiki:",
+                   removed | length) }}</p>
+    <ul>
+      {% for r in removed %}
+      <li><strong>{{ r.filename }}</strong>.
+        {% if r.deleted_pages %}{{ _("Pages deleted: %(pages)s.", pages=r.deleted_pages | map("replace", "/wiki/", "") | join(", ")) }}{% endif %}
+        {% if r.stale_pages %}{{ _("Pages kept and marked stale: %(pages)s.", pages=r.stale_pages | map("replace", "/wiki/", "") | join(", ")) }}{% endif %}
+        {% if r.config_mentions %}{{ _("wiki_config.toml still names: %(names)s.", names=r.config_mentions | join(", ")) }}{% endif %}
+        {% if not r.success %}{{ r.message }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if removed | selectattr("stale_pages") | list %}
+    <p>{{ _("The pages kept may still hold text and aliases that came from the deleted document. Only rebuilding the whole wiki from the remaining sources removes them.") }}</p>
+    {% endif %}
+  </div>
+  <button class="btn btn-sm" type="button" hx-post="/w/{{ wiki_id }}/removed/dismiss"
+          hx-target="closest .removed-sources" hx-swap="outerHTML"
+          title="{{ _('Hide this notice until you choose the wiki again') }}">{{ _("Dismiss") }}</button>
+</div>
+{% endif %}
