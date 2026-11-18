@@ -317,6 +317,13 @@ caller at all — two tests use it and nothing else does.
 What looks like propagation today is not. If B cites the same source as A and
 that source changes, B is flagged on its own account, not because A changed.
 
+*How often it happens today: almost never.* Measured on 2026-11-18 over the three
+example wikis, regenerated on 2026-11-17: 227 lines link to another page (63, 62 and
+102), and none of them is inside a sentence. Every link is a list item under "See
+also" or "Related concepts", so no page restates another page next to a link. The
+case appears only when a curator writes a link inside a sentence by hand, or in a
+page saved from the chat.
+
 *Why this matters.* Page B may reference A because it touches, in passing, a
 subject A treats in full. If what A says about that subject changed, B's
 sentence about it may now be wrong. Nothing surfaces that.
