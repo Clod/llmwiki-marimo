@@ -49,6 +49,10 @@ class ExtractionResult:
     document_summary: str
     concepts: list[ExtractedConcept] = field(default_factory=list)
     document_topics: list[str] = field(default_factory=list)  # the topics of the summary page
+    # Whether the reply of the model parsed as JSON, and the reply itself. The ingestion
+    # retries an extraction that did not parse (node I_CONCEPTS_RETRY).
+    parsed: bool = True
+    raw: str = ""
 
 
 def extract_structured(
@@ -58,8 +62,13 @@ def extract_structured(
     model: str,
     language: str = "en",
     known: list[tuple[str, str]] | None = None,
+    previous: str | None = None,
 ) -> ExtractionResult:
     """Phase 1 of 3: call LLM to extract summary + concepts as structured JSON.
+
+    `previous` is the reply of a first call that did not parse: the conversation then
+    carries that reply and an instruction to return only the JSON
+    (`prompts/extract_retry.<lang>.md`), the retry of node I_CONCEPTS_RETRY.
 
     `known` is the list (title, description) of the concept pages the wiki has
     (`pipeline.known_concepts`). The prompt then asks the model to return exactly the
@@ -84,14 +93,16 @@ def extract_structured(
     if has_descriptions(page_contents):
         base_prompt = f"{base_prompt}\n\n{image_note(language)}"
     system = with_content_directive(base_prompt, language)
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user_msg},
-        ],
-        temperature=0.2,
-    )
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_msg},
+    ]
+    if previous is not None:
+        messages += [
+            {"role": "assistant", "content": previous},
+            {"role": "user", "content": load_prompt("extract_retry", language).strip()},
+        ]
+    response = client.chat.completions.create(model=model, messages=messages, temperature=0.2)
     raw = (response.choices[0].message.content or "").strip()
     return _parse_extraction(raw, doc_meta["filename"])
 
@@ -137,10 +148,10 @@ def _parse_extraction(raw: str, filename: str) -> ExtractionResult:
             if c.get("name")
         ]
         return ExtractionResult(document_summary=summary, concepts=concepts,
-                                document_topics=_clean_aliases(data.get("document_topics")))
-    except (json.JSONDecodeError, TypeError):
-        logger.warning("extract_structured: JSON parse failed for %s, using fallback", filename)
-        return ExtractionResult(document_summary=raw, concepts=[])
+                                document_topics=_clean_aliases(data.get("document_topics")), raw=raw)
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        logger.warning("extract_structured: JSON parse failed for %s", filename)
+        return ExtractionResult(document_summary=raw, concepts=[], parsed=False, raw=raw)
 
 
 def extract_dataset_aliases(terms, client, model, language: str = "en") -> dict[str, list[str]]:

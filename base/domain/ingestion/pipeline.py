@@ -8,48 +8,52 @@ Three public entry points:
 All functions are synchronous.
 """
 
+import asyncio
+import concurrent.futures
+import contextvars
 import json
 import re
 import logging
 import sqlite3
-import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable, Literal
 
-from .chunker import chunk_pages
-from .detector import needs_ingestion
+# The steps of the ingestion (`workflow.py`) read these names from this module, so a test can
+# patch them here; they are not used in this file.
+from .chunker import chunk_pages  # noqa: F401
+from .detector import needs_ingestion  # noqa: F401
 from .extractor import (
-    extract,
+    extract,  # noqa: F401
     JavaNotInstalledError,
     LibreOfficeNotInstalledError,
     check_java,
     check_libreoffice,
 )
-from .describe import Vision, default_vision, describe_images, effective_config
+from .describe import Vision, default_vision, describe_images, effective_config  # noqa: F401
 from .images import load_figures
 from .text_extract import referenced_images
 from .formats import (
     IMAGE_EXTENSIONS, OFFICE_EXTENSIONS, SUPPORTED_EXTENSIONS, TEXT_EXTENSIONS, sorted_extensions,
     supported_extensions,
 )
-from .index_manager import update_index, remove_index_entry
+from .index_manager import update_index, remove_index_entry  # noqa: F401
 from .wiki_generator import (
     make_wiki_slug,
-    extract_structured, extract_dataset_aliases, build_summary_page, build_concept_page,
-    update_overview, inject_see_also, strip_accents,
+    extract_structured, extract_dataset_aliases, build_summary_page,
+    build_concept_page,  # noqa: F401
+    update_overview,  # noqa: F401
+    inject_see_also, strip_accents,
 )
-from .alias_generation import regenerate_dataset_aliases, update_generated_aliases
+from .alias_generation import regenerate_dataset_aliases, update_generated_aliases  # noqa: F401
 from domain import tracing
-from domain.text.stemming import stem_text
 from domain.i18n import get_locale
 from domain.wiki_settings import load_images_config
 from domain.tools.db import get_connection, open_db
 from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
-from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page, page_description
+from domain.tools.wiki_fs import create_page, read_page, append_to_page, delete_page, page_description  # noqa: F401
 from domain.tools.references import update_references
-from domain.tools.git_ops import init_wiki_repo, auto_commit
+from domain.tools.git_ops import init_wiki_repo, auto_commit  # noqa: F401
 from domain.messages import M_
 
 logger = logging.getLogger(__name__)
@@ -182,6 +186,21 @@ def _validation_error(file_path: Path, *, images: bool = True) -> str | None:
     return None
 
 
+def _run_graph(coroutine) -> None:
+    """Run the graph of the ingestion to its end. The ingestion is synchronous: with no event
+    loop in this thread, the graph runs in a new one; inside a running loop (an async caller),
+    it runs in a thread of its own, with the context of this one, so the trace still
+    collects its nodes."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(coroutine)
+        return
+    context = contextvars.copy_context()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        pool.submit(context.run, asyncio.run, coroutine).result()
+
+
 def _ingest_file(
     file_path: Path,
     db_path: str,
@@ -212,327 +231,38 @@ def _ingest_file(
         if progress_cb:
             progress_cb(msg)
 
-    W = tracing.WRITING
+    from domain.ingestion import workflow
 
-    _cb(M_("🔍 Validating %(file)s", file=file_path.name))
-
-    # ── Step 1: Validate ──────────────────────────────────────────────────────
-    error = _validation_error(file_path, images=not load_images_config(workspace).ignore)
-    tracing.mark("I_VALIDATE", W, answer=error is None, error=error)
-    if error is not None:
-        return IngestResult(file_path, "failed", error)
-    ext = file_path.suffix.lower()
-
-    _init_wiki_workspace(workspace, language)
-
-    conn = open_db(db_path)
+    run = workflow.IngestFile(
+        file_path, db_path, workspace, llm_client, model, _cb, lint_after_ingest, _batch_mode,
+        language, doc, vision=vision,
+    )
     try:
-        user_id = _get_user_id(conn)
-        relative = f"sources/{file_path.name}"
-
-        # ── Step 2: Detect changes ────────────────────────────────────────────
-        should_process, current_hash = needs_ingestion(file_path, conn)
-        tracing.mark("I_IS_CHANGED", W, answer=should_process, content_hash=current_hash)
-        if not should_process:
-            _cb(M_("⏭ %(file)s — already up to date", file=file_path.name))
-            return IngestResult(file_path, "skipped", "already up to date")
-
-        # ── Step 3: Upsert source document record (status=processing) ─────────
-        existing = conn.execute(
-            "SELECT id FROM documents WHERE relative_path = ?", (relative,)
-        ).fetchone()
-        stat = file_path.stat()
-
-        if existing:
-            doc_id = existing["id"]
-            conn.execute(
-                "UPDATE documents SET status='processing', content_hash=?, mtime_ns=?, "
-                "last_indexed_at=datetime('now'), updated_at=datetime('now') WHERE id=?",
-                (current_hash, stat.st_mtime_ns, doc_id),
-            )
-        else:
-            doc_id = str(uuid.uuid4())
-            doc_number = _next_doc_number(conn)
-            title = file_path.stem.replace("-", " ").replace("_", " ").title()
-            conn.execute(
-                "INSERT INTO documents "
-                "(id, user_id, filename, title, path, relative_path, source_kind, "
-                "file_type, file_size, status, document_number, content_hash, mtime_ns, "
-                "last_indexed_at) "
-                "VALUES (?,?,?,?,'sources/',?,?,?,?,?,?,?,?,datetime('now'))",
-                (doc_id, user_id, file_path.name, title, relative,
-                 "source", ext.lstrip("."), stat.st_size,
-                 "processing", doc_number, current_hash, stat.st_mtime_ns),
-            )
-        conn.commit()
-
-        tracing.mark("I_DOCUMENT_ROW", W, document_id=doc_id, relative_path=relative)
-        doc.set(document_id=doc_id, relative_path=relative)
-        llm_client = tracing.wrap_openai(llm_client)
-
-        _cb(M_("⚙️ Extracting text from %(file)s", file=file_path.name))
-
-        # Wiki pages created/overwritten in steps 8-9, for rollback on failure.
-        wiki_compensations: list[dict] = []
+        # The steps of the ingestion are the steps of the graph (`domain/ingestion/workflow.py`).
         try:
-            # ── Step 4: Extract text ──────────────────────────────────────────
-            cache_dir = workspace / ".llmwiki" / "cache" / "local" / doc_id
-            with tracing.node("I_EXTRACT", W) as i4:
-                images_config = effective_config(load_images_config(workspace), file_path.name)
-                page_contents, parser = extract(file_path, cache_dir, language, _cb,
-                                                keep_images=not images_config.ignore)
-                if images_config.describe and vision is None:
-                    vision = default_vision()
-                    if vision is None:
-                        logger.warning("[images] describe is on, but no vision model is configured")
-                image_pass = describe_images(
-                    page_contents, workspace=workspace, doc_id=doc_id, language=language,
-                    config=images_config, vision=vision)
-                page_contents = image_pass.pages
-                full_content = "\n\n---\n\n".join(md for _, md in page_contents)
-                # Trace intermediate data so the path can be followed end to end.
-                i4.payload("extracted_text", full_content, channel="extracted_text")
-                i4.set(page_count=len(page_contents), parser=parser)
-                if image_pass.images:
-                    i4.set(images=image_pass.images, images_described=image_pass.described)
-            _cb(M_("✅ Extracted %(n)s pages", n=len(page_contents)))
-
-            # ── Step 5: Chunk source document ─────────────────────────────────
-            with tracing.node("W_CHUNK", W, document_id=doc_id) as w1:
-                chunks = chunk_pages(page_contents)
-                w1.payload(
-                    "chunks",
-                    json.dumps(
-                        [{"chunk_index": c.index, "page": c.page,
-                          "token_count": c.token_count, "start_char": c.start_char,
-                          "content": c.content} for c in chunks],
-                        ensure_ascii=False, indent=2,
-                    ),
-                    channel="chunks", ext="json",
-                )
-                w1.set(fragments=len(chunks))
-            _cb(M_("✂️ Chunked into %(n)s chunks", n=len(chunks)))
-
-            # ── Step 6: Atomic source document DB write ────────────────────────
-            with tracing.node("W_STEM", W, document_id=doc_id, fragments=len(chunks), language=language):
-                stemmed = [stem_text(c.content, language) for c in chunks]
-            with conn:
-                conn.execute(
-                    "UPDATE documents SET status='ready', content=?, page_count=?, "
-                    "parser=?, mtime_ns=?, updated_at=datetime('now') WHERE id=?",
-                    (full_content, len(page_contents), parser, stat.st_mtime_ns, doc_id),
-                )
-                conn.execute("DELETE FROM document_pages WHERE document_id=?", (doc_id,))
-                conn.executemany(
-                    "INSERT INTO document_pages (id, document_id, page, content) "
-                    "VALUES (?,?,?,?)",
-                    [(str(uuid.uuid4()), doc_id, pn, md) for pn, md in page_contents],
-                )
-                conn.execute("DELETE FROM document_chunks WHERE document_id=?", (doc_id,))
-                conn.executemany(
-                    "INSERT INTO document_chunks "
-                    "(id, document_id, chunk_index, content, content_stemmed, page, "
-                    "start_char, token_count, header_breadcrumb) VALUES (?,?,?,?,?,?,?,?,?)",
-                    [
-                        (str(uuid.uuid4()), doc_id, c.index, c.content,
-                         stem, c.page,
-                         c.start_char, c.token_count, c.header_breadcrumb)
-                        for c, stem in zip(chunks, stemmed)
-                    ],
-                )
-            tracing.mark("W_INSERT_CHUNKS", W, document_id=doc_id, fragments=len(chunks))
-            # Source doc now committed — subsequent tools can open their own connections.
-            conn.close()
-            conn = None
-
-            doc_meta = {
-                "filename": file_path.name,
-                "file_type": ext.lstrip("."),
-                "page_count": len(page_contents),
-                "parser": parser,
-            }
-
-            # ── Step 7: Structured extraction ─────────────────────────────────
-            _cb(M_("🤖 Extracting knowledge structure..."))
-            with tracing.node("I_CONCEPTS", W) as i5:
-                known = known_concepts(workspace, language)
-                extraction = extract_structured(doc_meta, page_contents, llm_client, model,
-                                                language=language, known=known)
-                i5.set(concepts=[c.name for c in extraction.concepts], known=len(known))
-            _cb(M_("📋 Found %(n)s concept(s)", n=len(extraction.concepts)))
-
-            # ── Step 8: Create/update concept pages ───────────────────────────
-            concept_slugs: list[str] = []
-            # (page, topic) for each topic the ingestion added, for a curator to review.
-            new_topics: list[tuple[str, str]] = []
-            with tracing.node("I_CONCEPT_PAGES", W, concept_count=len(extraction.concepts)) as i6:
-                for concept in extraction.concepts:
-                    slug = make_wiki_slug(concept.name)
-                    concept_slugs.append(slug)
-                    existing_content = read_page(db_path, workspace, "/wiki/concepts/", slug)
-                    _cb(M_("💡 Updating concept: %(name)s", name=concept.name) if existing_content
-                        else M_("💡 Creating concept: %(name)s", name=concept.name))
-                    concept_md = build_concept_page(
-                        concept, file_path.name, existing_content, llm_client, model, language=language,
-                        image_descriptions=image_pass.described > 0,
-                    )
-                    prior = _snapshot_wiki_page(db_path, f"wiki/concepts/{slug}.md")
-                    concept_result = create_page(
-                        db_path, workspace, "/wiki/concepts/", slug,
-                        concept.name, concept_md, [concept.category], overwrite=True,
-                        clear_stale=True,
-                        sources=[file_path.name],
-                        topics=concept.topics,
-                        description=concept.description,
-                    )
-                    new_topics.extend((f"concepts/{slug}", t) for t in concept_result["new_topics"])
-                    wiki_compensations.append({
-                        "dir_path": "/wiki/concepts/", "slug": slug,
-                        "category": "concepts", "prior": prior,
-                    })
-                    # The page as written, with the header `create_page` added: its
-                    # `sources` field cites the document even when the model left it
-                    # out of the sources section.
-                    written = read_page(db_path, workspace, "/wiki/concepts/", slug) or concept_md
-                    update_references(
-                        db_path, concept_result["id"], written, "/wiki/concepts/",
-                    )
-                    i6.payload(f"concept.{slug}", concept_md, channel="markdown", ext="md")
-                    one_liner = concept.insight or concept.name
-                    update_index(workspace, f"concepts/{slug}.md", one_liner, "concepts", language=language)
-                i6.set(pages=[f"wiki/concepts/{s}.md" for s in concept_slugs])
-
-            # ── Step 8b: Update the generated alias artifact (best-effort) ────
-            # Concepts contribute their name + aliases to .llmwiki/aliases.generated.toml,
-            # validated against the wiki's coverage. Never abort ingest on failure —
-            # the pages are the deliverable; an alias is secondary.
-            with tracing.node("I_ALIASES", W) as i7:
-                try:
-                    _alias_result = update_generated_aliases(
-                        workspace,
-                        [(c.name, c.aliases) for c in extraction.concepts],
-                    )
-                    i7.set(new_aliases=len(_alias_result.new))
-                    _report_new_aliases(_cb, _alias_result.new)
-                except Exception as exc:  # noqa: BLE001 — secondary artifact, must not fail ingest
-                    i7.set(error=str(exc))
-                    logger.warning("alias generation failed for %s: %s", file_path.name, exc)
-
-            # ── Step 9: Create summary page ───────────────────────────────────
-            _cb(M_("📄 Writing summary page..."))
-            with tracing.node("I_SUMMARY_PAGE", W) as i8:
-                summary_md = build_summary_page(
-                    doc_meta, extraction, language=language,
-                    figures=load_figures(workspace, doc_id, with_descriptions=images_config.describe),
-                    doc_id=doc_id,
-                )
-                wiki_slug = make_wiki_slug(file_path.name)
-                prior_summary = _snapshot_wiki_page(db_path, f"wiki/summaries/{wiki_slug}.md")
-                summary_result = create_page(
-                    db_path, workspace, "/wiki/summaries/", wiki_slug,
-                    _title_from_filename(file_path.name), summary_md, [],
-                    overwrite=True, source_document_id=doc_id, clear_stale=True,
-                    topics=extraction.document_topics,
-                )
-                new_topics.extend((f"summaries/{wiki_slug}", t) for t in summary_result["new_topics"])
-                i8.set(new_topics=len(new_topics))
-                _report_new_topics(_cb, new_topics)
-                wiki_compensations.append({
-                    "dir_path": "/wiki/summaries/", "slug": wiki_slug,
-                    "category": "summaries", "prior": prior_summary,
-                })
-                update_references(
-                    db_path, summary_result["id"], summary_md, "/wiki/summaries/",
-                )
-                i8.payload("summary", summary_md, channel="markdown", ext="md")
-                i8.set(page=f"wiki/summaries/{wiki_slug}.md")
-                update_index(
-                    workspace,
-                    f"summaries/{wiki_slug}.md",
-                    extraction.document_summary or file_path.name,
-                    "summaries",
-                    language=language,
-                )
-
-            tracing.mark("I_IS_BATCH", W, answer=_batch_mode)
-            if not _batch_mode:
-                # ── Step 10: Rewrite overview ─────────────────────────────────
-                _cb(M_("🌐 Updating overview..."))
-                with tracing.node("I_OVERVIEW", W) as i10:
-                    current_overview = (workspace / "wiki" / "overview.md").read_text(encoding="utf-8")
-                    all_concept_names = _all_concept_names(db_path)
-                    new_overview = update_overview(
-                        current_overview, extraction.document_summary,
-                        all_concept_names, llm_client, model, language=language,
-                    )
-                    (workspace / "wiki" / "overview.md").write_text(new_overview, encoding="utf-8")
-                    i10.payload("overview", new_overview, channel="markdown", ext="md")
-
-                # ── Step 11: Append to log ────────────────────────────────────
-                image_line = (get_locale(language).image_counts.format(
-                    images=image_pass.images, described=image_pass.described) + "\n"
-                    if image_pass.images else "")
-                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
-                log_entry = (
-                    f"## [{timestamp}] Ingested | {file_path.name}\n\n"
-                    f"{extraction.document_summary[:200]}\n\n"
-                    f"Concepts: {', '.join(c.name for c in extraction.concepts) or 'none'}\n"
-                    f"{image_line}"
-                )
-                with tracing.node("I_LOG", W):
-                    append_to_page(db_path, workspace, "/wiki/", "log", log_entry)
-
-                # ── Step 12: Git commit ───────────────────────────────────────
-                with tracing.node("I_COMMIT", W):
-                    init_wiki_repo(workspace)
-                    auto_commit(workspace, f"ingest: {file_path.name}")
-
-            # ── Step 13 (optional): Lint ──────────────────────────────────────
-            if lint_after_ingest and not _batch_mode:
-                from domain.lint.runner import lint_wiki
-                _cb(M_("🩺 Running lint checks..."))
-                with tracing.node("I_LINT", W) as i13:
-                    lint_report = lint_wiki(db_path, workspace)
-                    i13.set(issues=len(lint_report.issues))
-                if lint_report.issues:
-                    lint_lines = "\n".join(
-                        f"- [{i.severity.upper()}] {i.check}: {i.description}"
-                        for i in lint_report.issues
-                    )
-                    append_to_page(
-                        db_path, workspace, "/wiki/", "log",
-                        f"### Lint: {lint_report.summary()}\n\n{lint_lines}\n",
-                    )
-                _cb(M_("🩺 Lint: %(summary)s", summary=lint_report.summary()))
-
-            counts = (", " + get_locale(language).image_counts.format(
-                images=image_pass.images, described=image_pass.described) if image_pass.images else "")
-            _cb(M_("✅ Done: %(file)s (%(pages)s pages, %(chunks)s chunks%(counts)s)", file=file_path.name,
-                    pages=len(page_contents), chunks=len(chunks), counts=counts))
-            return IngestResult(file_path, "ingested", f"{len(page_contents)} pages", doc_id)
-
+            _run_graph(workflow.graph.run(state=run, inputs=run))
+            return run.result
         except Exception as exc:
+            if not run.started:
+                raise
             logger.exception("Ingestion failed for %s", file_path.name)
-            # Roll back wiki pages this run created/overwrote so a failed ingest
-            # leaves no orphaned or half-merged derived pages behind.
-            rolled_back = _rollback_wiki_pages(db_path, workspace, wiki_compensations, language=language)
-            tracing.mark("E_ROLLED_BACK", W, error=str(exc)[:500], rolled_back=rolled_back)
+            rolled_back = _rollback_wiki_pages(db_path, workspace, run.wiki_compensations, language=language)
+            tracing.mark("E_ROLLED_BACK", tracing.WRITING, error=str(exc)[:500], rolled_back=rolled_back)
             if rolled_back:
                 _cb(M_("↩️ Rolled back %(n)s partial wiki page(s)", n=rolled_back))
-            if conn is None:
-                conn = open_db(db_path)
-            conn.execute(
+            if run.conn is None:
+                run.conn = open_db(db_path)
+            run.conn.execute(
                 "UPDATE documents SET status='failed', error_message=?, "
                 "updated_at=datetime('now') WHERE id=?",
-                (str(exc)[:500], doc_id),
+                (str(exc)[:500], run.doc_id),
             )
-            conn.commit()
+            run.conn.commit()
             _cb(M_("❌ Failed: %(file)s — %(error)s", file=file_path.name, error=exc))
-            return IngestResult(file_path, "failed", str(exc), doc_id)
-
+            return IngestResult(file_path, "failed", str(exc), run.doc_id)
     finally:
-        if conn is not None:
-            conn.close()
+        if run.conn is not None:
+            run.conn.close()
 
 
 def _title_from_filename(filename: str) -> str:

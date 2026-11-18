@@ -279,30 +279,18 @@ can propose a topic that fits any work of the same kind (`cautionary tale` for a
 fairy tale), which lets a question about another work pass; the ingestion names
 every topic it adds, and the curator removes that kind.
 
-**The pipeline accepts a malformed extraction instead of rejecting it.**
-`extract_structured` asks for JSON in the prompt, and `_parse_extraction`
-reads the reply leniently: when it does not parse, the function returns the
-whole raw response as `document_summary` and no concepts at all
-(`_parse_extraction`, `base/domain/ingestion/wiki_generator.py`). The run continues. That text is written verbatim
-under the summary page's `## Summary` heading, the page still carries its
-`[^1]` source footnote, and what records the failure is a log warning, the
-interface line "Found 0 concept(s)", and `concept_count=0` in the ingestion
-trace when it is enabled. Nothing rejects the page, and nothing retries the
-call.
+**A malformed extraction is retried, then rejected (built).** `extract_structured`
+asks for JSON in the prompt. The ingestion of a file is a graph
+(`base/domain/ingestion/workflow.py`), and after the extraction (I_CONCEPTS) a decision
+checks that the reply parsed. A reply that is not valid JSON is sent back to the model
+with the instruction to return only the JSON (I_CONCEPTS_RETRY). A second invalid reply
+raises `ExtractionError`: the run fails, no page is written, the document row gets
+`status='failed'` with the reason, and the ingestion console reports it. Before, the raw
+reply was written as the summary page and only a log warning recorded the failure.
 
-The asymmetry is with the read side. A chat answer with no grounding evidence
-is replaced by a refusal — `enforce_grounding` takes that decision away from
-the model. A document whose extraction failed is written to disk.
-
-The fix is not a new mechanism. The provider's structured-output parameter
-constrains generation to the declared schema, so the format stops depending on
-the model complying, and the parse that follows verifies that constraint
-instead of standing in for it. A failed call then becomes an error the
-pipeline can retry or report, rather than a page.
-
-*Not settled:* what a rejected document leaves behind. Skipping it silently
-repeats the same defect one level up. A `status='failed'` row is the existing
-idiom — `search_chunks` already filters on `d.status != 'failed'`.
+What is still open: the provider's structured-output parameter would constrain
+generation to the declared schema, so most invalid replies would not happen. It would be
+one more branch before the retry; nothing is built.
 
 **"Regenerate and diff" is a weaker check than the ingestion walkthrough claims.**
 That document says a disagreement between its prose and a regenerated appendix
