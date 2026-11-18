@@ -305,13 +305,6 @@ What is still open: the provider's structured-output parameter would constrain
 generation to the declared schema, so most invalid replies would not happen. It would be
 one more branch before the retry; nothing is built.
 
-**"Regenerate and diff" is a weaker check than the ingestion walkthrough claims.**
-That document says a disagreement between its prose and a regenerated appendix
-"is a signal the pipeline changed". But pages are model-written at temperature
-0.2–0.4, so a difference can equally be model variance — a point the same
-document makes elsewhere. The claim is stronger than the mechanism supports, and
-it bears on how much of the docs can be pinned by tests.
-
 **The documentation link checker cannot see a link cut in two.** When a markdown
 link is split across lines, both halves can resolve as separate links and the
 check passes while the page renders wrong. It verifies that targets exist, not
