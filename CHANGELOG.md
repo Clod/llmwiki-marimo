@@ -825,6 +825,11 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Removed
 
+- **`scope.drop_false_synonyms`, which nothing called.** It filtered synonyms a model
+  would propose at question time, for a step that was never built (search again with
+  wider terms when the first search finds nothing). The aliases already enter the
+  first search (`alias_titles`), and `[falsos_sinonimos]` keeps filtering them when
+  the generated and hand-written aliases are merged (`vocabulary.merge_aliases`).
 - **The `[pre_retrieval] enabled` key and its checkbox.** The settings screen showed
   a checkbox «Pre-retrieval · Enabled», and unticking it changed nothing: the
   chat opens in the Pre-retrieval mode and the **Mode** selector chooses the mode

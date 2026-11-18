@@ -305,14 +305,6 @@ What is still open: the provider's structured-output parameter would constrain
 generation to the declared schema, so most invalid replies would not happen. It would be
 one more branch before the retry; nothing is built.
 
-**A guard exists for a step that was never built.**
-`scope.drop_false_synonyms` filters a model's proposed synonyms against pairs
-declared not to be synonyms (`cedear` ≠ `acción`). Nothing calls it: it was
-written for a query-time "synonym rescue" step — widen a question's terms when
-the first search returns nothing — that was never implemented. Kept rather than
-deleted because it is precisely what would keep such a step safe. The decision
-to build it or delete it is open; the function documents both directions.
-
 **Staleness does not travel along page-to-page links, and the graph to make it
 travel already exists.** Today `staleness_check` (`base/domain/lint/checks.py`) follows
 `cites` only — wiki page to source document. It compares a page's timestamp
