@@ -13,9 +13,10 @@ short text. A diamond is a decision, with its question. An arrow that leaves a
 decision carries the label of its branch. The small filled circle is the start
 of the workflow, and the framed circle is its end.
 
-What each node does is in [`query_nodes.md`](query_nodes.md). The calls to the
-model run between the two workflows of a mode, outside both. The streaming mode
-has no workflows.
+What each node does is in [`query_nodes.md`](query_nodes.md). In the
+pre-retrieval mode the calls to the model are a workflow of their own, between
+the input and the output workflow. In the agent mode the call to the model runs
+between the two workflows, outside both. The streaming mode has no workflows.
 
 ## Pre-retrieval, input
 
@@ -167,6 +168,52 @@ flowchart TD
   R_NOT_IN_ROSTER --> wf_end
 ```
 
+## Pre-retrieval, model
+
+The model workflow of the pre-retrieval mode calls the model with the prompt
+that the input workflow built and, when the model refused with the wiki pages,
+searches the source documents and calls the model again with their fragments.
+
+```mermaid
+flowchart TD
+  wf_start@{ shape: sm-circ }
+  wf_end@{ shape: fr-circ }
+  model_call{"What text was injected into the prompt?"}
+  Q_AGENT_COLLECTION["Q_AGENT_COLLECTION · Overview and index given to the model"]
+  Q_AGENT_FRAGMENTS["Q_AGENT_FRAGMENTS · Source fragments given to the model"]
+  Q_AGENT_PAGES["Q_AGENT_PAGES · Wiki pages given to the model, which writes the answer"]
+  Q_AGENT_TOOLS["Q_AGENT_TOOLS · No page given: the dataset named by the question, and the data tools"]
+  after_Q_AGENT_PAGES{"Did the model refuse with the wiki pages?"}
+  Q_RETRY_SOURCES["Q_RETRY_SOURCES · The model refused with the wiki pages: search the source documents and ask again"]
+  relevance{"How is it checked that the wiki pages answer the question?"}
+  Q_EVIDENCE_QUOTE["Q_EVIDENCE_QUOTE · Is the sentence that the answer quotes in the wiki pages?"]
+  Q_JUDGE_PAGES["Q_JUDGE_PAGES · A separate call to the model: do the wiki pages answer the question?"]
+  after_Q_RETRY_SOURCES{"Were fragments of the source documents found?"}
+  after_relevance{"Do the wiki pages answer the question?"}
+
+  wf_start --> model_call
+  model_call -->|"overview and index injected"| Q_AGENT_COLLECTION
+  model_call -->|"fragments of the source documents injected"| Q_AGENT_FRAGMENTS
+  model_call -->|"wiki pages injected"| Q_AGENT_PAGES
+  model_call -->|"no wiki page: the dataset or nothing injected"| Q_AGENT_TOOLS
+  Q_AGENT_COLLECTION --> wf_end
+  Q_AGENT_FRAGMENTS --> wf_end
+  Q_AGENT_PAGES --> after_Q_AGENT_PAGES
+  Q_AGENT_TOOLS --> wf_end
+  after_Q_AGENT_PAGES -->|"the model refused"| Q_RETRY_SOURCES
+  after_Q_AGENT_PAGES -->|"the model answered"| relevance
+  relevance -->|"no check"| wf_end
+  Q_RETRY_SOURCES --> after_Q_RETRY_SOURCES
+  relevance -->|"evidence quote"| Q_EVIDENCE_QUOTE
+  relevance -->|"judge"| Q_JUDGE_PAGES
+  after_Q_RETRY_SOURCES -->|"fragments found"| Q_AGENT_FRAGMENTS
+  after_Q_RETRY_SOURCES -->|"no fragment found"| wf_end
+  Q_EVIDENCE_QUOTE --> after_relevance
+  Q_JUDGE_PAGES --> after_relevance
+  after_relevance -->|"the pages answer the question"| wf_end
+  after_relevance -->|"the pages do not answer the question"| Q_RETRY_SOURCES
+```
+
 ## Pre-retrieval, output
 
 The output workflow of the pre-retrieval mode checks the answer of the model,
@@ -193,6 +240,7 @@ flowchart TD
   Q_CITE_PAGES["Q_CITE_PAGES · Reference line of the injected pages added"]
   after_Q_CITE_PAGES{"Were fragments of the source documents injected?"}
   C_FIGURES["C_FIGURES · Figure check: each figure of the prose is exact, rounded or without support"]
+  Q_RELEVANCE_WARNING["Q_RELEVANCE_WARNING · Warning appended: the check says that the wiki pages do not answer the question"]
   Q_SOURCE_WARNING["Q_SOURCE_WARNING · Warning appended: the answer comes from a source document"]
   Q_SHOWN["Q_SHOWN · The answer is shown, with its citation"]
 
@@ -219,7 +267,9 @@ flowchart TD
   Q_CITE_TOOLS --> Q_CITE_PAGES
   Q_CITE_PAGES --> after_Q_CITE_PAGES
   after_Q_CITE_PAGES -->|"no fragments of the source documents injected"| C_FIGURES
+  after_Q_CITE_PAGES -->|"the check said that the wiki pages do not answer the question"| Q_RELEVANCE_WARNING
   after_Q_CITE_PAGES -->|"fragments of the source documents injected"| Q_SOURCE_WARNING
+  Q_RELEVANCE_WARNING --> C_FIGURES
   Q_SOURCE_WARNING --> C_FIGURES
   C_FIGURES --> Q_SHOWN
   Q_SHOWN --> wf_end

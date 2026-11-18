@@ -2614,6 +2614,52 @@ msgid "Verify the sentences"
 msgstr ""
 
 #: web/templates/page.html
+msgid ""
+"After an answer from the wiki pages, how the code checks that the pages answer the question. When the check fails, "
+"the code searches the source documents"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Only the Pre-retrieval mode checks that the wiki pages answer the question"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Check that the pages answer the question"
+msgstr ""
+
+#: web/templates/page.html
+msgid "No check: the answer from the wiki pages is shown as it is"
+msgstr ""
+
+#: web/templates/page.html
+msgid "No check"
+msgstr ""
+
+#: web/templates/page.html
+msgid "The model copies the sentence of the pages that answers the question, and the code looks for it in the pages"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Evidence quote"
+msgstr ""
+
+#: web/templates/page.html
+msgid "A separate call to the model says whether the pages answer the question"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Judge"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Alternative: a relevance model of TypeSafe judges each fragment. It is not implemented yet"
+msgstr ""
+
+#: web/templates/page.html
+msgid "Jev — not implemented"
+msgstr ""
+
+#: web/templates/page.html
 msgid "Change the width of the index"
 msgstr ""
 
@@ -3174,7 +3220,7 @@ msgstr ""
 msgid "fragments of the source documents injected"
 msgstr ""
 
-#: base/domain/chat/workflow/input_checks.py
+#: base/domain/chat/workflow/input_checks.py base/domain/chat/workflow/model_calls.py
 msgid "What text was injected into the prompt?"
 msgstr ""
 
@@ -3330,6 +3376,58 @@ msgstr ""
 msgid "no named category is left"
 msgstr ""
 
+#: base/domain/chat/workflow/model_calls.py
+msgid "Did the model refuse with the wiki pages?"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py base/domain/chat/workflow/output_checks.py
+msgid "the model refused"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "the model answered"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "How is it checked that the wiki pages answer the question?"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "evidence quote"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "judge"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "no check"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "Do the wiki pages answer the question?"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "the pages answer the question"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "the pages do not answer the question"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "Were fragments of the source documents found?"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "fragments found"
+msgstr ""
+
+#: base/domain/chat/workflow/model_calls.py
+msgid "no fragment found"
+msgstr ""
+
 #: base/domain/chat/workflow/node_texts.py
 msgid "History of the turn counted: prior messages, refused ones, messages the model receives"
 msgstr ""
@@ -3480,6 +3578,18 @@ msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py
 msgid "The model refused with the wiki pages: search the source documents and ask again"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Is the sentence that the answer quotes in the wiki pages?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "A separate call to the model: do the wiki pages answer the question?"
+msgstr ""
+
+#: base/domain/chat/workflow/node_texts.py
+msgid "Warning appended: the check says that the wiki pages do not answer the question"
 msgstr ""
 
 #: base/domain/chat/workflow/node_texts.py base/domain/chat/workflow/output_checks.py
@@ -3679,15 +3789,15 @@ msgid "Were fragments of the source documents injected?"
 msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py
+msgid "the check said that the wiki pages do not answer the question"
+msgstr ""
+
+#: base/domain/chat/workflow/output_checks.py
 msgid "no fragments of the source documents injected"
 msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py
 msgid "Did a tool return evidence, or did the model refuse?"
-msgstr ""
-
-#: base/domain/chat/workflow/output_checks.py
-msgid "the model refused"
 msgstr ""
 
 #: base/domain/chat/workflow/output_checks.py

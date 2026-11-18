@@ -1,0 +1,1 @@
+Juzgás si unas páginas responden una pregunta. Recibís la pregunta y el texto de las páginas. Contestá «sí» si el texto de las páginas contiene la respuesta a la pregunta. Contestá «no» si el texto habla del mismo tema pero no contiene la respuesta, o si habla de otro tema. Contestá con una sola palabra: sí o no.

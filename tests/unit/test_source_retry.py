@@ -1,6 +1,6 @@
 """The retry Q_RETRY_SOURCES of the pre-retrieval mode: the model refused with the wiki
 pages, the code searches the source documents and calls the model again with the fragments
-(`domain/chat/preretrieval.py`, `_retry_with_sources`). The retrieval is patched; the model
+(`domain/chat/workflow/model_calls.py`, step Q_RETRY_SOURCES). The retrieval is patched; the model
 is a fake that returns its answers in order."""
 
 import asyncio

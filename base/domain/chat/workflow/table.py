@@ -1,6 +1,6 @@
 """The table of the nodes of each chat workflow, generated from the declared lists.
 
-`WORKFLOWS` names the four workflows and the list of catalog nodes that each one
+`WORKFLOWS` names the five workflows and the list of catalog nodes that each one
 declares (`input_checks.py`, `output_checks.py`). `markdown()` writes one row per
 code of `catalog.CATALOG`, in the order of the catalog, and one column per
 workflow. A cell says `yes` when the workflow registers the node and `no` when it
@@ -12,11 +12,12 @@ does not, so a node that runs in one mode and not in the other shows in one row.
 
 from __future__ import annotations
 
-from domain.chat.workflow import catalog, input_checks, output_checks
+from domain.chat.workflow import catalog, input_checks, model_calls, output_checks
 
 # (title of the column, declared list of catalog nodes), in the order of a turn.
 WORKFLOWS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Input, pre-retrieval", input_checks.PRE_RETRIEVAL_NODES),
+    ("Model, pre-retrieval", model_calls.NODES),
     ("Output, pre-retrieval", output_checks.PRE_RETRIEVAL_NODES),
     ("Input, agent", input_checks.AGENT_NODES),
     ("Output, agent", output_checks.AGENT_NODES),
@@ -30,15 +31,18 @@ each workflow declares (`base/domain/chat/workflow/table.py`). Do not edit it by
 hand: the test `tests/unit/test_workflow_nodes_doc.py` fails when the file
 differs from the lists.
 
-The chat runs four workflows. The pre-retrieval mode and the agent mode each
+The chat runs five workflows. The pre-retrieval mode and the agent mode each
 have an input workflow, which builds the history and checks the question, and an
-output workflow, which checks the answer. Each row is a node of the catalog
+output workflow, which checks the answer. The pre-retrieval mode also has a model
+workflow, which calls the model and checks that the wiki pages answer the question. Each row is a node of the catalog
 (`base/domain/chat/workflow/catalog.py`), and each column says whether the
 workflow runs the node. What each node does is in
 [`query_nodes.md`](query_nodes.md).
 
-The calls to the model run between the two workflows of a mode, outside both:
-T_AGENT in the agent mode, and Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS in the pre-retrieval mode. The streaming
+The calls to the model are not nodes of the catalog. In the agent mode, T_AGENT runs
+between the two workflows, outside both. In the pre-retrieval mode, Q_AGENT_PAGES,
+Q_AGENT_COLLECTION, Q_AGENT_TOOLS, Q_AGENT_FRAGMENTS and the retry Q_RETRY_SOURCES are
+the steps of the model workflow (`base/domain/chat/workflow/model_calls.py`). The streaming
 mode has no workflows: it records C_COUNT_HISTORY, C_WHICH_MODE, F_AGENT and F_COMPLETE and runs no check.
 """
 

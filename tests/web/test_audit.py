@@ -318,7 +318,7 @@ def test_the_nodes_of_the_path_are_marked_visited_in_each_diagram(client, agents
     entry, call, exit_ = diagrams(audit(client).text)
     assert "classDef visited" in entry and "classDef visited" in exit_
     assert {"C_COUNT_HISTORY", "C_WHICH_MODE", "C_MARK_REFUSED", "Q_QUESTION", "Q_IN_BLACKLIST", "Q_PROMPT", "Q_AGENT_PAGES"} <= visited(entry) and "R_BLACKLIST" not in visited(entry)
-    assert visited(call) == {"n0"}                              # Q_AGENT_PAGES; the fake agent calls no tool
+    assert visited(call) == {"Q_AGENT_PAGES"}                   # the model workflow; the model answered
     assert {"Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"} <= visited(exit_) and "R_MODEL" not in visited(exit_)
 
 
@@ -442,7 +442,21 @@ def test_every_branch_of_every_decision_has_a_label():
             by_decision.setdefault(a, []).append(label)
         repeated = {a: labels for a, labels in by_decision.items() if len(labels) != len(set(labels))}
         assert repeated == {}, f"{mode}, {('input', 'output')[side]}: repeated labels"
-    assert counted == 54        # 36 and 2 branches in the input graphs, 13 and 3 in the output graphs
+    assert counted == 55        # 36 and 2 branches in the input graphs, 14 and 3 in the output graphs
+
+
+def test_every_branch_of_the_model_workflow_has_a_label():
+    """The model workflow of the pre-retrieval mode: every branch has a label, and two
+    branches of one decision never share a label."""
+    from web.audit_diagram import MODEL_GRAPHS
+
+    branches = _branches(MODEL_GRAPHS["pre-retrieval"].render())
+    assert [(a, b) for a, b, label in branches if not label] == []
+    by_decision = {}
+    for a, _, label in branches:
+        by_decision.setdefault(a, []).append(label)
+    assert all(len(labels) == len(set(labels)) for labels in by_decision.values())
+    assert len(branches) == 10  # the branches that end the workflow are not listed by `_branches`
 
 
 def test_the_branch_labels_are_translated_to_the_interface_language():

@@ -18,5 +18,5 @@ def test_the_generated_document_matches_the_graphs():
 
 def test_the_document_has_one_flowchart_per_workflow():
     text = diagrams.markdown()
-    assert text.count("```mermaid\nflowchart TD\n") == len(diagrams.WORKFLOWS) == 4
+    assert text.count("```mermaid\nflowchart TD\n") == len(diagrams.WORKFLOWS) == 5
     assert "classDef visited" not in text

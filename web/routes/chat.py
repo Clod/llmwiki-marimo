@@ -16,6 +16,7 @@ from domain import tracing
 from domain.chat.config import DEFAULT_VERIFY_THRESHOLD, load_config
 from domain.chat.postprocess import injected_pages, resolve_injected
 from domain.datasets.frontmatter import split_frontmatter
+from domain.chat.relevance import choice as relevance_choice
 from domain.verify import verify_answer
 from services import chat as chat_service
 from services.wiki import list_pages, source_names
@@ -132,17 +133,19 @@ def _error(text: str) -> str:
 @router.post("/w/{wiki_id}/chat", response_class=HTMLResponse)
 def chat_post(request: Request, wiki_id: str, message: str = Form(...), conversation_id: str = Form(...),
               mode: str = Form(chat_service.PRE_RETRIEVAL), open_page: str = Form(""),
-              verify: str = Form(""),
+              verify: str = Form(""), relevance: str = Form("none"),
               state: AppState = Depends(get_state), templates: Jinja2Templates = Depends(get_templates)):
     """Record the question and return the two bubbles; the answer bubble opens
-    the SSE stream of this turn."""
+    the SSE stream of this turn. `relevance` is the check of the pre-retrieval mode
+    that the wiki pages answer the question; the other modes ignore it."""
     state.get_wiki(wiki_id)
     if mode not in MODES:
         raise HTTPException(status_code=422, detail=_("unknown mode: %(mode)s", mode=mode))
     state.conversation(wiki_id, conversation_id).append(Message("user", message))
     turn_id = state.new_id()
     verifying = bool(verify) and mode in VERIFIABLE_MODES and state.verifier_available()
-    state.turns[turn_id] = Turn(conversation_id, mode, open_page or None, verifying)
+    check = relevance_choice(relevance) if mode == chat_service.PRE_RETRIEVAL else "none"
+    state.turns[turn_id] = Turn(conversation_id, mode, open_page or None, verifying, check)
     return templates.TemplateResponse(request, "chat_turn.html", {
         "wiki_id": wiki_id, "turn_id": turn_id, "question": message})
 
@@ -196,7 +199,7 @@ async def chat_stream(wiki_id: str, turn_id: str, state: AppState = Depends(get_
                 answered = await chat_service.chat_turn_with_context(
                     entry.wiki, agents, conversation, mode=turn.mode,
                     conversation_id=turn.conversation_id, open_page=turn.open_page,
-                    sentence_verifier=turn.verify)
+                    sentence_verifier=turn.verify, relevance_check=turn.relevance)
                 full, context, figures = answered.answer, answered.context, answered.figures
                 raw_answer, path = answered.raw_answer, answered.path
                 input_tokens, output_tokens = answered.input_tokens, answered.output_tokens

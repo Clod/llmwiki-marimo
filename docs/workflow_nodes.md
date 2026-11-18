@@ -5,73 +5,79 @@ each workflow declares (`base/domain/chat/workflow/table.py`). Do not edit it by
 hand: the test `tests/unit/test_workflow_nodes_doc.py` fails when the file
 differs from the lists.
 
-The chat runs four workflows. The pre-retrieval mode and the agent mode each
+The chat runs five workflows. The pre-retrieval mode and the agent mode each
 have an input workflow, which builds the history and checks the question, and an
-output workflow, which checks the answer. Each row is a node of the catalog
+output workflow, which checks the answer. The pre-retrieval mode also has a model
+workflow, which calls the model and checks that the wiki pages answer the question. Each row is a node of the catalog
 (`base/domain/chat/workflow/catalog.py`), and each column says whether the
 workflow runs the node. What each node does is in
 [`query_nodes.md`](query_nodes.md).
 
-The calls to the model run between the two workflows of a mode, outside both:
-T_AGENT in the agent mode, and Q_AGENT_PAGES, Q_AGENT_COLLECTION, Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS in the pre-retrieval mode. The streaming
+The calls to the model are not nodes of the catalog. In the agent mode, T_AGENT runs
+between the two workflows, outside both. In the pre-retrieval mode, Q_AGENT_PAGES,
+Q_AGENT_COLLECTION, Q_AGENT_TOOLS, Q_AGENT_FRAGMENTS and the retry Q_RETRY_SOURCES are
+the steps of the model workflow (`base/domain/chat/workflow/model_calls.py`). The streaming
 mode has no workflows: it records C_COUNT_HISTORY, C_WHICH_MODE, F_AGENT and F_COMPLETE and runs no check.
 
-| Node | Input, pre-retrieval | Output, pre-retrieval | Input, agent | Output, agent |
-|---|---|---|---|---|
-| `C_COUNT_HISTORY` | yes | no | yes | no |
-| `C_WHICH_MODE` | yes | no | yes | no |
-| `C_MARK_REFUSED` | yes | no | yes | no |
-| `C_DROP_TABLES` | yes | no | yes | no |
-| `C_TRIM_TURNS` | yes | no | yes | no |
-| `C_ORIGIN_LINES` | yes | no | yes | no |
-| `C_FIGURES` | no | yes | no | yes |
-| `C_OPEN_PAGE_NOTE` | yes | no | yes | no |
-| `Q_QUESTION` | yes | no | no | no |
-| `Q_NORMALIZE` | yes | no | no | no |
-| `Q_IN_BLACKLIST` | yes | no | yes | no |
-| `Q_STEM` | yes | no | no | no |
-| `Q_NAMES_DATA` | yes | no | no | no |
-| `Q_IN_ROSTER` | yes | no | no | no |
-| `Q_PAGE_OPEN` | yes | no | no | no |
-| `Q_REWRITE` | yes | no | no | no |
-| `Q_RW_ACCEPTED` | yes | no | no | no |
-| `Q_RW_IN_BLACKLIST` | yes | no | no | no |
-| `Q_RW_NAMES_DATA` | yes | no | no | no |
-| `Q_RW_IN_ROSTER` | yes | no | no | no |
-| `Q_CONDENSED` | yes | no | no | no |
-| `Q_SEARCH_WIKI` | yes | no | no | no |
-| `Q_SEARCH_SOURCES` | yes | no | no | no |
-| `Q_COLLECTION_PAGES` | yes | no | no | no |
-| `Q_COLLECTION_OPEN_PAGE` | yes | no | no | no |
-| `Q_PAGE_FOUND` | yes | no | no | no |
-| `Q_NAMES_CATEGORY` | yes | no | no | no |
-| `Q_NAMES_KEY` | yes | no | no | no |
-| `Q_KEY_ROWS` | yes | no | no | no |
-| `Q_KEY_NAMES` | yes | no | no | no |
-| `Q_IS_COLLECTION` | yes | no | no | no |
-| `Q_IS_DATA` | yes | no | no | no |
-| `Q_FRAGMENT_FOUND` | yes | no | no | no |
-| `Q_ROSTER_REFUSAL` | yes | no | no | no |
-| `Q_SYNONYMS` | yes | no | no | no |
-| `Q_PROMPT` | yes | no | no | no |
-| `Q_IS_GROUNDED` | no | yes | no | no |
-| `Q_SOURCE_WARNING` | no | yes | no | no |
-| `Q_TOOL_EVIDENCE` | no | yes | no | no |
-| `Q_MODEL_REFUSED` | no | yes | no | no |
-| `Q_ADVISORY_TABLE` | no | yes | no | no |
-| `Q_OFFER_KEYS` | no | yes | no | no |
-| `Q_CITE_TOOLS` | no | yes | no | no |
-| `Q_CITE_PAGES` | no | yes | no | no |
-| `Q_SHOWN` | no | yes | no | no |
-| `R_BLACKLIST` | yes | no | yes | no |
-| `R_NOT_IN_ROSTER` | yes | no | no | no |
-| `R_NOTHING_FOUND` | yes | no | no | no |
-| `R_UNSUPPORTED` | no | yes | no | no |
-| `R_NO_EVIDENCE` | no | yes | no | no |
-| `R_MODEL` | no | yes | no | no |
-| `T_TOOL_EVIDENCE` | no | no | no | yes |
-| `T_NO_EVIDENCE_WARNING` | no | no | no | yes |
-| `T_ADVISORY_TABLE` | no | no | no | yes |
-| `T_CITE_TOOLS` | no | no | no | yes |
-| `T_MARK_UNCITED` | no | no | no | yes |
-| `T_SHOWN` | no | no | no | yes |
+| Node | Input, pre-retrieval | Model, pre-retrieval | Output, pre-retrieval | Input, agent | Output, agent |
+|---|---|---|---|---|---|
+| `C_COUNT_HISTORY` | yes | no | no | yes | no |
+| `C_WHICH_MODE` | yes | no | no | yes | no |
+| `C_MARK_REFUSED` | yes | no | no | yes | no |
+| `C_DROP_TABLES` | yes | no | no | yes | no |
+| `C_TRIM_TURNS` | yes | no | no | yes | no |
+| `C_ORIGIN_LINES` | yes | no | no | yes | no |
+| `C_FIGURES` | no | no | yes | no | yes |
+| `C_OPEN_PAGE_NOTE` | yes | no | no | yes | no |
+| `Q_QUESTION` | yes | no | no | no | no |
+| `Q_NORMALIZE` | yes | no | no | no | no |
+| `Q_IN_BLACKLIST` | yes | no | no | yes | no |
+| `Q_STEM` | yes | no | no | no | no |
+| `Q_NAMES_DATA` | yes | no | no | no | no |
+| `Q_IN_ROSTER` | yes | no | no | no | no |
+| `Q_PAGE_OPEN` | yes | no | no | no | no |
+| `Q_REWRITE` | yes | no | no | no | no |
+| `Q_RW_ACCEPTED` | yes | no | no | no | no |
+| `Q_RW_IN_BLACKLIST` | yes | no | no | no | no |
+| `Q_RW_NAMES_DATA` | yes | no | no | no | no |
+| `Q_RW_IN_ROSTER` | yes | no | no | no | no |
+| `Q_CONDENSED` | yes | no | no | no | no |
+| `Q_SEARCH_WIKI` | yes | no | no | no | no |
+| `Q_SEARCH_SOURCES` | yes | no | no | no | no |
+| `Q_COLLECTION_PAGES` | yes | no | no | no | no |
+| `Q_COLLECTION_OPEN_PAGE` | yes | no | no | no | no |
+| `Q_PAGE_FOUND` | yes | no | no | no | no |
+| `Q_NAMES_CATEGORY` | yes | no | no | no | no |
+| `Q_NAMES_KEY` | yes | no | no | no | no |
+| `Q_KEY_ROWS` | yes | no | no | no | no |
+| `Q_KEY_NAMES` | yes | no | no | no | no |
+| `Q_IS_COLLECTION` | yes | no | no | no | no |
+| `Q_IS_DATA` | yes | no | no | no | no |
+| `Q_FRAGMENT_FOUND` | yes | no | no | no | no |
+| `Q_ROSTER_REFUSAL` | yes | no | no | no | no |
+| `Q_SYNONYMS` | yes | no | no | no | no |
+| `Q_PROMPT` | yes | no | no | no | no |
+| `Q_IS_GROUNDED` | no | no | yes | no | no |
+| `Q_SOURCE_WARNING` | no | no | yes | no | no |
+| `Q_TOOL_EVIDENCE` | no | no | yes | no | no |
+| `Q_MODEL_REFUSED` | no | no | yes | no | no |
+| `Q_ADVISORY_TABLE` | no | no | yes | no | no |
+| `Q_OFFER_KEYS` | no | no | yes | no | no |
+| `Q_CITE_TOOLS` | no | no | yes | no | no |
+| `Q_CITE_PAGES` | no | no | yes | no | no |
+| `Q_SHOWN` | no | no | yes | no | no |
+| `Q_RELEVANCE_WARNING` | no | no | yes | no | no |
+| `Q_EVIDENCE_QUOTE` | no | yes | no | no | no |
+| `Q_JUDGE_PAGES` | no | yes | no | no | no |
+| `R_BLACKLIST` | yes | no | no | yes | no |
+| `R_NOT_IN_ROSTER` | yes | no | no | no | no |
+| `R_NOTHING_FOUND` | yes | no | no | no | no |
+| `R_UNSUPPORTED` | no | no | yes | no | no |
+| `R_NO_EVIDENCE` | no | no | yes | no | no |
+| `R_MODEL` | no | no | yes | no | no |
+| `T_TOOL_EVIDENCE` | no | no | no | no | yes |
+| `T_NO_EVIDENCE_WARNING` | no | no | no | no | yes |
+| `T_ADVISORY_TABLE` | no | no | no | no | yes |
+| `T_CITE_TOOLS` | no | no | no | no | yes |
+| `T_MARK_UNCITED` | no | no | no | no | yes |
+| `T_SHOWN` | no | no | no | no | yes |

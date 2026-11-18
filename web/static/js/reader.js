@@ -85,6 +85,22 @@ document.body.addEventListener("htmx:afterSettle", e => {
   mode.addEventListener("change", sync);
   sync();
 })();
+// "Check that the pages answer the question": valid only in the pre-retrieval mode; the
+// fieldset is disabled in the other modes, and the tooltip says why.
+(() => {
+  const set = document.getElementById("relevance-choice");
+  if (!set) return;
+  const mode = document.getElementById("mode");
+  const tip = set.title;
+  function sync() {
+    const other = mode.value !== set.dataset.mode;
+    set.disabled = other;
+    set.classList.toggle("disabled", other);
+    set.title = other ? set.dataset.tipOther : tip;
+  }
+  mode.addEventListener("change", sync);
+  sync();
+})();
 function ask(text) {
   const form = document.getElementById("composer");
   form.querySelector("textarea").value = text.trim();

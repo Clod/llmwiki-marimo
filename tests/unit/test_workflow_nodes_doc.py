@@ -13,11 +13,12 @@ from pathlib import Path
 import pytest
 from pydantic_graph import Step
 
-from domain.chat.workflow import catalog, input_checks, output_checks, table
+from domain.chat.workflow import catalog, input_checks, model_calls, output_checks, table
 
 WORKFLOWS = [
     pytest.param(input_checks, input_checks.graph, input_checks.PRE_RETRIEVAL_NODES, id="input, pre-retrieval"),
     pytest.param(input_checks, input_checks.agent_graph, input_checks.AGENT_NODES, id="input, agent"),
+    pytest.param(model_calls, model_calls.graph, model_calls.NODES, id="model, pre-retrieval"),
     pytest.param(output_checks, output_checks.graph, output_checks.PRE_RETRIEVAL_NODES, id="output, pre-retrieval"),
     pytest.param(output_checks, output_checks.agent_graph, output_checks.AGENT_NODES, id="output, agent"),
 ]

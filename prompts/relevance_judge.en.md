@@ -1,0 +1,1 @@
+You judge whether some pages answer a question. You receive the question and the text of the pages. Answer «yes» if the text of the pages contains the answer to the question. Answer «no» if the text speaks of the same topic but does not contain the answer, or if it speaks of another topic. Answer with one word: yes or no.
