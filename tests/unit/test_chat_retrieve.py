@@ -267,6 +267,19 @@ def test_injected_block_drops_front_matter(monkeypatch):
     assert "# Glass Slipper" in block and "left on the staircase" in block
 
 
+def test_injected_block_keeps_the_description_first(monkeypatch):
+    """The description can hold the one sentence that answers: «Objeto encantado que
+    responde preguntas y siempre dice la verdad» is only in the front-matter of the
+    page of the magic mirror."""
+    page = ("---\ntype: concept\ntitle: Espejo mágico\n"
+            "description: Objeto encantado que siempre dice la verdad.\n"
+            "sources:\n  - resource: sources/Blancanieves.pdf\n---\n# Espejo mágico\n\nRevela a la reina.\n")
+    monkeypatch.setattr(preretrieval, "search_chunks", lambda *a, **k: [_row("espejo-magico.md", page)])
+    block = retrieve_wiki("db", "espejo")[0]
+    assert block.splitlines()[1:3] == ["Objeto encantado que siempre dice la verdad.", "# Espejo mágico"]
+    assert "sources:" not in block and "resource:" not in block and "description:" not in block
+
+
 def test_chunk_that_is_only_front_matter_keeps_it(monkeypatch):
     """Stripping must never yield an empty block: something is better than a
     label with nothing under it."""
