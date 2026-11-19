@@ -559,6 +559,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The page judge knows which page the user is reading.** With
+  `concepts/espejo-magico` open, «¿Qué papel cumple en la historia?» names no
+  subject, and the judge of the pre-retrieval mode answered that the question did
+  not say which character it meant: the turn went to the retry with the source
+  documents and ended in a refusal. The model already got the open-page note
+  (`C_OPEN_PAGE_NOTE`); the judge now gets it too. Without an open page, the message
+  of the judge does not change.
 - **A table cut by a page break keeps its header on the next page.** The PDF
   extractor writes each page on its own and makes the first row of every table its
   header, so the second half of a cut table took a data row as header: in

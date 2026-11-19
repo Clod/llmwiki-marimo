@@ -38,7 +38,7 @@ class _NoDatasets:
         return []
 
 
-def _turn(monkeypatch, outputs, *, check, docs=(FRAGMENT,), verdicts=()):
+def _turn(monkeypatch, outputs, *, check, docs=(FRAGMENT,), verdicts=(), open_page=None):
     monkeypatch.setattr(preretrieval, "build_vocabulary", lambda src: set())
     monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda db, q, **k: [PAGE])
     monkeypatch.setattr(preretrieval, "retrieve_source_chunks", lambda db, q, **k: list(docs))
@@ -61,7 +61,8 @@ def _turn(monkeypatch, outputs, *, check, docs=(FRAGMENT,), verdicts=()):
         with tracing.collect() as path:
             answer = await preretrieval.pre_retrieval_answer(
                 QUESTION, config=CFG, db_path="db", workspace=Path("/tmp/wp"), history=[], language="es",
-                run_agent=run_agent, sentence_verifier=True, relevance=check, judge=judge)
+                run_agent=run_agent, sentence_verifier=True, relevance=check, judge=judge,
+                open_page=open_page)
         return answer, path
 
     answer, path = asyncio.run(go())
@@ -132,6 +133,16 @@ def test_a_yes_of_the_judge_keeps_the_answer(monkeypatch):
     question, context = run.judged[0]
     assert question == QUESTION and "hada madrina" in context
     assert "Evidencia" not in run.prompts[0]
+
+
+def test_the_judge_is_told_which_page_is_open(monkeypatch):
+    """cue-16 of the battery: with concepts/espejo-magico open, «¿Qué papel cumple en la
+    historia?» names no subject; the judge answered no because it did not know the page."""
+    monkeypatch.setattr(preretrieval, "_open_page_block", lambda ws, page: PAGE if page else None)
+    run = _turn(monkeypatch, ["Va al baile."], check="judge", verdicts=["sí"], open_page="concepts/cenicienta")
+    question, _ = run.judged[0]
+    assert question == preretrieval.with_open_page(QUESTION, "concepts/cenicienta", "es")
+    assert question.startswith("(El usuario está leyendo la página /wiki/concepts/cenicienta.md.")
 
 
 def test_a_no_of_the_judge_retries_with_the_source_documents(monkeypatch):
