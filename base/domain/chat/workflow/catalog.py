@@ -658,10 +658,12 @@ async def evidence_check(ctx) -> Any:
 async def judge_check(ctx) -> Any:
     """Q_JUDGE_PAGES, a step of the model workflow: a separate call to the model says whether
     the injected pages answer the question (`relevance.judge_says_yes`). With no judge, the
-    check passes."""
+    check passes. The judge gets the open-page note of C_OPEN_PAGE_NOTE, like the model:
+    without it, «¿Qué papel cumple en la historia?» names no subject among the pages."""
     calls = ctx.state
-    verdict = await calls.judge(calls.turn.search or calls.turn.question, calls.turn.plan.context or "") \
-        if calls.judge else ""
+    turn = calls.turn
+    asked = preretrieval.with_open_page(turn.search or turn.question, turn.noted_page, turn.language)
+    verdict = await calls.judge(asked, turn.plan.context or "") if calls.judge else ""
     calls.passed = relevance.judge_says_yes(verdict)
     tracing.mark("Q_JUDGE_PAGES", R, verdict=verdict, passed=calls.passed)
     return calls
