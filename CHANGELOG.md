@@ -559,6 +559,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The pre-retrieval mode keeps the description of each wiki page.** The code
+  dropped the whole front-matter of the injected pages, and with it the
+  `description`, which can hold the sentence that answers: «¿Qué es el espejo
+  mágico?» got «un instrumento de la trama», without «siempre dice la verdad». The
+  description is now the first line of the injected block; `sources:`, `tags:` and
+  the other fields are still dropped. On two questions whose answer is only in the
+  description, the fact went from 0 of 24 answers to 16 of 24.
 - **The page judge knows which page the user is reading.** With
   `concepts/espejo-magico` open, «¿Qué papel cumple en la historia?» names no
   subject, and the judge of the pre-retrieval mode answered that the question did

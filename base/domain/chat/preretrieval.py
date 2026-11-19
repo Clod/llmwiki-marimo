@@ -40,7 +40,7 @@ from domain.chat.scope import (
     matched_terms,
     mentions_known_data,
 )
-from domain.datasets.frontmatter import split_frontmatter
+from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
 from domain.prompts import load_prompt
 from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
@@ -83,17 +83,32 @@ def _format_hits(rows: list[dict]) -> list[str]:
     front-matter was, in practice, what the model cited from, so removing it
     without first making the label identify the page would have taken away the
     attribution and put nothing back.
+
+    The `description` of the front-matter is kept, as the first line (`_page_text`):
+    it can hold the one sentence that answers, «Objeto encantado que responde
+    preguntas y siempre dice la verdad» on the page of the magic mirror, which the
+    body does not repeat.
     """
     blocks: list[str] = []
     for row in rows:
         raw = (row.get("content") or "").strip()
         if not raw:
             continue
-        _, body = split_frontmatter(raw)
-        content = body.strip() or raw  # a chunk that is *only* front-matter keeps it
+        content = _page_text(raw) or raw  # a chunk that is *only* front-matter keeps it
         label = f"{row.get('path') or ''}{row.get('filename') or ''}"
         blocks.append(f"[{label}]\n{content}" if label else content)
     return blocks
+
+
+def _page_text(raw: str) -> str:
+    """The body of a wiki page, preceded by the `description` of its front-matter when
+    it has one; the rest of the front-matter (`sources:`, `tags:`) is dropped."""
+    block, body = split_frontmatter(raw)
+    body = body.strip()
+    description = parse_frontmatter(block).get("description") if block else None
+    if isinstance(description, str) and description.strip():
+        return f"{description.strip()}\n{body}".strip()
+    return body
 
 
 # Ubiquitous function words, PER LANGUAGE. OR-joining these would make an
@@ -642,8 +657,8 @@ def _open_page_block(workspace, open_page: str | None) -> str | None:
     path = workspace / "wiki" / f"{open_page}.md"
     if not path.is_file():
         return None
-    _, body = split_frontmatter(path.read_text(encoding="utf-8"))
-    return f"[/wiki/{open_page}.md]\n{body.strip()}" if body.strip() else None
+    text = _page_text(path.read_text(encoding="utf-8"))
+    return f"[/wiki/{open_page}.md]\n{text}" if text else None
 
 
 def context_passage(block: str) -> ContextPassage:
