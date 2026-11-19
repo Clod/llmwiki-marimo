@@ -559,6 +559,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The note above the advisory table no longer says that nothing checked the
+  figures of the prose.** An answer with an advisory table said «Las cifras del
+  texto anterior las escribió el modelo, y el código no las verificó.», and the same
+  turn then ran the figure check (`C_FIGURES`), which marks an unsupported figure in
+  red. The note now says «…, y el código las comparó con los datos consultados.»
+  (`TABLE_NOTE`, `base/domain/chat/postprocess.py`). Both modes that append the table,
+  pre-retrieval and agent, run the figure check; the streaming mode appends no table.
+
 - **The pre-retrieval mode keeps the description of each wiki page.** The code
   dropped the whole front-matter of the injected pages, and with it the
   `description`, which can hold the sentence that answers: «¿Qué es el espejo

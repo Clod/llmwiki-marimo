@@ -87,7 +87,7 @@ def test_advisory_table_takes_last_call():
 
 # ── answer_with_table ────────────────────────────────────────────────────────
 
-UNCHECKED = "Las cifras del texto anterior las escribió el modelo, y el código no las verificó."
+WRITTEN = "Las cifras del texto anterior las escribió el modelo, y el código las comparó con los datos consultados."
 COMPUTED = "Las cifras de la tabla siguiente las calculó el código con los datos de su columna «fuente»."
 
 
@@ -95,7 +95,7 @@ def test_answer_with_table_appends_below_prose_with_the_note():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
     prose = "Para invertir $1.000.000, aquí van algunas alternativas: 1. Plazo fijo..."
     out = answer_with_table(prose, messages, "es")
-    assert out == f"{prose}\n\n{UNCHECKED} {COMPUTED}\n\n{TABLE}"
+    assert out == f"{prose}\n\n{WRITTEN} {COMPUTED}\n\n{TABLE}"
 
 
 def test_answer_with_table_note_of_a_prose_without_figures_names_only_the_table():
@@ -132,7 +132,7 @@ def test_answer_with_table_keeps_a_table_whose_header_the_model_changed():
     messages = [_user("..."), _tool_return("estimar_alternativas", TABLE)]
     changed = "| instrumento | ganancia |\n|---|---|\n| plazo fijo | $90.000 |"
     assert answer_with_table(changed, messages, "es") == (
-        f"{changed}\n\n{UNCHECKED} {COMPUTED}\n\n{TABLE}"
+        f"{changed}\n\n{WRITTEN} {COMPUTED}\n\n{TABLE}"
     )
 
 

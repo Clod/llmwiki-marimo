@@ -116,15 +116,18 @@ def _without_copy(answer: str, table: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip()
 
 
-# The note between the prose and the advisory table. The code does not read the
-# figures of the prose, so the note cannot say which of them are wrong: it says who
-# wrote each part. The first sentence goes only when the prose has a digit.
+# The note between the prose and the advisory table: it says who wrote each part.
+# The figure check (node C_FIGURES, `domain/chat/figure_check.py`) compares the figures
+# of the prose with the data afterwards, in both modes that append the table; the
+# streaming mode appends no table. The first sentence goes only when the prose has a
+# digit.
 TABLE_NOTE = {
-    "es": ("Las cifras del texto anterior las escribió el modelo, y el código no las verificó.",
+    "es": ("Las cifras del texto anterior las escribió el modelo, y el código las comparó "
+           "con los datos consultados.",
            "Las cifras de la tabla siguiente las calculó el código con los datos de su "
            "columna «fuente»."),
-    "en": ("The figures in the text above were written by the model, and the code did "
-           "not check them.",
+    "en": ("The figures in the text above were written by the model, and the code "
+           "checked them against the data consulted.",
            "The figures in the table below were computed by the code from the data of "
            "its «fuente» column."),
 }
@@ -141,8 +144,8 @@ def answer_with_table(answer: str, messages: list[ModelMessage], language: str |
     if not table:
         return answer
     prose = _without_copy(answer, table)
-    unchecked, computed = TABLE_NOTE[_lang(language)]
-    note = f"{unchecked} {computed}" if re.search(r"\d", prose) else computed
+    written, computed = TABLE_NOTE[_lang(language)]
+    note = f"{written} {computed}" if re.search(r"\d", prose) else computed
     return f"{prose}\n\n{note}\n\n{table}" if prose else f"{note}\n\n{table}"
 
 
