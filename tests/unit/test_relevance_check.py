@@ -41,7 +41,8 @@ class _NoDatasets:
 def _turn(monkeypatch, outputs, *, check, docs=(FRAGMENT,), verdicts=(), open_page=None):
     monkeypatch.setattr(preretrieval, "build_vocabulary", lambda src: set())
     monkeypatch.setattr(preretrieval, "retrieve_wiki", lambda db, q, **k: [PAGE])
-    monkeypatch.setattr(preretrieval, "retrieve_source_chunks", lambda db, q, **k: list(docs))
+    searched = []
+    monkeypatch.setattr(preretrieval, "retrieve_source_chunks", lambda db, q, **k: searched.append(q) or list(docs))
     monkeypatch.setattr(preretrieval, "LocalMarkdownSource", lambda p: _NoDatasets())
     monkeypatch.setattr(preretrieval, "concept_page_names", lambda db: ["Cenicienta"])
     monkeypatch.setattr(preretrieval, "retrieve_collection_pages", lambda ws: [])
@@ -66,7 +67,8 @@ def _turn(monkeypatch, outputs, *, check, docs=(FRAGMENT,), verdicts=(), open_pa
         return answer, path
 
     answer, path = asyncio.run(go())
-    return SimpleNamespace(answer=answer, nodes=steps(path), path=path, prompts=prompts, judged=judged)
+    return SimpleNamespace(answer=answer, nodes=steps(path), path=path, prompts=prompts, judged=judged,
+                           searched=searched)
 
 
 def _mark(path, node):
@@ -172,3 +174,19 @@ def test_a_refusal_is_retried_without_the_check(monkeypatch):
     from domain.chat.refusal import fixed_sentence
     run = _turn(monkeypatch, [fixed_sentence("es") + " No está.", SECOND], check="judge", verdicts=[])
     assert "Q_JUDGE_PAGES" not in run.nodes and "Q_RETRY_SOURCES" in run.nodes
+
+
+def test_the_retry_with_a_page_open_searches_its_title_and_keeps_the_page(monkeypatch):
+    """With a page open, «¿Esto le gana a la inflación?» names no subject. The retry adds the
+    title of the open page to the source search, and the new prompt keeps the page before the
+    fragments, so the note «El usuario está leyendo la página…» names a page the prompt has."""
+    from domain.chat.refusal import fixed_sentence
+    open_block = "[/wiki/concepts/cenicienta.md]\nLa heroína del cuento.\n# Cenicienta\nVa al baile."
+    monkeypatch.setattr(preretrieval, "_open_page_block", lambda ws, page: open_block if page else None)
+    run = _turn(monkeypatch, [fixed_sentence("es") + " No está.", SECOND], check="none",
+                open_page="concepts/cenicienta")
+    assert "Q_RETRY_SOURCES" in run.nodes and run.searched[-1].endswith(" Cenicienta")
+    second = run.prompts[1]
+    assert "# Cenicienta" in second and second.index("# Cenicienta") < second.index("lagartos")
+    assert "El usuario está leyendo la página /wiki/concepts/cenicienta.md" in second
+
