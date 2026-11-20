@@ -873,6 +873,14 @@ async def call_agent(turn: PreRetrievalTurn, node: str, run_agent):
     return result
 
 
+def _open_page_title(turn: PreRetrievalTurn) -> str:
+    """The title of the open page: the first `# ` heading of its injected block, or ""."""
+    for line in (turn.open_block or "").splitlines()[1:]:
+        if line.startswith("# "):
+            return line[2:].strip()
+    return ""
+
+
 def search_sources_for_retry(turn: PreRetrievalTurn, refused_output: str, on_context) -> bool:
     """The retry Q_RETRY_SOURCES: the model refused with the wiki pages, and the datum can be
     only in a source document («los lacayos volvían a ser lagartos», only in La Cenicienta.pdf).
@@ -880,8 +888,17 @@ def search_sources_for_retry(turn: PreRetrievalTurn, refused_output: str, on_con
     plan and the prompt of the turn become the ones of a Tier-2 answer, and the model
     workflow calls the model again (Q_AGENT_FRAGMENTS). With no fragment, the first answer
     stays, and the output workflow ends in R_MODEL. Returns whether fragments were found.
-    A retrieval, not a check: a step of the model workflow, as the model calls are."""
+    A retrieval, not a check: a step of the model workflow, as the model calls are.
+
+    With a page open, the search adds the title of the page, and the new context keeps the
+    page before the fragments. «¿Esto le gana a la inflación?», with the page of the
+    money-market fund open, names no subject: without the title the search found fragments
+    of other documents, and the prompt kept the note «El usuario está leyendo la página…»
+    for a page it no longer had."""
     query = source_query(turn)
+    title = _open_page_title(turn)
+    if title:
+        query = f"{query} {title}"
     with tracing.node("Q_RETRY_SOURCES", tracing.READING, refused_output=refused_output,
                       fts_query=_fts_query(query, turn.language)) as retry:
         hits = retrieve_source_chunks(turn.db_path, query, language=turn.stem_language)
@@ -889,7 +906,7 @@ def search_sources_for_retry(turn: PreRetrievalTurn, refused_output: str, on_con
     if not hits:
         return False
     turn.doc_hits = hits
-    turn.plan = tier2_plan(hits)
+    turn.plan = tier2_plan([turn.open_block, *hits] if turn.open_block else hits)
     turn.prompt = build_prompt(turn.plan.context, turn.synonyms, turn.asked, turn.language)
     if on_context is not None:
         on_context([context_passage(block) for block in turn.plan.blocks])

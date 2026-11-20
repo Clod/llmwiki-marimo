@@ -559,6 +559,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The retry with the source documents keeps the open page.** When the model refused
+  with the wiki pages and a page was open, the retry searched the source documents with
+  the words of the question only, and the new prompt held only the fragments it found.
+  The prompt kept the note «El usuario está leyendo la página…», and the model answered
+  that the page was not in its context. The search now adds the title of the open page,
+  and the new context keeps the page before the fragments
+  (`search_sources_for_retry`, `base/domain/chat/preretrieval.py`).
+
 - **A failed check of the wiki pages keeps the answer, with a warning.** With the check
   «judge» or «evidence quote», a failed check used to search the source documents and
   ask the model again: in the battery, «¿Esto le gana a la inflación?», with the page of
