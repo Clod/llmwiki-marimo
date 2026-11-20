@@ -13,7 +13,9 @@ per turn (`PreRetrievalTurn.relevance`):
 - **judge** (Q_JUDGE_PAGES): a separate call to the model receives the question and the
   pages and answers yes or no (`prompts/relevance_judge.*.md`).
 
-A failed check sends the turn to the retry with the source documents (Q_RETRY_SOURCES).
+A failed check keeps the answer and appends a warning that names the check
+(Q_RELEVANCE_WARNING): mark, don't block. Only a refusal of the model sends the turn to
+the retry with the source documents (Q_RETRY_SOURCES).
 Neither check proves that the pages answer the question: the evidence check proves that
 the quoted sentence is in the context, and the judge is a model whose answer nothing
 checks.
@@ -98,6 +100,6 @@ _CHECK_NAMES = {
 
 
 def warning(check: str, language: str | None) -> str:
-    """The line appended to an answer whose check failed with no source fragment to retry with."""
+    """The line appended to an answer whose check failed."""
     lang = "es" if (language or "").lower().startswith("es") else "en"
     return _WARNING[lang].format(check=_CHECK_NAMES[lang].get(check, check))

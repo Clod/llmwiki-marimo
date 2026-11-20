@@ -111,14 +111,15 @@ def test_a_quote_found_in_the_pages_keeps_the_answer(monkeypatch):
 
 
 @pytest.mark.parametrize("output", [INVENTED, NO_QUOTE])
-def test_a_quote_not_in_the_pages_retries_with_the_source_documents(monkeypatch, output):
+def test_a_quote_not_in_the_pages_keeps_the_answer_with_a_warning(monkeypatch, output):
+    """Mark, don't block: a failed check does not search the source documents, even when
+    they have fragments, and the answer of the model stays."""
     run = _turn(monkeypatch, [output, SECOND], check="evidence")
-    start = run.nodes.index("Q_AGENT_PAGES")
-    assert run.nodes[start:start + 4] == ["Q_AGENT_PAGES", "Q_EVIDENCE_QUOTE", "Q_RETRY_SOURCES", "Q_AGENT_FRAGMENTS"]
-    assert run.answer.startswith(SECOND) and "lagartos" in run.prompts[1]
+    assert len(run.prompts) == 1 and "Q_RETRY_SOURCES" not in run.nodes
+    assert run.answer.startswith(output) and "Q_RELEVANCE_WARNING" in run.nodes
 
 
-def test_a_failed_check_with_no_fragment_shows_the_answer_with_a_warning(monkeypatch):
+def test_a_failed_check_shows_the_answer_with_a_warning(monkeypatch):
     run = _turn(monkeypatch, [INVENTED], check="evidence", docs=())
     assert run.answer.startswith(INVENTED)
     assert "La comprobación (cita de evidencia) indica que las páginas de la wiki no responden esta pregunta." in run.answer
@@ -145,10 +146,12 @@ def test_the_judge_is_told_which_page_is_open(monkeypatch):
     assert question.startswith("(El usuario está leyendo la página /wiki/concepts/cenicienta.md.")
 
 
-def test_a_no_of_the_judge_retries_with_the_source_documents(monkeypatch):
+def test_a_no_of_the_judge_keeps_the_answer_with_a_warning(monkeypatch):
+    """fin-21 of the battery: the judge said no to a right answer, the retry replaced it
+    with source fragments of other documents, and the user got a false refusal."""
     run = _turn(monkeypatch, ["Va al baile.", SECOND], check="judge", verdicts=["no"])
-    start = run.nodes.index("Q_AGENT_PAGES")
-    assert run.nodes[start:start + 4] == ["Q_AGENT_PAGES", "Q_JUDGE_PAGES", "Q_RETRY_SOURCES", "Q_AGENT_FRAGMENTS"]
+    assert len(run.prompts) == 1 and "Q_RETRY_SOURCES" not in run.nodes
+    assert run.answer.startswith("Va al baile.") and "Q_RELEVANCE_WARNING" in run.nodes
     assert _mark(run.path, "Q_JUDGE_PAGES") == {"verdict": "no", "passed": False}
 
 

@@ -714,8 +714,8 @@ class PreRetrievalTurn:
     # skips the containment check (node Q_IS_GROUNDED).
     sentence_verifier: bool = False
     # How the model workflow checks that the injected wiki pages answer the question
-    # (`domain/chat/relevance.py`), and whether the check failed with no source fragment to
-    # retry with (the output workflow then appends Q_RELEVANCE_WARNING).
+    # (`domain/chat/relevance.py`), and whether the check failed (the output workflow then
+    # appends Q_RELEVANCE_WARNING).
     relevance: str = "none"
     relevance_failed: bool = False
     # What the gate and the search examine: the question, or its rewrite (Q_RW_ACCEPTED).
@@ -931,7 +931,7 @@ async def _pre_retrieval_turn(
     if turn.relevance == relevance_check.EVIDENCE and outcome.node == "Q_AGENT_PAGES":
         turn.prompt = f"{turn.prompt}\n\n{relevance_check.evidence_prompt(language)}"
     # The model workflow calls the model, checks that the wiki pages answer the question, and
-    # retries with the source documents when the model refused or the check failed.
+    # retries with the source documents when the model refused.
     calls = model_calls.ModelCalls(turn, outcome.node, run_agent, on_context, judge=judge)
     result = (await model_calls.graph.run(state=calls, inputs=calls)).result
 

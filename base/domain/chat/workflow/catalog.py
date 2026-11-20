@@ -636,9 +636,8 @@ async def tier2_warning(ctx: OutCtx) -> AnswerChecks:
 
 
 async def relevance_warning(ctx: OutCtx) -> AnswerChecks:
-    """The check of the model workflow said that the wiki pages do not answer the question,
-    and the retry found no fragment of the source documents: the answer is shown with a
-    warning that names the check. Mark, don't block."""
+    """The check of the model workflow said that the wiki pages do not answer the question:
+    the answer is shown with a warning that names the check. Mark, don't block."""
     checks = ctx.state
     checks.answer = f"{checks.answer}\n\n{relevance.warning(checks.turn.relevance, checks.language)}"
     tracing.mark("Q_RELEVANCE_WARNING", R, check=checks.turn.relevance)
@@ -651,6 +650,7 @@ async def evidence_check(ctx) -> Any:
     calls = ctx.state
     quote = relevance.evidence_quote(calls.result.output)
     calls.passed = relevance.quote_found(quote, calls.turn.plan.context or "")
+    calls.turn.relevance_failed = not calls.passed
     tracing.mark("Q_EVIDENCE_QUOTE", R, quote=quote, found=calls.passed)
     return calls
 
@@ -665,6 +665,7 @@ async def judge_check(ctx) -> Any:
     asked = preretrieval.with_open_page(turn.search or turn.question, turn.noted_page, turn.language)
     verdict = await calls.judge(asked, turn.plan.context or "") if calls.judge else ""
     calls.passed = relevance.judge_says_yes(verdict)
+    calls.turn.relevance_failed = not calls.passed
     tracing.mark("Q_JUDGE_PAGES", R, verdict=verdict, passed=calls.passed)
     return calls
 
