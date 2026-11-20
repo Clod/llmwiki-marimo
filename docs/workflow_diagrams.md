@@ -211,7 +211,7 @@ flowchart TD
   Q_EVIDENCE_QUOTE --> after_relevance
   Q_JUDGE_PAGES --> after_relevance
   after_relevance -->|"the pages answer the question"| wf_end
-  after_relevance -->|"the pages do not answer the question"| Q_RETRY_SOURCES
+  after_relevance -->|"the pages do not answer the question"| wf_end
 ```
 
 ## Pre-retrieval, output

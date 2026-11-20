@@ -7,10 +7,10 @@ Q_AGENT_TOOLS or Q_AGENT_FRAGMENTS). This workflow calls the model under that no
 the model answered with the wiki pages, the check chosen for the turn
 (`PreRetrievalTurn.relevance`, `domain/chat/relevance.py`) decides whether the pages answer
 the question: none, the evidence quote (Q_EVIDENCE_QUOTE) or the judge (Q_JUDGE_PAGES).
-When the model refused, or the check failed, it searches the source documents
-(Q_RETRY_SOURCES) and, with fragments, calls the model again under Q_AGENT_FRAGMENTS. A
-failed check with no fragment marks the turn (`relevance_failed`), and the output workflow
-appends a warning (Q_RELEVANCE_WARNING). The output workflow then checks the last answer.
+A failed check marks the turn (`relevance_failed`): the answer stays, and the output
+workflow appends a warning (Q_RELEVANCE_WARNING). Mark, don't block. Only a refusal of the
+model searches the source documents (Q_RETRY_SOURCES) and, with fragments, calls the model
+again under Q_AGENT_FRAGMENTS. The output workflow then checks the last answer.
 
 The steps call `preretrieval.call_agent` and `preretrieval.search_sources_for_retry`, which
 record the nodes in the trace, as the code between the two workflows recorded them before
@@ -79,11 +79,9 @@ def _call_step(node: str):
 
 
 async def _retry(ctx: Ctx) -> ModelCalls:
-    """Q_RETRY_SOURCES: search the source documents after a refusal with the wiki pages, or
-    after a failed check. A failed check with no fragment marks the turn."""
+    """Q_RETRY_SOURCES: search the source documents after a refusal with the wiki pages."""
     calls = ctx.state
     calls.found = preretrieval.search_sources_for_retry(calls.turn, calls.result.output, calls.on_context)
-    calls.turn.relevance_failed = not calls.passed and not calls.found
     return calls
 
 
@@ -125,7 +123,7 @@ g.add(
         g.decision(node_id="after_relevance", note=N_("Do the wiki pages answer the question?"))
         .branch(g.match(ModelCalls, matches=lambda calls: calls.passed)
                 .label(N_("the pages answer the question")).to(g.end_node))
-        .branch(g.match(ModelCalls).label(N_("the pages do not answer the question")).to(retry))
+        .branch(g.match(ModelCalls).label(N_("the pages do not answer the question")).to(g.end_node))
     ),
     g.edge_from(retry).to(
         g.decision(node_id="after_Q_RETRY_SOURCES", note=N_("Were fragments of the source documents found?"))

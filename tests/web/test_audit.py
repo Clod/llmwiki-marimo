@@ -456,7 +456,7 @@ def test_every_branch_of_the_model_workflow_has_a_label():
     for a, _, label in branches:
         by_decision.setdefault(a, []).append(label)
     assert all(len(labels) == len(set(labels)) for labels in by_decision.values())
-    assert len(branches) == 10  # the branches that end the workflow are not listed by `_branches`
+    assert len(branches) == 9  # the branches that end the workflow are not listed by `_branches`
 
 
 def test_the_branch_labels_are_translated_to_the_interface_language():

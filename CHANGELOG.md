@@ -559,6 +559,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **A failed check of the wiki pages keeps the answer, with a warning.** With the check
+  «judge» or «evidence quote», a failed check used to search the source documents and
+  ask the model again: in the battery, «¿Esto le gana a la inflación?», with the page of
+  the money-market fund open, got the right answer («no ofrece cobertura directa contra
+  la inflación»), the judge said no, and the retry replaced it with a refusal built from
+  fragments of other documents. Now the answer stays, followed by «La comprobación (juez)
+  indica que las páginas de la wiki no responden esta pregunta.» (Q_RELEVANCE_WARNING).
+  Only a refusal of the model runs the retry with the source documents (Q_RETRY_SOURCES).
+
 - **The pre-retrieval mode keeps the description of each wiki page.** The code
   dropped the whole front-matter of the injected pages, and with it the
   `description`, which can hold the sentence that answers: «¿Qué es el espejo
