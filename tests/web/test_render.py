@@ -334,3 +334,18 @@ def test_the_title_names_the_nearest_value_with_the_separators_of_the_language()
         assert figure_marks(FigureReport((bare,)))[0][3] == "No data supports this figure"
     assert figure_marks(FigureReport((bare,)))[0][3] == "Ningún dato respalda esta cifra"
     assert figure_marks(None) == []
+
+
+def test_a_list_right_after_a_paragraph_is_rendered_as_a_list():
+    html = render("Sus rasgos principales son:\n- **Plazo mínimo de 180 días.**\n- **Precancelación:** desde el día 30.")
+    assert "<p>Sus rasgos principales son:</p>" in html
+    assert html.count("<li>") == 2
+    numbered = render("Los pasos:\n1. Abrir la cuenta.\n2. Depositar.")
+    assert numbered.count("<li>") == 2
+
+
+def test_a_list_marker_inside_a_code_block_or_a_list_item_continuation_is_left_alone():
+    code = render("```\ntexto\n- no es una lista\n```")
+    assert "<li>" not in code
+    continued = render("- uno\n  sigue el uno\n- dos")
+    assert continued.count("<li>") == 2 and "<p>" not in continued
