@@ -240,6 +240,26 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The two READMEs match the code again.** Every paragraph was checked against
+  `master`. Among the corrections: the agent mode shows an ungrounded answer with a
+  warning instead of refusing it; the datasets are dated files, not live feeds; the
+  tab list names Data and Tools; image files are a source only when the wiki keeps
+  images; the coverage of pre-retrieval comes from every name of the vocabulary; the
+  references to the UAT plan of v0.4.0 and to the Query Walkthrough are gone. The
+  four screenshots show the current interface.
+
+- **The ingestion walkthrough is written again against the current pipeline.**
+  `docs/ingestion_walkthrough.md` described thirteen numbered steps, PDF and DOCX
+  only, a deletion that kept and marked every concept page of the deleted source,
+  and search figures of the fairy-tale index before its regeneration; four of its
+  tests were marked as expected failures. The new text names the nodes of
+  `docs/ingestion_nodes.md`, covers the accepted formats, images, OCR, the
+  rollback of a failed document, the final review, `reindex_from_disk` and
+  `revert_wiki`, and quotes a new appendix captured on 2026-11-20. The figure tests
+  check every quoted figure again, with no expected failure
+  (`tests/unit/test_docs_walkthrough_figures.py`,
+  `tests/unit/test_docs_ingestion_acts.py`).
+
 - **The code maps are written again from the code.** `docs/CODEMAPS/` dated from
   2026-05-31 to 2026-06-09: PDF and DOCX only, seven lint checks, three agent tools,
   and no datasets, verification, rollback or OCR. The four maps now describe the
@@ -564,6 +584,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   one row: Q3, the blacklist, runs in the pre-retrieval input workflow only.
 
 ### Fixed
+
+- **The question box stays inside the conversation panel in Spanish.** At 1440 px,
+  the button «Enviar» and the option «Ninguna» ended past the right edge of the
+  panel: the longest option of the Mode selector, «Agente con comprobación de
+  evidencia», widened the one column of the composer (`web/static/css/reader.css`).
+- **A list right after a paragraph renders as a list.** An answer that wrote «Sus
+  rasgos principales son:» and the items on the next lines showed «Sus rasgos
+  principales son: - Plazo mínimo… - Precancelación…»: Python-Markdown needs a blank
+  line between a paragraph and a list. The renderer adds it, outside fenced code
+  blocks (`blank_before_lists`, `web/render.py`).
 
 - **The retry with the source documents keeps the open page.** When the model refused
   with the wiki pages and a page was open, the retry searched the source documents with

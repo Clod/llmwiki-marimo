@@ -25,13 +25,6 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-_STALE = pytest.mark.xfail(
-    strict=True,
-    reason="docs/ingestion_walkthrough.md quotes the fairy-tale index regenerated before "
-           "2026-11-17; the rewrite is pending (privado/pendientes.md, documentation)",
-)
-
-
 @pytest.fixture(scope="module")
 def doc() -> str:
     return DOC.read_text(encoding="utf-8")
@@ -54,7 +47,6 @@ def _fts_rowids(db, word: str) -> list[int]:
     ]
 
 
-@_STALE
 def test_the_word_to_rowid_mapping_is_current(doc):
     """The `slipper →` line lists the live hits, in rank order."""
     line = re.search(r"^\s*slipper\s+→\s+(.+)$", doc, re.M)
@@ -65,7 +57,6 @@ def test_the_word_to_rowid_mapping_is_current(doc):
         assert quoted == _fts_rowids(db, "slipper")
 
 
-@_STALE
 def test_the_bm25_table_matches_what_the_index_returns(doc, db):
     """Every row of the ranking table — rowid, mentions, tokens, rank."""
     rows = re.findall(
@@ -86,7 +77,6 @@ def test_the_bm25_table_matches_what_the_index_returns(doc, db):
     assert quoted == [tuple(r) for r in measured]
 
 
-@_STALE
 def test_every_rowid_named_in_the_prose_is_one_the_table_shows(doc, db):
     """Rowids cited in the surrounding sentences, not just in the table.
 
@@ -121,7 +111,6 @@ def test_every_rowid_named_in_the_prose_is_one_the_table_shows(doc, db):
     )
 
 
-@_STALE
 def test_the_corpus_size_the_prose_quotes_is_current(doc, db):
     """The corpus size spelled out in the prose, and the count it must match.
 
@@ -129,10 +118,10 @@ def test_the_corpus_size_the_prose_quotes_is_current(doc, db):
     spelled-out number rather than the sentence carrying it — pinning the
     phrase makes an ordinary rewrite look like a stale figure.
     """
-    assert "thirty-four" in doc
-    assert db.execute("SELECT count(*) FROM document_chunks").fetchone()[0] == 34
+    assert "thirty-seven" in doc
+    assert db.execute("SELECT count(*) FROM document_chunks").fetchone()[0] == 37
 
-    assert "whose 34 fragments come from three tales" in doc
+    assert "whose 37 fragments come from three tales" in doc
     sources = db.execute(
         "SELECT count(*) FROM documents WHERE source_kind='source'"
     ).fetchone()[0]
