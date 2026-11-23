@@ -240,6 +240,14 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The two READMEs match the code again.** Every paragraph was checked against
+  `master`. Among the corrections: the agent mode shows an ungrounded answer with a
+  warning instead of refusing it; the datasets are dated files, not live feeds; the
+  tab list names Data and Tools; image files are a source only when the wiki keeps
+  images; the coverage of pre-retrieval comes from every name of the vocabulary; the
+  references to the UAT plan of v0.4.0 and to the Query Walkthrough are gone. The
+  four screenshots show the current interface.
+
 - **The example wikis are regenerated** with Haiku 5.5 and the current code: the
   tables of the documents, one page per concept with its `description`, «See also»
   above the footnote, and no structure problem (`scripts/check_wiki.py`). The two
@@ -558,6 +566,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   one row: Q3, the blacklist, runs in the pre-retrieval input workflow only.
 
 ### Fixed
+
+- **The question box stays inside the conversation panel in Spanish.** At 1440 px,
+  the button «Enviar» and the option «Ninguna» ended past the right edge of the
+  panel: the longest option of the Mode selector, «Agente con comprobación de
+  evidencia», widened the one column of the composer (`web/static/css/reader.css`).
+- **A list right after a paragraph renders as a list.** An answer that wrote «Sus
+  rasgos principales son:» and the items on the next lines showed «Sus rasgos
+  principales son: - Plazo mínimo… - Precancelación…»: Python-Markdown needs a blank
+  line between a paragraph and a list. The renderer adds it, outside fenced code
+  blocks (`blank_before_lists`, `web/render.py`).
 
 - **The retry with the source documents keeps the open page.** When the model refused
   with the wiki pages and a page was open, the retry searched the source documents with

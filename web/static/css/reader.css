@@ -82,11 +82,12 @@ body.chat-hidden .chat { display: none; }
 .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes pulse { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 
-.composer { flex: none; display: grid; gap: var(--space-2); padding: var(--space-3); border-top: var(--border); }
+/* minmax(0, 1fr): the one column never grows past the panel, whatever the width of the longest mode label. */
+.composer { flex: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-3); border-top: var(--border); }
 .composer textarea { resize: none; border-color: var(--color-border); }
 .composer-row { display: flex; align-items: center; gap: var(--space-2); }
-.composer-row .mode-select { width: auto; height: var(--control-h-sm); padding: 0 var(--space-2); border-color: var(--color-border); }
-.composer-row .btn { margin-left: auto; height: var(--control-h-sm); padding: 0 var(--space-3); }
+.composer-row .mode-select { flex: 0 1 auto; min-width: 0; width: auto; height: var(--control-h-sm); padding: 0 var(--space-2); border-color: var(--color-border); }
+.composer-row .btn { flex: none; margin-left: auto; height: var(--control-h-sm); padding: 0 var(--space-3); }
 
 .verify-toggle { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--color-text-muted); cursor: pointer; }
 .verify-toggle.disabled { cursor: not-allowed; opacity: .6; }
