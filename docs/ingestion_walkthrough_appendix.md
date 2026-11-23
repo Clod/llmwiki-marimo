@@ -18,13 +18,15 @@ uv run python scripts/capture_ingestion_walkthrough.py
 ✅ Extracted 5 pages
 ✂️ Chunked into 10 chunks
 🤖 Extracting knowledge structure...
-📋 Found 5 concept(s)
+📋 Found 4 concept(s)
 💡 Creating concept: Cinderella
-💡 Creating concept: Fairy Godmother
-💡 Creating concept: Glass Slipper
-💡 Creating concept: Royal Ball
-💡 Creating concept: Prince
+💡 Creating concept: Fairy godmother
+💡 Creating concept: Glass slipper
+💡 Creating concept: Stepmother
+⚠️ New aliases to review in the vocabulary screen: «Cinderwench» → «Cinderella»; «fairy» → «Fairy godmother»; «mother-in-law» → «Stepmother»
 📄 Writing summary page...
+⚠️ New topics to review in the editor of each page: «kindness and virtue rewarded» → concepts/cinderella; «stepfamily cruelty» → concepts/cinderella; «class and social status» → concepts/cinderella; «appearance versus inner goodness» → concepts/cinderella; «magical transformation» → concepts/fairy-godmother; «kindness and virtue rewarded» → concepts/fairy-godmother; «royal courtship» → concepts/glass-slipper; «magical transformation» → concepts/glass-slipper; «class and social status» → concepts/glass-slipper; «stepfamily cruelty» → concepts/stepmother; «class and social status» → concepts/stepmother; «kindness and virtue rewarded» → summaries/cinderella; «class and social status» → summaries/cinderella; «magical transformation» → summaries/cinderella; «stepfamily cruelty» → summaries/cinderella; «royal courtship» → summaries/cinderella; «appearance versus inner goodness» → summaries/cinderella
+⚠️ Of those, not in the text of the document (review them first): «kindness and virtue rewarded», «stepfamily cruelty», «class and social status», «appearance versus inner goodness», «magical transformation», «royal courtship»
 🌐 Updating overview...
 ✅ Done: Cinderella.pdf (5 pages, 10 chunks)
 🔎 lint: orphans
@@ -34,25 +36,32 @@ uv run python scripts/capture_ingestion_walkthrough.py
 🔎 lint: gap-filled markers
 🔎 lint: vocabulary
 🔎 lint: thin pages
-🔧 10 issue(s) on ingested pages — repairing (deterministic)…
-🔧 Repairing 10 issue(s)...
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/glass-slipper.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/glass-slipper.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/prince.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/glass-slipper.md
-🏁 10 issue(s): 10 fixed, 0 skipped, 0 failed
+🔎 lint: sources with no page
+🔎 lint: unsupported sentences
+🔎 lint: unverified pages
+🔎 lint: missing images
+🔎 lint: orphan images
+🔎 lint: images without description
+🔎 lint: stale image descriptions
+🔧 11 issue(s) on ingested pages — repairing (deterministic)…
+🔧 Repairing 11 issue(s)...
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/fairy-godmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/glass-slipper.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/stepmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/fairy-godmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/stepmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/stepmother.md → /wiki/concepts/fairy-godmother.md
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+🏁 11 issue(s): 6 fixed, 5 skipped, 0 failed
 🔗 cross-linked wiki/concepts/cinderella.md
 🔗 cross-linked wiki/concepts/fairy-godmother.md
 🔗 cross-linked wiki/concepts/glass-slipper.md
-🔗 cross-linked wiki/concepts/royal-ball.md
-🔗 cross-linked wiki/concepts/prince.md
-🔗 Cross-linked 5 page(s)
+🔗 cross-linked wiki/concepts/stepmother.md
+🔗 Cross-linked 4 page(s)
 ```
 
 **Database**
@@ -60,27 +69,28 @@ uv run python scripts/capture_ingestion_walkthrough.py
 | table | rows | Δ |
 |---|---|---|
 | `documents (source)` | 1 | +1 |
-| `documents (wiki)` | 6 | +6 |
+| `documents (wiki)` | 5 | +5 |
 | `document_pages` | 5 | +5 |
-| `document_chunks` | 16 | +16 |
-| `chunks_fts` | 16 | +16 |
+| `document_chunks` | 15 | +15 |
+| `chunks_fts` | 15 | +15 |
 
 **Citation graph** (`document_references`)
 
 | reference_type | edges |
 |---|---|
-| `cites` | 6 |
-| `links_to` | 15 |
+| `cites` | 5 |
+| `links_to` | 10 |
 
 **Files**
 
 - `+` `.llmwiki/aliases.generated.toml`
 - `+` `.llmwiki/index.db`
+- `+` `.llmwiki/snapshots/2174cc4e4ff977e78e390f0f1f4aaa4df8cfe6ff.db`
+- `+` `.llmwiki/snapshots/manifest.json`
 - `+` `wiki/concepts/cinderella.md`
 - `+` `wiki/concepts/fairy-godmother.md`
 - `+` `wiki/concepts/glass-slipper.md`
-- `+` `wiki/concepts/prince.md`
-- `+` `wiki/concepts/royal-ball.md`
+- `+` `wiki/concepts/stepmother.md`
 - `+` `wiki/index.md`
 - `+` `wiki/log.md`
 - `+` `wiki/overview.md`
@@ -94,13 +104,14 @@ uv run python scripts/capture_ingestion_walkthrough.py
 
 [alias_datos]
 "Cinderella" = ["Cinderwench"]
-"Prince" = ["King's son"]
+"Fairy godmother" = ["fairy"]
+"Stepmother" = ["mother-in-law"]
 ```
 
 **Wiki git history**
 
 ```text
-6f84793 ingest: Cinderella.pdf
+2174cc4 ingest: Cinderella.pdf
 ```
 
 ## Act 2 — second document
@@ -113,13 +124,15 @@ uv run python scripts/capture_ingestion_walkthrough.py
 ✅ Extracted 2 pages
 ✂️ Chunked into 2 chunks
 🤖 Extracting knowledge structure...
-📋 Found 5 concept(s)
+📋 Found 4 concept(s)
 💡 Creating concept: Little Red Riding Hood
-💡 Creating concept: The Wolf
-💡 Creating concept: The Grandmother
-💡 Creating concept: The Red Riding Hood
-💡 Creating concept: Themes of Little Red Riding Hood
+💡 Creating concept: Wolf
+💡 Creating concept: Red riding-hood cloak
+💡 Creating concept: Bobbin latch
+⚠️ New aliases to review in the vocabulary screen: «Little Red Riding-Hood» → «Little Red Riding Hood»; «Gaffer Wolf» → «Wolf»; «the Big Bad Wolf» → «Wolf»; «red riding-hood» → «Red riding-hood cloak»; «little red riding-hood» → «Red riding-hood cloak»; «bobbin» → «Bobbin latch»; «latch string» → «Bobbin latch»
 📄 Writing summary page...
+⚠️ New topics to review in the editor of each page: «fairy tale» → concepts/little-red-riding-hood; «danger of talking to strangers» → concepts/little-red-riding-hood; «moral warning» → concepts/little-red-riding-hood; «grandmother and grandchild» → concepts/little-red-riding-hood; «predator and prey» → concepts/wolf; «deception and disguise» → concepts/wolf; «fairy tale» → concepts/wolf; «fairy tale» → concepts/red-riding-hood-cloak; «deception and disguise» → concepts/red-riding-hood-cloak; «deception and disguise» → concepts/bobbin-latch; «predator and prey» → concepts/bobbin-latch; «danger of talking to strangers» → concepts/bobbin-latch; «fairy tale» → summaries/little-red-riding-hood; «deception and disguise» → summaries/little-red-riding-hood; «danger of talking to strangers» → summaries/little-red-riding-hood; «predator and prey» → summaries/little-red-riding-hood; «grandmother and grandchild» → summaries/little-red-riding-hood; «moral warning» → summaries/little-red-riding-hood
+⚠️ Of those, not in the text of the document (review them first): «fairy tale», «danger of talking to strangers», «moral warning», «grandmother and grandchild», «predator and prey», «deception and disguise»
 🌐 Updating overview...
 ✅ Done: Little Red Riding Hood.pdf (2 pages, 2 chunks)
 🔎 lint: orphans
@@ -129,25 +142,32 @@ uv run python scripts/capture_ingestion_walkthrough.py
 🔎 lint: gap-filled markers
 🔎 lint: vocabulary
 🔎 lint: thin pages
-🔧 10 issue(s) on ingested pages — repairing (deterministic)…
-🔧 Repairing 10 issue(s)...
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-wolf.md → /wiki/concepts/little-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-wolf.md → /wiki/concepts/the-grandmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-wolf.md → /wiki/concepts/the-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-wolf.md → /wiki/concepts/themes-of-little-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-grandmother.md → /wiki/concepts/little-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-grandmother.md → /wiki/concepts/the-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/the-red-riding-hood.md → /wiki/concepts/little-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/themes-of-little-red-riding-hood.md → /wiki/concepts/little-red-riding-hood.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/themes-of-little-red-riding-hood.md → /wiki/concepts/the-grandmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/themes-of-little-red-riding-hood.md → /wiki/concepts/the-red-riding-hood.md
-🏁 10 issue(s): 10 fixed, 0 skipped, 0 failed
+🔎 lint: sources with no page
+🔎 lint: unsupported sentences
+🔎 lint: unverified pages
+🔎 lint: missing images
+🔎 lint: orphan images
+🔎 lint: images without description
+🔎 lint: stale image descriptions
+🔧 11 issue(s) on ingested pages — repairing (deterministic)…
+🔧 Repairing 11 issue(s)...
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/wolf.md → /wiki/concepts/little-red-riding-hood.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/wolf.md → /wiki/concepts/bobbin-latch.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/red-riding-hood-cloak.md → /wiki/concepts/little-red-riding-hood.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/red-riding-hood-cloak.md → /wiki/concepts/wolf.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/red-riding-hood-cloak.md → /wiki/concepts/bobbin-latch.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/bobbin-latch.md → /wiki/concepts/little-red-riding-hood.md
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+🏁 11 issue(s): 6 fixed, 5 skipped, 0 failed
 🔗 cross-linked wiki/concepts/little-red-riding-hood.md
-🔗 cross-linked wiki/concepts/the-wolf.md
-🔗 cross-linked wiki/concepts/the-grandmother.md
-🔗 cross-linked wiki/concepts/the-red-riding-hood.md
-🔗 cross-linked wiki/concepts/themes-of-little-red-riding-hood.md
-🔗 Cross-linked 5 page(s)
+🔗 cross-linked wiki/concepts/wolf.md
+🔗 cross-linked wiki/concepts/red-riding-hood-cloak.md
+🔗 cross-linked wiki/concepts/bobbin-latch.md
+🔗 Cross-linked 4 page(s)
 ```
 
 **Database**
@@ -155,25 +175,25 @@ uv run python scripts/capture_ingestion_walkthrough.py
 | table | rows | Δ |
 |---|---|---|
 | `documents (source)` | 2 | +1 |
-| `documents (wiki)` | 12 | +6 |
+| `documents (wiki)` | 10 | +5 |
 | `document_pages` | 7 | +2 |
-| `document_chunks` | 24 | +8 |
-| `chunks_fts` | 24 | +8 |
+| `document_chunks` | 22 | +7 |
+| `chunks_fts` | 22 | +7 |
 
 **Citation graph** (`document_references`)
 
 | reference_type | edges |
 |---|---|
-| `cites` | 12 |
-| `links_to` | 30 |
+| `cites` | 10 |
+| `links_to` | 20 |
 
 **Files**
 
+- `+` `.llmwiki/snapshots/ab357dae28b3d2776dfbbb86059863c6ddb30d50.db`
+- `+` `wiki/concepts/bobbin-latch.md`
 - `+` `wiki/concepts/little-red-riding-hood.md`
-- `+` `wiki/concepts/the-grandmother.md`
-- `+` `wiki/concepts/the-red-riding-hood.md`
-- `+` `wiki/concepts/the-wolf.md`
-- `+` `wiki/concepts/themes-of-little-red-riding-hood.md`
+- `+` `wiki/concepts/red-riding-hood-cloak.md`
+- `+` `wiki/concepts/wolf.md`
 - `+` `wiki/summaries/little-red-riding-hood.md`
 
 **`.llmwiki/aliases.generated.toml`**
@@ -183,15 +203,20 @@ uv run python scripts/capture_ingestion_walkthrough.py
 # Hand overrides live in wiki_config.toml [alias_datos]; this file is merged UNDER them.
 
 [alias_datos]
+"Bobbin latch" = ["bobbin", "latch string"]
 "Cinderella" = ["Cinderwench"]
-"Prince" = ["King's son"]
+"Fairy godmother" = ["fairy"]
+"Little Red Riding Hood" = ["Little Red Riding-Hood"]
+"Red riding-hood cloak" = ["red riding-hood", "little red riding-hood"]
+"Stepmother" = ["mother-in-law"]
+"Wolf" = ["Gaffer Wolf", "the Big Bad Wolf"]
 ```
 
 **Wiki git history**
 
 ```text
-85ca81d ingest: Little Red Riding Hood.pdf
-6f84793 ingest: Cinderella.pdf
+ab357da ingest: Little Red Riding Hood.pdf
+2174cc4 ingest: Cinderella.pdf
 ```
 
 ## Act 3a — re-ingest, unchanged
@@ -209,17 +234,17 @@ uv run python scripts/capture_ingestion_walkthrough.py
 | table | rows | Δ |
 |---|---|---|
 | `documents (source)` | 2 | +0 |
-| `documents (wiki)` | 12 | +0 |
+| `documents (wiki)` | 10 | +0 |
 | `document_pages` | 7 | +0 |
-| `document_chunks` | 24 | +0 |
-| `chunks_fts` | 24 | +0 |
+| `document_chunks` | 22 | +0 |
+| `chunks_fts` | 22 | +0 |
 
 **Citation graph** (`document_references`)
 
 | reference_type | edges |
 |---|---|
-| `cites` | 12 |
-| `links_to` | 30 |
+| `cites` | 10 |
+| `links_to` | 20 |
 
 **Files**
 
@@ -232,15 +257,20 @@ uv run python scripts/capture_ingestion_walkthrough.py
 # Hand overrides live in wiki_config.toml [alias_datos]; this file is merged UNDER them.
 
 [alias_datos]
+"Bobbin latch" = ["bobbin", "latch string"]
 "Cinderella" = ["Cinderwench"]
-"Prince" = ["King's son"]
+"Fairy godmother" = ["fairy"]
+"Little Red Riding Hood" = ["Little Red Riding-Hood"]
+"Red riding-hood cloak" = ["red riding-hood", "little red riding-hood"]
+"Stepmother" = ["mother-in-law"]
+"Wolf" = ["Gaffer Wolf", "the Big Bad Wolf"]
 ```
 
 **Wiki git history**
 
 ```text
-85ca81d ingest: Little Red Riding Hood.pdf
-6f84793 ingest: Cinderella.pdf
+ab357da ingest: Little Red Riding Hood.pdf
+2174cc4 ingest: Cinderella.pdf
 ```
 
 ## Act 3b — edited source re-ingested
@@ -253,13 +283,15 @@ uv run python scripts/capture_ingestion_walkthrough.py
 ✅ Extracted 7 pages
 ✂️ Chunked into 13 chunks
 🤖 Extracting knowledge structure...
-📋 Found 5 concept(s)
+📋 Found 4 concept(s)
+💡 Updating concept: Fairy godmother
+💡 Creating concept: Spindle
+💡 Creating concept: Ogre
 💡 Creating concept: Sleeping Beauty
-💡 Creating concept: Fairy Godmothers
-💡 Creating concept: Ogress Queen
-💡 Creating concept: Spindle Curse
-💡 Creating concept: Seven-League Boots
+⚠️ New aliases to review in the vocabulary screen: «Good fairy» → «Fairy godmother»; «Fairy godmothers» → «Fairy godmother»; «Distaff and spindle» → «Spindle»; «Ogress» → «Ogre»; «The Sleeping Beauty in the Wood» → «Sleeping Beauty»; «The Sleeping Beauty» → «Sleeping Beauty»; «Briar Rose» → «Sleeping Beauty»
 📄 Writing summary page...
+⚠️ New topics to review in the editor of each page: «fairy curses and blessings» → concepts/fairy-godmother; «christening gifts» → concepts/fairy-godmother; «magical intervention» → concepts/fairy-godmother; «enchanted sleep» → concepts/fairy-godmother; «fate and prophecy» → concepts/spindle; «royal decrees» → concepts/spindle; «enchanted sleep» → concepts/spindle; «cannibalistic ogress» → concepts/ogre; «royal marriage and succession» → concepts/ogre; «maternal menace» → concepts/ogre; «enchanted sleep» → concepts/sleeping-beauty; «royal marriage and succession» → concepts/sleeping-beauty; «fairy curses and blessings» → concepts/sleeping-beauty; «enchanted sleep» → summaries/cinderella; «fairy curses and blessings» → summaries/cinderella; «royal marriage and succession» → summaries/cinderella; «cannibalistic ogress» → summaries/cinderella; «fairy tale morality» → summaries/cinderella
+⚠️ Of those, not in the text of the document (review them first): «fairy curses and blessings», «christening gifts», «magical intervention», «enchanted sleep», «fate and prophecy», «royal decrees», «cannibalistic ogress», «royal marriage and succession», «maternal menace», «fairy tale morality»
 🌐 Updating overview...
 ✅ Done: Cinderella.pdf (7 pages, 13 chunks)
 🔎 lint: orphans
@@ -269,60 +301,50 @@ uv run python scripts/capture_ingestion_walkthrough.py
 🔎 lint: gap-filled markers
 🔎 lint: vocabulary
 🔎 lint: thin pages
-🔧 45 issue(s) on ingested pages — repairing (deterministic)…
-🔧 Repairing 45 issue(s)...
-  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
-  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
-  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
-  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
-  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Also run full LLM lint & repair after ingest" before ingesting, or press "Run Wiki Lint & Repair" to sweep the whole wiki now.
+🔎 lint: sources with no page
+🔎 lint: unsupported sentences
+🔎 lint: unverified pages
+🔎 lint: missing images
+🔎 lint: orphan images
+🔎 lint: images without description
+🔎 lint: stale image descriptions
+🔧 29 issue(s) on ingested pages — repairing (deterministic)…
+🔧 Repairing 29 issue(s)...
+  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Full repair with the model, slower" before ingesting, or press "Run Wiki Lint & Repair" in Maintain to sweep the whole wiki now.
+  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Full repair with the model, slower" before ingesting, or press "Run Wiki Lint & Repair" in Maintain to sweep the whole wiki now.
+  ⏭️ [stale] skipped: 'stale' repair needs a model, and none was supplied. To fix these: tick "Full repair with the model, slower" before ingesting, or press "Run Wiki Lint & Repair" in Maintain to sweep the whole wiki now.
+  ⏭️ [missing_xref] skipped: already linked
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/spindle.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/ogre.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/cinderella.md → /wiki/concepts/spindle-curse.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/spindle-curse.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmother.md → /wiki/concepts/ogre.md
+  ⏭️ [missing_xref] skipped: already linked
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/spindle.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/ogre.md
   ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/glass-slipper.md → /wiki/concepts/spindle-curse.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/spindle-curse.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/royal-ball.md → /wiki/concepts/seven-league-boots.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/prince.md → /wiki/concepts/spindle-curse.md
-  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/glass-slipper.md
-  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/royal-ball.md
-  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/prince.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/glass-slipper.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/royal-ball.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/prince.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/spindle-curse.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/fairy-godmothers.md → /wiki/concepts/seven-league-boots.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/glass-slipper.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/royal-ball.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/prince.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/fairy-godmothers.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/spindle-curse.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/ogress-queen.md → /wiki/concepts/seven-league-boots.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/spindle-curse.md → /wiki/concepts/sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/cinderella.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/fairy-godmother.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/glass-slipper.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/prince.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/sleeping-beauty.md
-  ✅ [missing_xref] xref_added: Linked /wiki/concepts/seven-league-boots.md → /wiki/concepts/spindle-curse.md
-🏁 45 issue(s): 40 fixed, 5 skipped, 0 failed
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/stepmother.md → /wiki/concepts/ogre.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/stepmother.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/summaries/cinderella.md → /wiki/concepts/stepmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/spindle.md → /wiki/concepts/fairy-godmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/spindle.md → /wiki/concepts/stepmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/spindle.md → /wiki/concepts/ogre.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/spindle.md → /wiki/concepts/sleeping-beauty.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/sleeping-beauty.md → /wiki/concepts/fairy-godmother.md
+  ✅ [missing_xref] xref_added: Linked /wiki/concepts/sleeping-beauty.md → /wiki/concepts/ogre.md
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+  ⏭️ [unverified_pages] skipped: advisory finding — no automatic repair (resolve by hand)
+🏁 29 issue(s): 16 fixed, 13 skipped, 0 failed
+🔗 cross-linked wiki/summaries/cinderella.md
+🔗 cross-linked wiki/concepts/spindle.md
+🔗 cross-linked wiki/concepts/ogre.md
 🔗 cross-linked wiki/concepts/sleeping-beauty.md
-🔗 cross-linked wiki/concepts/fairy-godmothers.md
-🔗 cross-linked wiki/concepts/ogress-queen.md
-🔗 cross-linked wiki/concepts/spindle-curse.md
-🔗 cross-linked wiki/concepts/seven-league-boots.md
-🔗 Cross-linked 5 page(s)
+🔗 Cross-linked 4 page(s)
 ```
 
 **Database**
@@ -330,25 +352,24 @@ uv run python scripts/capture_ingestion_walkthrough.py
 | table | rows | Δ |
 |---|---|---|
 | `documents (source)` | 2 | +0 |
-| `documents (wiki)` | 17 | +5 |
+| `documents (wiki)` | 13 | +3 |
 | `document_pages` | 9 | +2 |
-| `document_chunks` | 32 | +8 |
-| `chunks_fts` | 32 | +8 |
+| `document_chunks` | 28 | +6 |
+| `chunks_fts` | 28 | +6 |
 
 **Citation graph** (`document_references`)
 
 | reference_type | edges |
 |---|---|
-| `cites` | 19 |
-| `links_to` | 80 |
+| `cites` | 13 |
+| `links_to` | 43 |
 
 **Files**
 
-- `+` `wiki/concepts/fairy-godmothers.md`
-- `+` `wiki/concepts/ogress-queen.md`
-- `+` `wiki/concepts/seven-league-boots.md`
+- `+` `.llmwiki/snapshots/c16bdafa2a0e22f24b0920ee0b36231e6bb7bc13.db`
+- `+` `wiki/concepts/ogre.md`
 - `+` `wiki/concepts/sleeping-beauty.md`
-- `+` `wiki/concepts/spindle-curse.md`
+- `+` `wiki/concepts/spindle.md`
 
 **`.llmwiki/aliases.generated.toml`**
 
@@ -357,18 +378,24 @@ uv run python scripts/capture_ingestion_walkthrough.py
 # Hand overrides live in wiki_config.toml [alias_datos]; this file is merged UNDER them.
 
 [alias_datos]
+"Bobbin latch" = ["bobbin", "latch string"]
 "Cinderella" = ["Cinderwench"]
-"Fairy Godmothers" = ["Fairies"]
-"Prince" = ["King's son"]
-"Sleeping Beauty" = ["The Sleeping Beauty in the Wood"]
+"Fairy godmother" = ["fairy", "Good fairy", "Fairy godmothers"]
+"Little Red Riding Hood" = ["Little Red Riding-Hood"]
+"Ogre" = ["Ogress"]
+"Red riding-hood cloak" = ["red riding-hood", "little red riding-hood"]
+"Sleeping Beauty" = ["The Sleeping Beauty in the Wood", "The Sleeping Beauty", "Briar Rose"]
+"Spindle" = ["Distaff and spindle"]
+"Stepmother" = ["mother-in-law"]
+"Wolf" = ["Gaffer Wolf", "the Big Bad Wolf"]
 ```
 
 **Wiki git history**
 
 ```text
-c91ec36 ingest: Cinderella.pdf
-85ca81d ingest: Little Red Riding Hood.pdf
-6f84793 ingest: Cinderella.pdf
+c16bdaf ingest: Cinderella.pdf
+ab357da ingest: Little Red Riding Hood.pdf
+2174cc4 ingest: Cinderella.pdf
 ```
 
 ## Act 3c — source deleted
@@ -376,7 +403,7 @@ c91ec36 ingest: Cinderella.pdf
 **Activity log**
 
 ```text
-🗑 deleted: Deleted source 'Little Red Riding Hood.pdf'; deleted 1 derived wiki page(s); marked 5 citing page(s) stale
+🗑 deleted: Deleted source 'Little Red Riding Hood.pdf'; deleted 5 derived wiki page(s)
 ```
 
 **Database**
@@ -384,22 +411,27 @@ c91ec36 ingest: Cinderella.pdf
 | table | rows | Δ |
 |---|---|---|
 | `documents (source)` | 1 | -1 |
-| `documents (wiki)` | 16 | -1 |
+| `documents (wiki)` | 8 | -5 |
 | `document_pages` | 7 | -2 |
-| `document_chunks` | 29 | -3 |
-| `chunks_fts` | 29 | -3 |
+| `document_chunks` | 21 | -7 |
+| `chunks_fts` | 21 | -7 |
 
 **Citation graph** (`document_references`)
 
 | reference_type | edges |
 |---|---|
-| `cites` | 13 |
-| `links_to` | 75 |
+| `cites` | 8 |
+| `links_to` | 33 |
 
 **Files**
 
 - `+` `.llmwiki/index.db-shm`
 - `+` `.llmwiki/index.db-wal`
+- `+` `.llmwiki/snapshots/5565b30f7b794a296f4efdfc221935009f8d205e.db`
+- `−` `wiki/concepts/bobbin-latch.md`
+- `−` `wiki/concepts/little-red-riding-hood.md`
+- `−` `wiki/concepts/red-riding-hood-cloak.md`
+- `−` `wiki/concepts/wolf.md`
 - `−` `wiki/summaries/little-red-riding-hood.md`
 
 **`.llmwiki/aliases.generated.toml`**
@@ -410,17 +442,19 @@ c91ec36 ingest: Cinderella.pdf
 
 [alias_datos]
 "Cinderella" = ["Cinderwench"]
-"Fairy Godmothers" = ["Fairies"]
-"Prince" = ["King's son"]
-"Sleeping Beauty" = ["The Sleeping Beauty in the Wood"]
+"Fairy godmother" = ["fairy", "Good fairy", "Fairy godmothers"]
+"Ogre" = ["Ogress"]
+"Sleeping Beauty" = ["The Sleeping Beauty in the Wood", "The Sleeping Beauty", "Briar Rose"]
+"Spindle" = ["Distaff and spindle"]
+"Stepmother" = ["mother-in-law"]
 ```
 
 **Wiki git history**
 
 ```text
-3b6b3d0 delete source: Little Red Riding Hood.pdf
-c91ec36 ingest: Cinderella.pdf
-85ca81d ingest: Little Red Riding Hood.pdf
-6f84793 ingest: Cinderella.pdf
+5565b30 delete source: Little Red Riding Hood.pdf
+c16bdaf ingest: Cinderella.pdf
+ab357da ingest: Little Red Riding Hood.pdf
+2174cc4 ingest: Cinderella.pdf
 ```
 
