@@ -27,8 +27,8 @@ answer is built from:
 
 - **pre-retrieval**: the code retrieves the text, before the model is called,
   and the code decides whether the question is answered at all (section 2).
-- **agent**: the model retrieves the text, by calling tools, and the code
-  replaces an answer that no tool supports (section 3).
+- **agent**: the model retrieves the text, by calling tools, and the code adds
+  a warning to an answer that no tool supports (section 3).
 - **streaming**: the model retrieves the text, by calling tools, and the answer
   is shown as the model writes the answer. The code changes nothing between the
   user and the agent: no step edits the history, and no check runs on the answer
