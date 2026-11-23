@@ -84,6 +84,31 @@ def _outside_links(text: str, fn: Callable[[str], str]) -> str:
     return "".join(parts)
 
 
+_LIST_ITEM = re.compile(r"^ {0,3}(?:[-*+]|\d{1,9}[.)])\s+\S")
+_FENCE = re.compile(r"^ {0,3}(?:```|~~~)")
+
+
+def blank_before_lists(body: str) -> str:
+    """Add the blank line that Python-Markdown needs between a paragraph and a list.
+
+    A model often writes «Sus rasgos son:» and, on the next line, «- **Plazo mínimo…**».
+    Without a blank line between them, Python-Markdown renders the items as text of the
+    paragraph: «Sus rasgos son: - Plazo mínimo… - Precancelación…». The blank line goes
+    only after a line that starts at the margin and is not a list item itself, and never
+    inside a fenced code block."""
+    out: list[str] = []
+    fenced = False
+    for line in body.split("\n"):
+        if _FENCE.match(line):
+            fenced = not fenced
+        elif not fenced and _LIST_ITEM.match(line) and out:
+            previous = out[-1]
+            if previous.strip() and not previous[:1].isspace() and not _LIST_ITEM.match(previous):
+                out.append("")
+        out.append(line)
+    return "\n".join(out)
+
+
 def render_markdown(wiki_id: str, text: str, page: str | None, pages: Collection[str],
                     sources: Collection[str] = frozenset()) -> str:
     """Render markdown to HTML with every internal reference pointing into the app.
@@ -142,7 +167,7 @@ def render_markdown(wiki_id: str, text: str, page: str | None, pages: Collection
             lambda m: f"[{m.group(0)}]({source_url(wiki_id, m.group(0))})", part))
     # Sanitize first: the target and rel of a source link are ours, added below,
     # and the text of a page or an answer cannot set them.
-    rendered = sanitize_html(markdown.markdown(body, extensions=["tables", "fenced_code"]))
+    rendered = sanitize_html(markdown.markdown(blank_before_lists(body), extensions=["tables", "fenced_code"]))
     # A kept image can weigh megabytes; the browser loads it when it is scrolled to.
     rendered = rendered.replace(f'src="/w/{wiki_id}/images/', f'loading="lazy" src="/w/{wiki_id}/images/')
     return rendered.replace(
