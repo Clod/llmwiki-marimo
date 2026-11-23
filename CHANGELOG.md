@@ -247,6 +247,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **«From Idea to Product» no longer lists OCR and the rollback as pending.** Point 9
+  said scanned PDFs come in empty and OCR is on the roadmap; point 13 said the
+  coordinated undo is designed and not built. Both are built: `OCR_ENGINE` reads
+  scanned PDFs, and the **History** tab returns the wiki and its index to an
+  earlier point.
+- **The demo guide of the finance example names its current pages.**
+  `examples/finanzas-argentinas/GUIA_DEMO.md` named «plazo fijo tradicional» and two
+  pages about inflation that the regenerated wiki (#115) does not have.
+
 - **The query walkthrough and the acceptance plan describe the web interface.**
   Both documents described the marimo interface of v0.4.0: two checkboxes instead
   of the **Mode** selector, and three terminals with marimo apps. The query
