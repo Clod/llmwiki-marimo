@@ -1,56 +1,66 @@
-<!-- Generated: 2026-06-01 | Files scanned: 1 | Token estimate: ~600 -->
-<!-- 2026-06-01: source_document_id + idx folded into base DDL; runtime migration removed. -->
+<!-- Written 2026-11-20 from database/sqlite_schema.sql. -->
 
 # Data Model
 
-Single source of truth: `database/sqlite_schema.sql`. SQLite, WAL mode,
-`PRAGMA foreign_keys=ON`. Applied by `tools/db.py:open_db`. One DB per workspace
-at `workspace/.llmwiki/index.db`.
+The schema is `database/sqlite_schema.sql`, applied by `open_db`
+(`base/domain/tools/db.py`) every time a database opens. Every statement is
+`CREATE … IF NOT EXISTS`. One database per workspace, at
+`<workspace>/.llmwiki/index.db`, in WAL mode with foreign keys on. Every column is
+described in [`sqlite_data_dictionary.md`](../sqlite_data_dictionary.md).
 
 ## Tables
 
 ```
-workspace            id, name, user_id                       one row per workspace
-documents            id, user_id, filename, title, path, relative_path (UNIQUE),
-                     source_kind CHECK(wiki|source|asset), file_type, status
-                     CHECK(pending|processing|ready|failed), content, tags(JSON),
-                     page_count, version, source_document_id, content_hash,
-                     stale_since, created_at, updated_at, ...
-document_pages       id, document_id→documents, page, content   (raw per-page text)
-document_chunks      id, document_id→documents, chunk_index, content, page,
-                     token_count(NOT NULL), header_breadcrumb
-                     UNIQUE(document_id, chunk_index)
-document_references  id, source_document_id→documents, target_document_id→documents,
-                     reference_type CHECK(cites|links_to), page
-                     UNIQUE(source, target, reference_type)   ON DELETE CASCADE
-chunks_fts           FTS5 virtual table (content) — mirrors document_chunks
+workspace              one row per workspace
+documents              one row per file: source_kind source | wiki | asset;
+                       status pending | processing | ready | failed;
+                       content_hash, mtime_ns (sources); source_document_id
+                       (the source of a summary page); stale_since
+document_pages         the text of each page of a source
+document_chunks        one row per fragment: content (original text),
+                       content_stemmed (roots), page, token_count, header_breadcrumb
+document_references    cites (wiki page → source) and links_to (wiki page → wiki page)
+chunks_fts             FTS5 index over content_stemmed, tokenizer unicode61,
+                       external content; triggers on insert, update and delete
+page_verifications     one row per verified page
+verification_sentences one row per sentence of a verified page, with its verdict
 ```
+
+Every child table declares `ON DELETE CASCADE` against its parent. Deleting a
+`documents` row deletes its pages, fragments, links and verification, and the
+triggers remove its index entries.
 
 ## Relationships
 
 ```
 workspace 1──* documents
-documents 1──* document_pages       (raw extracted pages)
-documents 1──* document_chunks ──1:1── chunks_fts (FTS index)
-documents *──* documents via document_references
-              cites    : wiki page → source doc   (citation)
-              links_to : wiki page → wiki page     (cross-link)
+documents 1──* document_pages
+documents 1──* document_chunks ──── chunks_fts (by rowid, through the triggers)
+documents *──* documents through document_references
+documents 1──1 page_verifications 1──* verification_sentences
 ```
 
-## source_kind semantics
+## `source_kind`
 
-- `source` — immutable raw file under `sources/` (PDF/DOCX).
-- `wiki`   — generated markdown under `wiki/` (summaries/, concepts/).
-  Summary pages carry `source_document_id`; concept pages don't.
-- `asset`  — reserved (images, future).
+- `source`: a document under `sources/`.
+- `wiki`: a page under `wiki/`. A summary page carries `source_document_id`.
+- `asset`: reserved.
 
-## Indexes
+`index.md`, `overview.md` and `log.md` have no row.
 
-`relative_path`, `path`, `source_kind`, `status`, `source_document_id` on
-documents; `document_id` on chunks; `source`/`target` on references.
+## Changes to the schema
 
-## Migrations
+There is no migration layer, with one exception. A wiki built before stemming
+lacks `document_chunks.content_stemmed`. When such a wiki opens, `_verify_schema`
+adds the column, stems every row and rebuilds `chunks_fts`, with no model call.
+The nodes are `M_LACKS_STEMS` and `M_REBUILD_INDEX` in
+[`ingestion_nodes.md`](../ingestion_nodes.md).
 
-None. `database/sqlite_schema.sql` is the single canonical schema, applied
-verbatim by `db.py:open_db` (all statements are `CREATE … IF NOT EXISTS`, so
-re-opening is a no-op). Greenfield project, no deployed DBs to upgrade.
+## Files next to the database
+
+```
+.llmwiki/aliases.generated.toml          aliases written at ingestion
+.llmwiki/dataset_aliases.fingerprint     gate of the dataset-alias pass
+.llmwiki/snapshots/                      a copy of the index per commit, for rollback
+.llmwiki/traces/                         the trace, with WIKI_TRACE=1
+```

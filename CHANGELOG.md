@@ -260,6 +260,12 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   (`tests/unit/test_docs_walkthrough_figures.py`,
   `tests/unit/test_docs_ingestion_acts.py`).
 
+- **The code maps are written again from the code.** `docs/CODEMAPS/` dated from
+  2026-05-31 to 2026-06-09: PDF and DOCX only, seven lint checks, three agent tools,
+  and no datasets, verification, rollback or OCR. The four maps now describe the
+  current packages, the sixteen lint checks, the nine repairs, the tables of
+  `index.db` and the configuration keys.
+
 - **The example wikis are regenerated** with Haiku 5.5 and the current code: the
   tables of the documents, one page per concept with its `description`, «See also»
   above the footnote, and no structure problem (`scripts/check_wiki.py`). The two
