@@ -16,8 +16,6 @@ describe how the system actually behaves, measured rather than asserted.
 
 **Smaller items**, each a real gap rather than a nicety:
 
-- **Document `scan_and_ingest` for end users** — what it touches, and when
-  `batch_ingest` is the better call.
 - **OCR for scanned PDFs — built** (commit `01497f0`; see `CHANGELOG.md`).
   `OCR_ENGINE` selects `none`, `tesseract` or `vision`. The engine interface is in
   `base/domain/ingestion/ocr.py`; another engine (RapidOCR, docTR, Surya) is one

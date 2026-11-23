@@ -13,6 +13,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **A guide for users on adding documents** (`docs/adding_documents.md`). A user who
+  copied files into `sources/` had no document that said what **Scan sources/ for
+  changes** does. The guide compares the scan with the upload form, lists the steps
+  of the scan and what each one writes, and says what happens to a file edited,
+  removed or renamed in `sources/`. It also says when `batch_ingest` costs fewer
+  calls to the model. The item leaves the «Next» list of `ROADMAP.md`.
+
 - **The ingestion marks the new topics that are not in the text of the document.**
   The extraction prompt asks for topics in the words of the document, and nothing
   checked it: on the Spanish tale example, 31 of 39 topics were not in the text,
