@@ -1,79 +1,100 @@
-<!-- Generated: 2026-06-01 | Files scanned: 26 | Token estimate: ~1000 -->
+<!-- Written 2026-11-20 from the code of master. -->
 
-# Backend (base/domain)
+# Backend (`base/`)
 
-Pure domain layer. No web framework — `base/services/` is called by the web
-application (`web/`). Tools derive `workspace = Path(db_path).parent.parent`.
+`base/config.py` (pydantic-settings) reads `.env`. It holds no provider and no
+model: `require_llm_config(base_url, api_key, model, purpose=...)` fails with a
+message that names the missing setting. Symbols are cited without line numbers,
+because a line number changes when the code above it changes.
 
-`base/config.py` (pydantic-settings) holds no hardcoded provider/model — LLM
-values come from `.env`. `require_llm_config(base_url, api_key, model, *, purpose)`
-fails fast with a "set LLM_* in .env" message; the apps call it before building a
-client. `wiki_registry.py` (sibling of `domain/`-subdirs) backs the wiki picker:
-`discover_wikis`, `merge_options`, `load/save/push_recent`, `clean_path_input`,
-`resolve_wiki_home`, `short_label` (pure, unit-tested).
+## services/ — the use cases the web calls
 
-## ingestion/ — sources → wiki
+| Module | Main functions |
+|---|---|
+| `ingest.py` | `ingest_uploads`, `scan_sources`, `regenerate_summaries`, `lint_and_repair`, `describe_images`, `delete_source`, `delete_stale_pages`, `remove_missing_sources` |
+| `chat.py` | `build_agents`, `chat_turn_with_context`, `chat_turn_stream_with_context`, `save_answer`, `save_conversation` |
+| `wiki.py` | `open_wiki`, `read_page`, `save_page`, `delete_page`, `reindex`, `history`, `revert`, `graph` |
+| `vocabulary.py` | `roster`, `read_vocabulary`, `add_alias`, `reject_alias`, `add_blacklist_term`, `add_intent_cue` |
+| `verification.py` | `verify_pages`, `verify_all`, `page_verification` |
+| `settings.py` | `read_settings`, `save_settings` |
+| `model_test.py` | `run` |
 
-```
-ingest_file(db_path, workspace, file_path, client, model, ...)   pipeline.py:89
-  detector.detect_file_type → extractor / pdf_extract (opendataloader-pdf)
-  → chunker.chunk_pages → wiki_generator.extract_structured (LLM)
-  → build_summary_page / build_concept_page → wiki_fs.create_page
-  → references.update_references → index_manager.update_index → git_ops.auto_commit
-scan_and_ingest(...)        pipeline.py:463   bulk ingest a sources/ dir
-regenerate_wiki_pages(...)  pipeline.py:508   rebuild pages from stored sources
-batch_ingest(...)           batch.py:44       many files, global updates once at end
-```
-Key: `wiki_generator.py` holds all LLM prompts (`structure_chat_content`,
-`extract_structured`, `build_*_page`, `update_overview`, `make_wiki_slug`).
-
-## lint/ — detect inconsistencies → list[LintIssue]
+## domain/ingestion/ — documents → wiki
 
 ```
-lint_wiki(db_path, workspace, client=None, model="")            runner.py:18
-  orphan_check · staleness_check · missing_xref_check ·
-  missing_concept_check · gap_filled_check          (deterministic, always run)
-  contradiction_check · data_gap_check              (LLM-gated, need client)
-LintIssue(check, severity, page, description, suggestion,
-          related_page="", topic="")               report.py
-markers.py  DATA_GAP_NOTE, DATA_GAP_BLOCK_RE, contradiction_marker, fts_safe
-            (shared by lint.checks + repair.actions to avoid import cycle)
+pipeline.py      ingest_file (the nodes of ingestion_nodes.md), scan_and_ingest,
+                 regenerate_wiki_pages, _rollback_wiki_pages
+batch.py         batch_ingest: I_OVERVIEW, I_LINT, I_LOG, I_COMMIT once at the end
+workflow.py      the closing passes of a run: I_DATASET_ALIASES, I_FINAL_REVIEW, I_CROSSLINKS
+detector.py      needs_ingestion: mtime, then hash; a failed file is tried again
+formats.py       the accepted extensions, defined once
+extractor.py     extract: PDF (pdf_extract.py), office → PDF, text (text_extract.py), image
+ocr.py           OCR_ENGINE: none, tesseract (ocrmypdf) or vision
+images.py        kept images, JPEG compaction; describe.py, describe_pass.py: vision descriptions
+tables.py        a table cut by a page break keeps its header
+chunker.py       chunk_pages: about 512 tokens, paragraph boundaries, 128 tokens of overlap
+wiki_generator.py  the ingestion prompts: extract_structured, build_concept_page,
+                 build_summary_page, update_overview, make_wiki_slug
+alias_generation.py  update_generated_aliases, regenerate_dataset_aliases
+index_manager.py update_index (wiki/index.md)
 ```
 
-## repair/ — fix issues → RepairReport
+## domain/chat/ — the chat
 
 ```
-repair_wiki(lint_report, db_path, workspace, llm_client=None, model="")  runner.py
-  _DISPATCH: orphan·stale·missing_xref·missing_concept·contradiction·
-             data_gap·gap_filled
-  _NEEDS_LLM = {stale, missing_concept}   (called with client; rest 3-arg)
-actions.py  one repair_* fn per check. All but stale/missing_concept are
-            deterministic. _relative_link, _parse_page_path helpers.
+agent.py         create_agent: wiki tools, dataset tool, extension tools
+workflow/        input_checks.py, model_calls.py, output_checks.py (graphs);
+                 catalog.py (the steps), node_texts.py, diagrams.py, flowchart.py
+preretrieval.py  pre_retrieval_answer: plans the context of a turn, Tier 1 and Tier 2
+scope.py, vocabulary.py, intent.py   the coverage roster, the aliases, the intent lists
+condense.py      rewrites a follow-up question with the model
+relevance.py     the evidence-quote and judge checks of the injected pages
+postprocess.py   the advisory table, the citation, the injected-page note
+figure_check.py  the figure check of the prose (C_FIGURES)
+refusal.py       the refusals, each with its cause and suggested pages
+history.py       the history a turn sends: refused turns marked, tables dropped
+config.py        load_config: wiki_config.toml; config_writer.py, settings_writer.py write it
 ```
 
-## chat/ — PydanticAI agent (RAG)
+The tools of the model and their nodes (`K_*`) are listed in
+[`query_nodes.md`](../query_nodes.md).
+
+## domain/lint/ and domain/repair/
 
 ```
-create_agent(base_url, api_key, model, system_prompt=_DEFAULT)  agent.py
-  deps_type=str — db_path is passed as deps at run_stream time, not to the factory
-  tools = [read_wiki_page, search_wiki_fts, search_source_chunks]  (read-only; no write tool)
-config.py   load_config(wiki_path) ← wiki_config.toml
-wiki_tools.py  read_wiki_page · search_wiki_fts · save_to_wiki (form-driven, not an agent tool)
-               + _lint_and_repair_after_save (post-save reconciliation hook)
-tools.py    search_source_chunks (async, raw source FTS fallback)
+lint/runner.py   lint_wiki: 16 checks; contradiction and data_gap run only with a model
+  checks.py      orphan, unpaged_source, staleness, missing_xref, missing_concept,
+                 contradiction, data_gap, gap_filled, vocabulary, thin_page,
+                 unverified_pages, unsupported_sentences
+  image_checks.py  missing_image, orphan_image, image_without_description,
+                 stale_image_description
+lint/structure.py  not part of lint_wiki: the defects of form the code produces in a
+                 generated wiki (front matter, links, section order, index entries);
+                 scripts/check_wiki.py runs it
+repair/runner.py repair_wiki: 9 repairs (orphan, stale, missing_xref, missing_concept,
+                 contradiction, data_gap, gap_filled, missing_image, orphan_image)
+                 _NEEDS_LLM = {stale, missing_concept}: skipped with a message when no
+                 model is supplied
 ```
 
-## tools/ — infrastructure
+## domain/tools/ — infrastructure
 
 ```
-db.py          open_db / get_connection (WAL, FK on; applies sqlite_schema.sql,
-               idempotent — no migration layer)
-wiki_fs.py     create_page · read_page · append_to_page · delete_page (+chunking)
-references.py  update_references (rebuild cites/links_to edges) · get_backlinks ·
-               get_forward_refs · find_orphan_pages · find_stale_pages
-search.py      search_chunks(db, query, limit, scope=all|wiki|sources)  FTS5
-deletion.py    delete_source (FK cascade; marks dependent pages stale)
-git_ops.py     init_wiki_repo · auto_commit · autocommit_enabled
-               (git is OPTIONAL — a missing/failing git is warned once and skipped,
-                never fails an ingest; WIKI_AUTOCOMMIT=0 disables it entirely)
+db.py          open_db, get_connection: WAL, foreign keys on; applies the schema;
+               _verify_schema rebuilds the index of a wiki built before stemming
+wiki_fs.py     create_page, read_page, append_to_page, delete_page, strip_links_to
+references.py  update_references: the cites and links_to rows of a page
+search.py      search over chunks_fts, scope all, wiki or sources
+deletion.py    delete_source: deletes the pages only that source supported,
+               marks stale the pages that also cite another source
+reindex.py     reindex_from_disk: a fresh index from the files, no model call
+git_ops.py     auto_commit; optional, WIKI_AUTOCOMMIT=0 turns it off
+```
+
+## domain/verify/ and domain/rollback/
+
+```
+verify/        figures.py: classify the figures of a text (exact, rounded, unsupported)
+               nli.py, verifier.py, sentences.py: the sentence verifier (optional group)
+rollback/      revert.py: revert_wiki, forward commit; snapshots.py: index copies per commit
 ```

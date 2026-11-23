@@ -1,54 +1,67 @@
-<!-- Generated: 2026-06-09 | Files scanned: 2 (pyproject.toml, config.py) | Token estimate: ~470 -->
+<!-- Written 2026-11-20 from pyproject.toml and base/config.py. -->
 
 # Dependencies
 
-## Runtime (pyproject.toml)
+## Runtime (`pyproject.toml`, `dependencies`)
 
 ```
-openai>=1.0.0          LLM client — any OpenAI-compatible endpoint
-                       (configured via WIKI_LLM_* / LLM_* settings)
-pydantic-ai>=1.97.0    Chat agent framework (create_agent, tool calling, streaming)
-python-dotenv          .env loading (used alongside pydantic-settings)
-pydantic-settings      Config loading (config.settings)
-aiosqlite              Async SQLite access (chat async tools)
-opendataloader-pdf     PDF text extraction (ingestion/pdf_extract.py)
+openai               client of any OpenAI-compatible endpoint
+pydantic-ai          the chat agent: tools, streaming
+pydantic-graph       the chat workflows (base/domain/chat/workflow/)
+pydantic-settings    configuration (base/config.py), with python-dotenv for .env
+aiosqlite            async SQLite access of the chat tools
+opendataloader-pdf   PDF text extraction (needs Java)
+pypdfium2, pillow    page rendering for OCR by vision, image handling
+snowballstemmer      the roots of the search index
+pyyaml               front matter
+tomlkit              writes wiki_config.toml keeping its comments
 ```
 
-Standard library: `sqlite3` (primary sync DB access), `subprocess` (git, pdf
-loader), `re`, `hashlib`, `pathlib`.
+## Groups (`[dependency-groups]`)
+
+```
+web      fastapi, jinja2, uvicorn, sse-starlette, markdown, python-multipart,
+         nh3 (HTML sanitising), babel (translations)
+dev      pytest, pytest-asyncio, playwright, ruff
+verify   transformers, torch, sentencepiece, protobuf: the optional sentence verifier;
+         installed from the Maintain screen or with uv sync --group verify
+```
+
+## External programs
+
+```
+Java          opendataloader-pdf
+LibreOffice   converts .docx, .doc, .odt and .rtf to PDF
+git           optional: a missing git skips the commit with a warning
+ocrmypdf      only with OCR_ENGINE=tesseract
+```
 
 ## External services
 
 ```
-LLM API        OpenAI-compatible (base_url + api_key from settings).
-               Used by: ingestion (extract_structured, build_*_page),
-               lint (contradiction_check, data_gap_check),
-               repair (stale, missing_concept), chat (agent + structure_chat_content).
-Web search     NOT integrated — RAG Phase 4, deliberately not built (see ROADMAP.md).
-               If added: async tool in chat/tools.py; candidates Tavily/Brave/DDG.
+LLM API      OpenAI-compatible (base URL, key and model from .env). Used by
+             ingestion, lint (contradiction, data gap), repair (stale,
+             missing concept), the chat and the relevance judge.
+Vision API   descriptions of images, and OCR with OCR_ENGINE=vision.
+Web search   not built (ROADMAP.md).
 ```
 
-## Internal infra (not third-party)
+## Settings (`base/config.py`)
+
+No provider or model is hard-coded. Every model value comes from `.env`, and the
+Settings screen writes it.
 
 ```
-SQLite + FTS5  All persistence + full-text search (no external DB/vector store).
-git            OPTIONAL. Per-workspace auto-commit of wiki changes
-               (tools/git_ops.py). A missing/failing git is warned once and
-               skipped — never fails an ingest; WIKI_AUTOCOMMIT=0 disables it.
-filesystem     workspace/ holds sources/, wiki/, .llmwiki/index.db.
+LLM_BASE_URL, LLM_API_KEY, LLM_MODEL              the chat, and the default of the others
+WIKI_LLM_BASE_URL, _API_KEY, _MODEL               ingestion, a blank value uses LLM_*
+VISION_BASE_URL, _API_KEY, _MODEL                 descriptions of images
+OCR_ENGINE                                        none | tesseract | vision
+OCR_BASE_URL, OCR_API_KEY, OCR_MODEL              the vision model of OCR
+WIKI_PATH                                         the wiki opened at launch
+WIKI_HOME                                         the folder the wiki picker scans
+WIKI_AUTOCOMMIT                                   0 turns off the git commits
+WIKI_TRACE                                        1 writes the trace
 ```
 
-## Config keys (config.settings)
-
-No hardcoded provider/model — all LLM values from `.env`; defaults are blank.
-`require_llm_config()` fails fast when an LLM is unconfigured.
-
-```
-LLM_BASE_URL / LLM_API_KEY / LLM_MODEL        chat + default for ingestion
-WIKI_LLM_BASE_URL / _API_KEY / _MODEL         ingestion; fall back to LLM_* if blank
-WIKI_PATH                                     default wiki on launch (picker switches it)
-WIKI_HOME                                     folder the picker scans (default: parent of WIKI_PATH)
-```
-PDF extraction is opendataloader-pdf only (text PDFs; no OCR/`PDF_BACKEND` today).
-Per-workspace overrides in `workspace/wiki_config.toml` (system_prompt,
-suggested_prompts).
+Each wiki has its own `wiki_config.toml`. Its sections are listed in
+[`ingestion_walkthrough.md`](../ingestion_walkthrough.md#wikiconfigtoml).
