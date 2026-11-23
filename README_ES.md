@@ -267,7 +267,9 @@ docs/
 ├── sqlite_data_dictionary.md         # Cada tabla y columna de index.db
 ├── ingestion_walkthrough.md          # Un corpus de punta a punta — la visión narrativa
 ├── ingestion_walkthrough_appendix.md # Su inventario de artefactos (generado, regenerable)
-├── query_walkthrough.md              # En reescritura para la interfaz web: solo los títulos
+├── query_walkthrough.md              # Preguntas a las wikis de ejemplo, en los tres modos del chat
+├── query_walkthrough_appendix.md     # Su corrida capturada (generada, regenerable)
+├── uat_test_plan.md                  # El plan de aceptación: comprobaciones automáticas, manuales y del modelo
 └── archive/               # Documentos de diseño superados (históricos)
 
 examples/               # Wikis de demostración pre-ingeridas (usadas por quickstart.py)
@@ -703,9 +705,9 @@ pantalla Configuración corren las mismas pruebas:
 uv run python scripts/eval_chat_model.py    # PASS/FAIL para los modelos de lectura, ingesta y visión
 ```
 
-El plan de aceptación, [`docs/uat_test_plan.md`](docs/uat_test_plan.md), describe la
-interfaz de marimo de la v0.4.0 y se reescribirá para la interfaz web. Los PDFs de
-prueba viven en `tests/fixtures/pdfs/`.
+El plan de aceptación, [`docs/uat_test_plan.md`](docs/uat_test_plan.md), lista las
+dos suites automatizadas, las comprobaciones manuales de la interfaz web y la
+comprobación del modelo. Los PDFs de prueba viven en `tests/fixtures/pdfs/`.
 
 ### Automatizar lo no-testeable: el paquete de evaluación
 

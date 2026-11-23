@@ -1,460 +1,421 @@
 # Acceptance & Regression Test Plan
 
-> **This document describes the marimo interface of v0.4.0.** The web interface
-> works differently: the mode selector replaces the two checkboxes. The document
-> will be rewritten after the planned changes to the chat.
+This plan checks that the wiki works. Run the plan before a release, and after a
+change of the model, of a prompt or of the web interface. It has three parts:
 
-This is the **user-acceptance test (UAT)** for the wiki, split into two tiers so
-the parts that *can* be regressioned are separated from the parts that need a
-human:
+- **Part A — automated regression.** Two `pytest` commands that the CI also runs.
+  They check what does not depend on the model: the database, the index, the
+  deletion of a source and the save of a page. They also check the lint and the
+  web interface, and they call no model. **Run Part A after every change of the code.**
+- **Part B — manual acceptance.** The checks that need a person, because the
+  result depends on the model: the content of the generated pages, the grounding
+  and the citations of the chat answers, and the use of the interface. **Run
+  Part B before a release, and after a change of the model, of a prompt or of the
+  interface.**
+- **Part C — model check.** A test of the models you chose, with material that
+  ships with the product. **Run Part C when you choose or change a model.**
 
-- **Part A — Automated deterministic regression gate.** One `pytest` command that
-  asserts the structural invariants (DB integrity, FTS alignment, deletion
-  cascade, derived-page provenance, hash idempotency, save mechanics, lint logic,
-  git snapshots). No LLM, no servers, runs in about a minute. **Run this on every code
-  change.**
-- **Part B — Manual acceptance (UAT).** The human-judgment checks that can't be
-  regressioned because their output is non-deterministic: chat grounding and
-  citations, generated-content quality, GUI interactions, and lint *finding*
-  quality. **Run this before a release, or after changing the model, prompts, or
-  UI.**
-- **Part C — Model check (optional).** Reuses the Part-B ideas to answer one
-  practical question: **is the AI model you picked good enough?** One command for
-  the chat model, plus an eyeball check for the page-writing model. **Run this
-  when choosing or switching models.**
+Run Part A first. A failure of Part A shows in Part B as symptoms that are hard to
+trace back to their cause.
 
-> Always run **Part A first**. If it's red, fix that before bothering with the
-> manual pass — a structural break will surface as confusing manual symptoms.
-
-It uses the four fairy-tale PDFs in `tests/fixtures/pdfs/`. Every Part-B
-expectation is framed as an **invariant or range**, not an exact string — the
-pipeline calls an LLM, so judge against the *shape* of the result.
+Part B uses the four public-domain fairy tales of `tests/fixtures/pdfs/`. Each
+expectation of Part B is a property of the result, not an exact text. The model
+writes the pages and the answers, and two runs give different words.
 
 ---
 
-# Part A — Automated deterministic regression gate
+# Part A — Automated regression
 
-Run this after any change. It's fast (fake-LLM unit tests + a frozen real-ingest
-golden corpus), needs no API keys and no running apps:
+Part A calls no model and needs no API key. The first command takes about three
+minutes (measured on 2026-11-23):
 
 ```bash
 uv run pytest tests/unit tests/regression -q
+uv run --group web pytest -q tests/web
 ```
 
-`tests/regression/` restores a **frozen, human-verified ingest** of the four PDFs
-(`tests/fixtures/golden_corpus/index.db` + `wiki/`) into a temp dir and asserts
-LLM-variation-robust invariants over it — so the deterministic backbone is
-checked against a *real* ingest without re-calling the model.
+The first command runs the unit tests, which replace the model with a fake one,
+and the regression tests of `tests/regression/`. The regression tests restore a
+frozen ingestion of the four PDFs (`tests/fixtures/golden_corpus/`) into a
+temporary folder. The tests then check properties that hold whatever the model
+wrote, so the ingestion is checked against a real run without calling the model
+again.
 
-## What Part A asserts (and where)
+The second command runs the tests of the web interface: the routes, the
+rendering, the design checks and the browser flows of `tests/web/e2e/`. The
+browser flows need Chromium once: `uv run playwright install chromium`.
 
-| Invariant | Enforced by |
-|-----------|-------------|
-| Ingest: 4 sources all `ready`, one summary each | golden `test_four_sources_all_ready`; unit `test_pipeline_phase2`, `test_batch_ingest` |
-| Derived-page provenance: each summary resolves to and **cites** its source | golden `test_each_summary_cites_its_source` |
-| Every concept page has a `cites` edge (H1 citation-graph guard) | golden `test_every_concept_page_has_a_cites_edge` |
-| FTS5 stays row-aligned with `document_chunks`, is searchable, integrity-checks | golden `test_fts_rowcount_matches_chunks` / `test_fts_search_returns_hits` / `test_fts_integrity_check_passes` |
-| Save-to-wiki mechanics (create / update / index / FTS) | unit `test_wiki_tools` |
-| Deletion cascade: source + pages + chunks + refs removed, FTS realigned, **1-to-1 summary deleted outright**, no dangling edges | golden `test_deleting_a_source_cascades_and_drops_its_summary`; unit `test_delete_source` |
-| Multi-source concept page **kept and marked stale** on source delete (not deleted) | unit `test_delete_source_marks_multi_source_concept_stale` |
-| Change detection / hash idempotency (unchanged skips, changed re-ingests) | unit `test_pipeline_phase2`, `test_batch_ingest` |
-| Git snapshot: labelled, clean tree, local identity, `sources/`+`.llmwiki/` untracked | unit `test_git_ops` |
-| Lint logic (each check) + repair adds real reference edges, non-destructively | unit `test_lint_*`, `test_repair*`; golden `test_lint_reports_no_errors` |
-| DB rows and on-disk markdown tree agree | golden `test_db_and_markdown_tree_agree` |
+## What Part A checks, and where
 
-**If a row goes red**, the hands-on SQL probe for that invariant is in
-[Appendix A](#appendix-a--sql-probes-for-debugging-a-red-part-a) — restore a wiki
-and run the query to see the actual state.
+| Property | Test |
+|---|---|
+| The four sources are `ready`, with one summary page each | golden `test_four_sources_all_ready`; unit `test_pipeline_phase2`, `test_batch_ingest` |
+| Each summary page cites its source | golden `test_each_summary_cites_its_source` |
+| Every concept page has a `cites` edge | golden `test_every_concept_page_has_a_cites_edge` |
+| The full-text index has one row per fragment, finds a known word and passes its integrity check | golden `test_fts_rowcount_matches_chunks`, `test_fts_search_returns_hits`, `test_fts_integrity_check_passes` |
+| Saving a page from the chat creates or updates the page, its index row and its fragments | unit `test_wiki_tools` |
+| Deleting a source deletes the source, its fragments, the pages only that source supported and their edges | golden `test_deleting_a_source_cascades_and_drops_its_summary`; unit `test_delete_source` |
+| A concept page that also cites another source is kept and marked stale | unit `test_delete_source_marks_multi_source_concept_stale` |
+| An unchanged file is skipped, and a changed file is ingested again | unit `test_pipeline_phase2`, `test_batch_ingest` |
+| Each operation that changes the wiki makes a labelled git commit with the local identity | unit `test_git_ops` |
+| Each lint check, and each repair | unit `test_lint_*`, `test_repair*`; golden `test_lint_reports_no_errors` |
+| The rows of the database and the files of `wiki/` agree | golden `test_db_and_markdown_tree_agree` |
 
-## Re-freezing the golden corpus (after an intentional behavior change)
+A failed row has a SQL query in [Appendix A](#appendix-a--sql-queries-for-a-failed-part-a).
+The query shows the state of a restored wiki.
 
-The golden corpus is committed; regression runs against it offline. If you
-*intentionally* change ingest/summary structure, rebuild and re-freeze it (this
-is the one step that needs LLM keys):
+## Freezing the golden corpus again
+
+The golden corpus is part of the repository, and the regression tests read it
+without a network. A deliberate change of the ingestion, for example a new
+section of the summary page, changes the expected result. After such a change,
+build the corpus again and freeze it. This is the one step of Part A that calls
+the model:
 
 ```bash
-python scripts/build_golden_corpus.py build     # re-ingest the 4 PDFs (needs LLM)
-# inspect tests/fixtures/_golden_staging/wiki/ by eye
-python scripts/build_golden_corpus.py freeze     # snapshot → tests/fixtures/golden_corpus/
-git add tests/fixtures/golden_corpus               # commit the new baseline
+uv run python scripts/build_golden_corpus.py build    # ingests the four PDFs again, with the model of .env
+# read the pages of tests/fixtures/_golden_staging/wiki/
+uv run python scripts/build_golden_corpus.py freeze   # copies the result to tests/fixtures/golden_corpus/
+git add tests/fixtures/golden_corpus
 ```
 
-Only re-freeze on a *deliberate* change — otherwise a drifting baseline hides
-regressions.
+Freeze the corpus only after a deliberate change. A corpus frozen after an
+accidental change makes the regression tests accept that change.
 
 ---
 
-# Part B — Manual acceptance (UAT)
+# Part B — Manual acceptance
 
-These need a human, a live LLM, or the GUI, so they can't be regressioned. Run
-before a release or after changing the model, prompts, or UI. The DB-state
-*mechanics* under several of these are already covered by Part A; here you judge
-the things assertions can't — readability, grounding, and interaction.
+Part B needs a person, a model and the web interface. The tests of Part A
+already check the rows and the files behind several steps of Part B. Part B
+checks what a test cannot judge. Does a page read like an encyclopedia entry? Does
+an answer come from the wiki? Does the interface do what its labels say?
 
-## Quick start — reset & run
+## Start
 
-Paste this from the **project root** to wipe any previous test wiki, stage the
-four PDFs, and launch both apps + a SQL session. Each block is a separate
-terminal.
+1. Start the web interface from the root of the project:
 
-```bash
-# ── Terminal 1: fresh wiki + ingest app ──────────────────────────────────
-rm -rf /tmp/test-wiki && mkdir -p /tmp/test-wiki/sources
-cp tests/fixtures/pdfs/*.pdf /tmp/test-wiki/sources/
-WIKI_PATH=/tmp/test-wiki uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
-#   → http://localhost:2718  · Scan sources/ (or drag+Ingest), wait for 'ready'
-```
+   ```bash
+   uv run --group web uvicorn web.app:app --port 8765
+   ```
 
-```bash
-# ── Terminal 2: read + chat app (after Terminal 1 finishes ingesting) ─────
-WIKI_PATH=/tmp/test-wiki uv run marimo run marimo/read_app.py --no-sandbox --port 2720
-#   → http://localhost:2720  · read pages (middle), chat (right)
-```
+2. Open <http://localhost:8765>. The page lists the wikis.
+3. Click **Open another folder…**, choose an empty folder, for example
+   `/tmp/test-wiki`, and click **Create a wiki here…**. Choose **English** as the
+   **Language of the wiki**, and click **Create the wiki**.
+4. In the **Ingest** tab, choose the four PDFs of `tests/fixtures/pdfs/` and
+   click **Ingest**. Wait until the progress log ends in a line that starts with
+   🏁.
 
-> **Two read apps ship, and this plan tests the older one.** `read_app.py` is the
-> three-panel grid; `read_app_tabs.py` is the same app reorganised into two tabs
-> (📖 Read · 💬 Chat), and it is the one intended to survive — see
-> [`ROADMAP.md`](../ROADMAP.md). It is not promoted yet because promoting it
-> requires a parity end-to-end test first, proving nothing was lost. Until that
-> exists, run Part B against `read_app.py` as written; the engine underneath is
-> identical, so B3–B5 behave the same either way. Only **B2** is layout-specific.
+Ingesting a PDF needs a Java runtime (see the README, «Prerequisites»).
 
-```bash
-# ── Terminal 3: live SQL session (optional, for eyeballing) ───────────────
-sqlite3 /tmp/test-wiki/.llmwiki/index.db
-#   then, once:  .mode box   .headers on
-```
+The four tales are *Cinderella*, *Little Red Riding Hood*, *The Sleeping Beauty
+in the Wood* and *Snow White and the Seven Dwarfs*. The tales share motifs: a
+prince, a royal family, a curse, a transformation. The shared motifs make the
+ingestion link pages across tales, and Part B needs those links.
 
-> Setting `WIKI_PATH` inline overrides `.env` for that process only, so your real
-> default wiki is untouched. Reset at any point by re-running Terminal 1.
+To start Part B again, delete the folder of step 3 and repeat the steps.
 
-The corpus (`tests/fixtures/pdfs/`) is four public-domain fairy tales —
-*Cinderella*, *Little Red Riding Hood*, *The Sleeping Beauty in the Wood*, *Snow
-White and the Seven Dwarfs*. They deliberately share motifs (princes, royalty, a
-curse, a transformation) so cross-linking and the concept machinery actually
-fire.
+## B1. Ingestion: the content of the pages
 
-## B1. Ingest happy path & content quality
-
-**Do:** ingest `Cinderella.pdf` via the upload box (**⚙️ Ingest uploaded
-file(s)**), then **🔄 Scan sources/** to bring in the other three.
-
-**Accept (human judgment):**
-
-- On disk, the generated summary reads like a *coherent encyclopedia entry* —
-  title, prose, maybe key-points — **not** a raw text dump or JSON:
-  ```bash
-  cat /tmp/test-wiki/wiki/summaries/*cinderella*.md
-  ```
-  Would a person recognise it as a real wiki page?
-- `overview.md` reads as a *synthesis across all four tales*, not a copy of one
-  summary; `index.md` is a catalogue of every page.
-
-> The *counts* (4 sources ready, one summary each, pages/chunks > 0, no `failed`
-> rows) are Part A's job — you don't need to re-check them by hand. If a summary
-> is a dump, inspect the trace (B7).
-
-## B2. Read app — navigation & rendering (GUI)
-
-**Do:** open <http://localhost:2720>; confirm the 3-column layout (nav · content ·
-chat); click through `index`, `overview`, each summary, each concept.
+**Do:** in the **Read** tab, open each summary page, then `overview` and
+`index`.
 
 **Accept:**
 
-- The left nav lists exactly the pages on disk (`ls -R /tmp/test-wiki/wiki`).
-- Selecting a page renders **its** markdown — headings, prose, working internal
-  links. Clicking an internal cross-link navigates (no 404, no raw `[[...]]`).
-- No Python tracebacks in the middle panel; no blank page for a file that exists.
+- Each summary page reads like an encyclopedia entry: a title and prose, not a
+  copy of the source text and not JSON.
+- `overview` is a synthesis of the four tales, not a copy of one summary.
+- `index` lists every page.
 
-## B3. Chat — grounding & citations (the core non-deterministic check)
+The counts (four sources `ready`, one summary each, no `failed` source) are a
+test of Part A. A summary page that is a copy of the source text points to the
+model or to the prompt. The trace of B8 shows what the model received.
 
-The default agent is **strict by design**: it answers *only* from your wiki and
-sources, never from world knowledge, and every fact must be cited
-(`prompts/system_prompt.en.md`). This is the section whose
-pass/fail rides on the model, which is why it's manual.
+## B2. The Read tab: navigation and rendering
 
-> **Caveat on famous corpora.** These tales are in essentially every model's
-> pretraining, so a *plot* question ("what happens at the ball?") can't tell
-> retrieval from recall. To actually probe grounding, use a **PDF-specific
-> detail** — a phrase, name, or number that exists only in *your* file — where a
-> correct answer *proves* a tool fired.
-
-**Do** (read app's right column), one at a time:
-
-1. **Grounding probe — PDF-specific detail.** Open a summary/source on disk, pick
-   a distinctive detail particular to this edition (an odd translation, a named
-   minor character, a specific number), and ask about it. A correct **cited**
-   answer proves retrieval; a vague/wrong one means it leaned on memory.
-2. *"What do these stories have in common?"* (cross-document synthesis)
-3. *"List the royal characters across all the stories."* (forces breadth)
-4. **Off-corpus refusal.** *"What's the capital of France?"*
+**Do:** click every page of the page index, and every link inside the pages.
 
 **Accept:**
 
-- Answers **stream** token by token.
-- **Every factual claim is cited** — page path `(wiki/summaries/cinderella.md)`
-  or source + page `(Cinderella.pdf, p. 3)`. With the strict default an uncited
-  factual answer is a **failure**, not a nitpick.
-- Content is **grounded** — names and events match the tales, no invented plot
-  points.
-- The agent searches the wiki first (`read_wiki_page` / `search_wiki_fts`) and
-  only falls back to `search_source_chunks` when wiki pages lack detail.
-- **Question 4 must be declined** — it should say the question is outside your
-  knowledge base, **not** answer "Paris". Wording varies; refusal-to-roam is the
-  check.
+- The page index lists the pages of `wiki/` and nothing else.
+- Each page shows its own Markdown: headings, prose and links.
+- A link to another page opens that page. A link to a source document opens the
+  document in a new tab. No link shows `[[…]]` or ends in an error page.
 
-> **If grounding/citations leak** (off-corpus answered, or facts uncited): first
-> check `WIKI_PATH/wiki_config.toml` isn't overriding the strict default with a
-> looser `system_prompt`; then suspect the **model**. A model too weak to follow
-> instructions ignores the mandate no matter how strict the prompt — try a
-> stronger `WIKI_LLM_*` / `LLM_*` (see the README "Don't use too small a model"
-> note). The prompt sets the contract; the model must be able to honour it.
+## B3. The chat: grounding and citations
 
-## B4. Chat — save-to-wiki (human-in-the-loop UX)
+The model has read these four tales during its training. A question about the
+plot («what happens at the ball?») cannot tell the wiki from the training of the
+model. A question about a detail of this edition
+can: a name, a number or a phrase that only this PDF has.
 
-Saving a chat response is **the user's action, never the agent's**. The agent has
-no write tool: it drafts and proposes a title + category, then *you* commit via
-the **"Save last response to wiki"** form (which calls `save_to_wiki`). The
-DB/disk *mechanics* are asserted in Part A — here you check the **UX and the
-draft quality**.
+**Do:** in the **Read** tab, ask these questions, each one in the three values of
+the **Mode** selector:
+
+1. A question about a detail of this edition. Find the detail in a source PDF
+   first.
+2. *What do these stories have in common?*
+3. *What is the capital of France?*
+
+**Accept, in the three modes:**
+
+- Every factual sentence names a page, `(wiki/summaries/cinderella.md)`, or a
+  source with its page, `(Cinderella.pdf, p. 3)`. Each answer ends with a
+  reference line.
+- The names and the events agree with the tales.
+
+**Accept, per mode:**
+
+- **Pre-retrieval:** question 3 is refused before the model is called. The
+  answer says that the question names nothing the wiki covers. The button
+  **Criterion** opens the audit, and the path of the question ends in
+  `R_NOT_IN_ROSTER`.
+- **Agent with evidence check:** question 3 is declined, or answered with a
+  warning that no consultation of the wiki backs the answer. A plain «Paris»
+  with no warning is a failure.
+- **No verification:** the answer appears as the model writes it. Nothing checks
+  the answer, so this mode can answer question 3. Record what the model did.
+
+The buttons **Criterion**, **Sources** and **Model answer** open the audit of the
+last answer. The audit shows the path of the question through the nodes of
+[`query_nodes.md`](query_nodes.md) and the passages the model received. It also
+shows the text of the model before the code replaced it.
+
+When answers leave the wiki or come without citations, check the
+`[assistant] system_prompt` of `wiki_config.toml` first: a looser prompt there
+replaces the default. Then check the model with Part C. A prompt can ask the
+model to cite every fact. Only the model can do it.
+
+## B4. The chat: saving a conversation as a page
+
+The model drafts the page. The person writes the page: the model has no tool
+that writes to the wiki.
 
 **Do:**
 
-1. Ask: *"Write a new concept page comparing the villains in Cinderella and
-   Sleeping Beauty and save it to the wiki."*
-2. Read the reply: it should produce a **cited** comparison draft, propose a
-   **Title** + **Category** (*Concept*), and tell you to use the form — it must
-   **not** claim to have saved anything.
-3. In the form, type the proposed title, pick **Concept**, press **💾 Save to
-   wiki**; wait for the green ✅ callout.
-4. **Re-save guard:** send another chat message. Watch `wiki/concepts/` — it must
-   **not** grow on its own.
+1. Ask: *Compare the villains of Cinderella and Sleeping Beauty.*
+2. Click **Save** under the conversation, type a title and click **Save** in the
+   panel. The model prepares a draft.
+3. Read the draft in the dialog **Review the page**, edit it, and click **Save to
+   wiki**.
+4. Ask another question. Check the page index.
 
 **Accept:**
 
-- Before pressing the button: no new page on disk; the agent only drafted and
-  proposed (claiming it saved would be a regression of the no-autonomous-write
-  contract).
-- The draft is a real, **cited** comparison (every point carries its source
-  page).
-- After submitting: the new `concepts/*.md` appears in the nav and renders.
-- **After a successful save the title box clears** and the ✅ callout **persists**
-  until the next save. The cleared box is also the re-save guard — the follow-up
-  chat in step 4 must create **no** new page. A page appearing without you
-  pressing the button is a regression.
-- An empty title is rejected ("Title cannot be empty."); submitting before any
-  chat is rejected ("Chat with the assistant first.").
+- Before **Save to wiki**, no new page is in the page index.
+- The draft compares the villains and cites a page for each point.
+- After **Save to wiki**, the message «Created the page “…”.» appears, and the
+  new page is in the page index under the concepts.
+- After the question of step 4, the page index has no other new page.
+- **Cancel** in the dialog writes nothing.
 
-## B5. Lint & repair — finding quality
+## B5. Lint and repair
 
-**Do:** run lint, then repair, from the ingest app's maintenance controls. Lint
-emits **eleven** kinds of finding: `orphan`, `stale`, `missing_xref`,
-`missing_concept`, `contradiction`, `data_gap`, `gap_filled`, `thin_page`, and
-three vocabulary checks — `vocab_stale`, `vocab_ambiguous`, `vocab_covered`.
+**Do:** in the **Maintain** tab, click **Run Wiki Lint & Repair** and confirm.
 
-**Accept (judgment — Part A already proves lint *runs* and repair adds edges):**
+**Accept:**
 
-- Findings are **sensible**: `missing_xref` between two tales that mention the
-  same motif but don't link; `orphan`/`missing_concept` point at real pages you
-  can open.
-- The **LLM-gated** checks (`contradiction`, `data_gap`, `gap_filled`) are
-  judgment calls — `contradiction` may legitimately be **empty** on fairy tales
-  (empty ≠ broken).
-- `thin_page` measures **orphaned chunks, not page length** — a good summary is
-  deliberately short. It fires when the pages built from a source leave half its
-  fragments uncovered, and it is advisory: reported, never auto-fixed.
-- Repair is visibly **non-destructive**: it adds links/pages, the page count from
-  the health query doesn't shrink, and a previously-flagged `missing_xref` is
-  gone (or reduced) on a re-run.
+- The findings point to real pages. A `missing_xref` finding names two pages that
+  share a source and do not link to each other.
+- `contradiction` can be empty on the fairy tales. An empty result is not a
+  failure.
+- `thin_page` counts the fragments of a source that no page covers, not the
+  length of a page. The finding is advisory: the repair reports it and changes
+  nothing.
+- The repair adds links and pages, and deletes no page. After a second run, a
+  repaired `missing_xref` finding is gone.
 
-### B5b. Vocabulary checks — needs a different corpus
+### B5b. The vocabulary findings need another wiki
 
-**The four `vocab_*` checks are silent on the fairy tales, by design.** That
-corpus has two generated aliases and no `wiki_config.toml`, so nothing can
-collide. Verified: `vocabulary_check` returns **0 findings** there. Testing them
-on `/tmp/test-wiki` proves nothing.
+The three vocabulary findings (`vocab_stale`, `vocab_ambiguous`,
+`vocab_covered`) find nothing on the fairy tales: `vocabulary_check` returned 0
+findings on `examples/fairy-tales` on 2026-11-23. The finance example has
+findings.
 
-**Do:** point the ingest app at the shipped finance demo instead and run lint.
+**Do:** copy `examples/finanzas-argentinas` to a temporary folder, open the
+copy in the picker, and run lint and repair in the **Maintain** tab. Lint and
+repair write to the wiki, so do not run them on the example itself.
 
-```bash
-WIKI_PATH=examples/finanzas-argentinas uv run marimo run marimo/ingest_app.py \
-  --no-sandbox --port 2718
-```
-
-**Accept:** exactly one vocabulary finding, and it is a real one the project
-ships knowingly:
+**Accept:** the log lists `vocab_ambiguous` findings, and the repair skips each
+one with the message «advisory finding — no automatic repair (resolve by hand)».
+On 2026-11-23 the copy gave two findings:
 
 ```text
-vocab_ambiguous (warning) — Alias 'uva' maps to several canonicals:
-                            Plazo fijo UVA, Unidad de Valor Adquisitivo
+vocab_ambiguous (warning) — Alias 'galici' maps to several canonicals: Banco Galicia, GGAL
+vocab_ambiguous (warning) — Alias 'caucion' maps to several canonicals: Cauciones bursátiles, caucion
 ```
 
-That is one alias claimed by two different concepts, surfaced for a human rather
-than guessed at. **It must not be auto-repaired** — `vocab_ambiguous` is
-advisory, so repair should report it as skipped, not "fixed" and not "unknown
-check type".
+The ingestion model generates the aliases, so a wiki ingested again can give
+other findings. A repair that reports «fixed» or «Unknown check type» for a
+vocabulary finding is a failure.
 
-What the other two would look like, for when you meet them:
-
-| Check | Severity | Fires when | Repairable? |
+| Finding | Severity | Appears when | Repair |
 |---|---|---|---|
-| `vocab_stale` | warning | aliases still point at a concept whose page is gone | no — advisory |
-| `vocab_covered` | info | a term on your `[fuera_de_alcance]` blacklist now has a page or dataset | no — advisory; it is telling you the blacklist entry is obsolete |
+| `vocab_stale` | warning | an alias points to a concept whose page no longer exists | none, advisory |
+| `vocab_ambiguous` | warning | one alias points to two or more concepts | none, advisory |
+| `vocab_covered` | info | a term of the blacklist (`[fuera_de_alcance]`) now has a page or a dataset | none, advisory: the blacklist entry is obsolete |
 
-> These go stale on their own as a wiki grows: `vocab_covered` can only fire
-> *after* an ingest gives a blacklisted term a page. Reading lint output after an
-> ingest is the only thing that surfaces it. See
-> [`docs/manual/workflows.md`](manual/workflows/6.1-lint.md#maintaining-the-vocabulary-lists)
-> for the maintenance loop.
+The **Vocabulary** tab edits the aliases and the blacklist. See
+[`manual/workflows/6.1-lint.md`](manual/workflows/6.1-lint.md#maintaining-the-vocabulary-lists).
 
-## B6. Multi-wiki picker (GUI)
-
-**Do:** make a second scratch wiki (`mkdir -p /tmp/test-wiki-2/sources`, drop one
-PDF), then switch to it via the top-left picker.
-
-**Accept:** the picker lists discovered + recent wikis and accepts a typed path;
-switching **repoints** nav, DB, and chat to wiki-2; the two `.llmwiki/index.db`
-stay independent (ingesting one doesn't touch the other).
-
-## B7. Ingestion trace (optional, developer-facing)
+## B6. Two wikis
 
 **Do:**
 
+1. Create a second wiki in another empty folder, with the steps of «Start».
+2. Ingest one PDF into the second wiki.
+3. Switch between the two wikis with the wiki selector of the header.
+
+**Accept:** the page index, the chat and the **History** tab follow the selected
+wiki. Ingesting into one wiki changes nothing in the other: each wiki has its own
+`.llmwiki/index.db`.
+
+## B7. History
+
+**Do:** in the **History** tab, click **Go back to this point** on the point
+before the last ingestion, and confirm.
+
+**Accept:**
+
+- The pages of the last ingestion leave the page index.
+- The history gains a new point: the history is not rewritten.
+- Going back to the newest point brings the pages back.
+
+## B8. The trace (optional, for developers)
+
+**Do:** start the web interface with the trace on, ingest one PDF and ask one
+question:
+
 ```bash
-WIKI_TRACE=1 uv run marimo run marimo/ingest_app.py --no-sandbox --port 2718
-# ingest one PDF, then:
-python scripts/render_trace.py <workspace> --doc <document_id>
+WIKI_TRACE=1 uv run --group web uvicorn web.app:app --port 8765
+uv run python scripts/render_trace.py /tmp/test-wiki --doc <document id>
+uv run python scripts/render_trace.py /tmp/test-wiki --conversation <conversation id>
 ```
 
-**Accept:** the spans of the ingestion are appended to
-`<workspace>/.llmwiki/traces/spans.jsonl` (opt-in via the env var), and
-`render_trace.py` renders the LLM/data-flow steps — prompts, model calls, chunk
-flow — in a readable timeline. Useful for diagnosing a bad summary in B1.
+**Accept:** the records go to `/tmp/test-wiki/.llmwiki/traces/spans.jsonl`, and
+`render_trace.py` shows the steps of the ingestion and of the chat turn, with
+the calls to the model.
 
 ---
 
-## Acceptance sign-off checklist
+## Sign-off checklist
 
-**Gate (must be green before anything else):**
+**Automated (must pass first):**
 
-- [ ] **Part A** — `uv run pytest tests/unit tests/regression -q` passes (all
-  deterministic invariants).
+- [ ] **Part A** — `uv run pytest tests/unit tests/regression -q` and
+  `uv run --group web pytest -q tests/web` pass.
 
-**Manual acceptance (before release / after model/prompt/UI changes):**
+**Manual (before a release, or after a change of the model, a prompt or the
+interface):**
 
-- [ ] **B1** Generated pages read like real entries, not dumps; overview is a
-  synthesis.
-- [ ] **B2** Read app renders all on-disk pages; internal links navigate; no
-  tracebacks.
-- [ ] **B3** Chat streams; **every fact is cited**; stays grounded; **refuses
-  off-corpus** ("capital of France"); a PDF-specific detail is answered with a
-  citation (proves retrieval, not recall).
-- [ ] **B4** Agent drafts + proposes but does **not** self-save; **💾 Save** adds
-  the page; title box **clears** + ✅ notice **persists**; a follow-up chat
-  triggers **no** auto re-save.
-- [ ] **B5** Lint findings are sensible; repair adds a real link non-destructively.
-- [ ] **B5b** On the finance demo, lint reports the one shipped `vocab_ambiguous`
-  (`uva` → two canonicals) and repair **skips** it as advisory — not "fixed", not
-  "unknown check type".
-- [ ] **B6** Picker switches wikis cleanly; indexes stay independent.
-- [ ] **B7** (optional) Trace captured and viewable.
+- [ ] **B1** The pages read like encyclopedia entries; `overview` is a synthesis.
+- [ ] **B2** Every page renders; every link opens its target.
+- [ ] **B3** Every fact is cited and agrees with the tales; pre-retrieval refuses
+  «capital of France» in `R_NOT_IN_ROSTER`; the agent mode declines it or warns.
+- [ ] **B4** The model only drafts; **Save to wiki** writes the page; nothing is
+  written without that click.
+- [ ] **B5** The findings make sense; the repair adds links and deletes no page.
+- [ ] **B5b** On a copy of the finance example, the `vocab_ambiguous` findings are
+  skipped as advisory.
+- [ ] **B6** The wiki selector switches wikis; the indexes stay apart.
+- [ ] **B7** Going back to a point removes and restores pages; the history gains
+  a point.
+- [ ] **B8** (optional) The trace is written and `render_trace.py` shows it.
 
 ---
 
-# Part C — Is your model good enough? (model check)
+# Part C — Is your model good enough?
 
-The wiki runs on an AI model, and **the model you choose matters**. A weak model
-does two bad things: it **makes up answers** that aren't in your documents, and it
-**forgets to show where an answer came from**. This part lets you check a model
-*before* you rely on it — no deep technical knowledge needed.
+The wiki runs on models, and the model you choose matters. A weak model answers
+from its training instead of from your documents, and leaves facts without a
+citation. Part C checks a model before you rely on it.
 
-There are **three jobs**, and you can use a different model for each:
+The wiki uses a model for each of three jobs, and each job can use a different
+model:
 
-- **The answering model** (`LLM_MODEL` in your `.env`) — chats with you and
-  answers questions.
-- **The page-writing model** (`WIKI_LLM_MODEL`) — writes the wiki pages when you
-  add a document. If you do not set this one separately, it uses the answering
-  model.
-- **The vision model** (`VISION_MODEL`) — describes the images of the sources, and
-  reads scanned PDFs when the OCR engine is the vision model. If you do not set
-  this one separately, it uses the page-writing model.
+- **The reading model** (`LLM_MODEL` in `.env`) answers the questions of the chat.
+- **The ingestion model** (`WIKI_LLM_MODEL`) writes the wiki pages when you add a
+  document. Without a value of its own, it uses the reading model.
+- **The vision model** (`VISION_MODEL`) describes the images of the sources, and
+  reads scanned PDFs when the OCR engine is `vision`. Without a value of its own,
+  it uses the ingestion model.
 
-## Check the models — one button or one command
+## Test the models: one button or one command
 
-You do not need to add any documents: each test brings its own material, builds a
-small temporary wiki and deletes it at the end. Your wiki is not read or changed.
+The tests need no document of yours. Each test builds a small temporary wiki with
+its own material and deletes it at the end. Your wiki is not read or changed.
 
-- **In the web interface.** Open **Settings**. In the block "Models", each model
+- **In the web interface.** Open **Settings**. In the block «Models», each model
   has a **Test** button. The test uses the values of the fields, without saving
-  them. The **?** button next to it explains what the test checks.
-- **In a terminal.** Put the models in your `.env`, then run:
+  them. The **?** button next to it says what the test checks.
+- **In a terminal.** Put the models in `.env`, then run:
 
   ```bash
   uv run python scripts/eval_chat_model.py
   ```
 
-  The command tests the answering model and the page-writing model. It tests the
-  vision model when `VISION_MODEL` is set or `OCR_ENGINE` is `vision`.
-  `--model ID` tests the answering model with that model id, and `--language es`
+  The command tests the reading model and the ingestion model. The command tests
+  the vision model too when `VISION_MODEL` is set or `OCR_ENGINE` is `vision`.
+  `--model ID` tests the reading model with that model id, and `--language es`
   uses the Spanish material.
 
 What each test checks:
 
-1. **The answering model** gets three questions about a wiki of two pages. It must
-   answer a question the page answers, with the datum of the page and a citation
-   of the page. It must say it found no answer to a question the page does not
-   answer. In the mode with tools, it must search the wiki before it answers.
-2. **The page-writing model** ingests a text of one paragraph. It must write the
-   summary page and at least one concept page that names the source, and the lint
-   must find no error.
+1. **The reading model** gets three questions about a wiki of two pages. The
+   model must answer a question the page answers, with the datum of the page and
+   a citation of the page. The model must say that it found no answer to a
+   question the page does not answer. In the mode with tools, the model must
+   search the wiki before it answers.
+2. **The ingestion model** ingests a text of one paragraph. The model must write
+   the summary page and at least one concept page that names the source, and the
+   lint must find no error.
 3. **The vision model** reads a scanned page that ships with the product, with an
    invented text and table. The fourteen data of the page (a code, dates, amounts,
-   the cells of the table) must be in what it reads. It must also describe the page
-   as an image, in the format the product asks for.
+   the cells of the table) must be in what the model reads. The model must also
+   describe the page as an image, in the format the product asks for.
 
-You get a line for each check, then a verdict:
+Each check prints one line, then the command prints a verdict:
 
 - **✓** — the check passed.
-- **✗** — the check failed: the model gave an answer that does not meet the check.
-  Pick a stronger model and run the test again.
-- **?** — the service gave no answer (a wrong URL, key or model id, or a service
-  that is not running). This is not a failure of the model. Fix the values and run
-  the test again.
+- **✗** — the check failed: the answer of the model does not meet the check.
+  Choose a stronger model and run the test again.
+- **?** — the service gave no answer: a wrong URL, key or model id, or a service
+  that is not running. This result says nothing about the model. Correct the
+  values and run the test again.
 
 The command ends with exit code 0 when every check passed, 1 when a check failed,
 and 2 when the tests could not run.
 
-> Passing is necessary, not sufficient. The tests find a model that cannot do the
-> work. They do not show how a model handles a long document or your own questions.
-> A model gives different results in two runs: if a result looks doubtful, run the
-> test once or twice more.
+Passing is necessary, not sufficient. The tests find a model that cannot do the
+work. The tests do not show how a model handles a long document or your own
+questions. Two runs of the same model can give different results: run a doubtful
+test once or twice more.
 
-## Check the page-writing model — by eye
+## Judge the ingestion model by its pages
 
-The test above uses one short text. The page-writing model is also judged by the
-pages it produces from your documents. Add the four sample PDFs (the
-[quick-start](#quick-start--reset--run) in Part B), open a generated summary, and
-ask: **does it read like a real encyclopedia page, or like a messy dump?** That is
-**[B1](#b1-ingest-happy-path--content-quality)** above. If the summaries look good,
-the page-writing model is good enough.
+The test above uses one short text. The ingestion model is also judged by the
+pages it writes from your documents. Ingest the four sample PDFs («Start» in
+Part B) and read a summary page: that is check **B1**. Summary pages that read
+like encyclopedia entries show that the ingestion model does its job.
 
 ## Choosing between two models
 
-The tests do not rank two models that both pass. Run them with each model to
-discard the ones that fail. Between two models that pass, ask both the same
-questions about your own wiki (Part B) and compare the answers and their
-citations. For a worked example of a weak vs. a strong model, see the
-model-guidance note in the README.
+The tests do not rank two models that both pass. Run the tests with each model
+and discard the models that fail. Between two models that pass, ask both the same
+questions about your own wiki (check **B3**) and compare the answers and their
+citations. The README note «Chat grounding & citations scale with the chat model,
+too» compares a weak and a strong model on the same questions.
 
 ---
 
-## Appendix A — SQL probes (for debugging a red Part A)
+## Appendix A — SQL queries for a failed Part A
 
-When a regression test fails, restore a wiki and inspect the real state. Either
-use your `/tmp/test-wiki` from Part B's quick-start, or restore the golden corpus:
+When a regression test fails, restore a wiki and read its real state. Use the
+wiki of Part B, or restore the golden corpus:
 
 ```bash
-python - <<'PY'
+uv run python - <<'PY'
 from pathlib import Path; import tempfile
 from tests.helpers.golden import restore_golden
 db, ws = restore_golden(Path(tempfile.mkdtemp()))
@@ -463,21 +424,22 @@ PY
 # then: sqlite3 <db>   (.mode box  .headers on)
 ```
 
-**Health dashboard** — the one-glance state used throughout:
+**The state of the documents**, one row per kind and status:
 
 ```sql
 SELECT source_kind, status, COUNT(*) AS n
 FROM documents GROUP BY source_kind, status ORDER BY source_kind, status;
 ```
 
-**Ingest counts (golden `four_sources_all_ready`, unit pipeline tests):**
+**The counts of an ingestion** (golden `test_four_sources_all_ready`, unit
+pipeline tests):
 
 ```sql
 SELECT
   (SELECT COUNT(*) FROM documents WHERE source_kind='source') AS sources,
   (SELECT COUNT(*) FROM documents WHERE source_kind='wiki'
         AND relative_path LIKE 'wiki/summaries/%') AS summaries;
--- pages & chunks for a given file
+-- the pages and fragments of one file
 SELECT
   (SELECT COUNT(*) FROM document_pages  p JOIN documents d ON d.id=p.document_id
      WHERE d.filename LIKE 'Cinderella%') AS pages,
@@ -485,7 +447,7 @@ SELECT
      WHERE d.filename LIKE 'Cinderella%') AS chunks;
 ```
 
-**Derived-page provenance (golden `each_summary_cites_its_source`):**
+**The source of each derived page** (golden `test_each_summary_cites_its_source`):
 
 ```sql
 SELECT w.relative_path AS wiki_page, s.filename AS built_from_source
@@ -493,22 +455,26 @@ FROM documents w JOIN documents s ON s.id = w.source_document_id
 WHERE w.source_kind='wiki' ORDER BY w.relative_path;
 ```
 
-Each summary resolves to exactly one source; structural pages (`index`,
-`overview`, `log`) and multi-source concepts may legitimately have
-`source_document_id = NULL`.
+Each summary page has one source. The pages `index`, `overview` and `log`, and a
+concept page with several sources, can have `source_document_id = NULL`.
 
-**FTS5 integrity (golden `test_fts_*`):**
+**The full-text index** (golden `test_fts_*`):
 
 ```sql
 SELECT (SELECT COUNT(*) FROM document_chunks) AS chunks,
-       (SELECT COUNT(*) FROM chunks_fts)      AS fts_rows;   -- must be equal
+       (SELECT COUNT(*) FROM chunks_fts)      AS fts_rows;   -- equal
 SELECT c.document_id, substr(c.content,1,80) AS snippet
 FROM chunks_fts f JOIN document_chunks c ON c.rowid=f.rowid
-WHERE chunks_fts MATCH 'prince' ORDER BY rank LIMIT 5;       -- several hits
-INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check'); -- must not raise
+WHERE chunks_fts MATCH 'princ' ORDER BY rank LIMIT 5;        -- several rows
+INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check'); -- no error
 ```
 
-**Change detection (unit pipeline tests):**
+The index holds the stems of the words (`document_chunks.content_stemmed`), so
+the query searches the stem `princ`, the stem of «prince» and «princes». On the
+golden corpus, `princ` finds 13 rows and `prince` finds none (measured on
+2026-11-23).
+
+**Change detection** (unit pipeline tests):
 
 ```sql
 SELECT filename, version, content_hash,
@@ -516,14 +482,15 @@ SELECT filename, version, content_hash,
 FROM documents WHERE source_kind='source' ORDER BY filename;
 ```
 
-Unchanged re-scan: `content_hash` / `version` / `last_indexed_at` stable (hash
-skip). Changed file: `content_hash` changes, summary regenerates. `stale_since`
-is `NULL` for healthy rows.
+A scan of an unchanged folder keeps `content_hash`, `version` and
+`last_indexed_at`. A changed file gets a new `content_hash`, and its summary page
+is written again. `stale_since` is `NULL` for a source with no problem.
 
-**Deletion cascade (golden `deleting_a_source_cascades…`, unit `test_delete_source`):**
+**The deletion of a source** (golden
+`test_deleting_a_source_cascades_and_drops_its_summary`, unit `test_delete_source`):
 
 ```sql
--- after delete_source on, e.g., Little Red Riding Hood:
+-- after deleting, for example, Little Red Riding Hood:
 SELECT COUNT(*) FROM documents WHERE filename LIKE 'Little Red%' AND source_kind='source'; -- 0
 SELECT
   (SELECT COUNT(*) FROM document_pages  p LEFT JOIN documents d ON d.id=p.document_id WHERE d.id IS NULL) AS orphan_pages,
@@ -532,39 +499,37 @@ SELECT (SELECT COUNT(*) FROM document_chunks) AS chunks, (SELECT COUNT(*) FROM c
 SELECT COUNT(*) FROM document_references r
 LEFT JOIN documents s ON s.id=r.source_document_id
 LEFT JOIN documents t ON t.id=r.target_document_id
-WHERE s.id IS NULL OR t.id IS NULL;  -- 0 dangling
+WHERE s.id IS NULL OR t.id IS NULL;  -- 0
 ```
 
-> **Correct deletion behavior:** a **1-to-1 summary page is DELETED outright**
-> (there's no source left to regenerate it from). A **multi-source concept page
-> is KEPT and marked `stale_since`** (it may draw on surviving sources). This is
-> `delete_source`'s relationship-based handling — *not* `ON DELETE SET NULL` on
-> the summary. (The FK's `SET NULL` only matters for rows that reference the
-> source but aren't themselves removed.)
+The deletion deletes every page that only the deleted source supported, for
+example its summary page. A page that also cites another source is kept and
+marked with `stale_since`.
 
-**Git snapshot (unit `test_git_ops`)** — in the wiki's own repo:
+**The git history of the wiki** (unit `test_git_ops`), in the folder of the wiki:
 
 ```bash
-cd /tmp/test-wiki && git log --oneline && git status && git ls-files | grep -E 'sources/|\.llmwiki/'  # last grep: no output
+cd /tmp/test-wiki && git log --oneline && git status && git ls-files | grep '^sources/'   # the last command prints nothing
 ```
 
-Labelled `ingest:` commits, clean tree, identity `LLM Wiki <llmwiki@local>`,
-`sources/` + `.llmwiki/` untracked. With `WIKI_AUTOCOMMIT=0`: no `.git`, ingestion
-still succeeds.
+Each operation that changes the wiki is a labelled commit, for example
+`ingest: Cinderella.pdf`, with the identity `LLM Wiki <llmwiki@local>`. The tree
+is clean after the operation. Git does not track `sources/` nor `.llmwiki/`, with
+one exception: `.llmwiki/aliases.generated.toml`, the generated aliases, is
+tracked. With `WIKI_AUTOCOMMIT=0` the wiki has no `.git` folder, and the
+ingestion still works.
 
 ---
 
-## Appendix B — Troubleshooting quick map
+## Appendix B — Symptoms and causes
 
-| Symptom | Likely cause | Where |
-|---------|--------------|-------|
-| `chunks = 0` for a PDF | scanned/image-only PDF (no OCR), or empty extraction | B1, README "Document formats" |
-| `status='failed'` | LLM endpoint unreachable or extraction error — read `error_message` | B1 |
-| `chunks != fts_rows` | an FTS trigger didn't fire | Part A `test_fts_*`, Appendix A |
-| Empty search on obvious term | tokenizer/trigger issue, or content never chunked | Part A `test_fts_search_returns_hits` |
-| Chat answers off-corpus questions | grounding/system-prompt regression, or too-weak model | B3 |
-| Summary is a raw text dump | wiki-generation prompt/model problem — inspect trace | B1, B7 |
-| Wiki git tree dirty after ingest | `.gitignore` not staging correctly, or autocommit half-ran | Appendix A (git) |
-| Multi-source concept page deleted on source delete | should be marked stale, not deleted — `delete_source` regression | Part A `test_delete_source_marks_multi_source_concept_stale` |
-
-> Reset between full Part-B runs: `rm -rf /tmp/test-wiki && mkdir -p /tmp/test-wiki/sources && cp tests/fixtures/pdfs/*.pdf /tmp/test-wiki/sources/`
+| Symptom | Probable cause | Where |
+|---|---|---|
+| The ingestion of a PDF fails with «has no text layer … it looks like a scanned PDF» | the PDF is scanned and `OCR_ENGINE` is `none` | README, «Document formats» |
+| A source is `failed` | the model endpoint does not answer, or the extraction failed; read `error_message` | B1 |
+| `chunks` differs from `fts_rows` | a trigger of the index did not run | Part A `test_fts_*`, Appendix A |
+| A search for an obvious word finds nothing | the word was never indexed, or the query uses the word and not its stem | Part A `test_fts_search_returns_hits` |
+| The chat answers a question outside the wiki, with no warning | a looser system prompt, or a model too weak | B3, Part C |
+| A summary page is a copy of the source text | the ingestion model or its prompt; read the trace | B1, B8 |
+| The git tree of the wiki has changes after an operation | the commit did not run to the end | Appendix A, git |
+| A page that also cites another source is deleted with a source | a regression of `delete_source` | Part A `test_delete_source_marks_multi_source_concept_stale` |

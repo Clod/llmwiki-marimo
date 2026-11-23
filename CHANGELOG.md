@@ -240,6 +240,17 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The query walkthrough and the acceptance plan describe the web interface.**
+  Both documents described the marimo interface of v0.4.0: two checkboxes instead
+  of the **Mode** selector, and three terminals with marimo apps. The query
+  walkthrough follows questions to the example wikis through the three chat modes,
+  and quotes a new appendix captured with a real model on 2026-11-23
+  (`scripts/capture_query_walkthrough.py`, `docs/query_walkthrough_appendix.md`).
+  `tests/unit/test_docs_query_walkthrough.py` checks every quotation against the
+  appendix, and every node of the appendix against `docs/query_nodes.md`. The
+  acceptance plan adds the web suite to Part A and rewrites Part B on the tabs of
+  the web interface.
+
 - **The two READMEs match the code again.** Every paragraph was checked against
   `master`. Among the corrections: the agent mode shows an ungrounded answer with a
   warning instead of refusing it; the datasets are dated files, not live feeds; the

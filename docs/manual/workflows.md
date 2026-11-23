@@ -18,8 +18,8 @@
 > [Ingestion Walkthrough](../ingestion_walkthrough.md) follows one small corpus
 > through its whole lifecycle (first document · second document · no-op
 > re-ingest · edited source · deletion), and the
-> [Query Walkthrough](../query_walkthrough.md) follows seven questions through
-> the routing gate on the read side. Both use real, regenerable numbers and
+> [Query Walkthrough](../query_walkthrough.md) follows questions to the example
+> wikis through the three chat modes on the read side. Both use real, regenerable numbers and
 > link back here for each contract.
 
 Each of the ten files linked from the table below follows the same template:

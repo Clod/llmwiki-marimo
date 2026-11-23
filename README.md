@@ -259,7 +259,9 @@ docs/
 ├── sqlite_data_dictionary.md         # Every table and column of index.db
 ├── ingestion_walkthrough.md          # One corpus, end to end — the narrative view
 ├── ingestion_walkthrough_appendix.md # Its artifact inventory (generated, regenerable)
-├── query_walkthrough.md              # Being rewritten for the web interface: headings only
+├── query_walkthrough.md              # Questions to the example wikis, in the three chat modes
+├── query_walkthrough_appendix.md     # Its captured run (generated, regenerable)
+├── uat_test_plan.md                  # The acceptance plan: automated, manual and model checks
 └── archive/               # Superseded design docs (historical)
 
 examples/               # Pre-ingested demo wikis (used by quickstart.py)
@@ -673,9 +675,9 @@ material). The **Test** buttons of the Settings screen run the same tests:
 uv run python scripts/eval_chat_model.py    # PASS/FAIL for the reading, ingestion and vision models
 ```
 
-The acceptance plan, [`docs/uat_test_plan.md`](docs/uat_test_plan.md), describes the
-marimo interface of v0.4.0 and will be rewritten for the web interface. Test PDFs live
-in `tests/fixtures/pdfs/`.
+The acceptance plan, [`docs/uat_test_plan.md`](docs/uat_test_plan.md), lists the
+two automated suites, the manual checks of the web interface and the model check.
+Test PDFs live in `tests/fixtures/pdfs/`.
 
 ### Automating the un-testable: the eval packet
 
