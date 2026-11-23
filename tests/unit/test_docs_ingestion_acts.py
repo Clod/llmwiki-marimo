@@ -67,6 +67,9 @@ def acts() -> dict[str, dict]:
         act["lint"] = tuple(int(g) for g in lint.groups()) if lint else None
         stale = re.search(r"marked (\d+) citing page", body)
         act["stale_marked"] = int(stale.group(1)) if stale else None
+        deleted = re.search(r"deleted (\d+) derived wiki page", body)
+        act["deleted"] = int(deleted.group(1)) if deleted else None
+        act["removed_pages"] = set(re.findall(r"^- `−` `wiki/[a-z]+/([a-z0-9-]+)\.md`", body, re.M))
         out[name] = act
     assert out, "no acts parsed from the appendix — did its format change?"
     return out
@@ -153,27 +156,22 @@ def test_act3b_prose_lint_summary_matches(doc, acts):
 def test_act3c_quotes_the_deletion_log_line_verbatim(doc, acts):
     """The log line is quoted inside a fenced block, so it reads as captured
     output even when it is not. It must match the count the appendix reports."""
-    match = re.search(r"marked (\d+) citing page\(s\) stale", doc)
+    match = re.search(r"deleted (\d+) derived wiki page\(s\)", doc)
     assert match, "Act 3c no longer quotes the deletion log line"
-    assert int(match.group(1)) == acts["Act 3c"]["stale_marked"], (
-        f"the quoted log line says {match.group(1)} stale pages, the appendix "
-        f"reports {acts['Act 3c']['stale_marked']}"
+    assert int(match.group(1)) == acts["Act 3c"]["deleted"], (
+        f"the quoted log line says {match.group(1)} deleted pages, the appendix "
+        f"reports {acts['Act 3c']['deleted']}"
     )
 
 
-def test_act3c_names_pages_that_exist_in_the_appendix(doc):
-    """The concept pages listed as kept-and-stale are named individually, and the
-    model renames concepts on every regeneration."""
-    listed = re.search(
-        r"\(`little-red-riding-hood`,(.+?)\) are \*kept\*", doc, re.S
-    )
-    assert listed, "Act 3c no longer lists the pages it keeps"
-    slugs = re.findall(r"`([a-z0-9-]+)`", listed.group(1))
-    assert slugs, "no page slugs parsed out of the Act 3c list"
-
-    appendix = APPENDIX.read_text(encoding="utf-8")
-    missing = [s for s in slugs if f"{s}.md" not in appendix]
-    assert not missing, (
-        f"Act 3c names pages the appendix never created: {missing}. The model "
-        f"renames concepts on every capture — re-read the Act 2 page list."
+def test_act3c_names_the_pages_the_appendix_deletes(doc, acts):
+    """The concept pages Act 3c deletes are named individually, and the model
+    renames concepts on every capture."""
+    listed = re.search(r"The pages \((`[a-z0-9-]+`.+?)\) are deleted", doc, re.S)
+    assert listed, "Act 3c no longer lists the pages it deletes"
+    slugs = set(re.findall(r"`([a-z0-9-]+)`", listed.group(1)))
+    removed = acts["Act 3c"]["removed_pages"]
+    assert slugs and slugs <= removed, (
+        f"Act 3c names {sorted(slugs - removed)}, which the appendix does not delete; "
+        f"it deletes {sorted(removed)}. The model renames concepts on every capture."
     )

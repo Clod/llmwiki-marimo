@@ -248,6 +248,18 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   references to the UAT plan of v0.4.0 and to the Query Walkthrough are gone. The
   four screenshots show the current interface.
 
+- **The ingestion walkthrough is written again against the current pipeline.**
+  `docs/ingestion_walkthrough.md` described thirteen numbered steps, PDF and DOCX
+  only, a deletion that kept and marked every concept page of the deleted source,
+  and search figures of the fairy-tale index before its regeneration; four of its
+  tests were marked as expected failures. The new text names the nodes of
+  `docs/ingestion_nodes.md`, covers the accepted formats, images, OCR, the
+  rollback of a failed document, the final review, `reindex_from_disk` and
+  `revert_wiki`, and quotes a new appendix captured on 2026-11-20. The figure tests
+  check every quoted figure again, with no expected failure
+  (`tests/unit/test_docs_walkthrough_figures.py`,
+  `tests/unit/test_docs_ingestion_acts.py`).
+
 - **The example wikis are regenerated** with Haiku 5.5 and the current code: the
   tables of the documents, one page per concept with its `description`, «See also»
   above the footnote, and no structure problem (`scripts/check_wiki.py`). The two
