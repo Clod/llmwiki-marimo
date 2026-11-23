@@ -179,15 +179,16 @@ tengo y cuánto ganaría?"*
 - **Qué prueba:** **honestidad** sobre la diferencia entre ganancia *nominal* (en
   pesos) y *real* (en poder de compra) — no vender una ganancia nominal como si
   fuera real.
-- **Cómo lo resuelve:** la salida del asesor ya trae una advertencia de que las
-  ganancias son nominales; y las páginas explican que el plazo fijo tradicional
-  puede no cubrir la inflación, remitiendo a los instrumentos ajustados
-  (CER/UVA).
+- **Cómo lo resuelve:** la salida del asesor trae una advertencia: las ganancias
+  son nominales. La página «Plazo fijo» (`concepts/plazo-fijo.md`) explica que la
+  tasa fija puede perder poder adquisitivo si los precios suben por encima de
+  ella. Las páginas «Plazo fijo UVA» y «Bonos CER y UVA» describen los
+  instrumentos que ajustan el capital por inflación.
 - **Criterio de aceptación:** aclara que la ganancia mostrada es **nominal** y
   que la **real depende de la inflación del período**. Lo esperable es que
   remita a los instrumentos ajustados por inflación (**plazo fijo UVA / bonos
   CER**) como cobertura — aunque el énfasis puede variar entre corridas. Lo que
-  **no** debe hacer es afirmar que el plazo fijo tradicional "le gana a la
+  **no** debe hacer es afirmar que un plazo fijo a tasa fija "le gana a la
   inflación" sin esa salvedad.
 
 ---
@@ -578,15 +579,14 @@ moviendo las garantías a **código determinista**. Caso por caso:
   post-procesado, que agrega **Fuente** (el origen, ámbito) **y Referencia** (el
   dataset `dolar.md`) → `wiki_config.toml`, `chat/postprocess.py::ensure_citation`.
 - **D (inflación):** el modelo **inventaba tasas e inflación de memoria**
-  (~40-45% y >50%) **sin recuperar nada**; el guardrail lo rechazaba, pero el
-  usuario perdía la respuesta correcta. La causa: _elegía no buscar_. Cierre — el
-  **pre-retrieval híbrido** _(en construcción en este PR)_: el **código** busca e
-  inyecta las páginas de inflación (plazo fijo tradicional/UVA, bonos CER/UVA,
-  riesgo de rezago inflacionario, TIR real) antes de responder, de modo que el
-  modelo **no pueda saltear** la recuperación. (El UAT automatizado la trata como
-  conceptual —§4.2—; pero en el chat en el **modo «Agente con comprobación de evidencia»**, sin recuperación no hay
-  fundamento y se rechaza, así que darle las páginas es lo que la habilita a
-  contestar bien en vez de inventar.)
+  (~40-45% y >50%) **sin recuperar nada**. El guardrail de entonces rechazaba
+  esa respuesta, y el usuario perdía la respuesta correcta. La causa: el modelo
+  _elegía no buscar_. Cierre: la **recuperación previa**, construida después de
+  este UAT. El **código** busca e inyecta las páginas de inflación antes de
+  responder, de modo que el modelo **no puede saltear** la recuperación. En la
+  wiki regenerada esas páginas son «Plazo fijo», «Plazo fijo UVA», «Bonos CER y
+  UVA» y «CER». Hoy el modo «Agente con comprobación de evidencia» ya no rechaza
+  una respuesta sin evidencia: la muestra con un aviso.
 - **E (acciones):** daba la respuesta correcta ("no es estimable") **sin llamar
   herramienta**, y el guardrail la tapaba con el rechazo genérico; en sesión larga
   además dejaba de recuperar. Cierre — igual que D, el pre-retrieval inyecta

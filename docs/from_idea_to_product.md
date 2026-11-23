@@ -254,7 +254,7 @@ an optional step-by-step record of everything a load did, for auditing.
 
 ## 9. The document does not fit
 
-`Status: ✅ done (chunking) · ⬜ OCR on the roadmap` · `ingestion/pdf_extract.py`, `ingestion/chunker.py`
+`Status: ✅ done` · `ingestion/pdf_extract.py`, `ingestion/chunker.py`, `ingestion/ocr.py`
 
 **The leak.** "The agent reads the source" works until the source is 300 pages
 (it does not fit at once) or a scan (an image with no text under it).
@@ -262,9 +262,11 @@ an optional step-by-step record of everything a load did, for auditing.
 **Example.** A 250-page market report, or a scanned PDF from a bank.
 
 **How this project seals it.** Documents are split into manageable pieces on the
-way in, so they fit however long they are. Pending: scanned PDFs — image only,
-no text — still come in empty or garbled. Reading text from images is on the
-[roadmap](../ROADMAP.md).
+way in, so they fit however long they are. A scanned PDF has no text layer: the
+ingestion detects it when at least a quarter of its pages carry fewer than 20 characters.
+The OCR engine of `OCR_ENGINE` then reads those pages: `tesseract` on the machine,
+or `vision`, a model with vision. With `OCR_ENGINE=none`, the default, the
+ingestion of a scanned PDF fails with a message that names the setting.
 
 ---
 
@@ -346,7 +348,7 @@ code-retrieves-first mode, which is off by default.
 
 ## 13. There is no undo button
 
-`Status: 🚧 partial — per-wiki git ✅, coordinated rollback designed` · git per wiki; [PR #7](https://github.com/Clod/llmwiki-marimo/pull/7)
+`Status: ✅ done` · git per wiki, `base/domain/rollback/`, the **History** tab
 
 **The leak.** One bad load overwrites fifteen pages at once, and with a generic
 agent there is no clean way back.
@@ -354,10 +356,13 @@ agent there is no clean way back.
 **Example.** You load a document with an error that propagates across several
 pages, and you want yesterday's state back.
 
-**How this project seals it.** Every wiki is a folder with its own change
-history — you can revert by hand, page by page. What is missing: a coordinated
-undo that returns the whole wiki *and its index* to an earlier point in one move.
-Designed, not built.
+**How this project seals it.** Every wiki is a folder with its own git history,
+and every operation that changes the wiki is one commit. The **History** tab
+returns the whole wiki *and its index* to an earlier point in one move
+(`base/domain/rollback/revert.py`). The last five points keep a copy of the
+index, so the return to them is immediate. For an older point, the index is
+rebuilt from the files without calling the model. The return adds a new point:
+the history is not rewritten.
 
 ---
 
