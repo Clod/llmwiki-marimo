@@ -310,37 +310,52 @@ def _search_by_query(by_query):
     return fake
 
 
-def test_retrieve_wiki_adds_a_page_of_a_topic_the_hits_miss(monkeypatch):
-    main = _rows("fci-1", "fci-2", "fci-3", "fci-4", "fci-5", "fci-6")
-    monkeypatch.setattr(preretrieval, "search_chunks", _search_by_query({
-        '"plazo" OR "fijo" OR "FCI" OR "money" OR "market"': main,
-        '"FCI" OR "money" OR "market"': _rows("fci-1", "fci-2"),
-        '"plazo" OR "fijo"': _rows("plazo-fijo-a", "plazo-fijo-b"),
-    }))
-    hits = retrieve_wiki("db", "plazo fijo o FCI money market", topics=["FCI money market", "plazo_fijo"])
+def _page(name, kind="concepts"):
+    """A whole page as `named_pages` gives it."""
+    return f"[/wiki/{kind}/{name}.md]\ntoda la página {name}"
+
+
+def test_a_named_page_comes_first_and_whole_although_bm25_leaves_it_out(monkeypatch):
+    main = _rows("cnv", "fci-resumen", "caucion", "gerente", "depositaria", "caucion-2",
+                 "fci-money-market")
+    monkeypatch.setattr(preretrieval, "search_chunks", _search_by_query({'"FCI"': main}))
+    hits = retrieve_wiki("db", "FCI", named=[_page("fci-money-market")])
     assert preretrieval._hit_labels(hits) == [
-        "/wiki/concepts/fci-1.md", "/wiki/concepts/fci-2.md", "/wiki/concepts/fci-3.md",
-        "/wiki/concepts/fci-4.md", "/wiki/concepts/fci-5.md", "/wiki/concepts/plazo-fijo-a.md"]
+        "/wiki/concepts/fci-money-market.md", "/wiki/concepts/cnv.md",
+        "/wiki/concepts/fci-resumen.md", "/wiki/concepts/caucion.md",
+        "/wiki/concepts/gerente.md", "/wiki/concepts/depositaria.md"]
+    assert hits[0].endswith("toda la página fci-money-market")
 
 
-def test_retrieve_wiki_keeps_the_hits_when_every_topic_has_a_page(monkeypatch):
-    main = _rows("caucion-1", "caucion-2", "byma")
-    monkeypatch.setattr(preretrieval, "search_chunks", _search_by_query({
-        '"caución" OR "bursátil"': main,
-        '"caucion"': _rows("otra", "caucion-2"),
-    }))
-    hits = retrieve_wiki("db", "caución bursátil", topics=["caucion"])
+def test_the_pages_of_a_topic_come_after_the_pages_named_by_title(monkeypatch):
+    monkeypatch.setattr(preretrieval, "search_chunks",
+                        _search_by_query({'"liquidez" OR "plazo" OR "fijo"': _rows("a", "b")}))
+    hits = retrieve_wiki("db", "liquidez plazo fijo", named=[_page("plazo-fijo")],
+                         topical=[_page("fci"), _page("caucion")])
     assert preretrieval._hit_labels(hits) == [
-        "/wiki/concepts/caucion-1.md", "/wiki/concepts/caucion-2.md", "/wiki/concepts/byma.md"]
+        "/wiki/concepts/plazo-fijo.md", "/wiki/concepts/fci.md", "/wiki/concepts/caucion.md",
+        "/wiki/concepts/a.md", "/wiki/concepts/b.md"]
 
 
-def test_retrieve_wiki_prefers_the_page_titled_with_the_topic(monkeypatch):
-    main = _rows("queen", "apple", "mirror", "snow-white", "dwarfs", "summary")
-    monkeypatch.setattr(preretrieval, "search_chunks", _search_by_query({
-        '"Cinderella" OR "Snow" OR "White"': main,
-        '"Cinderella"': _rows("stepmother", "godmother", "slipper", "Cinderella"),
-        '"Snow" OR "White"': _rows("snow-white"),
-    }))
-    hits = retrieve_wiki("db", "Cinderella Snow White", topics=["Cinderella", "Snow White"])
-    assert preretrieval._hit_labels(hits)[-1] == "/wiki/concepts/Cinderella.md"
+def test_the_named_pages_leave_one_place_for_the_search(monkeypatch):
+    monkeypatch.setattr(preretrieval, "search_chunks",
+                        _search_by_query({'"tema"': _rows("x", "y")}))
+    topical = [_page(f"t{i}") for i in range(8)]
+    hits = retrieve_wiki("db", "tema", topical=topical)
     assert len(hits) == 6
+    assert preretrieval._hit_labels(hits)[-1] == "/wiki/concepts/x.md"
+
+
+def test_the_named_pages_that_do_not_fit_enter_in_the_order_of_the_search(monkeypatch):
+    monkeypatch.setattr(preretrieval, "search_chunks",
+                        _search_by_query({'"tema"': _rows("t5", "t4")}))
+    topical = [_page(f"t{i}") for i in range(6)]
+    hits = retrieve_wiki("db", "tema", topical=topical)
+    assert preretrieval._hit_labels(hits)[:2] == ["/wiki/concepts/t5.md", "/wiki/concepts/t4.md"]
+
+
+def test_a_page_already_in_whole_is_not_repeated_by_its_chunks(monkeypatch):
+    monkeypatch.setattr(preretrieval, "search_chunks",
+                        _search_by_query({'"caución"': _rows("caucion", "caucion", "byma")}))
+    hits = retrieve_wiki("db", "caución", named=[_page("caucion"), _page("caucion")])
+    assert preretrieval._hit_labels(hits) == ["/wiki/concepts/caucion.md", "/wiki/concepts/byma.md"]

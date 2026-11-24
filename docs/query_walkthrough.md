@@ -208,7 +208,9 @@ sequence of questions. The order is a design decision:
 3. **`Q_PAGE_OPEN`**: is the user reading a wiki page? An open page makes the
    question covered, and goes first in the text the model receives.
 4. **`Q_SEARCH_WIKI`**: when the question names a topic, or a page is open, the
-   code searches the wiki pages in the full-text index.
+   code builds the wiki context. The whole pages the question names come first: by
+   title or alias, then by a topic they declare. The full-text index fills the
+   remaining places.
 5. **`Q_IS_COLLECTION`**: is the question about the wiki as a whole? Such a
    question receives `overview.md` and `index.md`.
 6. **`Q_IS_DATA`**: does the question name data, or ask for investment advice?
@@ -235,12 +237,15 @@ securities the borrower deposits.
 `Q_IN_ROSTER` matched six names, among them `Cauciones bursátiles` and
 `caución bursátil`. `Q_SEARCH_WIKI` ran the query `"caución" OR "bursátil" OR
 "considera" OR "bajo" OR "riesgo"` and found the pages. The turn went to
-`Q_AGENT_PAGES`: the model received five wiki pages and called no tool.
+`Q_AGENT_PAGES`: the model received six wiki pages and called no tool. The first
+two are whole pages that the question names: `cauciones-bursatiles.md` by its title,
+and `12-cauciones-bursatiles.md` by a topic it declares. The search filled the other
+four places.
 
 The answer ends with two reference lines. The model wrote the first line, and the
 code labelled it. The code wrote the second line (`Q_CITE_PAGES`):
 
-> Además, el modelo recibió estas páginas de la wiki: fci-money-market.md, cauciones-bursatiles.md, 12-cauciones-bursatiles.md, aforo.md, comunicacion-a3500.md. No se puede determinar si la respuesta las usó.
+> Además, el modelo recibió estas páginas de la wiki: cauciones-bursatiles.md, 12-cauciones-bursatiles.md, fci-money-market.md, aforo.md, comunicacion-a3500.md, byma.md. No se puede determinar si la respuesta las usó.
 
 The second line says what the code knows: the pages the model received. Which of
 them the answer used cannot be read from the text. **Verify the sentences** splits
@@ -329,7 +334,7 @@ fragment goes through two checks:
 
 1. **`Q_IS_GROUNDED`** counts the fraction of the content words of the answer that
    the fragments contain. The answer is grounded when the fraction is at least
-   `[pre_retrieval] min_coverage`, 0.2 by default. This answer had 0.655.
+   `[pre_retrieval] min_coverage`, 0.2 by default. This answer had 0.68.
 2. **`Q_SOURCE_WARNING`** appends a warning, because no wiki page backs the
    answer:
 
@@ -355,7 +360,7 @@ question about the caución bursátil was asked with each option:
 When a check fails, the answer stays, with a line that says the pages do not
 answer the question (`Q_RELEVANCE_WARNING`). Neither check is calibrated: the
 judge is the same kind of model as the one that answered. The turn with the judge
-used 12,343 input tokens, and the turn with no check 8,773.
+used 13,813 input tokens, and the turn with no check 9,508.
 
 ## Wikis whose facts change
 
