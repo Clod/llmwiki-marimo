@@ -44,6 +44,7 @@ from domain.datasets.frontmatter import parse_frontmatter, split_frontmatter
 from domain.prompts import load_prompt
 from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
+from domain.text.stemming import stem_text
 from domain.text.stopwords import STOPWORDS, stopwords
 from domain.tools.search import search_chunks
 from domain.tools.wiki_fs import concept_page_names, topic_pages
@@ -145,15 +146,17 @@ def _fts_query(text: str, language: str | None = None) -> str:
 
 def retrieve_wiki(
     db_path: str, query: str, *, limit: int = 6, language: str | None = None,
-    named: Iterable[str] = (), topical: Iterable[str] = (),
+    summaries: Iterable[str] = (), named: Iterable[str] = (), topical: Iterable[str] = (),
 ) -> list[str]:
     """The curated-wiki blocks for `query` (Tier 1). Empty list if none.
 
-    `named` and `topical` are whole pages, as blocks (`named_pages`): the pages whose
-    title or alias the question names, and the pages that declare in `topics` a topic
-    the question names. They come first, in that order, and they take at most
-    `limit - 1` places: at least one place stays for the search. When they do not
-    fit, the pages the search found come first, in the order of the search.
+    `summaries`, `named` and `topical` are whole pages, as blocks (`named_pages`): the
+    summary pages of a topic the question names, the concept pages whose title or alias
+    the question names, and the other pages that declare in `topics` a topic the
+    question names. They come first, in that order, and they take at most `limit - 1`
+    places: at least one place stays for the search. A page enters in one step only.
+    When they do not fit, the earlier step comes first, and within a step the pages
+    the search found come first, in the order of the search.
 
     The search fills the remaining places with its chunks, by BM25, without the
     chunks of the pages already in. «¿qué es un FCI?» names the page «FCI Money
@@ -164,7 +167,7 @@ def retrieve_wiki(
     )
     rank = {label: i for i, label in reversed(list(enumerate(_hit_labels(found))))}
     first: list[str] = []
-    for group in (list(named), list(topical)):
+    for group in (list(summaries), list(named), list(topical)):
         labels = set(_hit_labels(first))
         group = [block for block in dict.fromkeys(group) if _hit_labels([block])[0] not in labels]
         first += sorted(group, key=lambda block: rank.get(_hit_labels([block])[0], len(rank)))
@@ -176,37 +179,53 @@ def retrieve_wiki(
 
 def named_pages(
     workspace, db_path: str, matched: Iterable[str], data_aliases: dict[str, list[str]],
-    keys: Iterable[str] = (),
-) -> tuple[list[str], list[str]]:
-    """The pages the question names, as whole-page blocks: (by title or alias, by topic).
+    keys: Iterable[str] = (), language: str | None = None,
+) -> tuple[list[str], list[str], list[str]]:
+    """The pages the question names, as whole-page blocks: (summaries of the topic, by
+    title or alias, by topic).
 
     `matched` holds the roster terms of node Q_IN_ROSTER as the roster writes them:
     concept-page titles, the topics of the pages, dataset categories and keys, and
-    aliases. A title gives its concept page. An alias gives the page titled with a
-    name it stands for (`alias_titles`). A topic gives every concept or summary page
-    that declares it. A dataset key, and a category with no page of the same title,
-    give no page. The text of each page is read as the open page's is
-    (`_open_page_block`): the whole page, without its front-matter."""
+    aliases. Each term, and each name an alias among them stands for
+    (`alias_titles`), gives:
+
+    - the summary pages whose title contains the term, as whole words, by stem
+      («plazo fijo» is in «10 Plazos Fijos», «UVA» in «04 Bonos Cer Y Uva»), and the
+      summary pages that declare the term in `topics`;
+    - the concept page titled with the term;
+    - the other concept and summary pages that declare the term in `topics`.
+
+    A dataset key, and a category with no page of the same title, give no page. The
+    text of each page is read as the open page's is (`_open_page_block`): the whole
+    page, without its front-matter. `language` is the stemming language, by default the
+    language of the wiki that owns `db_path`."""
     keys = {_normalize(key) for key in keys}
     terms = [term for term in matched if _normalize(term) not in keys]
     if not terms or not Path(db_path).is_file():
-        return [], []   # opening a missing index would create an empty one
+        return [], [], []   # opening a missing index would create an empty one
+    language = language or language_for_db(db_path)
     pages = topic_pages(db_path)
+    names = alias_titles(terms, data_aliases)
     by_title = {_normalize(p.title): p.page for p in pages if p.kind == "concept" and p.title}
     by_topic: dict[str, list[str]] = {}
     for p in pages:
         for topic in p.topics:
             by_topic.setdefault(_normalize(topic), []).append(p.page)
-    named = [by_title[_normalize(name)] for name in alias_titles(terms, data_aliases)
-             if _normalize(name) in by_title]
-    topical = [page for term in terms for page in by_topic.get(_normalize(term), [])]
+    stems = [f" {stem} " for stem in (stem_text(name, language) for name in names) if stem]
+    topics = {_normalize(name) for name in names}
+    summaries = [p.page for p in pages if p.kind == "summary" and (
+        any(stem in f" {stem_text(p.title, language)} " for stem in stems)
+        or topics.intersection(_normalize(topic) for topic in p.topics))]
+    named = [by_title[_normalize(name)] for name in names if _normalize(name) in by_title]
+    topical = [page for term in terms for page in by_topic.get(_normalize(term), [])
+               if page not in summaries]
 
     def blocks(names: list[str]) -> list[str]:
         root = Path(workspace) if workspace is not None else Path(db_path).parent.parent
         found = (_open_page_block(root, page) for page in dict.fromkeys(names))
         return [block for block in found if block]
 
-    return blocks(named), blocks(topical)
+    return blocks(summaries), blocks(named), blocks(topical)
 
 
 def _alias_names(data_aliases: dict[str, list[str]]) -> dict[str, list[str]]:
