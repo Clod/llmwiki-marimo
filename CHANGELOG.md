@@ -247,6 +247,19 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The summary page of the topic a question names reaches the model first**
+  (pre-retrieval). «¿qué es un FCI?», with the alias `FCI`, got the summary
+  `07-fci-money-market.md` only because BM25 ranked it third: the summary does not
+  declare «FCI Money Market» in `topics`. The wiki search now puts first the summary
+  pages whose title contains a topic the question names, by stem and as whole words,
+  and the summary pages that declare the topic in `topics`. The concept page of the
+  topic comes second, and the other pages that declare the topic third
+  (`named_pages`, `retrieve_wiki`). These pages still take at most 5 of the 6 places.
+  Measured on the three demo wikis: the title and every topic of each summary page
+  send that summary (0 of 81 missing). A dataset category is a topic too:
+  «¿A cuánto está el billete verde?» names `dolar`, and now also gets the summary
+  «05 Bonos Dólar Linked Y Duales». The query walkthrough recaptures the eight cases
+  whose pages changed.
 - **«From Idea to Product» no longer lists OCR and the rollback as pending.** Point 9
   said scanned PDFs come in empty and OCR is on the roadmap; point 13 said the
   coordinated undo is designed and not built. Both are built: `OCR_ENGINE` reads

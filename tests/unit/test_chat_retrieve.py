@@ -359,3 +359,36 @@ def test_a_page_already_in_whole_is_not_repeated_by_its_chunks(monkeypatch):
                         _search_by_query({'"caución"': _rows("caucion", "caucion", "byma")}))
     hits = retrieve_wiki("db", "caución", named=[_page("caucion"), _page("caucion")])
     assert preretrieval._hit_labels(hits) == ["/wiki/concepts/caucion.md", "/wiki/concepts/byma.md"]
+
+
+# ── the whole pages the question names, before the search (`named_pages`)
+
+
+def _block(page):
+    return f"[/wiki/{page}]\nTexto de {page}."
+
+
+def test_retrieve_wiki_puts_summaries_then_named_then_topical(monkeypatch):
+    monkeypatch.setattr(preretrieval, "search_chunks", lambda *a, **k: [
+        {"content": "fragmento", "path": "/wiki/concepts/", "filename": "otra.md"}])
+    hits = retrieve_wiki("db", "x", summaries=[_block("summaries/s.md")],
+                         named=[_block("concepts/n.md")], topical=[_block("concepts/t.md")])
+    assert preretrieval._hit_labels(hits) == [
+        "/wiki/summaries/s.md", "/wiki/concepts/n.md", "/wiki/concepts/t.md", "/wiki/concepts/otra.md"]
+
+
+def test_retrieve_wiki_does_not_repeat_a_page_between_steps(monkeypatch):
+    monkeypatch.setattr(preretrieval, "search_chunks", lambda *a, **k: [])
+    hits = retrieve_wiki("db", "x", summaries=[_block("summaries/s.md")],
+                         named=[_block("concepts/n.md")],
+                         topical=[_block("summaries/s.md"), _block("concepts/n.md")])
+    assert preretrieval._hit_labels(hits) == ["/wiki/summaries/s.md", "/wiki/concepts/n.md"]
+
+
+def test_retrieve_wiki_keeps_one_place_for_the_search(monkeypatch):
+    monkeypatch.setattr(preretrieval, "search_chunks", lambda *a, **k: [
+        {"content": "fragmento", "path": "/wiki/concepts/", "filename": "otra.md"}])
+    hits = retrieve_wiki("db", "x", limit=3, summaries=[_block("summaries/a.md"), _block("summaries/b.md")],
+                         named=[_block("concepts/n.md")])
+    assert preretrieval._hit_labels(hits) == [
+        "/wiki/summaries/a.md", "/wiki/summaries/b.md", "/wiki/concepts/otra.md"]

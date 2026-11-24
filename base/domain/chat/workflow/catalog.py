@@ -328,19 +328,21 @@ async def wiki_search(ctx: InCtx) -> PreRetrievalTurn:
     pages only then (decision 14)."""
     turn = ctx.state
     with tracing.node("Q_SEARCH_WIKI", R, fts_query=preretrieval._fts_query(turn.search, turn.language)) as q6:
-        # The pages the question names come first, whole: by title or alias, then by
-        # topic (`named_pages`). Dataset keys (MEP, YPFD, a bank) name rows of a data
-        # file, not pages. The search fills the remaining places.
-        named, topical = preretrieval.named_pages(
-            turn.workspace, turn.db_path, turn.matched, turn.config.data_aliases, turn.keys)
+        # The pages the question names come first, whole: the summaries of the topic,
+        # then by title or alias, then by topic (`named_pages`). Dataset keys (MEP, YPFD,
+        # a bank) name rows of a data file, not pages. The search fills the remaining places.
+        summaries, named, topical = preretrieval.named_pages(
+            turn.workspace, turn.db_path, turn.matched, turn.config.data_aliases, turn.keys,
+            language=turn.stem_language)
         turn.wiki_hits = preretrieval.retrieve_wiki(turn.db_path, turn.search, language=turn.stem_language,
-                                                    named=named, topical=topical)
+                                                    summaries=summaries, named=named, topical=topical)
         if turn.open_block is not None:
             open_label = preretrieval._hit_labels([turn.open_block])[0]
             turn.wiki_hits = [turn.open_block] + [
                 h for h in turn.wiki_hits if preretrieval._hit_labels([h])[0] != open_label
             ]
         q6.set(pages=preretrieval._hit_labels(turn.wiki_hits),
+               summaries=preretrieval._hit_labels(summaries),
                named=preretrieval._hit_labels(named), topical=preretrieval._hit_labels(topical))
     return turn
 

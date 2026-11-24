@@ -208,9 +208,9 @@ sequence of questions. The order is a design decision:
 3. **`Q_PAGE_OPEN`**: is the user reading a wiki page? An open page makes the
    question covered, and goes first in the text the model receives.
 4. **`Q_SEARCH_WIKI`**: when the question names a topic, or a page is open, the
-   code builds the wiki context. The whole pages the question names come first: by
-   title or alias, then by a topic they declare. The full-text index fills the
-   remaining places.
+   code builds the wiki context. The whole pages the question names come first: the
+   summary pages of the topic, then the concept page by its title or alias, then the
+   other pages that declare the topic. The full-text index fills the remaining places.
 5. **`Q_IS_COLLECTION`**: is the question about the wiki as a whole? Such a
    question receives `overview.md` and `index.md`.
 6. **`Q_IS_DATA`**: does the question name data, or ask for investment advice?
@@ -238,14 +238,15 @@ securities the borrower deposits.
 `caución bursátil`. `Q_SEARCH_WIKI` ran the query `"caución" OR "bursátil" OR
 "considera" OR "bajo" OR "riesgo"` and found the pages. The turn went to
 `Q_AGENT_PAGES`: the model received six wiki pages and called no tool. The first
-two are whole pages that the question names: `cauciones-bursatiles.md` by its title,
-and `12-cauciones-bursatiles.md` by a topic it declares. The search filled the other
-four places.
+two are whole pages that the question names. The summary `12-cauciones-bursatiles.md`
+came first: its title «12 Cauciones Bursatiles» contains the topic. The concept page
+`cauciones-bursatiles.md` came second, by its title. The search filled the other four
+places.
 
 The answer ends with two reference lines. The model wrote the first line, and the
 code labelled it. The code wrote the second line (`Q_CITE_PAGES`):
 
-> Además, el modelo recibió estas páginas de la wiki: cauciones-bursatiles.md, 12-cauciones-bursatiles.md, fci-money-market.md, aforo.md, comunicacion-a3500.md, byma.md. No se puede determinar si la respuesta las usó.
+> Además, el modelo recibió estas páginas de la wiki: 12-cauciones-bursatiles.md, cauciones-bursatiles.md, fci-money-market.md, aforo.md, comunicacion-a3500.md, byma.md. No se puede determinar si la respuesta las usó.
 
 The second line says what the code knows: the pages the model received. Which of
 them the answer used cannot be read from the text. **Verify the sentences** splits
@@ -334,7 +335,7 @@ fragment goes through two checks:
 
 1. **`Q_IS_GROUNDED`** counts the fraction of the content words of the answer that
    the fragments contain. The answer is grounded when the fraction is at least
-   `[pre_retrieval] min_coverage`, 0.2 by default. This answer had 0.68.
+   `[pre_retrieval] min_coverage`, 0.2 by default. This answer had 0.78.
 2. **`Q_SOURCE_WARNING`** appends a warning, because no wiki page backs the
    answer:
 
@@ -390,7 +391,7 @@ is one of the several legal exchange rates of Argentina. The question named the
 category `dolar` and the key `MEP`, so the code injected the row of the key. The
 model also called the tool `K_DOLLAR`:
 
-> El dólar MEP está en compra a $1.180 y en venta a $1.185 (ARS), con fecha 25/06/2026.
+> El dólar MEP está en ARS 1180,00 de compra y ARS 1185,00 de venta, según la cotización del 25/06/2026.
 
 The answer carries two kinds of citation. **`Fuente:`** names the external origin
 of the figure, `ambito.com`. **`Referencia:`** names the file of the wiki that
@@ -410,8 +411,8 @@ dolar = ["billete verde", "divisa"]
 
 `Q_IN_ROSTER` matched `billete verde`. The question named the category through
 its alias and no key, so the code injected the key names, and the model called
-`K_DOLLAR`. The model read the alias as the official dollar, and listed the five
-types of dollar of the file. `C_FIGURES` checked twelve figures and found all of
+`K_DOLLAR`. The model listed the five types of dollar of the file, and named the
+official dollar as the usual one. `C_FIGURES` checked ten figures and found all of
 them in the data.
 
 The ingestion generates aliases too, from the documents. The owner writes the
@@ -447,7 +448,7 @@ shares depend on the market price.
 The question named the topic `acciones` and the key `YPF`. The model received the
 pages about shares and the row of the price, called `K_SHARE_PRICE`, and wrote:
 
-> **YPF (ticker YPFD) no tiene una ganancia estimable.**
+> No es posible estimar cuánto ganarías con acciones de YPF.
 
 The data file of shares declares `metodo_calculo: no_deterministico`: no formula
 of the finance overlay gives the gain of a share. The answer gives the current
