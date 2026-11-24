@@ -612,6 +612,16 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The page a question names reaches the model** (pre-retrieval). «¿qué es un FCI?», with
+  the alias `FCI` of «FCI Money Market», got six chunks of pages that only mention FCI:
+  BM25 ranked the two chunks of «FCI Money Market» 7th and 8th. The wiki search now puts
+  first the whole pages whose title or alias the question names, then the pages that
+  declare in `topics` a topic the question names, and fills the remaining places with
+  BM25 (`named_pages`, `retrieve_wiki`). The search of each topic alone, which replaced
+  the last hit, is removed. Measured on the three demo wikis: every concept title and
+  every alias of a title now sends its page (before: two of 49 in the finance demo did
+  not).
+
 - **The question box stays inside the conversation panel in Spanish.** At 1440 px,
   the button «Enviar» and the option «Ninguna» ended past the right edge of the
   panel: the longest option of the Mode selector, «Agente con comprobación de

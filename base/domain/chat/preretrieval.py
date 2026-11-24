@@ -46,7 +46,7 @@ from domain.datasets.models import DatasetSource
 from domain.datasets.source import LocalMarkdownSource
 from domain.text.stopwords import STOPWORDS, stopwords
 from domain.tools.search import search_chunks
-from domain.tools.wiki_fs import concept_page_names
+from domain.tools.wiki_fs import concept_page_names, topic_pages
 from domain.verify.models import ContextPassage
 from domain.wiki_settings import language_for_db
 
@@ -143,40 +143,70 @@ def _fts_query(text: str, language: str | None = None) -> str:
     return " OR ".join(f'"{t}"' for t in tokens)
 
 
-TOPIC_CANDIDATES = 3
-
-
 def retrieve_wiki(
     db_path: str, query: str, *, limit: int = 6, language: str | None = None,
-    topics: Iterable[str] = (),
+    named: Iterable[str] = (), topical: Iterable[str] = (),
 ) -> list[str]:
-    """Top curated-wiki chunks for `query` (Tier 1). Empty list if none.
+    """The curated-wiki blocks for `query` (Tier 1). Empty list if none.
 
-    `topics` are the roster terms the question names (node Q_IN_ROSTER). The query joins its
-    words with OR, and BM25 adds up the words that match: in "¿plazo fijo o FCI money
-    market?", the three words of one topic outrank the two of the other, and the six
-    hits can all belong to one topic. Each topic is searched alone. Its pages are its
-    first `TOPIC_CANDIDATES` pages, plus the page whose title is the topic. A topic is
-    missing when none of its pages is among the hits. For each missing topic, the
-    chunk of the page titled with the topic, or else its best chunk, replaces the
-    last hit, so the number of hits stays at most `limit`."""
-    hits = _format_hits(
-        search_chunks(db_path, _fts_query(query, language), limit=limit, scope="wiki", language=language)
+    `named` and `topical` are whole pages, as blocks (`named_pages`): the pages whose
+    title or alias the question names, and the pages that declare in `topics` a topic
+    the question names. They come first, in that order, and they take at most
+    `limit - 1` places: at least one place stays for the search. When they do not
+    fit, the pages the search found come first, in the order of the search.
+
+    The search fills the remaining places with its chunks, by BM25, without the
+    chunks of the pages already in. «¿qué es un FCI?» names the page «FCI Money
+    Market» by its alias; BM25 puts the two chunks of that page 7th and 8th, after
+    six chunks of pages that mention FCI, so without `named` the page is not sent."""
+    found = _format_hits(
+        search_chunks(db_path, _fts_query(query, language), limit=limit * 4, scope="wiki", language=language)
     )
-    added: list[str] = []
-    for topic in topics:
-        rows = [row for row in search_chunks(
-            db_path, _fts_query(topic.replace("_", " "), language), limit=TOPIC_CANDIDATES * 4,
-            scope="wiki", language=language) if (row.get("content") or "").strip()]
-        if not rows or len(added) >= limit - 1:
-            continue
-        titled = [row for row in rows if _normalize(row.get("title") or "") == _normalize(topic)]
-        candidates = _format_hits(rows)
-        pages = set(list(dict.fromkeys(_hit_labels(candidates)))[:TOPIC_CANDIDATES])
-        pages.update(_hit_labels(_format_hits(titled)))
-        if not pages.intersection(_hit_labels(hits[:limit - len(added)] + added)):
-            added.append(_format_hits(titled or rows)[0])
-    return hits[:limit - len(added)] + added if added else hits
+    rank = {label: i for i, label in reversed(list(enumerate(_hit_labels(found))))}
+    first: list[str] = []
+    for group in (list(named), list(topical)):
+        labels = set(_hit_labels(first))
+        group = [block for block in dict.fromkeys(group) if _hit_labels([block])[0] not in labels]
+        first += sorted(group, key=lambda block: rank.get(_hit_labels([block])[0], len(rank)))
+    first = first[:limit - 1]
+    taken = set(_hit_labels(first))
+    rest = [hit for hit in found if _hit_labels([hit])[0] not in taken]
+    return first + rest[:limit - len(first)]
+
+
+def named_pages(
+    workspace, db_path: str, matched: Iterable[str], data_aliases: dict[str, list[str]],
+    keys: Iterable[str] = (),
+) -> tuple[list[str], list[str]]:
+    """The pages the question names, as whole-page blocks: (by title or alias, by topic).
+
+    `matched` holds the roster terms of node Q_IN_ROSTER as the roster writes them:
+    concept-page titles, the topics of the pages, dataset categories and keys, and
+    aliases. A title gives its concept page. An alias gives the page titled with a
+    name it stands for (`alias_titles`). A topic gives every concept or summary page
+    that declares it. A dataset key, and a category with no page of the same title,
+    give no page. The text of each page is read as the open page's is
+    (`_open_page_block`): the whole page, without its front-matter."""
+    keys = {_normalize(key) for key in keys}
+    terms = [term for term in matched if _normalize(term) not in keys]
+    if not terms or not Path(db_path).is_file():
+        return [], []   # opening a missing index would create an empty one
+    pages = topic_pages(db_path)
+    by_title = {_normalize(p.title): p.page for p in pages if p.kind == "concept" and p.title}
+    by_topic: dict[str, list[str]] = {}
+    for p in pages:
+        for topic in p.topics:
+            by_topic.setdefault(_normalize(topic), []).append(p.page)
+    named = [by_title[_normalize(name)] for name in alias_titles(terms, data_aliases)
+             if _normalize(name) in by_title]
+    topical = [page for term in terms for page in by_topic.get(_normalize(term), [])]
+
+    def blocks(names: list[str]) -> list[str]:
+        root = Path(workspace) if workspace is not None else Path(db_path).parent.parent
+        found = (_open_page_block(root, page) for page in dict.fromkeys(names))
+        return [block for block in found if block]
+
+    return blocks(named), blocks(topical)
 
 
 def _alias_names(data_aliases: dict[str, list[str]]) -> dict[str, list[str]]:
@@ -195,7 +225,7 @@ def alias_titles(topics: Iterable[str], data_aliases: dict[str, list[str]]) -> l
 
     A page alias is not in the text of its page: "Culocenizón" is an alias of
     "Cenicienta" (`aliases.generated.toml`), and no page of the wiki holds the word.
-    The topic search of `retrieve_wiki` finds the page by its title. The term of the
+    `named_pages` finds the page by its title. The term of the
     question is kept, and comes first: an alias may also be the title of another page,
     and the page the question names has priority over the pages its alias stands for."""
     topics = list(topics)
