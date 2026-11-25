@@ -247,6 +247,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Changed
 
+- **The suggested prompts of the finance demo show what each check does.** The four
+  buttons asked questions that no guide used. They now ask: «¿Qué es una caución
+  bursátil?», which the coverage check lets through; «¿Qué es un FCI?», which it
+  refuses until the alias `FCI` is added; the $1.000.000 question, which the figure
+  check examines; and «¿Qué es un plazo fijo UVA? Explicalo con una analogía»,
+  whose analogy the sentence verification marks in yellow.
+
 - **The summary page of the topic a question names reaches the model first**
   (pre-retrieval). «¿qué es un FCI?», with the alias `FCI`, got the summary
   `07-fci-money-market.md` only because BM25 ranked it third: the summary does not
