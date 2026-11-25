@@ -318,7 +318,10 @@ def test_the_nodes_of_the_path_are_marked_visited_in_each_diagram(client, agents
     entry, call, exit_ = diagrams(audit(client).text)
     assert "classDef visited" in entry and "classDef visited" in exit_
     assert {"C_COUNT_HISTORY", "C_WHICH_MODE", "C_MARK_REFUSED", "Q_QUESTION", "Q_IN_BLACKLIST", "Q_PROMPT", "Q_AGENT_PAGES"} <= visited(entry) and "R_BLACKLIST" not in visited(entry)
-    assert visited(call) == {"Q_AGENT_PAGES"}                   # the model workflow; the model answered
+    # The model workflow: the step and the three decisions the turn went through. The model
+    # answered, so the decision after the retry (after_Q_RETRY_SOURCES) stays unmarked.
+    assert visited(call) == {"model_call", "Q_AGENT_PAGES", "after_Q_AGENT_PAGES", "relevance"}
+    assert "after_Q_IN_BLACKLIST" in visited(entry)              # a decision of the input workflow
     assert {"Q_MODEL_REFUSED", "C_FIGURES", "Q_SHOWN"} <= visited(exit_) and "R_MODEL" not in visited(exit_)
 
 

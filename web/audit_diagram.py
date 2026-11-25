@@ -3,7 +3,8 @@
 A turn of the pre-retrieval or the agent mode shows three diagrams: the input
 workflow, the call to the model and the output workflow. The input and output
 diagrams are Mermaid flowcharts converted from the text of the graphs
-(`graph.render()`, see `flowchart`), so they show the steps that run. Each step
+(`graph.render()`, see `flowchart`), so they show the steps that run and the
+decisions between them. Each step
 is a box with its short text (`audit_nodes.text`), each decision a diamond with
 its question, and each branch an arrow with its label, all in the interface
 language. The conversion is `domain.chat.workflow.flowchart`, which also writes
@@ -24,7 +25,7 @@ from pathlib import Path
 
 from domain.chat.workflow import flowchart as conversion
 from domain.chat.workflow import input_checks, model_calls, output_checks
-from domain.chat.workflow.flowchart import END, START, steps  # noqa: F401 — END and START for the callers
+from domain.chat.workflow.flowchart import END, START, decisions, steps  # noqa: F401 — END and START for the callers
 from web import audit_nodes
 from web.i18n import N_, _
 
@@ -101,8 +102,10 @@ def flowchart(rendered: str) -> str:
 
 
 def workflow_diagram(graph, path_ids) -> str:
-    """The flowchart of a graph (`flowchart`), with the steps of the path marked."""
-    own = set(steps(graph))
+    """The flowchart of a graph (`flowchart`), with the steps and the decisions of the path
+    marked. Each decision records its node in the path when it chooses a branch
+    (`trace_decisions`), so a marked diamond shows the decision the turn went through."""
+    own = set(steps(graph)) | set(decisions(graph))
     return _with_style(flowchart(graph.render()), sorted(own & set(path_ids)))
 
 
