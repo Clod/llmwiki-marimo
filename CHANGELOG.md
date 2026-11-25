@@ -625,6 +625,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Fixed
 
+- **The audit diagrams mark the decisions the turn went through.** The diagram of
+  the call to the model showed the step `Q_AGENT_PAGES` in yellow and nothing below
+  it: the turn had followed the branch «no check» of the decision «How is it checked
+  that the wiki pages answer the question?», and that branch has no step. The
+  diagrams marked only the steps of the path, although each decision records its
+  node in the path. They now mark the decisions too, in the three diagrams of a turn.
+
 - **The page a question names reaches the model** (pre-retrieval). «¿qué es un FCI?», with
   the alias `FCI` of «FCI Money Market», got six chunks of pages that only mention FCI:
   BM25 ranked the two chunks of «FCI Money Market» 7th and 8th. The wiki search now puts

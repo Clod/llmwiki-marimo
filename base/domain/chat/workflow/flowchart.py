@@ -7,7 +7,8 @@ decision a diamond with its question, and each branch an arrow with its label.
 The conversion has no web dependency. Two callers use it:
 
 - The audit page (`web/audit_diagram.py`) passes the translation function and the
-  node texts of the interface language, and marks the steps of the turn.
+  node texts of the interface language, and marks the steps and the decisions of
+  the turn.
 - `docs/workflow_diagrams.md` (`diagrams.py`) uses the defaults: the English texts
   of `node_texts.NODE_TEXTS`, with no translation and no marks.
 """
@@ -18,6 +19,7 @@ import re
 from collections.abc import Callable
 
 from pydantic_graph import Step
+from pydantic_graph.decision import Decision
 
 from domain.chat.workflow.node_texts import NODE_TEXTS
 
@@ -44,6 +46,11 @@ def _unchanged(text: str) -> str:
 def steps(graph) -> list[str]:
     """The identifiers of the steps of a graph, without its decisions."""
     return [node_id for node_id, node in graph.nodes.items() if isinstance(node, Step)]
+
+
+def decisions(graph) -> list[str]:
+    """The identifiers of the decisions of a graph: the diamonds of its flowchart."""
+    return [node_id for node_id, node in graph.nodes.items() if isinstance(node, Decision)]
 
 
 def quoted(text: str) -> str:
