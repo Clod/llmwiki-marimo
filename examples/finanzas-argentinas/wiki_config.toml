@@ -70,10 +70,10 @@ fijo, FCI money market, caución, acciones y dólar.
 
 # Botones de preguntas sugeridas en la interfaz de chat.
 suggested_prompts = [
-    "Tengo $1.000.000 que no necesito por 3 meses, ¿qué alternativas tengo?",
-    "¿Qué es un plazo fijo y cuánto rinde hoy?",
-    "¿Conviene plazo fijo o FCI money market para 60 días?",
-    "¿A cuánto está el dólar MEP?",
+    "¿Qué es una caución bursátil?",
+    "¿Qué es un FCI?",
+    "Tengo $1.000.000 que no voy a necesitar por 3 meses, ¿qué alternativas tengo y cuánto ganaría?",
+    "¿Qué es un plazo fijo UVA? Explicalo con una analogía",
 ]
 
 # Lista NEGRA: términos que sabemos que NO cubrimos -> abstención inmediata,
