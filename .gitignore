@@ -92,3 +92,8 @@ eval_reports/
 # Not committed: the READMEs point at YouTube (GitHub will not play a
 # repo-relative mp4 inline), so a binary per revision would buy nothing.
 docs/assets/demo.mp4
+
+# Written by the installer (install.sh, install.ps1).
+install.log
+open_web.cmd
+open_web.sh

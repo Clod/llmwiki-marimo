@@ -13,6 +13,25 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
 
 ### Added
 
+- **An installer for Windows, macOS and Linux** (`install.cmd`, `install.ps1`,
+  `install.sh`, `scripts/install_steps.py`; explained in `INSTALLER.md`). It needs no
+  Python and no git beforehand: it installs `uv`, which downloads Python 3.12 and the
+  libraries, runs a check with no model, asks where the wikis live (default
+  `Documents/LLM Wiki`), copies the three example wikis there, writes `WIKI_HOME` to
+  `.env`, and writes an `open_web` shortcut (`scripts/open_web.py`) that starts the web
+  interface and opens the browser. Its last message sends the user to the Settings tab
+  to configure and test the model. Every step is logged to `install.log`, and a failure
+  names the step. Running it again keeps the wikis and `.env`. Ported from the installer
+  of the workshop.
+
+- **The picker offers the example wikis** (`web/routes/picker.py`,
+  `web/templates/picker.html`). A section "Example wikis" lists the wikis of
+  `examples/` with their language and counts. **Open a copy** copies the example to
+  the folder the picker scans and opens it; once the copy exists, the button reads
+  **Open** and no second copy is made. The copy has no `.git`, and the repository's
+  `examples/` is never written. Before, a first start without `WIKI_HOME` showed an
+  empty list.
+
 - **A guide for users on adding documents** (`docs/adding_documents.md`). A user who
   copied files into `sources/` had no document that said what **Scan sources/ for
   changes** does. The guide compares the scan with the upload form, lists the steps
@@ -246,6 +265,15 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   blank `OCR_*` value takes the value of the vision group.
 
 ### Changed
+
+- **The READMEs are rewritten, and Quick start leads with the installer**
+  (`README.md`, `README_ES.md`). The new order is what it is, a screen of it running,
+  the two uses (Karpathy's LLM Wiki, and a test bench for RAG systems), the
+  architecture of the guardrails as workflows, the difference from classic RAG, the
+  highlights, then installation and reference. Quick start is five steps: the zip,
+  `install.cmd` or `bash install.sh`, the wikis folder, `open_web`, and the Settings
+  tab for the model. `quickstart.py` stays as the scripted install. The links name
+  the repository `Clod/harnessed-llmwiki`.
 
 - **The suggested prompts of the finance demo show what each check does.** The four
   buttons asked questions that no guide used. They now ask: «¿Qué es una caución
@@ -631,6 +659,13 @@ contract. See [`RELEASING.md`](RELEASING.md) for the process.
   one row: Q3, the blacklist, runs in the pre-retrieval input workflow only.
 
 ### Fixed
+
+- **`WIKI_HOME` and `WIKI_PATH` written in `.env` had no effect on the web interface.**
+  Both were read only from the environment of the process, although `.env.example` and
+  `quickstart.py` write them to `.env`. They are now read from the environment, then from
+  `.env` (`web/settings.py`, `wiki_locations`). A `WIKI_PATH` taken from `.env` is used only
+  when its folder exists, so the placeholder of an unedited copy of `.env.example` is not
+  opened as a wiki.
 
 - **The audit diagrams mark the decisions the turn went through.** The diagram of
   the call to the model showed the step `Q_AGENT_PAGES` in yellow and nothing below
@@ -2261,18 +2296,18 @@ Initial public release — a local-first, agentic LLM-wiki.
 - **Local-first & provider-agnostic** — runs on-device against any
   OpenAI-compatible endpoint; split chat/ingestion models via `.env`.
 
-[Unreleased]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.5...master
-[0.6.5]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.4...v0.6.5
-[0.6.4]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.3...v0.6.4
-[0.6.3]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.2...v0.6.3
-[0.6.2]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.1...v0.6.2
-[0.6.1]: https://github.com/Clod/llmwiki-marimo/compare/v0.6.0...v0.6.1
-[0.6.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.3...v0.3.0
-[0.2.3]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.2...v0.2.3
-[0.2.2]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.1...v0.2.2
-[0.2.1]: https://github.com/Clod/llmwiki-marimo/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/Clod/llmwiki-marimo/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/Clod/llmwiki-marimo/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Clod/harnessed-llmwiki/compare/v0.6.5...master
+[0.6.5]: https://github.com/Clod/harnessed-llmwiki/compare/v0.6.4...v0.6.5
+[0.6.4]: https://github.com/Clod/harnessed-llmwiki/compare/v0.6.3...v0.6.4
+[0.6.3]: https://github.com/Clod/harnessed-llmwiki/compare/v0.6.2...v0.6.3
+[0.6.2]: https://github.com/Clod/harnessed-llmwiki/compare/v0.6.1...v0.6.2
+[0.6.1]: https://github.com/Clod/harnessed-llmwiki/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/Clod/harnessed-llmwiki/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/Clod/harnessed-llmwiki/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/Clod/harnessed-llmwiki/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/Clod/harnessed-llmwiki/compare/v0.2.3...v0.3.0
+[0.2.3]: https://github.com/Clod/harnessed-llmwiki/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/Clod/harnessed-llmwiki/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/Clod/harnessed-llmwiki/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/Clod/harnessed-llmwiki/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/Clod/harnessed-llmwiki/releases/tag/v0.1.0

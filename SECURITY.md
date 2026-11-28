@@ -64,6 +64,6 @@ LLM Wiki is **local-first** and designed to keep your data on your machine:
 ## Reporting a vulnerability
 
 Please **do not** open a public issue for security reports. Instead, open a
-[private security advisory](https://github.com/Clod/llmwiki-marimo/security/advisories/new)
+[private security advisory](https://github.com/Clod/harnessed-llmwiki/security/advisories/new)
 on GitHub, or contact the maintainer directly. Include reproduction steps and the
 affected version/commit. We aim to acknowledge reports within a few days.

@@ -38,6 +38,41 @@
       </tbody>
     </table>
   </div>
+  {% if examples %}
+  <section class="examples" aria-labelledby="examples-title">
+    <h2 id="examples-title">{{ _("Example wikis") }}</h2>
+    <p class="lede">{% trans home=home %}Ready-made wikis to try the application. Opening one makes a copy in <span class="mono">{{ home }}</span>; the original stays in the application folder.{% endtrans %}</p>
+    <div class="panel table-wrap">
+      <table class="wikis">
+        <thead>
+          <tr>
+            <th scope="col">{{ _("Wiki") }}</th>
+            <th scope="col">{{ _("Language") }}</th>
+            <th scope="col" class="num">{{ _("Sources") }}</th>
+            <th scope="col" class="num">{{ _("Pages") }}</th>
+            <th scope="col"><span class="sr-only">{{ _("Action") }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in examples %}
+          <tr>
+            <td class="name">{{ e.id }}</td>
+            <td>{{ e.language }}</td>
+            <td class="num">{{ e.sources if e.sources is not none else "—" }}</td>
+            <td class="num">{{ e.pages if e.pages is not none else "—" }}</td>
+            <td class="num row-actions">
+              <form method="post" action="/examples/open"><input type="hidden" name="name" value="{{ e.id }}">
+                {% if e.copied %}<button class="btn-link" title="{{ _('Open the copy of this example that is already in the wiki folder') }}">{{ _("Open") }}</button>
+                {% else %}<button class="btn-link" title="{{ _('Copy this example to the wiki folder and open the copy') }}">{{ _("Open a copy") }}</button>{% endif %}
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
   <div class="open-other">
     <button class="btn btn-primary" type="button" hx-get="/browse" hx-target="#browse-slot" hx-swap="innerHTML"
             title="{{ _('Choose or create a folder that is not in the list, and open it as a wiki') }}">{{ _("Open another folder…") }}</button>

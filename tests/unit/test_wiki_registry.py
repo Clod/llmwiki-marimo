@@ -6,7 +6,9 @@ import pytest
 
 from domain.wiki_registry import (
     clean_path_input,
+    copy_destination,
     discover_wikis,
+    example_wikis,
     is_wiki_dir,
     load_recent,
     merge_options,
@@ -165,3 +167,35 @@ def test_remove_recent_takes_out_one_path_and_touches_no_folder(tmp_path):
     save_recent([str(a), str(b)], recent_file)
     assert remove_recent(str(a), recent_file) == [str(b)]
     assert load_recent(recent_file) == [str(b)] and (a / "wiki").is_dir()
+
+
+# ── example wikis ────────────────────────────────────────────────────────────
+
+def test_example_wikis_lists_the_wiki_folders_sorted(tmp_path: Path) -> None:
+    examples = tmp_path / "examples"
+    _make_wiki(examples, "tales")
+    _make_wiki(examples, "finance", marker=".llmwiki")
+    (examples / "notes").mkdir()
+    assert [p.name for p in example_wikis(examples)] == ["finance", "tales"]
+
+
+def test_example_wikis_is_empty_without_a_folder(tmp_path: Path) -> None:
+    assert example_wikis(None) == [] and example_wikis(tmp_path / "missing") == []
+
+
+def test_copy_destination_is_the_example_name_in_the_home(tmp_path: Path) -> None:
+    example = _make_wiki(tmp_path / "examples", "tales")
+    assert copy_destination(example, tmp_path / "home") == (tmp_path / "home" / "tales", False)
+
+
+def test_copy_destination_reuses_a_wiki_already_there(tmp_path: Path) -> None:
+    example = _make_wiki(tmp_path / "examples", "tales")
+    _make_wiki(tmp_path / "home", "tales")
+    assert copy_destination(example, tmp_path / "home") == (tmp_path / "home" / "tales", True)
+
+
+def test_copy_destination_skips_a_folder_that_is_not_a_wiki(tmp_path: Path) -> None:
+    example = _make_wiki(tmp_path / "examples", "tales")
+    (tmp_path / "home" / "tales").mkdir(parents=True)
+    (tmp_path / "home" / "tales-2").mkdir()
+    assert copy_destination(example, tmp_path / "home") == (tmp_path / "home" / "tales-3", False)

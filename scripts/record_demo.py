@@ -86,10 +86,10 @@ VIDEOS = {
     "short": Video("short", "fairy-tales", "en", (
         ("LLM Wiki", "Your documents, compiled once into a wiki you can read and question. "
                      "Every answer cites the pages it comes from."),
-        ("Local-first. Cited.", "github.com/Clod/llmwiki-marimo"))),
+        ("Local-first. Cited.", "github.com/Clod/harnessed-llmwiki"))),
     "long": Video("long", "finanzas-argentinas", "es", (
         ("LLM Wiki", "Recorrido completo: ingesta, lectura, datos, chat, mantenimiento e historial."),
-        ("Local-first. Con citas.", "github.com/Clod/llmwiki-marimo"))),
+        ("Local-first. Con citas.", "github.com/Clod/harnessed-llmwiki"))),
 }
 
 

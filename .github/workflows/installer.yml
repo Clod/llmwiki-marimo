@@ -1,0 +1,116 @@
+name: Installer
+
+# Runs the installer as a user would: from the repository as GitHub's "Download ZIP"
+# gives it (`git archive`), with a wikis folder whose name has a space. Then it checks
+# the wikis, `.env` and the shortcut, starts the web interface through the shortcut,
+# and runs the installer a second time.
+
+on:
+  push:
+    paths:
+      - install.cmd
+      - install.ps1
+      - install.sh
+      - scripts/install_steps.py
+      - scripts/open_web.py
+      - .gitattributes
+      - .github/workflows/installer.yml
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Installer on Windows (Windows PowerShell 5.1)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack the repository as the zip download gives it
+        shell: powershell
+        run: |
+          git archive --format=zip -o "$env:RUNNER_TEMP\llmwiki.zip" HEAD
+          Expand-Archive "$env:RUNNER_TEMP\llmwiki.zip" "$env:RUNNER_TEMP\llmwiki"
+
+      - name: Run the installer, as install.cmd runs it
+        shell: powershell
+        run: |
+          $App = "$env:RUNNER_TEMP\llmwiki"
+          powershell -NoProfile -ExecutionPolicy Bypass -File "$App\install.ps1" -Yes -Wikis "$env:RUNNER_TEMP\My Wikis"
+          $Code = $LASTEXITCODE
+          Get-Content "$App\install.log"
+          if ($Code -ne 0) { exit 1 }
+
+      - name: Check the wikis, .env and the shortcut
+        shell: powershell
+        run: |
+          $App = "$env:RUNNER_TEMP\llmwiki"
+          foreach ($w in "cuentos-de-hadas", "fairy-tales", "finanzas-argentinas") {
+            if (-not (Test-Path "$env:RUNNER_TEMP\My Wikis\$w\wiki")) { throw "missing wiki $w" }
+          }
+          Get-Content "$App\.env"
+          if (-not (Select-String -Path "$App\.env" -Pattern "WIKI_HOME=" -Quiet)) { throw "no WIKI_HOME in .env" }
+          Get-Content "$App\open_web.cmd"
+          if (-not (Select-String -Path "$App\install.log" -Pattern "Settings tab" -Quiet)) { throw "no Settings message" }
+
+      - name: Start the web interface through the shortcut
+        shell: powershell
+        run: |
+          $App = "$env:RUNNER_TEMP\llmwiki"
+          $Server = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "`"$App\open_web.cmd`"" -PassThru -WindowStyle Hidden
+          $Html = $null
+          for ($i = 0; $i -lt 90; $i++) {
+            try { $Html = (Invoke-WebRequest -UseBasicParsing http://localhost:8765/).Content; break } catch { Start-Sleep 2 }
+          }
+          taskkill /T /F /PID $Server.Id | Out-Null
+          if (-not $Html) { throw "the web interface did not answer" }
+          foreach ($w in "cuentos-de-hadas", "fairy-tales", "finanzas-argentinas") {
+            if ($Html -notmatch "/w/$w/") { throw "the picker does not list $w" }
+          }
+          "The picker lists the three wikis."
+
+      - name: Run the installer a second time
+        shell: powershell
+        run: |
+          $App = "$env:RUNNER_TEMP\llmwiki"
+          powershell -NoProfile -ExecutionPolicy Bypass -File "$App\install.ps1" -Yes -Wikis "$env:RUNNER_TEMP\My Wikis"
+          if ($LASTEXITCODE -ne 0) { Get-Content "$App\install.log"; exit 1 }
+          if (-not (Select-String -Path "$App\install.log" -Pattern "Kept the wiki" -Quiet)) { throw "the wikis were not kept" }
+
+  unix:
+    name: Installer on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack the repository as the zip download gives it
+        run: |
+          git archive --format=tar -o "$RUNNER_TEMP/llmwiki.tar" HEAD
+          mkdir "$RUNNER_TEMP/llmwiki" && tar -xf "$RUNNER_TEMP/llmwiki.tar" -C "$RUNNER_TEMP/llmwiki"
+
+      - name: Run the installer
+        run: bash "$RUNNER_TEMP/llmwiki/install.sh" --yes --wikis "$RUNNER_TEMP/My Wikis"
+
+      - name: Check the wikis, .env and the shortcut
+        run: |
+          APP="$RUNNER_TEMP/llmwiki"
+          for w in cuentos-de-hadas fairy-tales finanzas-argentinas; do test -d "$RUNNER_TEMP/My Wikis/$w/wiki"; done
+          grep WIKI_HOME= "$APP/.env"
+          test -x "$APP/open_web.sh"
+          grep -q "Settings tab" "$APP/install.log"
+
+      - name: Start the web interface through the shortcut
+        run: |
+          APP="$RUNNER_TEMP/llmwiki"
+          BROWSER=true bash "$APP/open_web.sh" > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8765/ -o "$RUNNER_TEMP/picker.html" && break; sleep 2; done
+          pkill -f open_web.py || true
+          for w in cuentos-de-hadas fairy-tales finanzas-argentinas; do grep -q "/w/$w/" "$RUNNER_TEMP/picker.html"; done
+          echo "The picker lists the three wikis."
+
+      - name: Run the installer a second time
+        run: |
+          bash "$RUNNER_TEMP/llmwiki/install.sh" --yes --wikis "$RUNNER_TEMP/My Wikis"
+          grep -q "Kept the wiki" "$RUNNER_TEMP/llmwiki/install.log"

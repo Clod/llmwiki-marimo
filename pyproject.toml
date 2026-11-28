@@ -25,9 +25,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Clod/llmwiki-marimo"
-Repository = "https://github.com/Clod/llmwiki-marimo"
-Issues = "https://github.com/Clod/llmwiki-marimo/issues"
+Homepage = "https://github.com/Clod/harnessed-llmwiki"
+Repository = "https://github.com/Clod/harnessed-llmwiki"
+Issues = "https://github.com/Clod/harnessed-llmwiki/issues"
 
 [dependency-groups]
 dev = [
