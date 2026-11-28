@@ -10,10 +10,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from domain.i18n import SUPPORTED_LANGUAGES
-from domain.wiki_registry import clean_path_input, is_wiki_dir, load_recent, prune_recent, push_recent, remove_recent
+from domain.wiki_registry import (
+    clean_path_input, copy_destination, example_wikis, is_wiki_dir, load_recent, prune_recent, push_recent,
+    remove_recent,
+)
 from domain.wiki_settings import load_wiki_language
 from services.ingest import peek_stats, remove_missing_sources, unprocessed_sources
-from services.wiki import list_pages, open_wiki
+from services.wiki import copy_example, list_pages, open_wiki
 from web.deps import get_state, get_templates
 from web.i18n import _
 from web.state import AppState
@@ -45,7 +48,42 @@ def picker(request: Request, state: AppState = Depends(get_state),
     rows = [{**wiki_row(wid, path, recent[0] if recent else None), "removable": path in removable}
             for wid, path in state.wiki_options().items()]
     return templates.TemplateResponse(request, "picker.html", {
-        "wikis": rows, "home": state.settings.wiki_home})
+        "wikis": rows, "home": state.settings.wiki_home, "examples": example_rows(state)})
+
+
+def example_rows(state: AppState) -> list[dict]:
+    """One row per example wiki: its name, language and counts (read from the example,
+    as `wiki_row` reads a wiki), and whether its copy is already in the wiki folder."""
+    rows = []
+    for example in example_wikis(state.settings.examples_dir):
+        row = wiki_row(example.name, str(example), None)
+        row["copied"] = copy_destination(example, state.settings.wiki_home)[1]
+        rows.append(row)
+    return rows
+
+
+@router.post("/examples/open")
+def open_example(name: str = Form(...), state: AppState = Depends(get_state)):
+    """Copy an example wiki to the wiki folder, or find the copy made before, and open it.
+
+    `name` must be the name of an example (`example_wikis`): no path from the form is
+    used. An unknown name returns to the picker. The example itself is never written.
+    """
+    examples = {e.name: e for e in example_wikis(state.settings.examples_dir)}
+    if name not in examples:
+        return RedirectResponse("/", status_code=303)
+    return _open_folder(copy_example(examples[name], state.settings.wiki_home), state)
+
+
+def _open_folder(folder: Path, state: AppState) -> RedirectResponse:
+    """Add a wiki folder to the recent list and go to its Home screen (the picker when
+    the folder is not among the listed wikis)."""
+    recent_file = state.settings.recent_file
+    push_recent(str(folder), load_recent(recent_file), recent_file=recent_file)
+    for wiki_id, wiki_path in state.wiki_options().items():
+        if Path(wiki_path).expanduser().resolve() == folder.resolve():
+            return RedirectResponse(f"/w/{quote(wiki_id)}/?opened=1", status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 def check_folder(raw: str) -> tuple[Path | None, str]:
@@ -170,12 +208,7 @@ def open_path(path: str = Form(...), create: bool = Form(False), language: str =
         return RedirectResponse("/", status_code=303)
     if not is_wiki_dir(folder):
         open_wiki(folder, language=language if language in SUPPORTED_LANGUAGES else None)
-    recent_file = state.settings.recent_file
-    push_recent(str(folder), load_recent(recent_file), recent_file=recent_file)
-    for wiki_id, wiki_path in state.wiki_options().items():
-        if Path(wiki_path).expanduser().resolve() == folder:
-            return RedirectResponse(f"/w/{quote(wiki_id)}/?opened=1", status_code=303)
-    return RedirectResponse("/", status_code=303)
+    return _open_folder(folder, state)
 
 
 @router.post("/w/{wiki_id}/unprocessed/dismiss", response_class=HTMLResponse)

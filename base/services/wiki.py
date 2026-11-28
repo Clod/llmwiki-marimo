@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import posixpath
 import re
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,7 +17,7 @@ from pathlib import Path
 from domain.datasets.frontmatter import parse_frontmatter, render_frontmatter, split_frontmatter
 from domain.messages import M_
 from domain.tools.db import get_connection, open_db, seed_workspace_row
-from domain.wiki_registry import is_wiki_dir
+from domain.wiki_registry import copy_destination, is_wiki_dir
 from domain.wiki_settings import load_wiki_language, write_language
 
 # A markdown link that is not an image embed — the same pattern as
@@ -39,6 +40,21 @@ class Wiki:
     @property
     def sources_dir(self) -> Path:
         return self.path / "sources"
+
+
+def copy_example(example: Path, home: Path) -> Path:
+    """The folder of the copy of the example wiki `example` in `home`, made if needed.
+
+    The copy keeps the index, the pages and the sources of the example, so the wiki
+    opens with no ingestion; a `.git` folder is not copied. The example itself is
+    never written. A wiki already at the destination is returned as it is
+    (`copy_destination`).
+    """
+    dest, exists = copy_destination(example, home)
+    if not exists:
+        home.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(example, dest, ignore=shutil.ignore_patterns(".git"))
+    return dest
 
 
 def open_wiki(path: str | Path, language: str | None = None) -> Wiki:

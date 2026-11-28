@@ -1,6 +1,6 @@
 """The settings of one web application.
 
-`WebSettings.from_env` reads the `.env` of `base/config.py` plus `WIKI_PATH` and `WIKI_HOME` (`domain/wiki_registry.py`).
+`WebSettings.from_env` reads the `.env` of `base/config.py`, and `WIKI_PATH` and `WIKI_HOME` from the environment or, failing that, from the same `.env` (`wiki_locations`).
 A test builds a `WebSettings` directly.
 """
 
@@ -10,6 +10,9 @@ import os
 import re
 from dataclasses import dataclass, replace
 from pathlib import Path
+
+# The example wikis shipped with the application.
+EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,9 @@ class WebSettings:
     # The `.env` the Settings screen writes the models to. None: the screen shows the
     # models without a form (a test that does not edit them, or no file to write).
     env_file: Path | None = None
+    # The example wikis the picker offers to copy (`examples/` of the repository). None:
+    # the picker shows no example (a test that does not need them).
+    examples_dir: Path | None = None
 
     def with_models(self, values: dict[str, str]) -> WebSettings:
         """These settings with the models of `values` (the `MODEL_KEYS` of `.env`), as in
@@ -57,10 +63,10 @@ class WebSettings:
         from config import ENV_FILE, settings
         from domain.wiki_registry import RECENT_FILE, resolve_wiki_home
 
-        wiki_path = os.environ.get("WIKI_PATH", "").strip() or None
+        wiki_path, wiki_home = wiki_locations(os.environ, read_env(Path(ENV_FILE)))
         return cls(
             wiki_path=wiki_path,
-            wiki_home=resolve_wiki_home(wiki_path),
+            wiki_home=resolve_wiki_home(wiki_path, wiki_home),
             recent_file=RECENT_FILE,
             llm_base_url=settings.LLM_BASE_URL,
             llm_api_key=settings.LLM_API_KEY,
@@ -72,6 +78,7 @@ class WebSettings:
             vision_api_key=settings.vision()[1],
             vision_model=settings.vision()[2],
             env_file=Path(ENV_FILE),
+            examples_dir=EXAMPLES_DIR,
         )
 
 
@@ -82,6 +89,32 @@ MODEL_KEYS = ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL",
               "WIKI_LLM_BASE_URL", "WIKI_LLM_API_KEY", "WIKI_LLM_MODEL",
               "VISION_BASE_URL", "VISION_API_KEY", "VISION_MODEL", "OCR_ENGINE")
 _PLAIN = re.compile(r"[A-Za-z0-9_./:@+=,~-]*")
+
+
+def read_env(env_file: Path) -> dict[str, str]:
+    """The keys of `env_file`, empty when the file is missing."""
+    from dotenv import dotenv_values
+
+    values = dotenv_values(env_file) if env_file.is_file() else {}
+    return {key: value or "" for key, value in values.items()}
+
+
+def wiki_locations(environ, env_values: dict[str, str]) -> tuple[str | None, str]:
+    """`WIKI_PATH` and `WIKI_HOME`: the environment first, then `.env` (`env_values`).
+
+    `pydantic-settings` reads `.env` only for the fields of `config.Settings`, and these
+    two keys are read with `os.environ`: without this function a value written in `.env`
+    had no effect. A `WIKI_PATH` taken from `.env` is used only when its folder exists,
+    so the placeholder of an unedited copy of `.env.example` (`/path/to/your/wiki`)
+    is not opened as a wiki. Returns `(wiki_path or None, wiki_home or "")`.
+    """
+    wiki_path = environ.get("WIKI_PATH", "").strip() or None
+    if wiki_path is None:
+        candidate = env_values.get("WIKI_PATH", "").strip()
+        if candidate and Path(candidate).expanduser().is_dir():
+            wiki_path = candidate
+    wiki_home = environ.get("WIKI_HOME", "").strip() or env_values.get("WIKI_HOME", "").strip()
+    return wiki_path, wiki_home
 
 
 def read_models(env_file: Path) -> dict[str, str]:

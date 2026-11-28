@@ -2883,6 +2883,31 @@ msgid "Remove from the list"
 msgstr "Quitar de la lista"
 
 #: web/templates/picker.html
+msgid "Example wikis"
+msgstr "Wikis de ejemplo"
+
+#: web/templates/picker.html
+#, python-format
+msgid ""
+"Ready-made wikis to try the application. Opening one makes a copy in <span class=\"mono\">%(home)s</span>; the "
+"original stays in the application folder."
+msgstr ""
+"Wikis ya armadas para probar la aplicación. Abrir una hace una copia en <span class=\"mono\">%(home)s</span>; el "
+"original queda en la carpeta de la aplicación."
+
+#: web/templates/picker.html
+msgid "Open the copy of this example that is already in the wiki folder"
+msgstr "Abrir la copia de este ejemplo que ya está en la carpeta de las wikis"
+
+#: web/templates/picker.html
+msgid "Copy this example to the wiki folder and open the copy"
+msgstr "Copiar este ejemplo a la carpeta de las wikis y abrir la copia"
+
+#: web/templates/picker.html
+msgid "Open a copy"
+msgstr "Abrir una copia"
+
+#: web/templates/picker.html
 msgid "Choose or create a folder that is not in the list, and open it as a wiki"
 msgstr "Elegir o crear una carpeta que no está en la lista, y abrirla como wiki"
 

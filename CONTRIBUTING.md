@@ -7,8 +7,8 @@ loop (ingest → maintain → read → chat → lint → repair) are especially 
 ## Getting set up
 
 ```bash
-git clone https://github.com/Clod/llmwiki-marimo.git
-cd llmwiki-marimo
+git clone https://github.com/Clod/harnessed-llmwiki.git
+cd harnessed-llmwiki
 uv sync --group dev --group web
 cp .env.example .env   # then fill in WIKI_PATH and your LLM_* values
 ```

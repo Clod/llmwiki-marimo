@@ -115,9 +115,33 @@ def short_label(path: str, parts_shown: int = 2) -> str:
     return path
 
 
-def resolve_wiki_home(env_wiki_path: str | None = None) -> Path:
-    """Folder to scan for wikis: $WIKI_HOME, else parent of WIKI_PATH, else ~."""
-    home_env = os.environ.get("WIKI_HOME", "").strip()
+def example_wikis(examples_dir: Path | None) -> list[Path]:
+    """The example wikis shipped with the application: the sub-folders of `examples_dir`
+    that are wikis, sorted by name. None or a missing folder gives none."""
+    if examples_dir is None or not examples_dir.is_dir():
+        return []
+    return [child for child in sorted(examples_dir.iterdir()) if child.is_dir() and is_wiki_dir(child)]
+
+
+def copy_destination(example: Path, home: Path) -> tuple[Path, bool]:
+    """Where the copy of `example` goes in `home`, and whether a wiki is already there.
+
+    The folder is `home/<example name>`. When that folder exists and is not a wiki,
+    the copy goes to `<name>-2`, then `<name>-3`, and so on. A wiki already in place is
+    reused: opening an example twice does not copy it twice.
+    """
+    dest, n = home / example.name, 2
+    while dest.exists() and not is_wiki_dir(dest):
+        dest, n = home / f"{example.name}-{n}", n + 1
+    return dest, dest.exists()
+
+
+def resolve_wiki_home(env_wiki_path: str | None = None, env_wiki_home: str | None = None) -> Path:
+    """Folder to scan for wikis: WIKI_HOME, else parent of WIKI_PATH, else ~.
+
+    `env_wiki_home` and `env_wiki_path`, when given, replace the variables of the
+    environment (`web/settings.py` passes the values it read from `.env` too)."""
+    home_env = (env_wiki_home if env_wiki_home is not None else os.environ.get("WIKI_HOME", "")).strip()
     if home_env:
         return Path(home_env).expanduser().resolve()
     wp = env_wiki_path if env_wiki_path is not None else os.environ.get("WIKI_PATH", "")
